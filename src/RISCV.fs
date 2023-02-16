@@ -339,6 +339,7 @@ type RV =
     | FMSUB_S of rd: FPReg * rs1: FPReg * rs2: FPReg * rs3: FPReg
     | FNMADD_S of rd: FPReg * rs1: FPReg * rs2: FPReg * rs3: FPReg
     | FNMSUB_S of rd: FPReg * rs1: FPReg * rs2: FPReg * rs3: FPReg
+    | FSQRT_S of rd: FPReg * rs: FPReg
     // Single-precision floating-point extension: conversion instructions
     | FCVT_W_S of rd: Reg * rs: FPReg
     | FCVT_WU_S of rd: Reg * rs: FPReg
@@ -443,10 +444,11 @@ type RV =
         | FDIV_S(rd, rs1, rs2) -> $"fdif.s %O{rd}, %O{rs1}, %O{rs2}"
         | FMIN_S(rd, rs1, rs2) -> $"fmin.s %O{rd}, %O{rs1}, %O{rs2}"
         | FMAX_S(rd, rs1, rs2) -> $"fmax.s %O{rd}, %O{rs1}, %O{rs2}"
-        | FMADD_S(rd, rs1, rs2, rs3) -> $"fmadd.s %O{rd}, %O{rs1}, %O{rs2}"
-        | FMSUB_S(rd, rs1, rs2, rs3) -> $"fmsub.s %O{rd}, %O{rs1}, %O{rs2}"
-        | FNMADD_S(rd, rs1, rs2, rs3) -> $"fnmadd.s %O{rd}, %O{rs1}, %O{rs2}"
-        | FNMSUB_S(rd, rs1, rs2, rs3) -> $"fnmsub.s %O{rd}, %O{rs1}, %O{rs2}"
+        | FMADD_S(rd, rs1, rs2, rs3) -> $"fmadd.s %O{rd}, %O{rs1}, %O{rs2}, %O{rs3}"
+        | FMSUB_S(rd, rs1, rs2, rs3) -> $"fmsub.s %O{rd}, %O{rs1}, %O{rs2}, %O{rs3}"
+        | FNMADD_S(rd, rs1, rs2, rs3) -> $"fnmadd.s %O{rd}, %O{rs1}, %O{rs2}, %O{rs3}"
+        | FNMSUB_S(rd, rs1, rs2, rs3) -> $"fnmsub.s %O{rd}, %O{rs1}, %O{rs2}, %O{rs3}"
+        | FSQRT_S(rd, rs) -> $"fsqrt.s %O{rd}, %O{rs}"
         | FCVT_W_S(rd, rs) -> $"fcvt.w.s %O{rd}, %O{rs}"
         | FCVT_WU_S(rd, rs) -> $"fcvt.wu.s %O{rd}, %O{rs}"
         | FCVT_S_W(rd, rs) -> $"fcvt.s.w %O{rd}, %O{rs}"
@@ -461,7 +463,7 @@ type RV =
         | FLE_S(rd, rs1, rs2) -> $"fle.s %O{rd}, %O{rs1}, %O{rs2}"
         | FCLASS_S(rd, rs) -> $"fclass %O{rd}, %O{rs}"
         | LABEL l -> $"%O{l}:"
-        | COMMENT(text) -> $"# %s{text}" // FIXME: escape 'text'
+        | COMMENT(text) -> $"# %s{text}"
 
 
 /// Representation of a data allocation in the generated assembly code.
