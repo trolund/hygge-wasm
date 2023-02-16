@@ -45,8 +45,14 @@ let launch (asm: string) (warnOnAssertFailure: bool): int =
             p.StartInfo.FileName <- "java";
             // For the meaning of RARS command line arguments, see:
             // https://github.com/TheThirdOne/rars/wiki/Using-the-command-line
-            p.StartInfo.Arguments <-
-              $"-jar \"%s{rars}\" ae%d{asmErrCode} se%d{simErrCode} me nc sm ic \"%s{asmFile}\""
+            let rarsArgs = ["-jar"; $"%s{rars}";
+                            $"ae%d{asmErrCode}";
+                            $"se%d{simErrCode}";
+                            "me"; "nc"; "sm"; "ic";
+                            $"%s{asmFile}"]
+            for arg in rarsArgs do
+                p.StartInfo.ArgumentList.Add(arg)
+
             p.StartInfo.RedirectStandardOutput <- false
             p.StartInfo.RedirectStandardError <- true
             p.StartInfo.RedirectStandardInput <- false
