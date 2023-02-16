@@ -46,7 +46,7 @@ let launch (asm: string) (warnOnAssertFailure: bool): int =
             // For the meaning of RARS command line arguments, see:
             // https://github.com/TheThirdOne/rars/wiki/Using-the-command-line
             p.StartInfo.Arguments <-
-              $"-jar %s{rars} ae%d{asmErrCode} se%d{simErrCode} me nc sm ic %s{asmFile}"
+              $"-jar %s{rars} ae%d{asmErrCode} se%d{simErrCode} me nc sm ic \"%s{asmFile}\""
             p.StartInfo.RedirectStandardOutput <- false
             p.StartInfo.RedirectStandardError <- true
             p.StartInfo.RedirectStandardInput <- false
