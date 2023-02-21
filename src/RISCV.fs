@@ -441,7 +441,7 @@ type RV =
         | FADD_S(rd, rs1, rs2) -> $"fadd.s %O{rd}, %O{rs1}, %O{rs2}"
         | FSUB_S(rd, rs1, rs2) -> $"fsub.s %O{rd}, %O{rs1}, %O{rs2}"
         | FMUL_S(rd, rs1, rs2) -> $"fmul.s %O{rd}, %O{rs1}, %O{rs2}"
-        | FDIV_S(rd, rs1, rs2) -> $"fdif.s %O{rd}, %O{rs1}, %O{rs2}"
+        | FDIV_S(rd, rs1, rs2) -> $"fdiv.s %O{rd}, %O{rs1}, %O{rs2}"
         | FMIN_S(rd, rs1, rs2) -> $"fmin.s %O{rd}, %O{rs1}, %O{rs2}"
         | FMAX_S(rd, rs1, rs2) -> $"fmax.s %O{rd}, %O{rs1}, %O{rs2}"
         | FMADD_S(rd, rs1, rs2, rs3) -> $"fmadd.s %O{rd}, %O{rs1}, %O{rs2}, %O{rs3}"
