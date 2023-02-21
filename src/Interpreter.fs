@@ -31,8 +31,6 @@ type internal RuntimeEnv<'E,'T> = {
     /// 'PrintLn' AST nodes.
     Printer: Option<string -> unit>
 } with override this.ToString(): string =
-        let folder str v n = str + $"    %s{v} = %s{PrettyPrinter.prettyPrint n}"
-        let folder str addr n = str + $"    0x%x{addr}: %s{PrettyPrinter.prettyPrint n}"
         $"  - Reader: %O{this.Reader}"
           + $"%s{Util.nl}  - Printer: %O{this.Printer}"
 
