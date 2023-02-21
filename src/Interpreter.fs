@@ -30,7 +30,6 @@ type internal RuntimeEnv<'E,'T> = {
     /// Function called to produce an output when evaluating 'Print' and
     /// 'PrintLn' AST nodes.
     Printer: Option<string -> unit>
-    /// Mutable local variables: mapping from their name to their current value.
 } with override this.ToString(): string =
         let folder str v n = str + $"    %s{v} = %s{PrettyPrinter.prettyPrint n}"
         let folder str addr n = str + $"    0x%x{addr}: %s{PrettyPrinter.prettyPrint n}"
