@@ -140,7 +140,7 @@ and Expr<'E,'T> =
 
     /// Let-binder, used to introduce a variable with the given 'name' and type
     /// ('tpe') in a 'scope'.  The variable is initialised with the result of
-    /// the expression in 'init', and can be mutable.
+    /// the expression in 'init'.
     | Let of name: string
            * tpe: PretypeNode
            * init: Node<'E,'T>
