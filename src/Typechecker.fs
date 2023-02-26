@@ -254,37 +254,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             Error(terrs @ [(node.Pos, $"ascription with unknown type %O{ascr}")])
 
     | Let(name, tpe, init, scope) ->
-        match (resolvePretype env tpe) with
-        | Ok(letVariableType) ->
-            /// Variables and types to type-check the 'let...' scope: we add the
-            /// newly-declared variable and its type to the typing environment
-            let envVars2 = env.Vars.Add(name, letVariableType)
-            /// Environment to type-check the 'let...' scope
-            let env2 = {env with Vars = envVars2}
-            /// Restult of typing the 'let...' scope
-            let tscope = typer env2 scope
-            /// Environment for type-checking the 'let...' initialisation
-            let initEnv = env // Equal to 'env'... for now ;-)
-            match (typer initEnv init) with
-            | Ok(tinit) ->
-                /// Errors (if any) due to 'let...' initialisation type mismatch
-                let terrs =
-                    if not (isSubtypeOf env tinit.Type letVariableType)
-                        then [(node.Pos, $"variable '%s{name}' of type %O{letVariableType} "
-                                         + $"initialized with expression of type %O{tinit.Type}")]
-                        else []
-                match tscope with
-                | Ok(tscope) ->
-                    if (List.isEmpty terrs)
-                        then Ok { Pos = node.Pos; Env = env; Type = tscope.Type;
-                                  Expr = Let(name, tpe, tinit, tscope) }
-                        else Error(terrs)
-                | Error(es) -> Error(terrs @ es)
-            | Error(esd) ->
-                match tscope with
-                | Ok(_) -> Error(esd)
-                | Error(esb) -> Error(esd @ esb)
-        | Error(es) -> Error(es)
+        letTyper node.Pos env name tpe init scope
 
     | Assertion(arg) -> 
         match (typer env arg) with
@@ -426,6 +396,45 @@ and internal printArgTyper descr pos (env: TypingEnv) (arg: UntypedAST): Result<
     | Ok(targ)->
         Error([(pos, $"%s{descr}: expected argument of a type among "
                         + $"%s{Util.formatAsSet printables}, found %O{targ}")])
+    | Error(es) -> Error(es)
+
+/// Perform the typing of a 'let...' binding.  The arguments are: the 'pos'ition
+/// of the "let..." expression, the typing 'env'ironment, the 'name' of the
+/// declared variable, its pretype ('tpe'), the 'init'ialisation AST node, and
+/// the 'scope' of the 'let...' binder.
+and internal letTyper pos (env: TypingEnv)
+                      (name: string) (tpe: PretypeNode)
+                      (init: UntypedAST) (scope: UntypedAST): TypingResult =
+    match (resolvePretype env tpe) with
+    | Ok(letVariableType) ->
+        /// Variables and types for type-checking the 'let...' scope: we add the
+        /// newly-declared variable and its type to the typing environment
+        let envVars2 = env.Vars.Add(name, letVariableType)
+        /// Environment for type-checking the 'let...' scope
+        let env2 = {env with Vars = envVars2}
+        /// Result of type-checking the 'let...' scope
+        let tscope = typer env2 scope
+        /// Environment for type-checking the 'let...' initialisation
+        let initEnv = env // Equal to 'env'... for now ;-)
+        match (typer initEnv init) with
+        | Ok(tinit) ->
+            /// Errors (if any) due to 'let...' initialisation type mismatch
+            let terrs =
+                if not (isSubtypeOf env tinit.Type letVariableType)
+                    then [(pos, $"variable '%s{name}' of type %O{letVariableType} "
+                                + $"initialized with expression of type %O{tinit.Type}")]
+                    else []
+            match tscope with
+            | Ok(tscope) ->
+                if (List.isEmpty terrs)
+                    then Ok { Pos = pos; Env = env; Type = tscope.Type;
+                              Expr = Let(name, tpe, tinit, tscope) }
+                    else Error(terrs)
+            | Error(es) -> Error(terrs @ es)
+        | Error(esd) ->
+            match tscope with
+            | Ok(_) -> Error(esd)
+            | Error(esb) -> Error(esd @ esb)
     | Error(es) -> Error(es)
 
 
