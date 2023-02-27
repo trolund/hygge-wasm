@@ -24,7 +24,6 @@ type internal Tree =
         /// visual indentation from the left.
         member this.Format (indent: string): string =
             match this with
-            // | Node(descr, []) -> descr // No indentation
             | Node(descr, subtrees) ->
                 let rec formatChildren (children: List<string * Tree>) (indent: string): string =
                     match children with
