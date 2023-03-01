@@ -438,6 +438,22 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             failwith ($"BUG: assignment to invalid target:%s{Util.nl}"
                       + $"%s{PrettyPrinter.prettyPrint lhs}")
 
+    | While(cond, body) ->
+        /// Label to mark the beginning of the 'while' loop
+        let whileBeginLabel = Util.genSymbol "while_loop_begin"
+        /// Label to mark the end of the 'while' loop
+        let whileEndLabel = Util.genSymbol "while_loop_end"
+        // Check the 'while' condition, jump to 'whileEndLabel' if it is false
+        Asm(RV.LABEL(whileBeginLabel))
+            ++ (doCodegen env cond)
+                .AddText(RV.BEQZ(Reg.r(env.Target), whileEndLabel),
+                         "Jump if 'while' loop condition is false")
+            ++ (doCodegen env body)
+            .AddText([
+                (RV.J(whileBeginLabel), "Next iteration of the 'while' loop")
+                (RV.LABEL(whileEndLabel), "")
+            ])
+
     | Type(_, _, scope) ->
         // A type alias does not produce any code --- but its scope does
         doCodegen env scope

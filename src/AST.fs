@@ -159,6 +159,10 @@ and Expr<'E,'T> =
     | Assign of target: Node<'E,'T>
               * expr: Node<'E,'T>
 
+    /// 'While' loop: as long as 'cond' is true, repeat the 'body'.
+    | While of cond: Node<'E,'T>
+             * body: Node<'E,'T>
+
     /// Assertion: fail at runtime if the argument does not evaluate to true.
     | Assertion of arg: Node<'E,'T>
 

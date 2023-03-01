@@ -134,6 +134,9 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
     | Assign(target, expr) ->
         mkTree $"Assign" node [("target", formatASTRec target)
                                ("expr", formatASTRec expr)]
+    | While(cond, body) ->
+        mkTree $"While" node [("cond", formatASTRec cond)
+                              ("body", formatASTRec body)]
     | Assertion(arg) ->
         mkTree "Assertion" node [("arg", formatASTRec arg)]
     | Type(name, def, scope) ->
