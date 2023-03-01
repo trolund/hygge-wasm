@@ -30,9 +30,12 @@ type internal RuntimeEnv<'E,'T> = {
     /// Function called to produce an output when evaluating 'Print' and
     /// 'PrintLn' AST nodes.
     Printer: Option<string -> unit>
+    /// Mutable local variables: mapping from their name to their current value.
+    Mutables: Map<string, Node<'E,'T>>
 } with override this.ToString(): string =
         $"  - Reader: %O{this.Reader}"
           + $"%s{Util.nl}  - Printer: %O{this.Printer}"
+          + $"%s{Util.nl}  - Mutables: %s{Util.formatMap this.Mutables}"
 
 
 /// Attempt to reduce the given AST node by one step, using the given runtime
@@ -47,6 +50,8 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
     | FloatVal(_)
     | StringVal(_) -> None
 
+    | Var(name) when env.Mutables.ContainsKey(name) ->
+        Some(env, env.Mutables[name])
     | Var(_) -> None
 
     | Mult(lhs, rhs) ->
@@ -243,6 +248,49 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             Some(env, {node with Expr = (ASTUtil.subst scope name init).Expr})
         | None -> None
 
+    | LetMut(_, _, _, scope) when (isValue scope) ->
+        Some(env, {node with Expr = scope.Expr})
+    | LetMut(name, tpe, init, scope) ->
+        match (reduce env init) with
+        | Some(env', def') ->
+            Some(env', {node with Expr = Let(name, tpe, def', scope)})
+        | None when (isValue init) ->
+            /// Runtime environment for reducing the 'let mutable...' scope
+            let env' = {env with Mutables = env.Mutables.Add(name, init)}
+            match (reduce env' scope) with
+            | Some(env'', scope') ->
+                /// Updated init value for the mutable variable
+                let init' = env''.Mutables[name] // Crash if 'name' not found
+                /// Updated runtime environment.  If the declared mutable
+                /// variable 'name' was defined in the outer scope, we restore
+                /// its old value (consequently, any update to the redefined
+                /// variable 'name' is only visible in its scope).  Otherwise,
+                /// we remove it from the updated runtime environment (so it
+                /// is only visible in its scope)
+                let env''' =
+                    match (env.Mutables.TryFind(name)) with
+                    | Some(v) -> {env'' with
+                                    Mutables = env''.Mutables.Add(name, v)}
+                    | None -> {env'' with
+                                Mutables = env''.Mutables.Remove(name)}
+                Some(env''', {node with Expr = LetMut(name, tpe, init', scope')})
+            | None -> None
+        | None -> None
+
+    | Assign(target, expr) when not (isValue expr) ->
+        match (reduce env expr) with
+        | Some(env', expr') ->
+            Some(env', {node with Expr = Assign(target, expr')})
+        | None -> None
+    | Assign({Expr = Var(vname)} as target, expr) when (isValue expr)  ->
+        match (env.Mutables.TryFind vname) with
+        | Some(_) ->
+            let env' = {env with Mutables = env.Mutables.Add(vname, expr)}
+            Some(env', {node with Expr = expr.Expr})
+        | None -> None
+    | Assign(_, _) ->
+        None
+
     | Type(_, _, scope) ->
         // The interpreter does not use type information at all.
         Some(env, {node with Expr = scope.Expr})
@@ -288,7 +336,8 @@ and internal reduceList (env: RuntimeEnv<'E,'T>)
 let rec reduceFully (node: Node<'E,'T>)
                     (reader: Option<unit -> string>)
                     (printer: Option<string -> unit>): Node<'E,'T> =
-    let env = {Reader = reader; Printer = printer}
+    let env = {Reader = reader; Printer = printer
+               Mutables = Map[]}
     reduceFullyWithEnv env node
 and internal reduceFullyWithEnv (env: RuntimeEnv<'E,'T>) (node: Node<'E,'T>): Node<'E,'T> =
     match (reduce env node) with
@@ -302,7 +351,8 @@ and internal reduceFullyWithEnv (env: RuntimeEnv<'E,'T>) (node: Node<'E,'T>): No
 let rec reduceSteps (node: Node<'E,'T>)
                     (reader: Option<unit -> string>) (printer: Option<string -> unit>)
                     (steps: int): Node<'E,'T> * int =
-    let env = {Reader = reader; Printer = printer}
+    let env = {Reader = reader; Printer = printer
+               Mutables = Map[]}
     reduceStepsWithEnv env node steps
 and internal reduceStepsWithEnv (env: RuntimeEnv<'E,'T>) (node: Node<'E,'T>)
                                 (steps: int): Node<'E,'T> * int =
@@ -315,7 +365,8 @@ and internal reduceStepsWithEnv (env: RuntimeEnv<'E,'T>) (node: Node<'E,'T>)
 let isStuck (node: Node<'E,'T>): bool =
     if (isValue node) then false
     else
-        let env = {Reader = Some(fun _ -> ""); Printer = Some(fun _ -> ())}
+        let env = {Reader = Some(fun _ -> ""); Printer = Some(fun _ -> ())
+                   Mutables = Map[]}
         match (reduce env node) with
          | Some(_,_) -> false
          | None -> true
@@ -340,6 +391,7 @@ let interpret (node: AST.Node<'E,'T>) (verbose: bool): AST.Node<'E,'T> =
             | Some(env', node') -> reduceVerbosely env' node'
             | None -> (env, ast)
 
-        let env = {Reader = Some(reader); Printer = Some(printer)}
+        let env = {Reader = Some(reader); Printer = Some(printer)
+                   Mutables = Map[]}
         let (env', node') = reduceVerbosely env node
         node'

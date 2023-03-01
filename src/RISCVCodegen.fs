@@ -415,6 +415,29 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     .AddText(RV.MV(Reg.r(env.Target), Reg.r(scopeTarget)),
                              "Move 'let' scope result to 'let' target register")
 
+    | LetMut(name, tpe, init, scope) ->
+        // The code generation is not different from 'let...', so we recycle it
+        doCodegen env {node with Expr = Let(name, tpe, init, scope)}
+
+    | Assign(lhs, rhs) ->
+        match lhs.Expr with
+        | Var(name) ->
+            /// Code for the 'rhs', leaving its result in the target register
+            let rhsCode = doCodegen env rhs
+            match (env.VarStorage.TryFind name) with
+            | Some(Storage.Reg(reg)) ->
+                rhsCode.AddText(RV.MV(reg, Reg.r(env.Target)),
+                                $"Assignment to variable %s{name}")
+            | Some(Storage.FPReg(reg)) ->
+                rhsCode.AddText(RV.FMV_S(reg, FPReg.r(env.FPTarget)),
+                                $"Assignment to variable %s{name}")
+            | Some(Storage.Label(_)) as st ->
+                failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
+            | None -> failwith $"BUG: variable without storage: %s{name}"
+        | _ ->
+            failwith ($"BUG: assignment to invalid target:%s{Util.nl}"
+                      + $"%s{PrettyPrinter.prettyPrint lhs}")
+
     | Type(_, _, scope) ->
         // A type alias does not produce any code --- but its scope does
         doCodegen env scope

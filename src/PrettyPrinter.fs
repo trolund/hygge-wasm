@@ -60,11 +60,15 @@ let rec internal formatType (t: Type.Type): Tree =
 let rec internal formatTypingEnv (env: Typechecker.TypingEnv): List<string * Tree> =
     let formatMap (m: Map<string, Type.Type>): List<string * Tree> =
         List.map (fun (name, tpe) -> (name, formatType tpe)) (Map.toList m)
+    let formatSet (s: Set<string>): string =
+        if s.IsEmpty then "∅" else Util.formatAsSet s
     let vars = formatMap env.Vars
     let typeVars = formatMap env.TypeVars
     let varsNode = Node((if vars.IsEmpty then "∅" else "Map"), vars)
     let typeVarsNode = Node((if typeVars.IsEmpty then "∅" else "Map"), typeVars)
-    [("Env.Vars", varsNode); ("Env.TypeVars", typeVarsNode)]
+    let mutablesNode = Node((formatSet env.Mutables), [])
+    [("Env.Vars", varsNode); ("Env.TypeVars", typeVarsNode)
+     ("Env.Mutables", mutablesNode)]
 
 
 /// Traverse an Hygge program AST from the given 'node' and return a
@@ -123,6 +127,13 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
         mkTree $"Let %s{name}" node [("Ascription", formatPretypeNode tpe)
                                      ("init", formatASTRec init)
                                      ("scope", formatASTRec scope)]
+    | LetMut(name, tpe, init, scope) ->
+        mkTree $"Let mutable %s{name}" node [("Ascription", formatPretypeNode tpe)
+                                             ("init", formatASTRec init)
+                                             ("scope", formatASTRec scope)]
+    | Assign(target, expr) ->
+        mkTree $"Assign" node [("target", formatASTRec target)
+                               ("expr", formatASTRec expr)]
     | Assertion(arg) ->
         mkTree "Assertion" node [("arg", formatASTRec arg)]
     | Type(name, def, scope) ->

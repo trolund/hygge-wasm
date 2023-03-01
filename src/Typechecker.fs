@@ -21,11 +21,15 @@ type TypingEnv = {
     Vars: Map<string, Type>
     /// Mapping from type aliases in the current scope to their definition.
     TypeVars: Map<string, Type>
+    /// Mutable variables in the current scope.
+    Mutables: Set<string>
 } with
     /// Return a compact and readable representation of the typing environment.
     override this.ToString(): string =
                  "{" + $"vars: %s{Util.formatMap this.Vars}; "
-                     + $"types: %s{Util.formatMap this.TypeVars}" + "}"
+                     + $"types: %s{Util.formatMap this.TypeVars}"
+                     + $"mutable vars: %s{Util.formatAsSet this.Mutables}"
+                     + "}"
 
 
 /// A type alias for a typed AST, where there is a typing environment and typing
@@ -254,7 +258,30 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             Error(terrs @ [(node.Pos, $"ascription with unknown type %O{ascr}")])
 
     | Let(name, tpe, init, scope) ->
-        letTyper node.Pos env name tpe init scope
+        letTyper node.Pos false env name tpe init scope
+
+    | LetMut(name, tpe, init, scope) ->
+        letTyper node.Pos true env name tpe init scope
+
+    | Assign(target, expr) ->
+        match ((typer env target), (typer env expr)) with
+        | (Ok(ttarget), Ok(texpr)) when (isSubtypeOf env texpr.Type ttarget.Type) ->
+            match ttarget.Expr with
+            | Var(name) ->
+                if (env.Mutables.Contains name) then
+                    Ok { Pos = node.Pos; Env = env; Type = ttarget.Type;
+                         Expr = Assign(ttarget, texpr) }
+                else
+                    Error([(node.Pos,
+                            $"assignment to non-mutable variable %s{name}")])
+            | _ -> Error([(node.Pos, "invalid assignment target")])
+        | (Ok(ttarget), Ok(texpr)) ->
+            Error([(texpr.Pos,
+                    $"expected an expression of type %O{ttarget.Type}, "
+                    + $" found %O{texpr.Type}")])
+        | (Error(es), Ok(_)) -> Error(es)
+        | (Ok(_), Error(es)) -> Error(es)
+        | (Error(es1), Error(es2)) -> Error(es1 @ es2)
 
     | Assertion(arg) -> 
         match (typer env arg) with
@@ -398,20 +425,28 @@ and internal printArgTyper descr pos (env: TypingEnv) (arg: UntypedAST): Result<
                         + $"%s{Util.formatAsSet printables}, found %O{targ}")])
     | Error(es) -> Error(es)
 
-/// Perform the typing of a 'let...' binding.  The arguments are: the 'pos'ition
-/// of the "let..." expression, the typing 'env'ironment, the 'name' of the
-/// declared variable, its pretype ('tpe'), the 'init'ialisation AST node, and
-/// the 'scope' of the 'let...' binder.
-and internal letTyper pos (env: TypingEnv)
+/// Perform the typing of a 'let...' binding declaring either a mutable or
+/// immutable variable.  The arguments are: the 'pos'ition of the "let..."
+/// expression, the typing 'env'ironment, the 'name' of the declared variable,
+/// its pretype ('tpe'), the 'init'ialisation AST node, and the 'scope' of the
+/// 'let...' binder.
+and internal letTyper pos (isMutable: bool) (env: TypingEnv)
                       (name: string) (tpe: PretypeNode)
                       (init: UntypedAST) (scope: UntypedAST): TypingResult =
     match (resolvePretype env tpe) with
     | Ok(letVariableType) ->
-        /// Variables and types for type-checking the 'let...' scope: we add the
+        /// Variables and types to type-check the 'let...' scope: we add the
         /// newly-declared variable and its type to the typing environment
         let envVars2 = env.Vars.Add(name, letVariableType)
+        /// Mutable variables in the 'let...' scope: if we are declaring an
+        /// immutable variable, we remove it from the known mutables variables
+        /// (if present); otherwise, if we are declaring a mutable variable, we
+        /// add it to the known mutable variables.
+        let envMutVars2 = if isMutable then env.Mutables.Add(name)
+                                       else env.Mutables.Remove(name)
         /// Environment for type-checking the 'let...' scope
-        let env2 = {env with Vars = envVars2}
+        let env2 = {env with Vars = envVars2
+                             Mutables = envMutVars2}
         /// Result of type-checking the 'let...' scope
         let tscope = typer env2 scope
         /// Environment for type-checking the 'let...' initialisation
@@ -426,10 +461,13 @@ and internal letTyper pos (env: TypingEnv)
                     else []
             match tscope with
             | Ok(tscope) ->
-                if (List.isEmpty terrs)
-                    then Ok { Pos = pos; Env = env; Type = tscope.Type;
+                if (List.isEmpty terrs) then
+                    if isMutable then
+                        Ok { Pos = pos; Env = env; Type = tscope.Type;
+                             Expr = LetMut(name, tpe, tinit, tscope) }
+                    else Ok { Pos = pos; Env = env; Type = tscope.Type;
                               Expr = Let(name, tpe, tinit, tscope) }
-                    else Error(terrs)
+                else Error(terrs)
             | Error(es) -> Error(terrs @ es)
         | Error(esd) ->
             match tscope with
@@ -441,4 +479,4 @@ and internal letTyper pos (env: TypingEnv)
 /// Perform type checking of the given untyped AST.  Return a well-typed AST in
 /// case of success, or a sequence of error messages in case of failure.
 let typecheck (node: UntypedAST): TypingResult =
-    typer {Vars = Map[]; TypeVars = Map[]} node
+    typer {Vars = Map[]; TypeVars = Map[]; Mutables = Set[]} node

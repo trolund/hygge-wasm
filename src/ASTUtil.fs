@@ -64,6 +64,14 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
         {node with Expr = Let(vname, tpe, (subst init var sub),
                               (subst scope var sub))}
 
+    | LetMut(vname, _, _, _) when vname = var -> node // No substitution
+    | LetMut(vname, tpe, init, scope) ->
+        {node with Expr = LetMut(vname, tpe, (subst init var sub),
+                                 (subst scope var sub))}
+
+    | Assign(target, expr) ->
+        {node with Expr = Assign((subst target var sub), (subst expr var sub))}
+
     | Assertion(arg) ->
         {node with Expr = Assertion(subst arg var sub)}
 
