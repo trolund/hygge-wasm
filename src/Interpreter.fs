@@ -253,7 +253,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
     | LetMut(name, tpe, init, scope) ->
         match (reduce env init) with
         | Some(env', def') ->
-            Some(env', {node with Expr = Let(name, tpe, def', scope)})
+            Some(env', {node with Expr = LetMut(name, tpe, def', scope)})
         | None when (isValue init) ->
             /// Runtime environment for reducing the 'let mutable...' scope
             let env' = {env with Mutables = env.Mutables.Add(name, init)}
