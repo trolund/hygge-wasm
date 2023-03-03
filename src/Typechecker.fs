@@ -150,11 +150,25 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         | Ok(tpe, tlhs, trhs) ->
             Ok { Pos = node.Pos; Env = env; Type = tpe; Expr = Add(tlhs, trhs) }
         | Error(es) -> Error(es)
+    
+    | Sub(lhs, rhs) ->
+        match (binaryNumericalOpTyper "subtraction" node.Pos env lhs rhs) with
+        | Ok(tpe, tlhs, trhs) ->
+            Ok { Pos = node.Pos; Env = env; Type = tpe; Expr = Sub(tlhs, trhs) }
+        | Error(es) -> Error(es)
 
     | Mult(lhs, rhs) ->
         match (binaryNumericalOpTyper "multiplication" node.Pos env lhs rhs) with
         | Ok(tpe, tlhs, trhs) ->
             Ok { Pos = node.Pos; Env = env; Type = tpe; Expr = Mult(tlhs, trhs) }
+        | Error(es) -> Error(es)
+    | Rem(lhs, rhs) ->   
+        match (binaryNumericalOpTyper "remainder division" node.Pos env lhs rhs) with
+        | Ok(tpe, tlhs, trhs) ->
+            match tpe with
+                | TInt -> Ok { Pos = node.Pos; Env = env; Type = tpe; Expr = Rem(tlhs, trhs) }
+                | t -> Error([node.Pos, $"remainder division can only be done between integers"
+                           + $"found type %O{t}"])
         | Error(es) -> Error(es)
 
     | And(lhs, rhs) ->

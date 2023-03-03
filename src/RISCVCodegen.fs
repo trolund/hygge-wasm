@@ -97,8 +97,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             | Some(Storage.FPReg(_)) as st ->
                 failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
             | None -> failwith $"BUG: variable without storage: %s{name}"
-
+    
+    
     | Add(lhs, rhs)
+    | Sub(lhs, rhs)
+    | Rem(lhs, rhs)
     | Mult(lhs, rhs) as expr ->
         // Code generation for addition and multiplication is very
         // similar: we compile the lhs and rhs giving them different target
@@ -120,8 +123,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     | Add(_,_) ->
                         Asm(RV.ADD(Reg.r(env.Target),
                                    Reg.r(env.Target), Reg.r(rtarget)))
+                    | Sub(_,_) ->                      
+                     Asm(RV.SUB(Reg.r(env.Target),
+                                Reg.r(env.Target), Reg.r(rtarget)))
                     | Mult(_,_) ->
                         Asm(RV.MUL(Reg.r(env.Target),
+                                   Reg.r(env.Target), Reg.r(rtarget)))
+                    | Rem(_,_) ->
+                        Asm(RV.REM(Reg.r(env.Target),
                                    Reg.r(env.Target), Reg.r(rtarget)))
                     | x -> failwith $"BUG: unexpected operation %O{x}"
             // Put everything together
@@ -137,6 +146,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 | Add(_,_) ->
                     Asm(RV.FADD_S(FPReg.r(env.FPTarget),
                                   FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
+                | Sub(_,_) ->                         
+                Asm(RV.FSUB_S(FPReg.r(env.FPTarget),
+                              FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
                 | Mult(_,_) ->
                     Asm(RV.FMUL_S(FPReg.r(env.FPTarget),
                                   FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
