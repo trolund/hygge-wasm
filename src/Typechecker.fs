@@ -162,6 +162,13 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         | Ok(tpe, tlhs, trhs) ->
             Ok { Pos = node.Pos; Env = env; Type = tpe; Expr = Mult(tlhs, trhs) }
         | Error(es) -> Error(es)
+    
+    | Div(lhs, rhs) ->
+        match (binaryNumericalOpTyper "division" node.Pos env lhs rhs) with
+        | Ok(tpe, tlhs, trhs) ->
+            Ok { Pos = node.Pos; Env = env; Type = tpe; Expr = Div(tlhs, trhs) }
+        | Error(es) -> Error(es)
+
     | Rem(lhs, rhs) ->   
         match (binaryNumericalOpTyper "remainder division" node.Pos env lhs rhs) with
         | Ok(tpe, tlhs, trhs) ->
