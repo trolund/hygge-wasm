@@ -87,6 +87,9 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
     | Mult(lhs, rhs) ->
         mkTree "Mult" node [("lhs", formatASTRec lhs)
                             ("rhs", formatASTRec rhs)]
+    | Div(lhs, rhs) ->
+        mkTree "Div" node [("lhs", formatASTRec lhs)
+                           ("rhs", formatASTRec rhs)]
     | Rem(lhs, rhs) ->
         mkTree "Rem" node [("lhs", formatASTRec lhs)
                            ("rhs", formatASTRec rhs)]

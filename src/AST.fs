@@ -90,18 +90,18 @@ and Expr<'E,'T> =
     | Add of lhs: Node<'E,'T>
            * rhs: Node<'E,'T>
 
+    /// Subtraction between lhs and rhs.
+    | Sub of lhs: Node<'E,'T>
+           * rhs: Node<'E,'T>
+
     /// Multiplication between lhs and rhs.
     | Mult of lhs: Node<'E,'T>
             * rhs: Node<'E,'T>
 
-    /// Subtraction between lhs and rhs.
-    | Sub of lhs: Node<'E,'T>
-           * rhs: Node<'E,'T>
-            
     /// Division between lhs and rhs.        
-    //| Div of lhs: Node<'E,'T>
-    //       * rhs: Node<'E,'T>
-    
+    | Div of lhs: Node<'E,'T>
+           * rhs: Node<'E,'T>
+
     /// Remainder division between lhs and rhs.        
     | Rem of lhs: Node<'E,'T>
            * rhs: Node<'E,'T>
