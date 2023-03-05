@@ -223,6 +223,15 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                     Some(env', n)
             | _ -> failwith $"BUG: unexpected 'Print' reduction ${n}"
         | None -> None
+    
+    | Sqrt(arg) ->
+        match arg.Expr with
+        | FloatVal(v) -> Some(env, {node with Expr = FloatVal(sqrt v)})
+        | _ ->
+            match (reduce env arg) with
+            | Some(env', arg') ->
+                Some(env', {node with Expr = Sqrt(arg')})
+            | None -> None
 
     | If(cond, ifTrue, ifFalse) ->
         match cond.Expr with

@@ -76,6 +76,7 @@ rule tokenize = parse
 | "let"        { Parser.LET }
 | "readInt"    { Parser.READ_INT }
 | "readFloat"  { Parser.READ_FLOAT }
+| "sqrt"       { Parser.SQRT }
 | "print"      { Parser.PRINT }
 | "println"    { Parser.PRINTLN }
 | "assert"     { Parser.ASSERT }

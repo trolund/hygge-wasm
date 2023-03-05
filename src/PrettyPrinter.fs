@@ -116,6 +116,8 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
                             ("rhs", formatASTRec rhs)]
     | ReadInt -> mkTree "ReadInt" node []
     | ReadFloat -> mkTree "ReadFloat" node []
+    | Sqrt(arg) ->
+        mkTree "Sqrt" node [("arg", formatASTRec arg)]
     | Print(arg) ->
         mkTree "Print" node [("arg", formatASTRec arg)]
     | PrintLn(arg) ->

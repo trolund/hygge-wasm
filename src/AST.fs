@@ -138,6 +138,9 @@ and Expr<'E,'T> =
     /// newline.
     | PrintLn of arg: Node<'E,'T>
 
+    /// Square root 
+    | Sqrt of arg: Node<'E,'T>
+
     /// Conditional expression (if ... then ... else ...).
     | If of condition: Node<'E,'T>
           * ifTrue: Node<'E,'T>

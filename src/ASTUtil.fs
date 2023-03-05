@@ -53,6 +53,9 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
         {node with Expr = Print(subst arg var sub)}
     | PrintLn(arg) ->
         {node with Expr = PrintLn(subst arg var sub)}
+    
+    | Sqrt(arg) ->
+        {node with Expr = Sqrt(subst arg var sub)}
 
     | If(cond, ifTrue, ifFalse) ->
         {node with Expr = If((subst cond var sub), (subst ifTrue var sub),

@@ -284,6 +284,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 (RV.FMV_S(FPReg.r(env.FPTarget), FPReg.fa0), "Move syscall result to target")
             ])
             ++ (afterSysCall [] [FPReg.fa0])
+    
+    | Sqrt(arg) -> 
+        let argCode = doCodegen env arg
+        let rfptarget = env.FPTarget + 1u
+        match arg.Type with
+        | t when (isSubtypeOf arg.Env t TFloat) -> argCode.AddText(RV.FSQRT_S(FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
+        | t -> failwith $"BUG: Sqrt codegen invoked on unsupported type %O{t}"
 
     | Print(arg) ->
         /// Compiled code for the 'print' argument, leaving its result on the
