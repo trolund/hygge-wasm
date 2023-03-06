@@ -47,6 +47,7 @@ rule tokenize = parse
 
 // Separators
 | ";"          { Parser.SEMI }
+| ","          { Parser.COMMA }
 
 // Operators
 | "*"          { Parser.TIMES }
@@ -77,6 +78,8 @@ rule tokenize = parse
 | "readInt"    { Parser.READ_INT }
 | "readFloat"  { Parser.READ_FLOAT }
 | "sqrt"       { Parser.SQRT }
+| "max"        { Parser.MAX }
+| "min"        { Parser.MIN }
 | "print"      { Parser.PRINT }
 | "println"    { Parser.PRINTLN }
 | "assert"     { Parser.ASSERT }

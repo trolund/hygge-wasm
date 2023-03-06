@@ -84,6 +84,15 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
     | FloatVal(value) -> mkTree $"FloatVal %f{value}" node []
     | StringVal(value) -> mkTree $"StringVal \"%s{value}\"" node []
     | Var(name) -> mkTree $"Var %s{name}" node []
+    
+    | Min(lhs, rhs) ->
+         mkTree "Min" node [("lhs", formatASTRec lhs)
+                            ("rhs", formatASTRec rhs)]
+    
+    | Max(lhs, rhs) ->
+         mkTree "Min" node [("lhs", formatASTRec lhs)
+                            ("rhs", formatASTRec rhs)]
+
     | Mult(lhs, rhs) ->
         mkTree "Mult" node [("lhs", formatASTRec lhs)
                             ("rhs", formatASTRec rhs)]

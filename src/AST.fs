@@ -141,6 +141,13 @@ and Expr<'E,'T> =
     /// Square root 
     | Sqrt of arg: Node<'E,'T>
 
+    /// Min or Max between lhs and rhs.
+    | Min of lhs: Node<'E,'T>
+           * rhs: Node<'E,'T>
+
+    | Max of lhs: Node<'E,'T>
+           * rhs: Node<'E,'T>
+
     /// Conditional expression (if ... then ... else ...).
     | If of condition: Node<'E,'T>
           * ifTrue: Node<'E,'T>

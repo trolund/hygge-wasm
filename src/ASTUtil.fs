@@ -33,6 +33,12 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
         {node with Expr = Div((subst lhs var sub), (subst rhs var sub))}
     | Rem(lhs, rhs) ->
         {node with Expr = Rem((subst lhs var sub), (subst rhs var sub))}
+    
+    | Max(lhs, rhs) ->
+        {node with Expr = Max((subst lhs var sub), (subst rhs var sub))}
+    
+    | Min(lhs, rhs) ->
+        {node with Expr = Min((subst lhs var sub), (subst rhs var sub))}
 
     | And(lhs, rhs) ->
         {node with Expr = And((subst lhs var sub), (subst rhs var sub))}

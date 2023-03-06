@@ -66,7 +66,7 @@ let mkNode (parseState: IParseState, inputIdx: int, e: UntypedExpr): UntypedAST 
 %token LET TYPE
 
 // Misc tokens
-%token SEMI EOF COLON
+%token SEMI EOF COLON COMMA
 
 // Built-in statements
 %token READ_INT
@@ -74,6 +74,8 @@ let mkNode (parseState: IParseState, inputIdx: int, e: UntypedExpr): UntypedAST 
 %token PRINT
 %token PRINTLN
 %token SQRT
+%token MAX
+%token MIN
 %token ASSERT
 %token MATCH
 %token WITH
@@ -178,6 +180,8 @@ unaryExpr:
   | PRINT LPAR simpleExpr RPAR    { mkNode(parseState, 1, Expr.Print($3)) }
   | PRINTLN LPAR simpleExpr RPAR  { mkNode(parseState, 1, Expr.PrintLn($3)) }
   | ASSERT LPAR simpleExpr RPAR   { mkNode(parseState, 1, Expr.Assertion($3)) }
+  | MIN LPAR simpleExpr COMMA simpleExpr RPAR   { mkNode(parseState, 2, Expr.Min($3, $5)) }
+  | MAX LPAR simpleExpr COMMA simpleExpr RPAR   { mkNode(parseState, 2, Expr.Max($3, $5)) }
   | ascriptionExpr                { $1 }
 
 // Ascription, i.e. primary expression with (optional) type annotation

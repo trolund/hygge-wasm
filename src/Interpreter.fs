@@ -49,6 +49,30 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
 
     | Var(_) -> None
 
+    | Max(lhs, rhs) -> // todo 
+        match (lhs.Expr, rhs.Expr) with
+        | (IntVal(v1), IntVal(v2)) ->
+            Some(env, {node with Expr = IntVal(max v1 v2)})
+        | (FloatVal(v1), FloatVal(v2)) ->
+            Some(env, {node with Expr = FloatVal(max v1 v2)})
+        | (_, _) ->
+            match (reduceLhsRhs env lhs rhs) with
+            | Some(env', lhs', rhs') ->
+                Some(env', {node with Expr = Max(lhs', rhs')})
+            | None -> None
+
+    | Min(lhs, rhs) -> // todo
+        match (lhs.Expr, rhs.Expr) with
+        | (IntVal(v1), IntVal(v2)) ->
+            Some(env, {node with Expr = IntVal(min v1 v2)})
+        | (FloatVal(v1), FloatVal(v2)) ->
+            Some(env, {node with Expr = FloatVal(min v1 v2)})
+        | (_, _) ->
+            match (reduceLhsRhs env lhs rhs) with
+            | Some(env', lhs', rhs') ->
+                Some(env', {node with Expr = Min(lhs', rhs')})
+            | None -> None
+
     | Mult(lhs, rhs) ->
         match (lhs.Expr, rhs.Expr) with
         | (IntVal(v1), IntVal(v2)) ->
