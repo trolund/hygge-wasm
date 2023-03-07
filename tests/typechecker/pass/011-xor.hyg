@@ -1,0 +1,2 @@
+(true xor true) : bool;
+((2 < 3) xor false) : bool
