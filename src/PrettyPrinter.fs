@@ -90,7 +90,7 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
                             ("rhs", formatASTRec rhs)]
     
     | Max(lhs, rhs) ->
-         mkTree "Min" node [("lhs", formatASTRec lhs)
+         mkTree "Max" node [("lhs", formatASTRec lhs)
                             ("rhs", formatASTRec rhs)]
 
     | Mult(lhs, rhs) ->

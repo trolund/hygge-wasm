@@ -97,8 +97,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             | Some(Storage.FPReg(_)) as st ->
                 failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
             | None -> failwith $"BUG: variable without storage: %s{name}"
-    
-    
+
     | Add(lhs, rhs)
     | Sub(lhs, rhs)
     | Rem(lhs, rhs)
@@ -266,6 +265,68 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             (lAsm ++ rAsm ++ opAsm)
         | t ->
             failwith $"BUG: relational operation codegen invoked on invalid type %O{t}"
+
+    | Min(lhs, rhs)
+    | Max(lhs, rhs) as expr ->
+        /// Generated code for the lhs expression
+        let lAsm = doCodegen env lhs
+
+        match node.Type with
+        | t when (isSubtypeOf node.Env t TInt) ->
+
+            let labelName = match expr with
+                            | Max(_,_) -> "max"
+                            | Min(_,_) -> "min"
+                            | x -> failwith $"BUG: unexpected operation %O{x}"
+            /// Label to jump to when the comparison is true
+            let trueLabel = Util.genSymbol $"%O{labelName}_true"
+            /// Label to mark the end of the comparison code
+            let endLabel = Util.genSymbol $"%O{labelName}_end"
+
+            /// Target register for the rhs expression
+            let rtarget = env.Target + 1u
+            /// Generated code for the rhs expression
+            let rAsm = doCodegen {env with Target = rtarget} rhs
+            /// Generated code for the numerical operation
+            let opAsm =
+                match expr with
+                    | Min(_,_) -> 
+                       Asm([ (RV.BGT(Reg.r(env.Target),
+                                  Reg.r(rtarget), trueLabel), "")
+                             (RV.LI(Reg.a7, 10), "")
+                             (RV.ECALL, "")
+                             (RV.LABEL trueLabel, "")
+                             (RV.MV(Reg.r(env.Target), Reg.r(rtarget)), "") ])
+                    | Max(_,_) -> 
+                         Asm([ 
+                             (RV.BLT(Reg.r(env.Target), Reg.r(rtarget), endLabel), "")
+                             (RV.LI(Reg.a7, 10), "")
+                             (RV.ECALL, "")
+                             (RV.LABEL endLabel, "")
+                             (RV.MV(Reg.r(env.Target), Reg.r(rtarget)), "") ])
+                    | x -> failwith $"BUG: unexpected operation %O{x}"
+            // Put everything together
+            lAsm ++ rAsm ++ opAsm
+        
+        | t when (isSubtypeOf node.Env t TFloat) -> // float max min works
+            /// Target register for the rhs expression
+            let rfptarget = env.FPTarget + 1u
+            /// Generated code for the rhs expression
+            let rAsm = doCodegen {env with FPTarget = rfptarget} rhs
+            /// Generated code for the numerical operation
+            let opAsm =
+                match expr with
+                | Min(_,_) -> 
+                    Asm(RV.FMIN_S(FPReg.r(env.FPTarget), 
+                                  FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
+                | Max(_,_) -> 
+                    Asm(RV.FMAX_S(FPReg.r(env.FPTarget), 
+                                  FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
+                | x -> failwith $"BUG: unexpected operation %O{x}"
+            // Put everything together
+            lAsm ++ rAsm ++ opAsm
+        | t ->
+            failwith $"BUG: numerical operation codegen invoked on invalid type %O{t}"
 
     | ReadInt ->
         (beforeSysCall [Reg.a0] [])

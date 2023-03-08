@@ -1,0 +1,2 @@
+(max(0, 1)): int;
+(max(12.1f, 1.2f)): float

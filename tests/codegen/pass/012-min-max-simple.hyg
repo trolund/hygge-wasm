@@ -1,0 +1,2 @@
+assert(max(42.0f, 12.0f) = 42.0f);
+assert(min(42.0f, 12.0f) = 12.0f)

@@ -145,6 +145,18 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         | None ->
             Error([(node.Pos, $"undefined variable: %s{name}")])
 
+    | Max(lhs, rhs) ->
+        match (binaryNumericalOpTyper "maximum" node.Pos env lhs rhs) with
+        | Ok(tpe, tlhs, trhs) ->
+            Ok { Pos = node.Pos; Env = env; Type = tpe; Expr = Max(tlhs, trhs) }
+        | Error(es) -> Error(es)
+
+    | Min(lhs, rhs) ->
+        match (binaryNumericalOpTyper "minimum" node.Pos env lhs rhs) with
+        | Ok(tpe, tlhs, trhs) ->
+            Ok { Pos = node.Pos; Env = env; Type = tpe; Expr = Min(tlhs, trhs) }
+        | Error(es) -> Error(es)
+
     | Add(lhs, rhs) ->
         match (binaryNumericalOpTyper "addition" node.Pos env lhs rhs) with
         | Ok(tpe, tlhs, trhs) ->

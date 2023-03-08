@@ -134,3 +134,11 @@ let run (opts: CmdLine.TestOptions): int =
                      | f -> ["--filter"; $"tests.%s{f}"]
     let args = argsDebug @ argsFilter
     Expecto.Tests.runTestsWithCLIArgs [] (Array.ofList args) tests
+
+/// Run the tests according to command line options
+/// [<EntryPoint>]
+// let runTests (opts: CmdLine.TestOptions): int =
+//     let argsDebug =  ["--debug"]
+//     let argsFilter =  []
+//     let args = argsDebug @ argsFilter
+//     Expecto.Tests.runTestsWithCLIArgs [] (Array.ofList args) tests
