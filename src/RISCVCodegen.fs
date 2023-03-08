@@ -268,13 +268,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
 
     | Min(lhs, rhs)
     | Max(lhs, rhs) as expr ->
-        // Code generation for equality and less-than relations is very similar:
-        // we compile the lhs and rhs giving them different target registers,
-        // and then apply the relevant assembly operation(s) on their results.
-
         /// Generated code for the lhs expression
         let lAsm = doCodegen env lhs
         // The generated code depends on the lhs and rhs types
+        
         match lhs.Type with
         | t when (isSubtypeOf lhs.Env t TInt) ->
             /// Target register for the rhs expression
