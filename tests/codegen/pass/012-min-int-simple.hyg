@@ -1,0 +1,2 @@
+assert(min(12, 10) = 10);
+assert(min(12000, 1) = 1)

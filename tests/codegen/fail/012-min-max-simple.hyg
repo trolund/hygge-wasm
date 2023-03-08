@@ -1,2 +1,4 @@
-assert(max(101.1f, 12.1f) = 10.1f);
-assert(min(201.1f, 12.1f) = 10.2f)
+assert(min(201.1f, 12.1f) = 201.1f);
+assert(max(201.1f, 12.1f) = 12.1f);
+assert(max(201, 12) = 12);
+assert(min(201, 12) = 201)

@@ -268,46 +268,51 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
 
     | Min(lhs, rhs)
     | Max(lhs, rhs) as expr ->
+        // Code generation for equality and less-than relations is very similar:
+        // we compile the lhs and rhs giving them different target registers,
+        // and then apply the relevant assembly operation(s) on their results.
+
         /// Generated code for the lhs expression
         let lAsm = doCodegen env lhs
-
-        match node.Type with
-        | t when (isSubtypeOf node.Env t TInt) ->
-
+        // The generated code depends on the lhs and rhs types
+        match lhs.Type with
+        | t when (isSubtypeOf lhs.Env t TInt) ->
+            /// Target register for the rhs expression
+            let rtarget = env.Target + 1u
+            /// Generated code for the rhs expression
+            let rAsm = doCodegen {env with Target = rtarget} rhs
+            
+            /// Human-readable prefix for jump labels, describing the kind of
+            /// relational operation we are compiling
             let labelName = match expr with
                             | Max(_,_) -> "max"
                             | Min(_,_) -> "min"
                             | x -> failwith $"BUG: unexpected operation %O{x}"
+            
             /// Label to jump to when the comparison is true
             let trueLabel = Util.genSymbol $"%O{labelName}_true"
             /// Label to mark the end of the comparison code
             let endLabel = Util.genSymbol $"%O{labelName}_end"
 
-            /// Target register for the rhs expression
-            let rtarget = env.Target + 1u
-            /// Generated code for the rhs expression
-            let rAsm = doCodegen {env with Target = rtarget} rhs
-            /// Generated code for the numerical operation
+            /// Codegen for the relational operation between lhs and rhs
             let opAsm =
                 match expr with
-                    | Min(_,_) -> 
-                       Asm([ (RV.BGT(Reg.r(env.Target),
-                                  Reg.r(rtarget), trueLabel), "")
-                             (RV.LI(Reg.a7, 10), "")
-                             (RV.ECALL, "")
-                             (RV.LABEL trueLabel, "")
-                             (RV.MV(Reg.r(env.Target), Reg.r(rtarget)), "") ])
-                    | Max(_,_) -> 
-                         Asm([ 
-                             (RV.BLT(Reg.r(env.Target), Reg.r(rtarget), endLabel), "")
-                             (RV.LI(Reg.a7, 10), "")
-                             (RV.ECALL, "")
-                             (RV.LABEL endLabel, "")
-                             (RV.MV(Reg.r(env.Target), Reg.r(rtarget)), "") ])
-                    | x -> failwith $"BUG: unexpected operation %O{x}"
+                | Max(_,_) ->
+                    Asm(RV.BGE(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
+                | Min(_,_) ->
+                    Asm(RV.BLT(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
+                | x -> failwith $"BUG: unexpected operation %O{x}"
+
             // Put everything together
-            lAsm ++ rAsm ++ opAsm
-        
+            (lAsm ++ rAsm ++ opAsm)
+                .AddText([
+                    (RV.MV(Reg.r(env.Target), Reg.r(rtarget)), "right is gratest")
+                    (RV.J(endLabel), "end max/min func")
+                    (RV.LABEL(trueLabel), "")
+                    (RV.MV(Reg.r(env.Target), Reg.r(env.Target)), "left is gratest")
+                    (RV.LABEL(endLabel), "end of max/min func")
+                ])
+
         | t when (isSubtypeOf node.Env t TFloat) -> // float max min works
             /// Target register for the rhs expression
             let rfptarget = env.FPTarget + 1u
