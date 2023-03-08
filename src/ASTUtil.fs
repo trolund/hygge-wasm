@@ -82,3 +82,14 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
 
     | Type(tname, def, scope) ->
         {node with Expr = Type(tname, def, (subst scope var sub))}
+
+    | Lambda(args, body) ->
+        /// Arguments of this lambda term, without their pretypes
+        let (argVars, _) = List.unzip args
+        if (List.contains var argVars) then node // No substitution
+        else {node with Expr = Lambda(args, (subst body var sub))}
+
+    | Application(expr, args) ->
+        let substExpr = subst expr var sub
+        let substArgs = List.map (fun n -> (subst n var sub)) args
+        {node with Expr = Application(substExpr, substArgs)}
