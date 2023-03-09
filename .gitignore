@@ -23,3 +23,5 @@ TestResults
 .vs/hyggec/xs/project-cache/hyggec-Debug.json
 .vs/hyggec/xs/UserPrefs.xml
 riscv1.asm
+
+global.json
