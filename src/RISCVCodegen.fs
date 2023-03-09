@@ -165,7 +165,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             failwith $"BUG: numerical operation codegen invoked on invalid type %O{t}"
 
     | And(lhs, rhs)
-    | Or(lhs, rhs) as expr ->
+    | Or(lhs, rhs)
+    | Xor(lhs, rhs) as expr ->
         // Code generation for logical 'and' and 'or' is very similar: we
         // compile the lhs and rhs giving them different target registers, and
         // then apply the relevant assembly operation(s) on their results.
@@ -183,6 +184,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 Asm(RV.AND(Reg.r(env.Target), Reg.r(env.Target), Reg.r(rtarget)))
             | Or(_,_) ->
                 Asm(RV.OR(Reg.r(env.Target), Reg.r(env.Target), Reg.r(rtarget)))
+            | Xor(_,_) ->
+                Asm(RV.XOR(Reg.r(env.Target), Reg.r(env.Target), Reg.r(rtarget)))
             | x -> failwith $"BUG: unexpected operation %O{x}"
         // Put everything together
         lAsm ++ rAsm ++ opAsm
