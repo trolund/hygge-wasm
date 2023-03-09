@@ -25,8 +25,8 @@ let litInt     = digit+
 let litFloat   = digit+ '.' digit+ (('e'|'E') ('+'|'-')? digit+)? 'f'
 let litString  = '"' ("\\\"" | [^'"'])* '"'
 let ident      = (letter | '_') (letter | '_' | digit)*
-let whitespace = [' ' '\t']
-let newline    = "\n\r" | '\n' | '\r'
+let whitespace = [' ' '\t' '\r']
+let newline    = '\n'
 
 // We now define the rules for recognising the language tokens.
 // NOTE: rules are applied in order, top to bottom.  If two or more rules can be
