@@ -21,11 +21,15 @@ type TypingEnv = {
     Vars: Map<string, Type>
     /// Mapping from type aliases in the current scope to their definition.
     TypeVars: Map<string, Type>
+    /// Mutable variables in the current scope.
+    Mutables: Set<string>
 } with
     /// Return a compact and readable representation of the typing environment.
     override this.ToString(): string =
                  "{" + $"vars: %s{Util.formatMap this.Vars}; "
-                     + $"types: %s{Util.formatMap this.TypeVars}" + "}"
+                     + $"types: %s{Util.formatMap this.TypeVars}"
+                     + $"mutable vars: %s{Util.formatAsSet this.Mutables}"
+                     + "}"
 
 
 /// A type alias for a typed AST, where there is a typing environment and typing
@@ -77,6 +81,18 @@ let rec internal resolvePretype (env: TypingEnv) (pt: AST.PretypeNode): Result<T
         match (lookupTypeVar env name) with
         | Some(t) -> Ok(t)
         | None -> Error([(pt.Pos, $"reference to undefined type: %s{name}")])
+    | Pretype.TFun(argPretypes, retPretype) ->
+        /// Lambda argument types (possibly with errors)
+        let argTypes = List.map (fun a -> resolvePretype env a) argPretypes
+        /// Lambda return type, or error
+        let returnType = resolvePretype env retPretype
+        /// Errors occurred while resolving 'argPretypes' or 'retPretypes'
+        let errors = collectErrors (argTypes @ [returnType])
+        if not errors.IsEmpty then Error(errors)
+        else
+            let argTypes = List.map getOkValue argTypes
+            let returnType = getOkValue returnType
+            Ok(TFun(argTypes, returnType))
 
 
 /// Resolve a type variable using the given typing environment: optionally
@@ -302,37 +318,44 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             Error(terrs @ [(node.Pos, $"ascription with unknown type %O{ascr}")])
 
     | Let(name, tpe, init, scope) ->
-        match (resolvePretype env tpe) with
-        | Ok(letVariableType) ->
-            /// Variables and types to type-check the 'let...' scope: we add the
-            /// newly-declared variable and its type to the typing environment
-            let envVars2 = env.Vars.Add(name, letVariableType)
-            /// Environment to type-check the 'let...' scope
-            let env2 = {env with Vars = envVars2}
-            /// Restult of typing the 'let...' scope
-            let tscope = typer env2 scope
-            /// Environment for type-checking the 'let...' initialisation
-            let initEnv = env // Equal to 'env'... for now ;-)
-            match (typer initEnv init) with
-            | Ok(tinit) ->
-                /// Errors (if any) due to 'let...' initialisation type mismatch
-                let terrs =
-                    if not (isSubtypeOf env tinit.Type letVariableType)
-                        then [(node.Pos, $"variable '%s{name}' of type %O{letVariableType} "
-                                         + $"initialized with expression of type %O{tinit.Type}")]
-                        else []
-                match tscope with
-                | Ok(tscope) ->
-                    if (List.isEmpty terrs)
-                        then Ok { Pos = node.Pos; Env = env; Type = tscope.Type;
-                                  Expr = Let(name, tpe, tinit, tscope) }
-                        else Error(terrs)
-                | Error(es) -> Error(terrs @ es)
-            | Error(esd) ->
-                match tscope with
-                | Ok(_) -> Error(esd)
-                | Error(esb) -> Error(esd @ esb)
-        | Error(es) -> Error(es)
+        letTyper node.Pos false env name tpe init scope
+
+    | LetMut(name, tpe, init, scope) ->
+        letTyper node.Pos true env name tpe init scope
+
+    | Assign(target, expr) ->
+        match ((typer env target), (typer env expr)) with
+        | (Ok(ttarget), Ok(texpr)) when (isSubtypeOf env texpr.Type ttarget.Type) ->
+            match ttarget.Expr with
+            | Var(name) ->
+                if (env.Mutables.Contains name) then
+                    Ok { Pos = node.Pos; Env = env; Type = ttarget.Type;
+                         Expr = Assign(ttarget, texpr) }
+                else
+                    Error([(node.Pos,
+                            $"assignment to non-mutable variable %s{name}")])
+            | _ -> Error([(node.Pos, "invalid assignment target")])
+        | (Ok(ttarget), Ok(texpr)) ->
+            Error([(texpr.Pos,
+                    $"expected an expression of type %O{ttarget.Type}, "
+                    + $" found %O{texpr.Type}")])
+        | (Error(es), Ok(_)) -> Error(es)
+        | (Ok(_), Error(es)) -> Error(es)
+        | (Error(es1), Error(es2)) -> Error(es1 @ es2)
+
+    | While(cond, body) ->
+        // We type-check the condition and the body, and report any error
+        match ((typer env cond), (typer env body)) with
+        | (Ok(tcond), Ok(tbody)) when (isSubtypeOf env tcond.Type TBool) ->
+            Ok { Pos = node.Pos; Env = env; Type = TUnit; Expr = While(tcond, tbody)}
+        | (Ok(tcond), Ok(_)) ->
+            Error([(tcond.Pos, $"'while' condition: expected type %O{TBool}, "
+                               + $"found %O{tcond.Type}")])
+        | Ok(tcond), Error(es) ->
+            Error((tcond.Pos, $"'while' condition: expected type %O{TBool}, "
+                              + $"found %O{tcond.Type}") :: es)
+        | Error(es), Ok(_) -> Error(es)
+        | Error(esCond), Error(esBody) -> Error(esCond @ esBody)
 
     | Assertion(arg) -> 
         match (typer env arg) with
@@ -390,6 +413,69 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
                                    Expr = Type(name, def, tscope)}
                         | Error(es) -> Error(es)
                     | Error(es) -> Error(es)
+
+    | Lambda(args, body) ->
+        let (argNames, argPretypes) = List.unzip args
+        /// Duplicate names in 'lambda' arguments
+        let dups = Util.duplicates argNames
+        if not (dups.IsEmpty) then
+            Error([(node.Pos, $"duplicate argument names: %s{Util.formatSeq dups}")])
+        else
+            /// Tentatively-resolved types of all 'lambda' arguments
+            let tryResArgTypes = List.map (fun t -> resolvePretype env t) argPretypes
+            /// Errors (if any) which occurred during argument type resolution
+            let argTypeErrors = collectErrors tryResArgTypes
+            if not (argTypeErrors.IsEmpty) then Error(argTypeErrors)
+            else
+                /// List of resolved argument types
+                let resArgTypes = List.map getOkValue tryResArgTypes
+                /// Mapping from 'lambda' argument names to their resolved types
+                let funArgsTypes = Map(List.zip argNames resArgTypes)
+                /// Environment to type-check the function body, including the
+                /// argument names and types
+                let bodyEnv = {env with Vars = Util.addMaps env.Vars funArgsTypes}
+                match (typer bodyEnv body) with
+                | Ok(tbody) ->
+                    Ok { Pos = node.Pos; Env = env;
+                         Type = TFun(resArgTypes, tbody.Type);
+                         Expr = Lambda(args, tbody) }
+                | Error(es) -> Error(es)
+
+    | Application(expr, args) ->
+        match (typer env expr) with
+        | Ok(texpr) ->
+            match (expandType env texpr.Type) with
+            | TFun(funArgTypes, funRetType) ->
+                if funArgTypes.Length <> args.Length then
+                    Error([(node.Pos, $"applying function to %d{args.Length} arguments, "
+                                      + $"while it expects %d{funArgTypes.Length}")])
+                else
+                    /// Tentatively type-checked function call arguments
+                    let argTypings = List.map (fun n -> typer env n) args
+                    /// List of errors (if any) in argument typings
+                    let errs = collectErrors argTypings
+                    if not errs.IsEmpty then Error(errs)
+                    else
+                        /// List of well-typed function call arguments
+                        let targs = List.map getOkValue argTypings
+                        /// Does the given 'arg'ument have the given 't'ype?
+                        let isArgBadlyTyped (arg: TypedAST, t: Type) =
+                            not (isSubtypeOf arg.Env arg.Type t)
+                        /// Application arguments whose types doesn't match the
+                        /// corresponding type in 'funArgTypes'
+                        let badArgs = List.filter isArgBadlyTyped
+                                                   (List.zip targs funArgTypes)
+                        if not badArgs.IsEmpty then
+                            let errFormat (node: TypedAST, t: Type) =
+                                (node.Pos, $"expected argument of type %O{t}, found %O{node.Type}")
+                            let errors = List.map errFormat badArgs
+                            Error(errors)
+                        else
+                            Ok { Pos = node.Pos; Env = env; Type = funRetType;
+                                 Expr = Application(texpr, targs) }
+            | t ->
+                Error([(expr.Pos, $"cannot apply an expression of type %O{t} as a function")])
+        | Error(es) -> Error(es)
 
 /// Compute the typing of a binary numerical operation, by computing and
 /// combining the typings of the 'lhs' and 'rhs'.  The argument 'descr' (used in
@@ -476,8 +562,58 @@ and internal printArgTyper descr pos (env: TypingEnv) (arg: UntypedAST): Result<
                         + $"%s{Util.formatAsSet printables}, found %O{targ}")])
     | Error(es) -> Error(es)
 
+/// Perform the typing of a 'let...' binding declaring either a mutable or
+/// immutable variable.  The arguments are: the 'pos'ition of the "let..."
+/// expression, the typing 'env'ironment, the 'name' of the declared variable,
+/// its pretype ('tpe'), the 'init'ialisation AST node, and the 'scope' of the
+/// 'let...' binder.
+and internal letTyper pos (isMutable: bool) (env: TypingEnv)
+                      (name: string) (tpe: PretypeNode)
+                      (init: UntypedAST) (scope: UntypedAST): TypingResult =
+    match (resolvePretype env tpe) with
+    | Ok(letVariableType) ->
+        /// Variables and types to type-check the 'let...' scope: we add the
+        /// newly-declared variable and its type to the typing environment
+        let envVars2 = env.Vars.Add(name, letVariableType)
+        /// Mutable variables in the 'let...' scope: if we are declaring an
+        /// immutable variable, we remove it from the known mutables variables
+        /// (if present); otherwise, if we are declaring a mutable variable, we
+        /// add it to the known mutable variables.
+        let envMutVars2 = if isMutable then env.Mutables.Add(name)
+                                       else env.Mutables.Remove(name)
+        /// Environment for type-checking the 'let...' scope
+        let env2 = {env with Vars = envVars2
+                             Mutables = envMutVars2}
+        /// Result of type-checking the 'let...' scope
+        let tscope = typer env2 scope
+        /// Environment for type-checking the 'let...' initialisation
+        let initEnv = env // Equal to 'env'... for now ;-)
+        match (typer initEnv init) with
+        | Ok(tinit) ->
+            /// Errors (if any) due to 'let...' initialisation type mismatch
+            let terrs =
+                if not (isSubtypeOf env tinit.Type letVariableType)
+                    then [(pos, $"variable '%s{name}' of type %O{letVariableType} "
+                                + $"initialized with expression of type %O{tinit.Type}")]
+                    else []
+            match tscope with
+            | Ok(tscope) ->
+                if (List.isEmpty terrs) then
+                    if isMutable then
+                        Ok { Pos = pos; Env = env; Type = tscope.Type;
+                             Expr = LetMut(name, tpe, tinit, tscope) }
+                    else Ok { Pos = pos; Env = env; Type = tscope.Type;
+                              Expr = Let(name, tpe, tinit, tscope) }
+                else Error(terrs)
+            | Error(es) -> Error(terrs @ es)
+        | Error(esd) ->
+            match tscope with
+            | Ok(_) -> Error(esd)
+            | Error(esb) -> Error(esd @ esb)
+    | Error(es) -> Error(es)
+
 
 /// Perform type checking of the given untyped AST.  Return a well-typed AST in
 /// case of success, or a sequence of error messages in case of failure.
 let typecheck (node: UntypedAST): TypingResult =
-    typer {Vars = Map[]; TypeVars = Map[]} node
+    typer {Vars = Map[]; TypeVars = Map[]; Mutables = Set[]} node

@@ -467,6 +467,40 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 (RV.LABEL(passLabel), "")
             ])
 
+    // Special case for compiling a function with a given name in the input
+    // source file.  We recognise this case by checking whether the 'Let...'
+    // declares 'name' as a Lambda expression with a TFun type
+    | Let(name, _,
+          {Node.Expr = Lambda(args, body);
+           Node.Type = TFun(targs, _)}, scope) ->
+        /// Assembly label to mark the position of the compiled function body.
+        /// For readability, we make the label similar to the function name
+        let funLabel = Util.genSymbol $"fun_%s{name}"
+
+        /// Names of the lambda term arguments
+        let (argNames, _) = List.unzip args
+        /// List of pairs associating each function argument to its type
+        let argNamesTypes = List.zip argNames targs
+        /// Compiled function body
+        let bodyCode = compileFunction argNamesTypes body env
+        
+        /// Compiled function code where the function label is located just
+        /// before the 'bodyCode', and everything is placed at the end of the
+        /// Text segment (i.e. in the "PostText")
+        let funCode =
+            (Asm(RV.LABEL(funLabel), $"Code for function '%s{name}'")
+                ++ bodyCode).TextToPostText
+
+        /// Storage info where the name of the compiled function points to the
+        /// label 'funLabel'
+        let varStorage2 = env.VarStorage.Add(name, Storage.Label(funLabel))
+
+        // Finally, compile the 'let...'' scope with the newly-defined function
+        // label in the variables storage, and append the 'funCode' above. The
+        // 'scope' code leaves its result in the the 'let...' target register
+        (doCodegen {env with VarStorage = varStorage2} scope)
+            ++ funCode
+
     | Let(name, _, init, scope) ->
         /// 'let...' initialisation code, which leaves its result in the
         /// 'target' register (which we overwrite at the end of the 'scope'
@@ -506,9 +540,138 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     .AddText(RV.MV(Reg.r(env.Target), Reg.r(scopeTarget)),
                              "Move 'let' scope result to 'let' target register")
 
+    | LetMut(name, tpe, init, scope) ->
+        // The code generation is not different from 'let...', so we recycle it
+        doCodegen env {node with Expr = Let(name, tpe, init, scope)}
+
+    | Assign(lhs, rhs) ->
+        match lhs.Expr with
+        | Var(name) ->
+            /// Code for the 'rhs', leaving its result in the target register
+            let rhsCode = doCodegen env rhs
+            match (env.VarStorage.TryFind name) with
+            | Some(Storage.Reg(reg)) ->
+                rhsCode.AddText(RV.MV(reg, Reg.r(env.Target)),
+                                $"Assignment to variable %s{name}")
+            | Some(Storage.FPReg(reg)) ->
+                rhsCode.AddText(RV.FMV_S(reg, FPReg.r(env.FPTarget)),
+                                $"Assignment to variable %s{name}")
+            | Some(Storage.Label(_)) as st ->
+                failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
+            | None -> failwith $"BUG: variable without storage: %s{name}"
+        | _ ->
+            failwith ($"BUG: assignment to invalid target:%s{Util.nl}"
+                      + $"%s{PrettyPrinter.prettyPrint lhs}")
+
+    | While(cond, body) ->
+        /// Label to mark the beginning of the 'while' loop
+        let whileBeginLabel = Util.genSymbol "while_loop_begin"
+        /// Label to mark the end of the 'while' loop
+        let whileEndLabel = Util.genSymbol "while_loop_end"
+        // Check the 'while' condition, jump to 'whileEndLabel' if it is false
+        Asm(RV.LABEL(whileBeginLabel))
+            ++ (doCodegen env cond)
+                .AddText(RV.BEQZ(Reg.r(env.Target), whileEndLabel),
+                         "Jump if 'while' loop condition is false")
+            ++ (doCodegen env body)
+            .AddText([
+                (RV.J(whileBeginLabel), "Next iteration of the 'while' loop")
+                (RV.LABEL(whileEndLabel), "")
+            ])
+
     | Type(_, _, scope) ->
         // A type alias does not produce any code --- but its scope does
         doCodegen env scope
+
+    | Lambda(args, body) ->
+        /// Label to mark the position of the lambda term body
+        let funLabel = Util.genSymbol "lambda"
+
+        /// Names of the Lambda arguments
+        let (argNames, _) = List.unzip args
+
+        /// List of pairs associating each Lambda argument to its type.  We
+        /// retrieve the type of each argument by looking into the environment
+        /// used to type-check the Lambda 'body'
+        let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
+
+        /// Compiled function body
+        let bodyCode = compileFunction argNamesTypes body env
+        
+        /// Compiled function code where the function label is located just
+        /// before the 'bodyCode', and everything is placed at the end of the
+        /// text segment (i.e. in the "PostText")
+        let funCode =
+            (Asm(RV.LABEL(funLabel), "Lambda term (i.e. function instance) code")
+                ++ bodyCode).TextToPostText // Move to the end of text segment
+
+        // Finally, load the function address (label) in the target register
+        Asm(RV.LA(Reg.r(env.Target), funLabel), "Load lambda function address")
+            ++ funCode
+
+    | Application(expr, args) ->
+        /// Integer registers to be saved on the stack before executing the
+        /// function call, and restored when the function returns.  The list of
+        /// saved registers excludes the target register for this application.
+        /// Note: the definition of 'saveRegs' uses list comprehension:
+        /// https://en.wikibooks.org/wiki/F_Sharp_Programming/Lists#Using_List_Comprehensions
+        let saveRegs =
+            List.except [Reg.r(env.Target)]
+                        (Reg.ra :: [for i in 0u..7u do yield Reg.a(i)]
+                         @ [for i in 0u..6u do yield Reg.t(i)])
+
+        /// Assembly code for the expression being applied as a function
+        let appTermCode =
+            Asm().AddText(RV.COMMENT("Load expression to be applied as a function"))
+            ++ (doCodegen env expr)
+
+        /// Indexed list of argument expressions.  We will use the as an offset
+        /// (above the current target register) to determine the target register
+        /// for compiling each expression.
+        let indexedArgs = List.indexed args
+        /// Function that compiles an argument (using its index to determine its
+        /// target register) and accumulates the generated assembly code
+        let compileArg (acc: Asm) (i, arg) =
+            acc ++ (doCodegen {env with Target = env.Target + (uint i) + 1u} arg)
+        /// Assembly code of all application arguments, obtained by folding over
+        /// 'indexedArgs'
+        let argsCode = List.fold compileArg (Asm()) indexedArgs
+
+        /// Function that copies the content of a target register (used by
+        /// 'compileArgs' and 'argsCode' above) into an 'a' register, using an
+        /// index to determine the source and target registers, and accumulating
+        /// the generated assembly code
+        let copyArg (acc: Asm) (i: int) =
+            acc.AddText(RV.MV(Reg.a(uint i), Reg.r(env.Target + (uint i) + 1u)),
+                        $"Load function call argument %d{i+1}")
+
+        /// Code that loads each application argument into a register 'a', by
+        /// copying the contents of the target registers used by 'compileArgs'
+        /// and 'argsCode' above.  To this end, this code folds over the indexes
+        /// of all arguments (from 0 to args.Length), using 'copyArg' above.
+        let argsLoadCode = List.fold copyArg (Asm()) [0..(args.Length-1)]
+
+        /// Code that performs the function call
+        let callCode =
+            appTermCode
+            ++ argsCode // Code to compute each argument of the function call
+               .AddText(RV.COMMENT("Before function call: save caller-saved registers"))
+               ++ (saveRegisters saveRegs [])
+               ++ argsLoadCode // Code to load arg values into arg registers
+                  .AddText(RV.JALR(Reg.ra, Imm12(0), Reg.r(env.Target)), "Function call")
+
+        /// Code that handles the function return value (if any)
+        let retCode =
+            Asm(RV.MV(Reg.r(env.Target), Reg.a0),
+                $"Copy function return value to target register")
+
+        // Put everything together, and restore the caller-saved registers
+        callCode
+            .AddText(RV.COMMENT("After function call"))
+            ++ retCode
+            .AddText(RV.COMMENT("Restore caller-saved registers"))
+                  ++ (restoreRegisters saveRegs [])
+
 
 /// Generate code to save the given registers on the stack, before a RARS system
 /// call. Register a7 (which holds the system call number) is backed-up by
@@ -517,12 +680,14 @@ and internal beforeSysCall (regs: List<Reg>) (fpregs: List<FPReg>): Asm =
     Asm(RV.COMMENT("Before system call: save registers"))
         ++ (saveRegisters (Reg.a7 :: regs) fpregs)
 
+
 /// Generate code to restore the given registers from the stack, after a RARS
 /// system call. Register a7 (which holds the system call number) is restored
 /// by default, so it does not need to be specified when calling this function.
 and internal afterSysCall (regs: List<Reg>) (fpregs: List<FPReg>): Asm =
     Asm(RV.COMMENT("After system call: restore registers"))
         ++ (restoreRegisters (Reg.a7 :: regs) fpregs)
+
 
 /// Generate code to save the given lists of registers by using increasing
 /// offsets from the stack pointer register (sp).
@@ -570,12 +735,66 @@ and internal restoreRegisters (rs: List<Reg>) (fprs: List<FPReg>): Asm =
                  "Restore stack pointer after register restoration")
 
 
+/// Compile a function instance with the given (optional) name, arguments, and
+/// body, and using the given environment.  This function places all the
+/// assembly code it generates in the Text segment (hence, this code may need
+/// to be moved afterwards).
+and internal compileFunction (args: List<string * Type>)
+                             (body: TypedAST)
+                             (env: CodegenEnv): Asm =
+    /// List of indexed arguments: we use the index as the number of the 'a'
+    /// register that holds the argument
+    let indexedArgs = List.indexed args
+    /// Folder function that assigns storage information to function arguments:
+    /// it assigns an 'a' register to each function argument, and accumulates
+    /// the result in a mapping (that will be used as env.VarStorage)
+    let folder (acc: Map<string, Storage>) (i, (var, _tpe)) =
+        acc.Add(var, Storage.Reg(Reg.a((uint)i)))
+    /// Updated storage information including function arguments
+    let varStorage2 = List.fold folder env.VarStorage indexedArgs
+
+    /// Code for the body of the function, using the newly-created
+    /// variable storage mapping 'varStorage2'.  NOTE: the function body
+    /// compilation restarts the target register numbers from 0.  Consequently,
+    /// the function body result (i.e. the function return value) will be stored
+    /// in Reg.r(0) or FPReg.r(0) (depending on its type); when the function
+    /// ends, we need to move that result into the function return value
+    /// register 'a0' or 'fa0'.
+    let bodyCode =
+        let env = {Target = 0u; FPTarget = 0u; VarStorage = varStorage2}
+        doCodegen env body
+    /// Code to move the body result into the function return value register
+    let returnCode =
+        Asm(RV.MV(Reg.a0, Reg.r(0u)),
+            "Move result of function into return value register")
+
+    /// Integer registers to save before executing the function body.
+    /// Note: the definition of 'saveRegs' uses list comprehension:
+    /// https://en.wikibooks.org/wiki/F_Sharp_Programming/Lists#Using_List_Comprehensions
+    let saveRegs = [for i in 0u..11u do yield Reg.s(i)]
+
+    // Finally, we put together the full code for the function
+    Asm(RV.COMMENT("Funtion prologue begins here"))
+            .AddText(RV.COMMENT("Save callee-saved registers"))
+        ++ (saveRegisters saveRegs [])
+            .AddText(RV.ADDI(Reg.fp, Reg.sp, Imm12(saveRegs.Length * 4)),
+                     "Update frame pointer for the current function")
+            .AddText(RV.COMMENT("End of function prologue.  Function body begins"))
+        ++ bodyCode
+            .AddText(RV.COMMENT("End of function body.  Function epilogue begins"))
+        ++ returnCode
+            .AddText(RV.COMMENT("Restore callee-saved registers"))
+            ++ (restoreRegisters saveRegs [])
+                .AddText(RV.JR(Reg.ra), "End of function, return to caller")
+
+
 /// Generate RISC-V assembly for the given AST.
 let codegen (node: TypedAST): RISCV.Asm =
     /// Initial codegen environment, targeting generic registers 0 and without
     /// any variable in the storage map
     let env = {Target = 0u; FPTarget = 0u; VarStorage =  Map[]}
-    (doCodegen env node)
+    Asm(RV.MV(Reg.fp, Reg.sp), "Initialize frame pointer")
+    ++ (doCodegen env node)
         .AddText([
             (RV.LI(Reg.a7, 10), "RARS syscall: Exit")
             (RV.ECALL, "Successful exit with code 0")

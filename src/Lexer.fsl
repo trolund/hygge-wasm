@@ -25,12 +25,14 @@ let litInt     = digit+
 let litFloat   = digit+ '.' digit+ (('e'|'E') ('+'|'-')? digit+)? 'f'
 let litString  = '"' ("\\\"" | [^'"'])* '"'
 let ident      = (letter | '_') (letter | '_' | digit)*
-let whitespace = [' ' '\t']
-let newline    = "\n\r" | '\n' | '\r'
+let whitespace = [' ' '\t' '\r']
+let newline    = '\n'
 
 // We now define the rules for recognising the language tokens.
-// NOTE: rules are applied in order, top to bottom.  Therefore, if two rules
-//       overlap, the first one will be used
+// NOTE: rules are applied in order, top to bottom.  If two or more rules can be
+//       applied, then the one that captures more input characters is selected;
+//       if two or more rules can be applied and they capture the same input
+//       characters, then the rule that is defined first is selected.
 rule tokenize = parse
 
 // Rules for skipping characters and lines
@@ -61,6 +63,8 @@ rule tokenize = parse
 | "not"        { Parser.NOT }
 | "="          { Parser.EQ }
 | "<"          { Parser.LT }
+| "<-"         { Parser.LARROW }
+| "->"         { Parser.RARROW }
 
 // Parentheses and brackets
 | "("          { Parser.LPAR }
@@ -85,6 +89,10 @@ rule tokenize = parse
 | "println"    { Parser.PRINTLN }
 | "assert"     { Parser.ASSERT }
 | "type"       { Parser.TYPE }
+| "mutable"    { Parser.MUTABLE }
+| "while"      { Parser.WHILE }
+| "do"         { Parser.DO }
+| "fun"        { Parser.FUN }
 
 // Generic identifier
 | ident        { Parser.IDENT(LexBuffer<_>.LexemeString lexbuf) }

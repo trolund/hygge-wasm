@@ -24,7 +24,6 @@ type internal Tree =
         /// visual indentation from the left.
         member this.Format (indent: string): string =
             match this with
-            // | Node(descr, []) -> descr // No indentation
             | Node(descr, subtrees) ->
                 let rec formatChildren (children: List<string * Tree>) (indent: string): string =
                     match children with
@@ -54,6 +53,13 @@ let rec internal formatType (t: Type.Type): Tree =
     | Type.TString -> Node("string", [])
     | Type.TUnit -> Node("unit", [])
     | Type.TVar(name) -> Node(name, [])
+    | Type.TFun(args, ret) ->
+        /// Formatted argument types with their respective positions
+        let argChildren =
+            List.map (fun (i, t) -> ($"arg %d{i+1}", formatType t))
+                     (List.indexed args)
+        Node("fun", (argChildren @
+                     [("return", formatType ret)]))
 
 
 /// Traverse a Hygge typing environment and return its hierarchical
@@ -61,11 +67,15 @@ let rec internal formatType (t: Type.Type): Tree =
 let rec internal formatTypingEnv (env: Typechecker.TypingEnv): List<string * Tree> =
     let formatMap (m: Map<string, Type.Type>): List<string * Tree> =
         List.map (fun (name, tpe) -> (name, formatType tpe)) (Map.toList m)
+    let formatSet (s: Set<string>): string =
+        if s.IsEmpty then "∅" else Util.formatAsSet s
     let vars = formatMap env.Vars
     let typeVars = formatMap env.TypeVars
     let varsNode = Node((if vars.IsEmpty then "∅" else "Map"), vars)
     let typeVarsNode = Node((if typeVars.IsEmpty then "∅" else "Map"), typeVars)
-    [("Env.Vars", varsNode); ("Env.TypeVars", typeVarsNode)]
+    let mutablesNode = Node((formatSet env.Mutables), [])
+    [("Env.Vars", varsNode); ("Env.TypeVars", typeVarsNode)
+     ("Env.Mutables", mutablesNode)]
 
 
 /// Traverse an Hygge program AST from the given 'node' and return a
@@ -148,11 +158,34 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
         mkTree $"Let %s{name}" node [("Ascription", formatPretypeNode tpe)
                                      ("init", formatASTRec init)
                                      ("scope", formatASTRec scope)]
+    | LetMut(name, tpe, init, scope) ->
+        mkTree $"Let mutable %s{name}" node [("Ascription", formatPretypeNode tpe)
+                                             ("init", formatASTRec init)
+                                             ("scope", formatASTRec scope)]
+    | Assign(target, expr) ->
+        mkTree $"Assign" node [("target", formatASTRec target)
+                               ("expr", formatASTRec expr)]
+    | While(cond, body) ->
+        mkTree $"While" node [("cond", formatASTRec cond)
+                              ("body", formatASTRec body)]
     | Assertion(arg) ->
         mkTree "Assertion" node [("arg", formatASTRec arg)]
     | Type(name, def, scope) ->
         mkTree $"Type %s{name}" node [("def", formatPretypeNode def)
                                       ("scope", formatASTRec scope)]
+    | Lambda(args, body) ->
+        /// Formatted arguments with their pretype
+        let argChildren =
+            List.map (fun (v, t) -> ($"arg %s{v}", formatPretypeNode t)) args
+        mkTree "Lambda" node (argChildren @
+                              [("body", formatASTRec body)])
+    | Application(expr, args) ->
+        /// Formatted arguments with their respective positions
+        let argChildren =
+            List.map (fun (i, n) -> ($"arg %d{i+1}", formatASTRec n))
+                     (List.indexed args)
+        mkTree "Application" node (("expr", formatASTRec expr) ::
+                                   argChildren)
 
 /// Return a description of an AST node, and possibly some subtrees (that are
 /// added to the overall tree structure).
@@ -184,6 +217,15 @@ and internal formatPretypeNode (node: PretypeNode): Tree =
     match node.Pretype with
     | Pretype.TId(id) ->
         Node((formatPretypeDescr node $"Pretype Id \"%s{id}\""), [])
+    | Pretype.TFun(args, ret) ->
+        /// Formatted argument pretypes with their respective position
+        let argChildren =
+            List.map (fun (i, t) -> ((formatPretypeDescr t $"arg %d{i+1}"),
+                                     formatPretypeNode t))
+                     (List.indexed args)
+        Node((formatPretypeDescr node "Function pretype"),
+             argChildren @
+             [("return", formatPretypeNode ret)])
 
 /// Format the description of a pretype AST node (without printing its
 /// children).

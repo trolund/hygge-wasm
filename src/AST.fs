@@ -46,6 +46,9 @@ type PretypeNode =
 and Pretype =
     /// A type identifier.
     | TId of id: string
+    /// A function pretype, with argument pretypes and return pretype.
+    | TFun of args: List<PretypeNode>
+            * ret: PretypeNode
 
 
 /// Node of the Abstract Syntax Tree of a Hygge expression.  The meaning of the
@@ -166,11 +169,28 @@ and Expr<'E,'T> =
 
     /// Let-binder, used to introduce a variable with the given 'name' and type
     /// ('tpe') in a 'scope'.  The variable is initialised with the result of
-    /// the expression in 'init', and can be mutable.
+    /// the expression in 'init'.
     | Let of name: string
            * tpe: PretypeNode
            * init: Node<'E,'T>
            * scope: Node<'E,'T>
+
+    /// Let-binder for mutable variables, used to introduce a mutable variable
+    /// with the given 'name' and type ('tpe') in a 'scope'.  The variable is
+    /// initialised with the result of the expression in 'init'.
+    | LetMut of name: string
+              * tpe: PretypeNode
+              * init: Node<'E,'T>
+              * scope: Node<'E,'T>
+
+    /// Assignment of a value (computed from 'expr') to a mutable target (e.g. a
+    /// variable).
+    | Assign of target: Node<'E,'T>
+              * expr: Node<'E,'T>
+
+    /// 'While' loop: as long as 'cond' is true, repeat the 'body'.
+    | While of cond: Node<'E,'T>
+             * body: Node<'E,'T>
 
     /// Assertion: fail at runtime if the argument does not evaluate to true.
     | Assertion of arg: Node<'E,'T>
@@ -180,6 +200,15 @@ and Expr<'E,'T> =
     | Type of name: string
             * def: PretypeNode
             * scope: Node<'E,'T>
+
+    /// Lambda term, i.e. function instance.
+    | Lambda of args: List<string * PretypeNode>
+              * body: Node<'E,'T>
+
+    /// Application of an expression (expected to be a function) to a list of
+    /// arguments.
+    | Application of expr: Node<'E,'T>
+                   * args: List<Node<'E,'T>>
 
 
 /// A type alias for an untyped AST, where there is no typing environment nor
