@@ -1,0 +1,10 @@
+let mutable x: int = 100;
+do (x <- x - 1) while (0 < x);
+assert(x = 0);
+x <- 0;
+let mutable y: int = 201;
+do (y <- y - 2) while (0 < y);
+assert(y < 0);
+let mutable z: int = 10;
+do (y <- y - 1) while (false);
+assert(y = 9)
