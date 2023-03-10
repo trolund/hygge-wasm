@@ -252,13 +252,13 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         Ok {Pos = node.Pos; Env = env; Type = TFloat; Expr = ReadFloat}
 
     | Sqrt(arg) ->
-                match (typer env arg) with
-                | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
-                    Ok { Pos = node.Pos; Env = env; Type = TFloat; Expr = Sqrt(targ) }
-                | Ok(targ) ->
-                     Error([(node.Pos, $"sqrt: expected argument of type %O{TFloat}, "
-                              + $"found %O{targ.Type}")])
-                | Error(es) -> Error(es)
+        match (typer env arg) with
+        | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
+            Ok { Pos = node.Pos; Env = env; Type = TFloat; Expr = Sqrt(targ) }
+        | Ok(targ) ->
+            Error([(node.Pos, $"sqrt: expected argument of type %O{TFloat}, "
+                + $"found %O{targ.Type}")])
+        | Error(es) -> Error(es)
 
     | Print(arg) ->
         match (printArgTyper "print" node.Pos env arg) with
