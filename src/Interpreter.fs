@@ -55,7 +55,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
         Some(env, env.Mutables[name])
     | Var(_) -> None
 
-    | Max(lhs, rhs) -> // todo 
+    | Max(lhs, rhs) ->
         match (lhs.Expr, rhs.Expr) with
         | (IntVal(v1), IntVal(v2)) ->
             Some(env, {node with Expr = IntVal(max v1 v2)})
@@ -67,7 +67,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 Some(env', {node with Expr = Max(lhs', rhs')})
             | None -> None
 
-    | Min(lhs, rhs) -> // todo
+    | Min(lhs, rhs) ->
         match (lhs.Expr, rhs.Expr) with
         | (IntVal(v1), IntVal(v2)) ->
             Some(env, {node with Expr = IntVal(min v1 v2)})
