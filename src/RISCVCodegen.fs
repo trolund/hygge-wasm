@@ -306,14 +306,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             // Put everything together
             (lAsm ++ rAsm ++ opAsm)
                 .AddText([
-                    (RV.MV(Reg.r(env.Target), Reg.r(rtarget)), "right is gratest")
+                    (RV.MV(Reg.r(env.Target), Reg.r(rtarget)), "right is greatest")
                     (RV.J(endLabel), "end max/min func")
                     (RV.LABEL(trueLabel), "")
-                    (RV.MV(Reg.r(env.Target), Reg.r(env.Target)), "left is gratest")
+                    (RV.MV(Reg.r(env.Target), Reg.r(env.Target)), "left is greatest")
                     (RV.LABEL(endLabel), "end of max/min func")
                 ])
 
-        | t when (isSubtypeOf node.Env t TFloat) -> // float max min works
+        | t when (isSubtypeOf node.Env t TFloat) ->
             /// Target register for the rhs expression
             let rfptarget = env.FPTarget + 1u
             /// Generated code for the rhs expression
