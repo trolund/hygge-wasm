@@ -1,0 +1,3 @@
+(false && true) : bool;
+(true || false) : bool;
+(false || true && true) : bool
