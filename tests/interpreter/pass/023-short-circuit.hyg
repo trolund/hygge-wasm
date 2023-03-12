@@ -1,0 +1,4 @@
+assert(false && false || true);
+assert(true || true && false);
+assert(true || "Hello");
+assert(not(false && "Hi"))

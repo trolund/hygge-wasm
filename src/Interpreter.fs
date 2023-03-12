@@ -166,6 +166,30 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 Some(env', {node with Expr = Xor(lhs', rhs')})
             | None -> None
 
+    | ShortAnd(lhs, rhs) ->
+        match (lhs.Expr, rhs.Expr) with
+        | (BoolVal(false), _) ->
+            Some(env, {node with Expr = BoolVal(false)})
+        | (BoolVal(true), BoolVal(v)) ->
+            Some(env, {node with Expr = BoolVal(v)})
+        | (_, _) ->
+            match (reduceLhsRhs env lhs rhs) with
+            | Some(env', lhs', rhs') ->
+                Some(env', {node with Expr = ShortAnd(lhs', rhs')})
+            | None -> None
+
+    | ShortOr(lhs, rhs) ->
+        match (lhs.Expr, rhs.Expr) with
+        | (BoolVal(true), _) ->
+            Some(env, {node with Expr = BoolVal(true)})
+        | (BoolVal(false), BoolVal(v)) ->
+            Some(env, {node with Expr = BoolVal(v)})
+        | (_, _) ->
+            match (reduceLhsRhs env lhs rhs) with
+            | Some(env', lhs', rhs') ->
+                Some(env', {node with Expr = ShortOr(lhs', rhs')})
+            | None -> None
+
     | Not(arg) ->
         match arg.Expr with
         | BoolVal(v) ->
