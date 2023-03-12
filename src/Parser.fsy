@@ -51,7 +51,7 @@ let mkNode (parseState: IParseState, inputIdx: int, e: UntypedExpr): UntypedAST 
 %token TIMES DIV REM PLUS MINUS 
 
 // Tokens for logical operators
-%token AND OR XOR NOT
+%token AND OR XOR SHORTAND SHORTOR NOT
 
 // Tokens for relational operators
 %token EQ LT
@@ -153,7 +153,17 @@ simpleExpr:
 // An 'if-then-else' expression
 ifExpr:
   | IF simpleExpr THEN simpleExpr ELSE simpleExpr  { mkNode(parseState, 1, Expr.If($2, $4, $6)) }
-  | orExpr                                         { $1 }
+  | shortOrExpr                                    { $1 }
+
+// Short-circuit or expression
+shortOrExpr:
+  | shortOrExpr SHORTOR shortAndExpr  { mkNode(parseState, 2, Expr.ShortOr($1, $3)) }
+  | shortAndExpr                      { $1 }
+
+// Short-circuit and expression
+shortAndExpr:
+  | shortAndExpr SHORTAND orExpr  { mkNode(parseState, 2, Expr.ShortAnd($1, $3)) }
+  | orExpr                        { $1 }
 
 // Logical 'or' expression
 orExpr:
