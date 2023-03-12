@@ -148,9 +148,9 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
         mkTree "Conditional" node [("condition", formatASTRec condition);
                                    ("ifTrue", formatASTRec ifTrue)
                                    ("ifFalse", formatASTRec ifFalse)]
-    | DoWhile(condition, body) ->
+    | DoWhile(body, cond) ->
         mkTree "DoWhile" node [("body", formatASTRec body)
-                               ("condition", formatASTRec condition)]
+                               ("condition", formatASTRec cond)]
     | Seq(nodes) ->
         let children = List.map (fun n -> ("", formatASTRec n)) nodes
         mkTree "Seq" node children

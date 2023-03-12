@@ -378,18 +378,20 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                            {body with Expr = UnitVal})
         Some(env, {node with Expr = rewritten})
 
-    | DoWhile(cond, body) ->
-        /// Rewritten 'while' loop, transformed into an 'if' on the condition
-        /// 'cond'.  If 'cond' is true, we continue with the whole 'body' of the
-        /// loop, followed by the whole loop itself (i.e. the node we have just
-        /// matched); otherwise, when 'cond' is false, we do nothing (unit).
-        /// 
-        /// 
-        
-        let rewritten = If(cond,
-                           {body with Expr = Seq([body; node])},
+    | DoWhile(body, cond) ->
+        match reduce env body with
+        | Some(env', body') ->
+            let rewritten = If(cond,
+                           {body with Expr = Seq([body'; node])},
                            {body with Expr = UnitVal})
-        Some(env, {node with Expr = rewritten})
+            Some(env', {node with Expr = rewritten})
+        | _ ->
+                match (reduce env body) with
+                | Some(env', body') ->
+                    Some(env', {node with Expr = DoWhile(body', cond)})
+                | None -> None
+
+        
 
     | Type(_, _, scope) ->
         // The interpreter does not use type information at all.
