@@ -17,6 +17,8 @@ TestResults
 
 .fake
 .vscode
+.vs
+.idea
 .DS_Store
 .vs/hyggec/xs/UserPrefs.xml
 .vs/hyggec/xs/UserPrefs.xml
