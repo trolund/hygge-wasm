@@ -265,9 +265,9 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         | (Ok(_), Error(es)) -> Error(es)
         | (Error(es), tn) ->
             let terrs = match tn with
-                        | Ok(_) -> []
+                        | Ok(_) -> es
                         | Error(es2) -> es @ es2
-            Error(terrs @ [(node.Pos, $"ascription with unknown type %O{ascr}")])
+            Error(terrs)
 
     | Let(name, tpe, init, scope) ->
         letTyper node.Pos false env name tpe init scope
