@@ -122,6 +122,14 @@ and Expr<'E,'T> =
     /// Logical xor between lhs and rhs.
     | Xor of lhs: Node<'E,'T>
            * rhs: Node<'E,'T>
+           
+    /// Short-circuit and between lhs and rhs.
+    | ShortAnd of lhs: Node<'E,'T>
+                * rhs: Node<'E,'T>
+
+    /// Short-circuit or between lhs and rhs.
+    | ShortOr of lhs: Node<'E,'T>
+               * rhs: Node<'E,'T>
 
     /// Logical not
     | Not of arg: Node<'E,'T>

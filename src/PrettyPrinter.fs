@@ -99,15 +99,12 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
     | FloatVal(value) -> mkTree $"FloatVal %f{value}" node []
     | StringVal(value) -> mkTree $"StringVal \"%s{value}\"" node []
     | Var(name) -> mkTree $"Var %s{name}" node []
-    
     | Min(lhs, rhs) ->
          mkTree "Min" node [("lhs", formatASTRec lhs)
-                            ("rhs", formatASTRec rhs)]
-    
+                            ("rhs", formatASTRec rhs)]  
     | Max(lhs, rhs) ->
          mkTree "Max" node [("lhs", formatASTRec lhs)
                             ("rhs", formatASTRec rhs)]
-
     | Mult(lhs, rhs) ->
         mkTree "Mult" node [("lhs", formatASTRec lhs)
                             ("rhs", formatASTRec rhs)]
@@ -122,8 +119,7 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
                            ("rhs", formatASTRec rhs)]
     | Add(lhs, rhs) ->
         mkTree "Add" node [("lhs", formatASTRec lhs)
-                           ("rhs", formatASTRec rhs)]
-                           
+                           ("rhs", formatASTRec rhs)]                       
     | And(lhs, rhs) ->
         mkTree "And" node [("lhs", formatASTRec lhs)
                            ("rhs", formatASTRec rhs)]
@@ -133,6 +129,12 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
     | Xor(lhs, rhs) ->
         mkTree "Xor" node [("lhs", formatASTRec lhs)
                            ("rhs", formatASTRec rhs)]
+    | ShortAnd(lhs, rhs) ->
+        mkTree "ShortAnd" node [("lhs", formatASTRec lhs)
+                                ("rhs", formatASTRec rhs)]
+    | ShortOr(lhs, rhs) ->
+        mkTree "ShortOr" node [("lhs", formatASTRec lhs)
+                               ("rhs", formatASTRec rhs)]
     | Not(arg) ->
         mkTree "Not" node [("arg", formatASTRec arg)]
     | Eq(lhs, rhs) ->

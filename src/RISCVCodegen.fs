@@ -190,6 +190,33 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         // Put everything together
         lAsm ++ rAsm ++ opAsm
 
+    | ShortAnd(lhs, rhs)
+    | ShortOr(lhs, rhs) as expr ->
+        /// Human-readable prefix for jump labels, describing the kind of
+        /// relational operation we are compiling
+        let labelName = match expr with
+                        | ShortAnd(_,_) -> "ShortAnd"
+                        | ShortOr(_,_) -> "ShortOr"
+                        | x -> failwith $"BUG: unexpected operation %O{x}"
+
+        /// Label to mark the end of the ShortCircuit And/Or code
+        let labelEnd = Util.genSymbol $"%O{labelName}_end"
+
+        // Compile the lhs expression, then jump to 'labelEnd' if the result is
+        // false (in case of ShortAnd) or true (in case of ShortOr).
+        // Otherwise, execute the rhs expression.
+        (doCodegen env lhs)
+            .AddText(
+                match expr with
+                | ShortAnd(_,_) -> 
+                    RV.BEQZ(Reg.r(env.Target), labelEnd)
+                | ShortOr(_,_) ->
+                    RV.BNEZ(Reg.r(env.Target), labelEnd)
+                | x -> failwith $"BUG: unexpected operation %O{x}"
+            )
+            ++ (doCodegen env rhs)
+                .AddText(RV.LABEL(labelEnd), "")
+
     | Not(arg) ->
         /// Generated code for the argument expression (note that we don't need
         /// to increase its target register)
