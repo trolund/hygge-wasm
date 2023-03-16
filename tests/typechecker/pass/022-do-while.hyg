@@ -1,0 +1,8 @@
+do println("Hello!") while true;
+
+do println("Hello!") while  (12 < 42);
+
+if (4 < 8) then
+    do "true" while (true and (8 < 4))
+else
+    println(42)

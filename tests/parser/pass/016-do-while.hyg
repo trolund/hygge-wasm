@@ -1,0 +1,5 @@
+do println("Hello!") while true;
+
+do {
+    println("Hello!")
+} while (true)
