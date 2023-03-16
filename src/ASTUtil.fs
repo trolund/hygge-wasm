@@ -68,6 +68,9 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | If(cond, ifTrue, ifFalse) ->
         {node with Expr = If((subst cond var sub), (subst ifTrue var sub),
                                                    (subst ifFalse var sub))}
+                                                   
+    | DoWhile(body, cond) ->
+          {node with Expr = DoWhile((subst body var sub), (subst cond var sub))}
 
     | Seq(nodes) ->
         let substNodes = List.map (fun n -> (subst n var sub)) nodes

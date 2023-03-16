@@ -155,6 +155,10 @@ and Expr<'E,'T> =
     | Max of lhs: Node<'E,'T>
            * rhs: Node<'E,'T>
 
+    /// do while 
+    | DoWhile of body: Node<'E,'T>
+               * condition: Node<'E,'T>
+
     /// Conditional expression (if ... then ... else ...).
     | If of condition: Node<'E,'T>
           * ifTrue: Node<'E,'T>

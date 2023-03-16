@@ -378,6 +378,10 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                            {body with Expr = UnitVal})
         Some(env, {node with Expr = rewritten})
 
+    | DoWhile(body, cond) ->
+        let while_node = {node with Expr = While(cond, body)}
+        Some(env, {node with Expr = Seq([body; while_node])})
+
     | Type(_, _, scope) ->
         // The interpreter does not use type information at all.
         Some(env, {node with Expr = scope.Expr})
@@ -445,7 +449,6 @@ and internal reduceList (env: RuntimeEnv<'E,'T>)
             match (reduceList env rest) with
             | Some(env', rest') -> Some(env', node :: rest')
             | None -> None
-
 
 /// Reduce the given AST until it cannot reduce further, using the given
 /// (optional) 'reader' and 'writer' functions.  Return the final unreducible
