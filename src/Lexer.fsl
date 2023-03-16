@@ -61,6 +61,8 @@ rule tokenize = parse
 | "and"        { Parser.AND }
 | "or"         { Parser.OR }
 | "xor"        { Parser.XOR }
+| "&&"         { Parser.SHORTAND}
+| "||"         { Parser.SHORTOR}
 | "not"        { Parser.NOT }
 | "="          { Parser.EQ }
 | "<"          { Parser.LT }

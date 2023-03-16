@@ -255,6 +255,18 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             Ok { Pos = node.Pos; Env = env; Type = TBool; Expr = Xor(tlhs, trhs) }
         | Error(es) -> Error(es)
 
+    | ShortAnd(lhs, rhs) ->
+        match (binaryBooleanOpTyper "shortAnd" node.Pos env lhs rhs) with
+        | Ok(tlhs, trhs) ->
+            Ok { Pos = node.Pos; Env = env; Type = TBool; Expr = ShortAnd(tlhs, trhs) }
+        | Error(es) -> Error(es)
+
+    | ShortOr(lhs, rhs) ->
+        match (binaryBooleanOpTyper "shortOr" node.Pos env lhs rhs) with
+        | Ok(tlhs, trhs) ->
+            Ok { Pos = node.Pos; Env = env; Type = TBool; Expr = ShortOr(tlhs, trhs) }
+        | Error(es) -> Error(es)
+
     | Not(arg) ->
         match (typer env arg) with
         | Ok(targ) when (isSubtypeOf env targ.Type TBool) ->
