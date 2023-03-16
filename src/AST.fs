@@ -132,6 +132,16 @@ and Expr<'E,'T> =
     | Less of lhs: Node<'E,'T>
             * rhs: Node<'E,'T>
 
+    /// Comparison: is the lhs less or equal than the rhs?
+    | LessOrEq of lhs: Node<'E,'T>
+            * rhs: Node<'E,'T>
+
+    /// Comparison: is the lhs greater than the rhs?
+    | Greater of lhs: Node<'E,'T>
+            * rhs: Node<'E,'T>
+  /// Comparison: is the lhs greater or equal than the rhs?
+    | GreaterOrEq of lhs: Node<'E,'T>
+            * rhs: Node<'E,'T>
     /// Read an integer value from the console.
     | ReadInt
 

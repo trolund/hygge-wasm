@@ -197,7 +197,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         asm.AddText(RV.SEQZ(Reg.r(env.Target), Reg.r(env.Target)))
 
     | Eq(lhs, rhs)
-    | Less(lhs, rhs) as expr ->
+    | Less(lhs, rhs)
+    | Less(lhs, rhs)
+    | Greater(lhs, rhs)
+    | GreaterOrEq(lhs, rhs) as expr->
         // Code generation for equality and less-than relations is very similar:
         // we compile the lhs and rhs giving them different target registers,
         // and then apply the relevant assembly operation(s) on their results.
@@ -227,6 +230,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             let labelName = match expr with
                             | Eq(_,_) -> "eq"
                             | Less(_,_) -> "less"
+                            | LessOrEq(_,_) -> ""
+                            | Greater(_,_) -> "greater"
+                            | GreaterOrEq(_,_) -> "greaterOrEq"
                             | x -> failwith $"BUG: unexpected operation %O{x}"
             /// Label to jump to when the comparison is true
             let trueLabel = Util.genSymbol $"%O{labelName}_true"
@@ -240,6 +246,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     Asm(RV.BEQ(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
                 | Less(_,_) ->
                     Asm(RV.BLT(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
+                | LessOrEq(_,_) ->
+                    Asm(RV.BEQ(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
+                | Greater(_,_) ->
+                    Asm(RV.BGT(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
+                | GreaterOrEq(_,_) -> 
+                    Asm(RV.BEQ(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
                 | x -> failwith $"BUG: unexpected operation %O{x}"
 
             // Put everything together
@@ -263,6 +275,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     Asm(RV.FEQ_S(Reg.r(env.Target), FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
                 | Less(_,_) ->
                     Asm(RV.FLT_S(Reg.r(env.Target), FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
+                | LessOrEq(_,_) ->
+                    Asm(RV.FEQ_S(Reg.r(env.Target), FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
+                | Greater(_,_) ->
+                    Asm(RV.FLE_S(Reg.r(env.Target), FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
+                | GreaterOrEq(_,_) -> 
+                    Asm(RV.FEQ_S(Reg.r(env.Target), FPReg.r(env.FPTarget),  FPReg.r(rfptarget)))
                 | x -> failwith $"BUG: unexpected operation %O{x}"
             // Put everything together
             (lAsm ++ rAsm ++ opAsm)
