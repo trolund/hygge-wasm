@@ -16,5 +16,16 @@ let rec g: (int) -> int = fun(z: int) -> {
         z
     }
 };
-assert(g(10) = 50)
+assert(g(10) = 50);
 
+let rec k: (int, int) -> int = fun(z: int, d: int) -> {
+    if (z < d) then {
+        k(z + 1, d)
+    } 
+    else {
+        z
+    }
+};
+assert(k(0, 10) = 10);
+assert(k(0, 1000) = 1000);
+assert(k(0, 123) = 123)
