@@ -366,6 +366,9 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
     | LetMut(name, tpe, init, scope) ->
         letTyper node.Pos true env name tpe init scope
 
+    | LetRec(name, tpe, init, scope) ->
+        letTyper node.Pos false env name tpe init scope
+
     | Assign(target, expr) ->
         match ((typer env target), (typer env expr)) with
         | (Ok(ttarget), Ok(texpr)) when (isSubtypeOf env texpr.Type ttarget.Type) ->
