@@ -378,8 +378,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             Some(env', {node with Expr = LetRec(name, tpe, def', scope)})
         | None when (isValue init) ->
             // init = v  
-            let replacemnet = init
-            let v' = ASTUtil.subst init name replacemnet
+            let v' = ASTUtil.subst init name init
             Some(env, {node with Expr = v'.Expr})
         | None -> None
 
