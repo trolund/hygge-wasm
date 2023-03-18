@@ -1,0 +1,30 @@
+let rec f: (int, int) -> int = fun(x: int, y: int) -> {
+    if ((x + y) < 42) then {
+        f(x + 1, y + 1)
+    } 
+    else {
+        x + y
+    }
+};
+let rec g: (int) -> int = fun(z: int) -> {
+    if (z < 50) then {
+        g(z + 1)
+    } 
+    else {
+        z
+    }
+};
+let rec k: (int, int) -> int = fun(z: int, d: int) -> {
+    if (z < d) then {
+        k(z + 1, d)
+    } 
+    else {
+        z
+    }
+};
+
+assert(g(10) = 40);
+assert(f(0, 0) = 40);
+assert(k(0, 10) = 1);
+assert(k(0, 1000) = 100);
+assert(k(0, 123) = 12)
