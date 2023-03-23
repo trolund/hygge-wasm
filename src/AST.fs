@@ -51,6 +51,8 @@ and Pretype =
             * ret: PretypeNode
     /// A structure pretype, with pretypes for each field.
     | TStruct of fields: List<string * PretypeNode>
+    /// A Array pretype, with pretypes for each element.
+    | TArray of elements: PretypeNode
 
 
 /// Node of the Abstract Syntax Tree of a Hygge expression.  The meaning of the
@@ -231,6 +233,16 @@ and Expr<'E,'T> =
     /// Access a field of a target expression (e.g. a structure).
     | FieldSelect of target: Node<'E,'T>
                    * field: string
+
+    /// Instance of an array
+    | Array of elements: List<int * Node<'E,'T>>
+
+    /// Access a element
+    | ArrayE of target: Node<'E,'T>
+                   * elementIndex: int
+
+    /// get length of array
+    | ArrayL of target: Node<'E,'T>
 
     /// Pointer to a location in the heap, with its address.  This is a runtime
     /// value that is only used by the Hygge interpreter as an intermediate
