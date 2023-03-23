@@ -638,8 +638,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 (RV.J(whileBeginLabel), "Next iteration of the 'while' loop")
                 (RV.LABEL(whileEndLabel), "")
             ])
-    | DoWhile(cond, body: Node<TypingEnv,Type>) ->
+
+    | DoWhile(cond, body) ->
         (doCodegen env body) ++ (doCodegen env {node with Expr = While(cond, body)})
+
+    | For(init, cond, update, body) ->
+        (doCodegen env init) ++ (doCodegen env {node with Expr = While(cond, {node with Expr = Seq([body; update])})})
 
     | Type(_, _, scope) ->
         // A type alias does not produce any code --- but its scope does
