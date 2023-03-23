@@ -373,16 +373,12 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
         | None -> None
 
     | LetRec(name, tpe, init, scope) -> // TODO
-        match (reduce env init) with
-        | Some(env', def') ->
-            Some(env', {node with Expr = LetRec(name, tpe, def', scope)})
-        | None when (isValue init) ->
             match init.Expr with
             | Lambda(_) -> 
-                let v' = ASTUtil.subst init name {node with Expr = LetRec(name, tpe, init, scope)}
-                Some(env, {node with Expr = v'.Expr})
+                let s = {scope with Expr = Var(name)}
+                let v' = ASTUtil.subst init name {node with Expr = LetRec(name, tpe, init, s)}
+                Some(env, ASTUtil.subst scope name v')
             | _ -> None
-        | None -> None
 
     | LetMut(_, _, _, scope) when (isValue scope) ->
         Some(env, {node with Expr = scope.Expr})
