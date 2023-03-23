@@ -2,5 +2,4 @@ let mutable i: int = 0;
 for ((); i < 10; i <- i + 1)
     print(i);
 
-for (42; "test"; 2 < 3)
-    "test"
+assert(i = 10)

@@ -451,6 +451,11 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
         let while_node = {node with Expr = While(cond, body)}
         Some(env, {node with Expr = Seq([body; while_node])})
 
+    | For(init, cond, update, body) ->
+        let while_body = {node with Expr = Seq([body; update])}
+        let while_node = {node with Expr = While(cond, while_body)} 
+        Some(env, {node with Expr = Seq([init; while_node])})
+
     | Type(_, _, scope) ->
         // The interpreter does not use type information at all.
         Some(env, {node with Expr = scope.Expr})
