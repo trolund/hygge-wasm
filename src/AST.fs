@@ -206,6 +206,12 @@ and Expr<'E,'T> =
     | While of cond: Node<'E,'T>
              * body: Node<'E,'T>
 
+    /// 'For' loop: execute 'init'. As long as 'cond' is true, repeat the 'body' and 'update'
+    | For of init: Node<'E,'T>
+           * cond: Node<'E,'T>
+           * update: Node<'E,'T>
+           * body: Node<'E,'T>
+
     /// Assertion: fail at runtime if the argument does not evaluate to true.
     | Assertion of arg: Node<'E,'T>
 

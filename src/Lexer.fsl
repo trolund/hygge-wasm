@@ -96,6 +96,7 @@ rule tokenize = parse
 | "while"      { Parser.WHILE }
 | "do"         { Parser.DO }
 | "fun"        { Parser.FUN }
+| "for"        { Parser.FOR }
 | "struct"     { Parser.STRUCT }
 
 // Generic identifier
