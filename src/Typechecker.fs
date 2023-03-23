@@ -417,6 +417,23 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         | Error(es), Ok(_) -> Error(es)
         | Error(esCond), Error(esBody) -> Error(esCond @ esBody)
 
+    | For(init, cond, update, body) ->
+        match (typer env cond) with
+        | Ok(tcond) when (isSubtypeOf env tcond.Type TBool) ->
+            let typeInit = (typer env init)
+            let typeUpdate = typer env update
+            let typeBody = typer env body
+            let typingResults = [typeInit; typeUpdate; typeBody]
+            match (typeInit, typeUpdate, typeBody) with
+            | (Ok(tinit), Ok(tupdate), Ok(tbody)) ->
+                Ok { Pos = node.Pos; Env = env; Type = TUnit; Expr = For(tinit, tcond, tupdate, tbody) }
+            | (_, _, _) ->
+                Error(collectErrors typingResults)
+        | Ok(tcond) ->
+            Error([(tcond.Pos, $"'for' condition: expected type %O{TBool}, "
+                              + $"found %O{tcond.Type}")])
+        | Error(es) -> Error(es)
+
     | Assertion(arg) -> 
         match (typer env arg) with
         | Ok(targ) when (isSubtypeOf env targ.Type TBool) ->
