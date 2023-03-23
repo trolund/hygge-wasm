@@ -205,6 +205,14 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
         mkTree $"FieldSelect %s{field}" node [("expr", formatASTRec target)]
     | Pointer(addr) ->
         mkTree $"Pointer 0x%x{addr}" node []
+    | Array(data, length) -> 
+                 mkTree $"Array" node [("data", formatASTRec data)
+                                       ("length", formatASTRec length)]
+    | ArrayE(arr, index) -> 
+            mkTree $"ArrayAccess" node [("arr", formatASTRec arr)
+                                        ("index", formatASTRec index)]
+    | ArrayL(arr) -> 
+            mkTree $"ArrayLength" node [("arr", formatASTRec arr)]
 
 /// Return a description of an AST node, and possibly some subtrees (that are
 /// added to the overall tree structure).
@@ -251,6 +259,7 @@ and internal formatPretypeNode (node: PretypeNode): Tree =
             List.map (fun (name, t) -> ((formatPretypeDescr t $"field %s{name}"),
                                         formatPretypeNode t)) fields
         Node((formatPretypeDescr node "Struct pretype"), fieldsChildren)
+    | Pretype.TArray(elements) -> failwith "Not Implemented"
 
 /// Format the description of a pretype AST node (without printing its
 /// children).
