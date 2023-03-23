@@ -137,6 +137,16 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
                                ("rhs", formatASTRec rhs)]
     | Not(arg) ->
         mkTree "Not" node [("arg", formatASTRec arg)]
+    | CSIncr(arg) -> 
+        mkTree "CsIncr" node [("arg", formatASTRec arg)]
+    | CSDcr(arg) -> 
+        mkTree "CsDcr" node [("arg", formatASTRec arg)]
+    | AddAsg(lhs, rhs) ->
+        mkTree "AddAsg" node [("lhs", formatASTRec lhs)
+                              ("rhs", formatASTRec rhs)]
+    | MinAsg(lhs, rhs) ->
+        mkTree "MinAsg" node [("lhs", formatASTRec lhs)
+                              ("rhs", formatASTRec rhs)]
     | Eq(lhs, rhs) ->
         mkTree "Eq" node [("lhs", formatASTRec lhs)
                           ("rhs", formatASTRec rhs)]

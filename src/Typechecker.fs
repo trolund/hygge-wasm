@@ -184,6 +184,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         Ok { Pos = node.Pos; Env = env; Type = TFloat; Expr = FloatVal(v) }
     | StringVal(v) ->
         Ok { Pos = node.Pos; Env = env; Type = TString; Expr = StringVal(v) }
+    
 
     | Var(name) ->
         match (env.Vars.TryFind name) with
@@ -274,6 +275,40 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         | Ok(arg) ->
             Error([(node.Pos, $"logical 'not': expected argument of type %O{TBool}, "
                               + $"found %O{arg.Type}")])
+        | Error(es) -> Error(es)
+    
+    | CSIncr(arg) ->
+        match (typer env arg) with
+        | Ok(targ) when (isSubtypeOf env targ.Type TInt) ->
+            Ok { Pos = node.Pos; Env = env; Type = TInt; Expr = CSIncr(targ) }
+        | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
+            Ok { Pos = node.Pos; Env = env; Type = TFloat; Expr = CSIncr(targ) }
+        | Ok(arg) ->
+            Error([(node.Pos, $"c-style increment: expected argument of type %O{TInt}, "
+                              + $"found %O{arg.Type}")])
+        | Error(es) -> Error(es)
+
+    | CSDcr(arg) ->
+        match (typer env arg) with
+        | Ok(targ) when (isSubtypeOf env targ.Type TInt) ->
+            Ok { Pos = node.Pos; Env = env; Type = TInt; Expr = CSDcr(targ) }
+        | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
+            Ok { Pos = node.Pos; Env = env; Type = TFloat; Expr = CSDcr(targ) }
+        | Ok(arg) ->
+            Error([(node.Pos, $"c-style decrement: expected argument of type %O{TInt}, "
+                              + $"found %O{arg.Type}")])
+        | Error(es) -> Error(es)
+    
+    | AddAsg(lhs, rhs) -> 
+        match (binaryNumericalOpTyper "assign addition" node.Pos env lhs rhs) with 
+        | Ok (tpe, tlhs, trhs) -> 
+            Ok {Pos = node.Pos; Env = env; Type = tpe; Expr = AddAsg(tlhs, trhs)}
+        | Error(es) -> Error(es)
+    
+    | MinAsg(lhs, rhs) -> 
+        match (binaryNumericalOpTyper "assign minus" node.Pos env lhs rhs) with 
+        | Ok (tpe, tlhs, trhs) -> 
+            Ok {Pos = node.Pos; Env = env; Type = tpe; Expr = MinAsg(tlhs, trhs)}
         | Error(es) -> Error(es)
 
     | Eq(lhs, rhs) ->
