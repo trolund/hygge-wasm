@@ -52,7 +52,7 @@ and Pretype =
     /// A structure pretype, with pretypes for each field.
     | TStruct of fields: List<string * PretypeNode>
     /// A Array pretype, with pretype of elements in the array.
-    | TArray of elements: string
+    | TArray of elements: PretypeNode
 
 
 /// Node of the Abstract Syntax Tree of a Hygge expression.  The meaning of the
