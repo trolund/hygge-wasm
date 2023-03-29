@@ -61,12 +61,16 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | Ascription(tpe, node) ->
         {node with Expr = Ascription(tpe, (subst node var sub))}
 
-    | Let(vname, _, _, _) when vname = var -> node // No substitution
+    | Let(vname, tpe, init, scope) when vname = var ->
+        // Do not substitute the variable in the "let" scope
+        {node with Expr = Let(vname, tpe, (subst init var sub), scope)}
     | Let(vname, tpe, init, scope) ->
         {node with Expr = Let(vname, tpe, (subst init var sub),
                               (subst scope var sub))}
 
-    | LetMut(vname, _, _, _) when vname = var -> node // No substitution
+    | LetMut(vname, tpe, init, scope) when vname = var ->
+        // Do not substitute the variable in the "let mutable" scope
+        {node with Expr = LetMut(vname, tpe, (subst init var sub), scope)}
     | LetMut(vname, tpe, init, scope) ->
         {node with Expr = LetMut(vname, tpe, (subst init var sub),
                                  (subst scope var sub))}
