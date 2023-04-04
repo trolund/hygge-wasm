@@ -110,8 +110,10 @@ let rec internal resolvePretype (env: TypingEnv) (pt: AST.PretypeNode): Result<T
                 /// Type of each struct field
                 let fieldTypes = List.map getOkValue fieldTypes
                 Ok(TStruct(List.zip fieldNames fieldTypes))
-
-
+    | Pretype.TArray(elements) -> 
+            let arrayType = resolvePretype env elements
+            arrayType
+        
 /// Resolve a type variable using the given typing environment: optionally
 /// return the Type corresponding to variable 'name', or None if 'name' is not
 /// defined in the given environment.
@@ -577,6 +579,10 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
 
     | Pointer(_) ->
         Error([(node.Pos, "pointers cannot be type-checked (by design!)")])
+    | Array(data, length) ->
+        
+    | ArrayE(arr, index) -> failwith "Not Implemented"
+    | ArrayL(arr) -> failwith "Not Implemented"
 
 /// Compute the typing of a binary numerical operation, by computing and
 /// combining the typings of the 'lhs' and 'rhs'.  The argument 'descr' (used in

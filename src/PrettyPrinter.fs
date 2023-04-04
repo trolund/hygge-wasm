@@ -259,7 +259,8 @@ and internal formatPretypeNode (node: PretypeNode): Tree =
             List.map (fun (name, t) -> ((formatPretypeDescr t $"field %s{name}"),
                                         formatPretypeNode t)) fields
         Node((formatPretypeDescr node "Struct pretype"), fieldsChildren)
-
+    | Pretype.TArray(elements) -> 
+                Node((formatPretypeDescr node "Array pretype"), [("element type", formatPretypeNode elements)])
 
 /// Format the description of a pretype AST node (without printing its
 /// children).

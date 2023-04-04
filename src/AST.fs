@@ -54,7 +54,6 @@ and Pretype =
     /// A Array pretype, with pretype of elements in the array.
     | TArray of elements: PretypeNode
 
-
 /// Node of the Abstract Syntax Tree of a Hygge expression.  The meaning of the
 /// two type arguments is the following: 'E specifies what typing environment
 /// information is associated to each expression in the AST; 'T specifies what
