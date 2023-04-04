@@ -371,7 +371,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         | Ok(t) ->
             let T' = {env with Vars = env.Vars.Add(name, t); Mutables = env.Mutables}
             letTyper node.Pos true false T' name tpe init scope
-        | Error(errorValue) -> failwith "Not Implemented"
+        | Error(errorValue) -> Error(errorValue)
 
     | Assign(target, expr) ->
         match ((typer env target), (typer env expr)) with
