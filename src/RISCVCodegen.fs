@@ -26,6 +26,9 @@ type internal Storage =
     /// The variable is stored in memory, in a location marked with a
     /// label in the compiled assembly code.
     | Label of label: string
+    /// This variable is stored on the stack, at the given offset (in bytes)
+    /// from the memory address contained in the frame pointer (fp) register.
+    | Frame of offset: int
 
 
 /// Code generation environment.
