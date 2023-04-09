@@ -1,8 +1,8 @@
 let mutable x: int = 0;
 let mutable y: int = 10;
 
-for ((); not(x = y); {x <- x + 1; y <- y - 1})
-    print("x and y are different");
+for ((); not(x = y); {x <- x + 2; y <- y - 1})
+    x <- x - 1;
 
 assert(x = y);
 assert(x = 5)
