@@ -6,4 +6,15 @@ let rec g: (int) -> int = fun(z: int) -> {
         z
     }
 };
-(g(2)): float
+(g(2)): float;
+
+let rec f: (int) -> int = fun(z: int) -> {
+    if (z < 50) then {
+        f(z + 1)
+    } 
+    else {
+        true
+    }
+};
+(f(2)): bool
+
