@@ -571,6 +571,40 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         // The code generation is not different from 'let...', so we recycle it
         doCodegen env {node with Expr = Let(name, tpe, init, scope)}
 
+    | LetRec(name, _,
+          {Node.Expr = Lambda(args, body);
+           Node.Type = TFun(targs, _)}, scope) ->
+          /// Assembly label to mark the position of the compiled function body.
+        /// For readability, we make the label similar to the function name
+        let funLabel = Util.genSymbol $"fun_%s{name}"
+
+        /// Storage info where the name of the compiled function points to the
+        /// label 'funLabel'
+        let varStorage2 = env.VarStorage.Add(name, Storage.Label(funLabel))
+
+        /// Names of the lambda term arguments
+        let (argNames, _) = List.unzip args
+        /// List of pairs associating each function argument to its type
+        let argNamesTypes = List.zip argNames targs
+        /// Compiled function body
+        let bodyCode = compileFunction argNamesTypes body {env with VarStorage = varStorage2}
+        
+        /// Compiled function code where the function label is located just
+        /// before the 'bodyCode', and everything is placed at the end of the
+        /// Text segment (i.e. in the "PostText")
+        let funCode =
+            (Asm(RV.LABEL(funLabel), $"Code for function '%s{name}'")
+                ++ bodyCode).TextToPostText
+
+        // Finally, compile the 'let...'' scope with the newly-defined function
+        // label in the variables storage, and append the 'funCode' above. The
+        // 'scope' code leaves its result in the the 'let...' target register
+        (doCodegen {env with VarStorage = varStorage2} scope)
+            ++ funCode
+    
+    | LetRec(name, tpe, init, scope) -> 
+        doCodegen env {node with Expr = Let(name, tpe, init, scope)}
+
     | Assign(lhs, rhs) ->
         match lhs.Expr with
         | Var(name) ->
@@ -638,8 +672,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 (RV.J(whileBeginLabel), "Next iteration of the 'while' loop")
                 (RV.LABEL(whileEndLabel), "")
             ])
-    | DoWhile(cond, body: Node<TypingEnv,Type>) ->
+
+    | DoWhile(cond, body) ->
         (doCodegen env body) ++ (doCodegen env {node with Expr = While(cond, body)})
+
+    | For(init, cond, update, body) ->
+        (doCodegen env init) ++ (doCodegen env {node with Expr = While(cond, {node with Expr = Seq([body; update])})})
 
     | Type(_, _, scope) ->
         // A type alias does not produce any code --- but its scope does

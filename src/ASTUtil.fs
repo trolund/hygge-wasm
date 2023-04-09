@@ -74,9 +74,6 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | If(cond, ifTrue, ifFalse) ->
         {node with Expr = If((subst cond var sub), (subst ifTrue var sub),
                                                    (subst ifFalse var sub))}
-                                                   
-    | DoWhile(body, cond) ->
-          {node with Expr = DoWhile((subst body var sub), (subst cond var sub))}
 
     | Seq(nodes) ->
         let substNodes = List.map (fun n -> (subst n var sub)) nodes
@@ -94,6 +91,11 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | LetMut(vname, tpe, init, scope) ->
         {node with Expr = LetMut(vname, tpe, (subst init var sub),
                                  (subst scope var sub))}
+    
+    | LetRec(vname, _, _, _) when vname = var -> node // No substitution
+    | LetRec(vname, tpe, init, scope) ->
+        {node with Expr = LetRec(vname, tpe, (subst init var sub),
+                              (subst scope var sub))}
 
     | Assign(target, expr) ->
         {node with Expr = Assign((subst target var sub), (subst expr var sub))}
@@ -102,6 +104,16 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
         let substCond = subst cond var sub
         let substBody = subst body var sub
         {node with Expr = While(substCond, substBody)}
+
+    | DoWhile(body, cond) ->
+        {node with Expr = DoWhile((subst body var sub), (subst cond var sub))}
+
+    | For(init, cond, update, body) ->
+        let substInit = subst init var sub
+        let substCond = subst cond var sub
+        let substUpdate = subst update var sub
+        let substBody = subst body var sub
+        {node with Expr = For(substInit, substCond, substUpdate, substBody)}
 
     | Assertion(arg) ->
         {node with Expr = Assertion(subst arg var sub)}

@@ -166,10 +166,6 @@ and Expr<'E,'T> =
     | Max of lhs: Node<'E,'T>
            * rhs: Node<'E,'T>
 
-    /// do while 
-    | DoWhile of body: Node<'E,'T>
-               * condition: Node<'E,'T>
-
     /// Conditional expression (if ... then ... else ...).
     | If of condition: Node<'E,'T>
           * ifTrue: Node<'E,'T>
@@ -198,6 +194,14 @@ and Expr<'E,'T> =
               * init: Node<'E,'T>
               * scope: Node<'E,'T>
 
+    /// Let-binder, used to introduce recursive functions with the given 'name' and type
+    /// ('tpe') in a 'scope'.  The variable is initialised with the result of
+    /// the expression in 'init'.
+    | LetRec of name: string
+           * tpe: PretypeNode
+           * init: Node<'E,'T>
+           * scope: Node<'E,'T>
+
     /// Assignment of a value (computed from 'expr') to a mutable target (e.g. a
     /// variable).
     | Assign of target: Node<'E,'T>
@@ -206,6 +210,16 @@ and Expr<'E,'T> =
     /// 'While' loop: as long as 'cond' is true, repeat the 'body'.
     | While of cond: Node<'E,'T>
              * body: Node<'E,'T>
+
+    /// 'Do-while' loop: execute the 'body'. As long as 'cond' is true, repeat the 'body'
+    | DoWhile of body: Node<'E,'T>
+               * condition: Node<'E,'T>
+
+    /// 'For' loop: execute 'init'. As long as 'cond' is true, repeat the 'body' and 'update'
+    | For of init: Node<'E,'T>
+           * cond: Node<'E,'T>
+           * update: Node<'E,'T>
+           * body: Node<'E,'T>
 
     /// Assertion: fail at runtime if the argument does not evaluate to true.
     | Assertion of arg: Node<'E,'T>

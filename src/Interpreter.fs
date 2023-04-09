@@ -372,6 +372,14 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             Some(env, {node with Expr = (ASTUtil.subst scope name init).Expr})
         | None -> None
 
+    | LetRec(name, tpe, init, scope) -> // TODO
+            match init.Expr with
+            | Lambda(_) -> 
+                let s = {scope with Expr = Var(name)}
+                let v' = ASTUtil.subst init name {node with Expr = LetRec(name, tpe, init, s)}
+                Some(env, ASTUtil.subst scope name v')
+            | _ -> None
+
     | LetMut(_, _, _, scope) when (isValue scope) ->
         Some(env, {node with Expr = scope.Expr})
     | LetMut(name, tpe, init, scope) ->
@@ -450,6 +458,11 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
     | DoWhile(body, cond) ->
         let while_node = {node with Expr = While(cond, body)}
         Some(env, {node with Expr = Seq([body; while_node])})
+
+    | For(init, cond, update, body) ->
+        let while_body = {node with Expr = Seq([body; update])}
+        let while_node = {node with Expr = While(cond, while_body)} 
+        Some(env, {node with Expr = Seq([init; while_node])})
 
     | Type(_, _, scope) ->
         // The interpreter does not use type information at all.

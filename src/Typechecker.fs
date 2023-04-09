@@ -154,6 +154,16 @@ let rec isSubtypeOf (env: TypingEnv) (t1: Type) (t2: Type): bool =
     | (t1, TVar(name)) ->
         // Expand the type variable; crash immediately if 'name' is not in 'env'
         isSubtypeOf env t1 (env.TypeVars.[name])
+    | (TFun(args1, ret1), TFun(args2, ret2)) ->
+        // The return type of the "smaller" function must be a subtype of the return type of the "bigger" function
+        if (not (isSubtypeOf env ret1 ret2)) then false
+        // Both function types expect the same number of arguments
+        elif args1.Length <> args2.Length then false
+        // Each argument of the "bigger" function
+        // is a subtype of
+        // the argument found at the same position in the "smaller" function
+        else 
+            List.forall2 (fun t1 t2 -> isSubtypeOf env t2 t1) args1 args2 
     | (TStruct(fields1), TStruct(fields2)) ->
         // A subtype struct must have at least the same fields of the supertype
         if fields1.Length < fields2.Length then false
@@ -363,10 +373,17 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             Error(terrs)
 
     | Let(name, tpe, init, scope) ->
-        letTyper node.Pos false env name tpe init scope
+        letTyper node.Pos false false env name tpe init scope
 
     | LetMut(name, tpe, init, scope) ->
-        letTyper node.Pos true env name tpe init scope
+        letTyper node.Pos false true env name tpe init scope
+
+    | LetRec(name, tpe, init, scope) ->
+        match (resolvePretype env tpe) with
+        | Ok(t) ->
+            let T' = {env with Vars = env.Vars.Add(name, t); Mutables = env.Mutables}
+            letTyper node.Pos true false T' name tpe init scope
+        | Error(errorValue) -> Error(errorValue)
 
     | Assign(target, expr) ->
         match ((typer env target), (typer env expr)) with
@@ -418,6 +435,23 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
                               + $"found %O{tcond.Type}") :: es)
         | Error(es), Ok(_) -> Error(es)
         | Error(esCond), Error(esBody) -> Error(esCond @ esBody)
+
+    | For(init, cond, update, body) ->
+        match (typer env cond) with
+        | Ok(tcond) when (isSubtypeOf env tcond.Type TBool) ->
+            let typeInit = (typer env init)
+            let typeUpdate = typer env update
+            let typeBody = typer env body
+            let typingResults = [typeInit; typeUpdate; typeBody]
+            match (typeInit, typeUpdate, typeBody) with
+            | (Ok(tinit), Ok(tupdate), Ok(tbody)) ->
+                Ok { Pos = node.Pos; Env = env; Type = TUnit; Expr = For(tinit, tcond, tupdate, tbody) }
+            | (_, _, _) ->
+                Error(collectErrors typingResults)
+        | Ok(tcond) ->
+            Error([(tcond.Pos, $"'for' condition: expected type %O{TBool}, "
+                              + $"found %O{tcond.Type}")])
+        | Error(es) -> Error(es)
 
     | Assertion(arg) -> 
         match (typer env arg) with
@@ -674,7 +708,7 @@ and internal printArgTyper descr pos (env: TypingEnv) (arg: UntypedAST): Result<
 /// expression, the typing 'env'ironment, the 'name' of the declared variable,
 /// its pretype ('tpe'), the 'init'ialisation AST node, and the 'scope' of the
 /// 'let...' binder.
-and internal letTyper pos (isMutable: bool) (env: TypingEnv)
+and internal letTyper pos (isRec: bool) (isMutable: bool) (env: TypingEnv)
                       (name: string) (tpe: PretypeNode)
                       (init: UntypedAST) (scope: UntypedAST): TypingResult =
     match (resolvePretype env tpe) with
@@ -706,7 +740,10 @@ and internal letTyper pos (isMutable: bool) (env: TypingEnv)
             match tscope with
             | Ok(tscope) ->
                 if (List.isEmpty terrs) then
-                    if isMutable then
+                    if isRec then 
+                        Ok { Pos = pos; Env = env; Type = tscope.Type;
+                             Expr = LetRec(name, tpe, tinit, tscope) }
+                    else if isMutable then
                         Ok { Pos = pos; Env = env; Type = tscope.Type;
                              Expr = LetMut(name, tpe, tinit, tscope) }
                     else Ok { Pos = pos; Env = env; Type = tscope.Type;
