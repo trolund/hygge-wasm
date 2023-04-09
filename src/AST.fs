@@ -165,10 +165,6 @@ and Expr<'E,'T> =
     | Max of lhs: Node<'E,'T>
            * rhs: Node<'E,'T>
 
-    /// do while 
-    | DoWhile of body: Node<'E,'T>
-               * condition: Node<'E,'T>
-
     /// Conditional expression (if ... then ... else ...).
     | If of condition: Node<'E,'T>
           * ifTrue: Node<'E,'T>
@@ -213,6 +209,16 @@ and Expr<'E,'T> =
     /// 'While' loop: as long as 'cond' is true, repeat the 'body'.
     | While of cond: Node<'E,'T>
              * body: Node<'E,'T>
+
+    /// 'Do-while' loop: execute the 'body'. As long as 'cond' is true, repeat the 'body'
+    | DoWhile of body: Node<'E,'T>
+               * condition: Node<'E,'T>
+
+    /// 'For' loop: execute 'init'. As long as 'cond' is true, repeat the 'body' and 'update'
+    | For of init: Node<'E,'T>
+           * cond: Node<'E,'T>
+           * update: Node<'E,'T>
+           * body: Node<'E,'T>
 
     /// Assertion: fail at runtime if the argument does not evaluate to true.
     | Assertion of arg: Node<'E,'T>

@@ -1,0 +1,6 @@
+let mutable x: int = 0;
+
+for ((); false; x <- x + 1)
+    x <- x + 2;
+
+assert(not (x = 0))

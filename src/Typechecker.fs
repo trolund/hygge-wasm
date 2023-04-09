@@ -152,6 +152,16 @@ let rec isSubtypeOf (env: TypingEnv) (t1: Type) (t2: Type): bool =
     | (t1, TVar(name)) ->
         // Expand the type variable; crash immediately if 'name' is not in 'env'
         isSubtypeOf env t1 (env.TypeVars.[name])
+    | (TFun(args1, ret1), TFun(args2, ret2)) ->
+        // The return type of the "smaller" function must be a subtype of the return type of the "bigger" function
+        if (not (isSubtypeOf env ret1 ret2)) then false
+        // Both function types expect the same number of arguments
+        elif args1.Length <> args2.Length then false
+        // Each argument of the "bigger" function
+        // is a subtype of
+        // the argument found at the same position in the "smaller" function
+        else 
+            List.forall2 (fun t1 t2 -> isSubtypeOf env t2 t1) args1 args2 
     | (TStruct(fields1), TStruct(fields2)) ->
         // A subtype struct must have at least the same fields of the supertype
         if fields1.Length < fields2.Length then false
@@ -423,6 +433,23 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
                               + $"found %O{tcond.Type}") :: es)
         | Error(es), Ok(_) -> Error(es)
         | Error(esCond), Error(esBody) -> Error(esCond @ esBody)
+
+    | For(init, cond, update, body) ->
+        match (typer env cond) with
+        | Ok(tcond) when (isSubtypeOf env tcond.Type TBool) ->
+            let typeInit = (typer env init)
+            let typeUpdate = typer env update
+            let typeBody = typer env body
+            let typingResults = [typeInit; typeUpdate; typeBody]
+            match (typeInit, typeUpdate, typeBody) with
+            | (Ok(tinit), Ok(tupdate), Ok(tbody)) ->
+                Ok { Pos = node.Pos; Env = env; Type = TUnit; Expr = For(tinit, tcond, tupdate, tbody) }
+            | (_, _, _) ->
+                Error(collectErrors typingResults)
+        | Ok(tcond) ->
+            Error([(tcond.Pos, $"'for' condition: expected type %O{TBool}, "
+                              + $"found %O{tcond.Type}")])
+        | Error(es) -> Error(es)
 
     | Assertion(arg) -> 
         match (typer env arg) with
