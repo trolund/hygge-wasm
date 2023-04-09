@@ -88,7 +88,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                       (RV.FMV_W_X(FPReg.r(env.FPTarget), Reg.r(env.Target)),
                        $"Transfer '%s{name}' to fp register") ])
             | Some(Storage.Frame(offset)) ->
-                failwith $"BUG: "
+                failwith $"BUG: float variable with storage on stack not supported yet."
             | Some(Storage.Reg(_)) as st ->
                 failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
             | None -> failwith $"BUG: float variable without storage: %s{name}"
@@ -729,11 +729,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
 
         /// Code that saves the remaining application arguments (if any) 
         /// into the stack, in reverse order
-        let registersToSaveOnStack =
+        let extraRegistersNeeded =
             if args.Length > 8
             then [8..(args.Length-1)] |> List.map (fun i -> Reg.r(env.Target + (uint i) + 1u))
             else []
-        let argsSaveCode = saveRegisters (registersToSaveOnStack |> List.rev) []
+        let argsSaveCode = saveRegisters (extraRegistersNeeded |> List.rev) []
 
         /// Code that performs the function call
         let callCode =
@@ -750,9 +750,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             Asm(RV.MV(Reg.r(env.Target), Reg.a0),
                 $"Copy function return value to target register")
 
-        // Put everything together, and restore the caller-saved registers
+        // Put everything together, and restore the caller-saved registers,
+        // as well as registers used for storing arguments
         callCode
             .AddText(RV.COMMENT("After function call"))
+            .AddText(RV.COMMENT("Restore caller-saved registers"))
+                  ++ (restoreRegisters (extraRegistersNeeded |> List.rev) [])
             ++ retCode
             .AddText(RV.COMMENT("Restore caller-saved registers"))
                   ++ (restoreRegisters saveRegs [])
@@ -927,7 +930,7 @@ and internal compileFunction (args: List<string * Type>)
     let folder (acc: Map<string, Storage>) (i, (var, _tpe)) =
         acc.Add(var, 
             if i <= 7 then Storage.Reg(Reg.a((uint)i))
-            else Storage.Frame(4 * (i - 8)))
+            else Storage.Frame(4 * (args.Length - i - 1)))
 
     /// Updated storage information including function arguments
     let varStorage2 = List.fold folder env.VarStorage indexedArgs
