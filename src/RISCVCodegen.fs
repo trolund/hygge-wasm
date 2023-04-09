@@ -11,7 +11,6 @@ open RISCV
 open Type
 open Typechecker
 
-
 /// Exit code used in the generated assembly to signal an assertion violation.
 let assertExitCode = 42 // Must be non-zero
 
@@ -88,6 +87,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 Asm([ (RV.LA(Reg.r(env.Target), lab), $"Load variable '%s{name}'")
                       (RV.FMV_W_X(FPReg.r(env.FPTarget), Reg.r(env.Target)),
                        $"Transfer '%s{name}' to fp register") ])
+            | Some(Storage.Frame(offset)) ->
+                failwith $"BUG: "
             | Some(Storage.Reg(_)) as st ->
                 failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
             | None -> failwith $"BUG: float variable without storage: %s{name}"
@@ -97,6 +98,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 Asm(RV.MV(Reg.r(env.Target), reg), $"Load variable '%s{name}'")
             | Some(Storage.Label(lab)) ->
                 Asm(RV.LA(Reg.r(env.Target), lab), $"Load variable '%s{name}'")
+            | Some(Storage.Frame(offset)) ->
+                Asm(RV.LW(Reg.r(env.Target), Imm12(offset), Reg.fp), $"Load variable '%s{name}'")
             | Some(Storage.FPReg(_)) as st ->
                 failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
             | None -> failwith $"BUG: variable without storage: %s{name}"
@@ -586,6 +589,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             | Some(Storage.FPReg(reg)) ->
                 rhsCode.AddText(RV.FMV_S(reg, FPReg.r(env.FPTarget)),
                                 $"Assignment to variable %s{name}")
+            | Some(Storage.Frame(offset)) ->
+                rhsCode.AddText(RV.LW(Reg.r(env.Target), Imm12(offset), Reg.fp),
+                                $"Assignment to variable %s{name}")
             | Some(Storage.Label(_)) as st ->
                 failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
             | None -> failwith $"BUG: variable without storage: %s{name}"
@@ -714,11 +720,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             acc.AddText(RV.MV(Reg.a(uint i), Reg.r(env.Target + (uint i) + 1u)),
                         $"Load function call argument %d{i+1}")
 
-        /// Code that loads each application argument into a register 'a', by
+        /// Code that loads the first 8 application arguments into a register 'a', by
         /// copying the contents of the target registers used by 'compileArgs'
-        /// and 'argsCode' above.  To this end, this code folds over the indexes
-        /// of all arguments (from 0 to args.Length), using 'copyArg' above.
-        let argsLoadCode = List.fold copyArg (Asm()) [0..(args.Length-1)]
+        /// and 'argsCode' above. This code folds over the indexes
+        /// of arguments (from 0 to maximum the first 8 elements), using 'copyArg' above.
+        let argsLengthToCopy = if args.Length <= 8 then args.Length else 8
+        let argsLoadCode = List.fold copyArg (Asm()) [0..(argsLengthToCopy-1)]
+
+        /// Code that saves the remaining application arguments (if any) 
+        /// into the stack, in reverse order
+        let registersToSaveOnStack =
+            if args.Length > 8
+            then [8..(args.Length-1)] |> List.map (fun i -> Reg.r(env.Target + (uint i) + 1u))
+            else []
+        let argsSaveCode = saveRegisters (registersToSaveOnStack |> List.rev) []
 
         /// Code that performs the function call
         let callCode =
@@ -727,6 +742,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                .AddText(RV.COMMENT("Before function call: save caller-saved registers"))
                ++ (saveRegisters saveRegs [])
                ++ argsLoadCode // Code to load arg values into arg registers
+               ++ argsSaveCode // Code to save arg values into the stack
                   .AddText(RV.JALR(Reg.ra, Imm12(0), Reg.r(env.Target)), "Function call")
 
         /// Code that handles the function return value (if any)
@@ -906,10 +922,13 @@ and internal compileFunction (args: List<string * Type>)
     /// register that holds the argument
     let indexedArgs = List.indexed args
     /// Folder function that assigns storage information to function arguments:
-    /// it assigns an 'a' register to each function argument, and accumulates
-    /// the result in a mapping (that will be used as env.VarStorage)
+    /// it assigns an 'a' register or stack position at given offset from the 'fp' register
+    /// to each function argument, and accumulates the result in a mapping (that will be used as env.VarStorage)
     let folder (acc: Map<string, Storage>) (i, (var, _tpe)) =
-        acc.Add(var, Storage.Reg(Reg.a((uint)i)))
+        acc.Add(var, 
+            if i <= 7 then Storage.Reg(Reg.a((uint)i))
+            else Storage.Frame(4 * (i - 8)))
+
     /// Updated storage information including function arguments
     let varStorage2 = List.fold folder env.VarStorage indexedArgs
 
