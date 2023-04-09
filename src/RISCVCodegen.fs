@@ -754,7 +754,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         // as well as registers used for storing arguments
         callCode
             .AddText(RV.COMMENT("After function call"))
-            .AddText(RV.COMMENT("Restore caller-saved registers"))
+            .AddText(RV.COMMENT("Restore registers used for extra arguments"))
                   ++ (restoreRegisters (extraRegistersNeeded |> List.rev) [])
             ++ retCode
             .AddText(RV.COMMENT("Restore caller-saved registers"))
