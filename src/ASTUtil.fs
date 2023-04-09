@@ -91,6 +91,11 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | LetMut(vname, tpe, init, scope) ->
         {node with Expr = LetMut(vname, tpe, (subst init var sub),
                                  (subst scope var sub))}
+    
+    | LetRec(vname, _, _, _) when vname = var -> node // No substitution
+    | LetRec(vname, tpe, init, scope) ->
+        {node with Expr = LetRec(vname, tpe, (subst init var sub),
+                              (subst scope var sub))}
 
     | Assign(target, expr) ->
         {node with Expr = Assign((subst target var sub), (subst expr var sub))}

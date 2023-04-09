@@ -372,6 +372,14 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             Some(env, {node with Expr = (ASTUtil.subst scope name init).Expr})
         | None -> None
 
+    | LetRec(name, tpe, init, scope) -> // TODO
+            match init.Expr with
+            | Lambda(_) -> 
+                let s = {scope with Expr = Var(name)}
+                let v' = ASTUtil.subst init name {node with Expr = LetRec(name, tpe, init, s)}
+                Some(env, ASTUtil.subst scope name v')
+            | _ -> None
+
     | LetMut(_, _, _, scope) when (isValue scope) ->
         Some(env, {node with Expr = scope.Expr})
     | LetMut(name, tpe, init, scope) ->

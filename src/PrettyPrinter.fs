@@ -172,6 +172,12 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
         mkTree $"Let mutable %s{name}" node [("Ascription", formatPretypeNode tpe)
                                              ("init", formatASTRec init)
                                              ("scope", formatASTRec scope)]
+
+    | LetRec(name, tpe, init, scope) ->
+        mkTree $"Let rec %s{name}" node [("Ascription", formatPretypeNode tpe)
+                                         ("init", formatASTRec init)
+                                         ("scope", formatASTRec scope)]
+
     | Assign(target, expr) ->
         mkTree $"Assign" node [("target", formatASTRec target)
                                ("expr", formatASTRec expr)]

@@ -193,6 +193,14 @@ and Expr<'E,'T> =
               * init: Node<'E,'T>
               * scope: Node<'E,'T>
 
+    /// Let-binder, used to introduce recursive functions with the given 'name' and type
+    /// ('tpe') in a 'scope'.  The variable is initialised with the result of
+    /// the expression in 'init'.
+    | LetRec of name: string
+           * tpe: PretypeNode
+           * init: Node<'E,'T>
+           * scope: Node<'E,'T>
+
     /// Assignment of a value (computed from 'expr') to a mutable target (e.g. a
     /// variable).
     | Assign of target: Node<'E,'T>

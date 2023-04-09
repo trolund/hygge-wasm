@@ -97,6 +97,7 @@ rule tokenize = parse
 | "do"         { Parser.DO }
 | "fun"        { Parser.FUN }
 | "for"        { Parser.FOR }
+| "rec"        { Parser.REC }
 | "struct"     { Parser.STRUCT }
 
 // Generic identifier

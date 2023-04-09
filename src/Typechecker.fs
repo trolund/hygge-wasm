@@ -371,10 +371,17 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             Error(terrs)
 
     | Let(name, tpe, init, scope) ->
-        letTyper node.Pos false env name tpe init scope
+        letTyper node.Pos false false env name tpe init scope
 
     | LetMut(name, tpe, init, scope) ->
-        letTyper node.Pos true env name tpe init scope
+        letTyper node.Pos false true env name tpe init scope
+
+    | LetRec(name, tpe, init, scope) ->
+        match (resolvePretype env tpe) with
+        | Ok(t) ->
+            let T' = {env with Vars = env.Vars.Add(name, t); Mutables = env.Mutables}
+            letTyper node.Pos true false T' name tpe init scope
+        | Error(errorValue) -> Error(errorValue)
 
     | Assign(target, expr) ->
         match ((typer env target), (typer env expr)) with
@@ -695,7 +702,7 @@ and internal printArgTyper descr pos (env: TypingEnv) (arg: UntypedAST): Result<
 /// expression, the typing 'env'ironment, the 'name' of the declared variable,
 /// its pretype ('tpe'), the 'init'ialisation AST node, and the 'scope' of the
 /// 'let...' binder.
-and internal letTyper pos (isMutable: bool) (env: TypingEnv)
+and internal letTyper pos (isRec: bool) (isMutable: bool) (env: TypingEnv)
                       (name: string) (tpe: PretypeNode)
                       (init: UntypedAST) (scope: UntypedAST): TypingResult =
     match (resolvePretype env tpe) with
@@ -727,7 +734,10 @@ and internal letTyper pos (isMutable: bool) (env: TypingEnv)
             match tscope with
             | Ok(tscope) ->
                 if (List.isEmpty terrs) then
-                    if isMutable then
+                    if isRec then 
+                        Ok { Pos = pos; Env = env; Type = tscope.Type;
+                             Expr = LetRec(name, tpe, tinit, tscope) }
+                    else if isMutable then
                         Ok { Pos = pos; Env = env; Type = tscope.Type;
                              Expr = LetMut(name, tpe, tinit, tscope) }
                     else Ok { Pos = pos; Env = env; Type = tscope.Type;
