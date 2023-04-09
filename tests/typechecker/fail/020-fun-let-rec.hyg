@@ -1,0 +1,9 @@
+let rec g: (int) -> int = fun(z: int) -> {
+    if (z < 50) then {
+        g(z + 1)
+    } 
+    else {
+        z
+    }
+};
+(g(2)): float
