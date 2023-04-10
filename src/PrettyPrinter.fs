@@ -65,6 +65,7 @@ let rec internal formatType (t: Type.Type): Tree =
         let fieldsChildren =
             List.map (fun (f, t) -> ($"field %s{f}", formatType t)) fields
         Node("struct", fieldsChildren)
+    | Type.TArray(tpe) -> Node("array", [("element", formatType tpe)])
 
 
 /// Traverse a Hygge typing environment and return its hierarchical
@@ -219,10 +220,10 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
     | Array(length, data) -> 
                  mkTree $"Array" node [("length", formatASTRec length)
                                        ("data", formatASTRec data)]
-    | ArrayE(arr, index) -> 
+    | ArrayElement(arr, index) -> 
             mkTree $"ArrayAccess" node [("arr", formatASTRec arr)
                                         ("index", formatASTRec index)]
-    | ArrayL(arr) -> 
+    | ArrayLength(arr) -> 
             mkTree $"ArrayLength" node [("arr", formatASTRec arr)]
 
 /// Return a description of an AST node, and possibly some subtrees (that are

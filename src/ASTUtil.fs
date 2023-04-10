@@ -139,6 +139,9 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
 
     | FieldSelect(target, field) ->
         {node with Expr = FieldSelect((subst target var sub), field)}
-    | Array(data, length) -> failwith "Not Implemented"
-    | ArrayE(arr, index) -> failwith "Not Implemented"
-    | ArrayL(arr) -> failwith "Not Implemented"
+    | Array(length, data: Node<'E,'T>) -> 
+        {node with Expr = Array(length, data)} // TODO: Should there be any substitution here?
+    | ArrayElement(arr, index) -> 
+        {node with Expr = ArrayElement(arr, index)} // TODO: Should there be any substitution here?
+    | ArrayLength(arr) -> 
+        {node with Expr = ArrayLength(arr)} // TODO: Should there be any substitution here?

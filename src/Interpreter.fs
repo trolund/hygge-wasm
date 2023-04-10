@@ -532,6 +532,22 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
         | None -> None
     | FieldSelect(_, _) -> None
 
+    | Array({Expr = Pointer(addr)}, length) -> // use pointer
+        match (env.PtrInfo.TryFind addr) with
+        | Some(fields) ->
+            match (List.tryFindIndex (fun f -> f = "length") fields) with
+            | Some(offset) ->
+                Some(env, env.Heap[addr + (uint offset)])
+            | None -> None
+        | None -> None
+    | Array(target, length) when not (isValue target)-> // reduce pointer
+        match (reduce env target) with
+        | Some(env', target') ->
+            Some(env', {node with Expr = Array(target', length)})
+        | None -> None
+    | Array(_, _) -> None
+    | _ -> None
+
 /// Attempt to reduce the given lhs, and then (if the lhs is a value) the rhs,
 /// using the given runtime environment.  Return None if either (a) the lhs
 /// cannot reduce although it is not a value, or (b) the lhs is a value but the

@@ -28,6 +28,7 @@ type Type =
     | TFun of args: List<Type> * ret: Type
     /// A struct type with ordered fields, each having a unique name and a type.
     | TStruct of fields: List<string * Type>
+    | TArray of elements: Type
 
     /// Returns a human-readable string describing the type.
     override this.ToString(): string =
@@ -46,6 +47,7 @@ type Type =
             let fmtEntry (f: string, t: Type) = $"%s{f}: %O{t}"
             let entriesStr = Seq.map fmtEntry fields
             "struct {" + System.String.Join("; ", entriesStr) + "}"
+        | TArray(elements) -> $"array<%O{elements}>"
 
 
 /// List of basic types known by the compiler.  NOTE: this list must be kept in
@@ -67,6 +69,7 @@ let rec freeTypeVars (t: Type): Set<string> =
     | TStruct(fields) ->
         let (_, fieldTypes) = List.unzip fields
         collectFreeTypeVars fieldTypes
+    | TArray(elements) -> freeTypeVars elements
 
 /// Collect all free type variables in the given list of types.
 and collectFreeTypeVars (ts: List<Type>): Set<string> =
