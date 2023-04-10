@@ -221,8 +221,8 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
                  mkTree $"Array" node [("length", formatASTRec length)
                                        ("data", formatASTRec data)]
     | ArrayElement(arr, index) -> 
-            mkTree $"ArrayAccess" node [("arr", formatASTRec arr)
-                                        ("index", formatASTRec index)]
+            mkTree $"ArrayElement" node [("arr", formatASTRec arr)
+                                         ("index", formatASTRec index)]
     | ArrayLength(arr) -> 
             mkTree $"ArrayLength" node [("arr", formatASTRec arr)]
 

@@ -245,16 +245,16 @@ and Expr<'E,'T> =
 
     /// Access a field of a target expression (e.g. a structure).
     | FieldSelect of target: Node<'E,'T>
-                   * field: string
+                    * field: string
 
     /// Instance of an array
     /// Array conttructor
     | Array of length: Node<'E,'T>
-             * data: Node<'E,'T>
+               * data: Node<'E,'T>
 
     /// Access an element in the array
     | ArrayElement of target: Node<'E,'T>
-              * index: Node<'E,'T>
+                     * index: Node<'E,'T>
                    
     /// Get length of the array
     | ArrayLength of target: Node<'E,'T>
