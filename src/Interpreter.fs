@@ -431,6 +431,33 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 Some(env', value)
             | None -> None
         | None -> None
+
+    | Assign({Expr = ArrayElement(selTarget, field)} as target,
+             expr) when not (isValue selTarget)->
+        match (reduce env selTarget) with
+        | Some(env', selTarget') ->
+            let target' = {target with Expr = ArrayElement(selTarget', field)}
+            Some(env', {node with Expr = Assign(target', expr)})
+        | None -> None
+    | Assign({Expr = ArrayElement(_, _)} as target, expr) when not (isValue expr) ->
+        match (reduce env expr) with
+        | Some(env', expr') ->
+            Some(env', {node with Expr = Assign(target, expr')})
+        | None -> None
+    | Assign({Expr = ArrayElement({Expr = Pointer(addr)}, index)}, value) -> 
+        match (env.PtrInfo.TryFind addr) with
+        | Some(elements) ->
+            match index.Expr with
+            | IntVal(i) ->
+                if i < 0 || i >= elements.Length then
+                    None
+                else
+                    /// Updated env with selected array element overwritten by 'value'
+                    let env' = {env with Heap = env.Heap.Add(addr+(uint i), value)}
+                    Some(env', value)
+            | _ -> None
+        | None -> None
+
     | Assign(target, expr) when not (isValue expr) ->
         match (reduce env expr) with
         | Some(env', expr') ->
@@ -532,7 +559,53 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
         | None -> None
     | FieldSelect(_, _) -> None
 
-    | Array({Expr = Pointer(addr)}, length) -> // use pointer
+    | Array(length, data) when (isValue length) && (isValue data) ->
+        // If both the length and data are values, place them on the heap in
+        // consecutive addresses
+        match length.Expr with
+        | IntVal(length') ->
+            let (heap', baseAddr) = heapAlloc env.Heap ( [length] @ (List.replicate length' data))
+            let ptrInfo' = env.PtrInfo.Add(baseAddr, ["length"; "data"])
+            Some({env with Heap = heap'; PtrInfo = ptrInfo'},
+                         {node with Expr = Pointer(baseAddr)})
+        | _ -> None
+
+    | Array(length, data) when (isValue length) ->
+        match (reduce env data) with
+        | Some(env', data') ->
+            Some(env', {node with Expr = Array(length, data')})
+        | None -> None
+    | Array(length, data) ->    
+        match (reduce env length) with
+        | Some(env', length') ->
+            Some(env', {node with Expr = Array(length', data)})
+        | None -> None
+    
+    | ArrayElement({Expr = Pointer(addr)}, index) when (isValue index) ->
+        match (env.PtrInfo.TryFind addr) with
+        | Some(elements) ->
+            match (List.tryFindIndex (fun f -> f = "data") elements) with
+            | Some(offset) ->
+                match (index.Expr) with
+                | IntVal(index') ->
+                    Some(env, env.Heap[addr + (uint offset) + (uint index')])
+                | _ -> None
+            | None -> None
+        | None -> None
+    | ArrayElement(target, index) when not (isValue target)-> 
+        match (reduce env target) with
+        | Some(env', target') ->
+
+            Some(env', {node with Expr = ArrayElement(target', index)})
+        | None -> None
+    | ArrayElement(target, index) when not (isValue index)  -> 
+        match (reduce env index) with
+        | Some(env', index') ->
+            Some(env', {node with Expr = ArrayElement(target, index')})
+        | None -> None
+    | ArrayElement(_, _) -> None
+    
+    | ArrayLength({Expr = Pointer(addr)}) -> // use pointer
         match (env.PtrInfo.TryFind addr) with
         | Some(fields) ->
             match (List.tryFindIndex (fun f -> f = "length") fields) with
@@ -540,13 +613,12 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 Some(env, env.Heap[addr + (uint offset)])
             | None -> None
         | None -> None
-    | Array(target, length) when not (isValue target)-> // reduce pointer
+    | ArrayLength(target) when not (isValue target)-> // reduce pointer
         match (reduce env target) with
         | Some(env', target') ->
-            Some(env', {node with Expr = Array(target', length)})
+            Some(env', {node with Expr = ArrayLength(target')})
         | None -> None
-    | Array(_, _) -> None
-    | _ -> None
+    | ArrayLength(_) -> None
 
 /// Attempt to reduce the given lhs, and then (if the lhs is a value) the rhs,
 /// using the given runtime environment.  Return None if either (a) the lhs

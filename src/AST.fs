@@ -253,11 +253,11 @@ and Expr<'E,'T> =
              * data: Node<'E,'T>
 
     /// Access an element in the array
-    | ArrayElement of arr: Node<'E,'T>
+    | ArrayElement of target: Node<'E,'T>
               * index: Node<'E,'T>
                    
     /// Get length of the array
-    | ArrayLength of arr: Node<'E,'T>
+    | ArrayLength of target: Node<'E,'T>
 
     /// Pointer to a location in the heap, with its address.  This is a runtime
     /// value that is only used by the Hygge interpreter as an intermediate
