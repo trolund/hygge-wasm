@@ -431,32 +431,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 Some(env', value)
             | None -> None
         | None -> None
-
-// Assign to array length
-//     | Assign({Expr = ArrayLength(selTarget)} as target,
-//              expr) when not (isValue selTarget)->
-//         match (reduce env selTarget) with
-//         | Some(env', selTarget') ->
-//             let target' = {target with Expr = ArrayLength(selTarget')}
-//             Some(env', {node with Expr = Assign(target', expr)})
-//         | None -> None
-//     | Assign({Expr = ArrayLength(_)} as target, expr) when not (isValue expr) ->
-//         match (reduce env expr) with
-//         | Some(env', expr') ->
-//             Some(env', {node with Expr = Assign(target, expr')})
-//         | None -> None
-//     | Assign({Expr = ArrayLength({Expr = Pointer(addr)})}, value) ->
-//         match (env.PtrInfo.TryFind addr) with
-//         | Some(elements) ->
-//             match value.Expr with
-//             | IntVal(i) ->
-//                 if i < 0 then None
-//                 else
-//                     let env' = {env with Heap = env.Heap.Add(addr, value)}
-//                     Some(env', value)
-//             | _ -> None
-//         | None -> None
-// Assign to array element
+        
     | Assign({Expr = ArrayElement(selTarget, index)} as target,
              expr) when not (isValue selTarget)->
         match (reduce env selTarget) with
