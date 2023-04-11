@@ -456,32 +456,48 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
 //                     Some(env', value)
 //             | _ -> None
 //         | None -> None
-// // Assign to array element
-//     | Assign({Expr = ArrayElement(selTarget, index)} as target,
-//              expr) when not (isValue selTarget)->
-//         match (reduce env selTarget) with
-//         | Some(env', selTarget') ->
-//             let target' = {target with Expr = ArrayElement(selTarget', index)}
-//             Some(env', {node with Expr = Assign(target', expr)})
-//         | None -> None
-//     | Assign({Expr = ArrayElement(_, _)} as target, expr) when not (isValue expr) ->
-//         match (reduce env expr) with
-//         | Some(env', expr') ->
-//             Some(env', {node with Expr = Assign(target, expr')})
-//         | None -> None
-//     | Assign({Expr = ArrayElement({Expr = Pointer(addr)}, index)}, value) -> 
-//         match (env.PtrInfo.TryFind addr) with
-//         | Some(elements) ->
-//             match index.Expr with
-//             | IntVal(i) ->
-//                 if i < 0 || i >= elements.Length then
-//                     None
-//                 else
-//                     /// Updated env with selected array element overwritten by 'value'
-//                     let env' = {env with Heap = env.Heap.Add(addr+(uint i), value)}
-//                     Some(env', value)
-//             | _ -> None
-//         | None -> None
+// Assign to array element
+    | Assign({Expr = ArrayElement(selTarget, index)} as target,
+             expr) when not (isValue selTarget)->
+        match (reduce env selTarget) with
+        | Some(env', selTarget') ->
+            let target' = {target with Expr = ArrayElement(selTarget', index)}
+            Some(env', {node with Expr = Assign(target', expr)})
+        | None -> None
+    | Assign({Expr = ArrayElement(_, _)} as target, expr) when not (isValue expr) ->
+        match (reduce env expr) with
+        | Some(env', expr') ->
+            Some(env', {node with Expr = Assign(target, expr')})
+        | None -> None
+    | Assign({Expr = ArrayElement({Expr = Pointer(addr)}, index)}, value) when not (isValue index) ->
+        match (reduce env index) with
+        | Some(env', index') ->
+            let target' = {node with Expr = ArrayElement({node with Expr = Pointer(addr)}, index')}
+            Some(env', {node with Expr = Assign(target', value)})
+        | None -> None
+    | Assign({Expr = ArrayElement({Expr = Pointer(addr)}, index)}, value) -> 
+        match (env.PtrInfo.TryFind addr) with
+        | Some(elements) ->
+
+            let getLen = // Get length of array
+                match (List.tryFindIndex (fun f -> f = "length") elements) with
+                | Some(offset) ->
+                    match env.Heap[addr + (uint offset)].Expr with
+                    | IntVal(i) -> i
+                    | _ -> 0
+                | None -> 0
+
+            match index.Expr with
+            | IntVal(i) ->
+                let offsetIndex = i + 1  // +1 to skip length field
+                if offsetIndex < 0 || offsetIndex >= getLen + 1 then // Check if index is out of bounds, +1 for length field
+                    None // Out of bounds
+                else
+                    /// Updated env with selected array element overwritten by 'value'
+                    let env' = {env with Heap = env.Heap.Add(addr + (uint offsetIndex), value)}
+                    Some(env', value)
+            | _ -> None
+        | None -> None
 
     | Assign(target, expr) when not (isValue expr) ->
         match (reduce env expr) with
