@@ -771,7 +771,91 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             ++ retCode
             .AddText(RV.COMMENT("Restore caller-saved registers"))
                   ++ (restoreRegisters saveRegs [])
+    | Array(length, data: Node<TypingEnv,Type>) ->
+        /// Assembly code that allocates space on the heap for the new array,
+        /// through an 'Sbrk' system call.  The size of the array is computed by
+        /// multiplying the number of elements by the word size (4 bytes).
+        let codeGenLen = (doCodegen env length)
 
+        let structAllocCode =
+            (beforeSysCall [Reg.a0] [])
+                .AddText([
+                    (RV.LI(Reg.a0, 4), "length * 4 (in bytes)") //  first load the size of the memory block we want to allocate into register a0, this is length * 4 (in bytes)
+                    (RV.MUL(Reg.a0, Reg.a0, Reg.r(env.Target)), "Multiply array length to get size by number of structs")
+                    (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
+                    (RV.ECALL, "")
+                    (RV.MV(Reg.r(env.Target), Reg.a0),
+                     "Move syscall result (struct mem address) to target, stores the address of the allocated memory block in t0")
+                ])
+                ++ (afterSysCall [Reg.a0] [])
+
+        // let codeGenData = (doCodegen env data)
+        //                         .AddText([
+        //                             RV.SW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Store data in array" // target maybe t6
+        //                             ])
+
+        // # Store the numbers 1 to 5 in the first 5 positions of the array
+        //     li t2, 4       # Load the size of each element in the array
+        //     li t3, 1       # Load the starting index
+        //     li t4, 5       # Load the ending index
+        //     li t1, 1       # Initialize the counter to 1
+        //     loop:
+        //     mul t5, t2, t3 # Calculate the offset from the base address
+        //     add t6, t0, t5 # Calculate the address of the element
+        //     sw t1, 0(t6)   # Store the value in the element
+        //     addi t1, t1, 1 # Increment the counter
+        //     addi t3, t3, 1 # Increment the index
+        //     blt t3, t4, loop # Loop if the index is less than the ending index
+        
+        // turn the abow code into f# code
+        let codeGenData =
+            (doCodegen env data)
+                .AddText([
+                    RV.LI(Reg.t2, 4), "Load the size of each element in the array"
+                    RV.LI(Reg.t3, 1), "Load the starting index"
+                    RV.LI(Reg.t4, 5), "Load the ending index"
+                    RV.LI(Reg.t1, 1), "Initialize the counter to 1"
+                ])
+                .AddText(RV.LABEL("loop"))
+                .AddText([
+                    RV.MUL(Reg.t5, Reg.t2, Reg.t3), "Calculate the offset from the base address"
+                    RV.ADD(Reg.t6, Reg.r(env.Target), Reg.t5), "Calculate the address of the element"
+                    RV.SW(Reg.t0, Imm12(0), Reg.t6), "Store the value in the element"
+                    RV.ADDI(Reg.t1, Reg.t1,Imm12(1)), "Increment the counter"
+                    RV.ADDI(Reg.t3, Reg.t3, Imm12(1)), "Increment the index"
+                    RV.BLT(Reg.t3, Reg.t4, "loop"), "Loop if the index is less than the ending index"
+                ])
+
+
+        // Put everything together: allocate heap space, init all struct fields
+        codeGenLen ++ structAllocCode ++ codeGenData
+    | ArrayElement(array, index) ->
+        /// Assembly code that computes the address of the array element at the
+        /// given index. The address is computed by adding the index to the
+        /// address of the first element of the array.
+        let arrayAccessCode =
+            (doCodegen env array)
+            ++ (doCodegen env index)
+                .AddText([
+                (RV.ADD(Reg.r(env.Target), Reg.r(env.Target), Reg.r(env.Target + 1u)),
+                 "Compute array element address")
+            ])
+
+        // Put everything together: compute array element address
+        arrayAccessCode
+    | ArrayLength(array) ->
+        /// Assembly code that computes the length of the given array. The
+        /// length is stored in the first word of the array, so we just need to
+        /// load the first word of the array into the target register.
+        let arrayLengthCode =
+            (doCodegen env array)
+                .AddText([
+                (RV.LW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)),
+                 "Load array length")
+            ])
+
+        // Put everything together: compute array length
+        arrayLengthCode
     | Struct(fields) ->
         // To compile a struct, we allocate heap space for the whole struct
         // instance, and then compile its field initialisations one-by-one,
