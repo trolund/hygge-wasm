@@ -82,12 +82,16 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | Ascription(tpe, node) ->
         {node with Expr = Ascription(tpe, (subst node var sub))}
 
-    | Let(vname, _, _, _) when vname = var -> node // No substitution
+    | Let(vname, tpe, init, scope) when vname = var ->
+        // Do not substitute the variable in the "let" scope
+        {node with Expr = Let(vname, tpe, (subst init var sub), scope)}
     | Let(vname, tpe, init, scope) ->
         {node with Expr = Let(vname, tpe, (subst init var sub),
                               (subst scope var sub))}
 
-    | LetMut(vname, _, _, _) when vname = var -> node // No substitution
+    | LetMut(vname, tpe, init, scope) when vname = var ->
+        // Do not substitute the variable in the "let mutable" scope
+        {node with Expr = LetMut(vname, tpe, (subst init var sub), scope)}
     | LetMut(vname, tpe, init, scope) ->
         {node with Expr = LetMut(vname, tpe, (subst init var sub),
                                  (subst scope var sub))}
@@ -139,3 +143,154 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
 
     | FieldSelect(target, field) ->
         {node with Expr = FieldSelect((subst target var sub), field)}
+
+    | UnionCons(label, expr) ->
+        {node with Expr = UnionCons(label, (subst expr var sub))}
+
+    | Match(expr, cases) ->
+        /// Mapper function to propagate the substitution along a match case
+        let substCase(lab: string, v: string, cont: Node<'E,'T>) =
+            if (v = var) then (lab, v, cont) // Variable bound, no substitution
+            else (lab, v, (subst cont var sub))
+        let cases2 = List.map substCase cases
+        {node with Expr = Match((subst expr var sub), cases2)}
+
+/// Compute the set of free variables in the given AST node.
+let rec freeVars (node: Node<'E,'T>): Set<string> =
+    match node.Expr with
+    | UnitVal
+    | IntVal(_)
+    | BoolVal(_)
+    | FloatVal(_)
+    | StringVal(_)
+    | Pointer(_) -> Set[]
+    | Var(name) -> Set[name]
+    | Add(lhs, rhs)
+    | Mult(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | And(lhs, rhs)
+    | Or(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | Not(arg) -> freeVars arg
+    | Eq(lhs, rhs)
+    | Less(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | ReadInt
+    | ReadFloat -> Set[]
+    | Print(arg)
+    | PrintLn(arg) -> freeVars arg
+    | If(condition, ifTrue, ifFalse) ->
+        Set.union (freeVars condition)
+                  (Set.union (freeVars ifTrue) (freeVars ifFalse))
+    | Seq(nodes) -> freeVarsInList nodes
+    | Ascription(_, node) -> freeVars node
+    | Let(name, _, init, scope)
+    | LetMut(name, _, init, scope) ->
+        // All the free variables in the 'let' initialisation, together with all
+        // free variables in the scope --- minus the newly-bound variable
+        Set.union (freeVars init) (Set.remove name (freeVars scope))
+    | Assign(target, expr) ->
+        // Union of the free names of the lhs and the rhs of the assignment
+        Set.union (freeVars target) (freeVars expr)
+    | While(cond, body) -> Set.union (freeVars cond) (freeVars body)
+    | Assertion(arg) -> freeVars arg
+    | Type(_, _, scope) -> freeVars scope
+    | Lambda(args, body) ->
+        let (argNames, _) = List.unzip args
+        // All the free variables in the lambda function body, minus the
+        // names of the arguments
+        Set.difference (freeVars body) (Set.ofList argNames)
+    | Application(expr, args) ->
+        let fvArgs = List.map freeVars args
+        // Union of free variables in the applied expr, plus all its arguments
+        Set.union (freeVars expr) (freeVarsInList args)
+    | Struct(fields) ->
+        let (_, nodes) = List.unzip fields
+        freeVarsInList nodes
+    | FieldSelect(expr, _) -> freeVars expr
+    | UnionCons(_, expr) -> freeVars expr
+    | Match(expr, cases) ->
+        /// Compute the free variables in all match cases continuations, minus
+        /// the variable bound in the corresponding match case.  This 'folder'
+        /// is used to fold over all match cases.
+        let folder (acc: Set<string>) (_, var, cont: Node<'E,'T>): Set<string> =
+            Set.union acc ((freeVars cont).Remove var)
+        /// Free variables in all match continuations
+        let fvConts = List.fold folder Set[] cases
+        Set.union (freeVars expr) fvConts
+
+/// Compute the union of the free variables in a list of AST nodes.
+and internal freeVarsInList (nodes: List<Node<'E,'T>>): Set<string> =
+    /// Compute the free variables of 'node' and add them to the accumulator
+    let folder (acc: Set<string>) (node: Node<'E,'T> ) =
+        Set.union acc (freeVars node)
+    List.fold folder Set[] nodes
+
+/// Compute the set of captured variables in the given AST node.
+let rec capturedVars (node: Node<'E,'T>): Set<string> =
+    match node.Expr with
+    | UnitVal
+    | IntVal(_)
+    | BoolVal(_)
+    | FloatVal(_)
+    | StringVal(_)
+    | Pointer(_)
+    | Lambda(_, _) ->
+        // All free variables of a value are considered as captured
+        freeVars node
+    | Var(_) -> Set[]
+    | Add(lhs, rhs)
+    | Mult(lhs, rhs) ->
+        Set.union (capturedVars lhs) (capturedVars rhs)
+    | And(lhs, rhs)
+    | Or(lhs, rhs) ->
+        Set.union (capturedVars lhs) (capturedVars rhs)
+    | Not(arg) -> capturedVars arg
+    | Eq(lhs, rhs)
+    | Less(lhs, rhs) ->
+        Set.union (capturedVars lhs) (capturedVars rhs)
+    | ReadInt
+    | ReadFloat -> Set[]
+    | Print(arg)
+    | PrintLn(arg) -> capturedVars arg
+    | If(condition, ifTrue, ifFalse) ->
+        Set.union (capturedVars condition)
+                  (Set.union (capturedVars ifTrue) (capturedVars ifFalse))
+    | Seq(nodes) -> capturedVarsInList nodes
+    | Ascription(_, node) -> capturedVars node
+    | Let(name, _, init, scope)
+    | LetMut(name, _, init, scope) ->
+        // All the captured variables in the 'let' initialisation, together with
+        // all captured variables in the scope --- minus the newly-bound var
+        Set.union (capturedVars init) (Set.remove name (capturedVars scope))
+    | Assign(target, expr) ->
+        // Union of the captured vars of the lhs and the rhs of the assignment
+        Set.union (capturedVars target) (capturedVars expr)
+    | While(cond, body) -> Set.union (capturedVars cond) (capturedVars body)
+    | Assertion(arg) -> capturedVars arg
+    | Type(_, _, scope) -> capturedVars scope
+    | Application(expr, args) ->
+        let fvArgs = List.map capturedVars args
+        // Union of captured variables in the applied expr, plus all arguments
+        Set.union (capturedVars expr) (capturedVarsInList args)
+    | Struct(fields) ->
+        let (_, nodes) = List.unzip fields
+        capturedVarsInList nodes
+    | FieldSelect(expr, _) -> capturedVars expr
+    | UnionCons(_, expr) -> capturedVars expr
+    | Match(expr, cases) ->
+        /// Compute the captured variables in all match cases continuations,
+        /// minus the variable bound in the corresponding match case.  This
+        /// 'folder' is used to fold over all match cases.
+        let folder (acc: Set<string>) (_, var, cont: Node<'E,'T>): Set<string> =
+            Set.union acc ((capturedVars cont).Remove var)
+        /// Captured variables in all match continuations
+        let cvConts = List.fold folder Set[] cases
+        Set.union (capturedVars expr) cvConts
+
+/// Compute the union of the captured variables in a list of AST nodes.
+and internal capturedVarsInList (nodes: List<Node<'E,'T>>): Set<string> =
+    /// Compute the free variables of 'node' and add them to the accumulator
+    let folder (acc: Set<string>) (node: Node<'E,'T> ) =
+        Set.union acc (capturedVars node)
+    List.fold folder Set[] nodes
