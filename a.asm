@@ -46,10 +46,10 @@ loop:
     sw t0, 0(t1)  # Store the value in the element
     addi a3, a3, 1  # Increment the index
     blt a3, t4, loop  # Loop if the index is less than the ending index
-    mv t0, a0  # Move array mem address to target register
+    mv t0, t6  # Move array mem address to target register
     # Allocation done
     mv t1, t0  # Load variable 'arr'
-    lw t1, 0(t1)  # Load array length
+    lw t1, 4(t1)  # Load array length
     mv t2, t1  # Load variable 'len'
     li s1, 4
     beq t2, s1, eq_true
