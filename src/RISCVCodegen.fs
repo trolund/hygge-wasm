@@ -627,6 +627,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             let selTargetCode = doCodegen env target
             /// Code for the 'rhs', leaving its result in the target+1 register
             let rhsCode = doCodegen {env with Target = env.Target + 1u} rhs
+
             match (expandType target.Env target.Type) with
             | TStruct(fields) ->
                 /// Names of the struct fields
@@ -653,6 +654,30 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 selTargetCode ++ rhsCode ++ assignCode
             | t ->
                 failwith $"BUG: field selection on invalid object type: %O{t}"
+        | ArrayElement(target, index) -> // TODO: implement array element assignment
+            /// Assembly code for computing the 'target' array of which we are
+            /// selecting the 'index' element.  We write the computation result
+            /// (which should be an array memory address) in the target register.
+            let selTargetCode = Asm(RV.COMMENT("Array element assignment begin")) ++ doCodegen env target
+
+            /// Assembly code for computing the 'index' of the array element
+            /// that we are selecting. We write the computation result (which
+            /// should be an integer) in the target+1 register.
+            let indexCode = (doCodegen {env with Target = env.Target + 1u} index)
+
+            /// Assembly code for computing the 'rhs' value that we are
+            /// assigning to the array element. We write the computation result
+            /// (which should be an integer) in the target+2 register.
+            let rhsCode = (doCodegen {env with Target = env.Target + 2u} rhs)
+
+            let assignCode = 
+                    Asm([(RV.SW(Reg.r(env.Target + 2u), Imm12(4),
+                                Reg.r(env.Target)),
+                          "Assigning value to array element")
+                         (RV.MV(Reg.r(env.Target), Reg.r(env.Target + 2u)),
+                          "Copying assigned value to target register")])
+
+            selTargetCode ++ indexCode ++ rhsCode ++ assignCode
         | _ ->
             failwith ($"BUG: assignment to invalid target:%s{Util.nl}"
                       + $"%s{PrettyPrinter.prettyPrint lhs}")
@@ -831,25 +856,27 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
 
         // Combine all the generated code
         structAllocCode ++ lengthCode ++ dataAllocCode ++ dataInitCode ++ codeGenData
-    | ArrayElement(array, index) ->
+    | ArrayElement(target, index) ->
         /// Assembly code that computes the address of the array element at the
         /// given index. The address is computed by adding the index to the
         /// address of the first element of the array.
-        let arrayAccessCode =
-            (doCodegen env array)
-            ++ (doCodegen env index)
-                .AddText([
-                (RV.ADD(Reg.r(env.Target), Reg.r(env.Target), Reg.r(env.Target + 1u)),
-                 "Compute array element address")
+        let arrayAccessCode = Asm(RV.COMMENT("Array element lookup")) ++ (doCodegen env target).AddText([
+                (RV.LW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Load array data pointer")
+            ])
+
+        let indexCode = (doCodegen env index).AddText([
+                (RV.LI(Reg.t3, 4), "Load the size of each element in the array")
+                (RV.MUL(Reg.r(env.Target), Reg.r(env.Target), Reg.t3), "Calculate the offset (index) from the base address")
+                (RV.ADD(Reg.r(env.Target), Reg.r(env.Target), Reg.r(env.Target + 1u)), "Compute array element address")
+                (RV.LW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Load array element")
             ])
 
         // Put everything together: compute array element address
-        arrayAccessCode
+        arrayAccessCode ++ indexCode
     | ArrayLength(target) ->
         /// Assembly code that computes the length of the given array. The
         /// length is stored in the first word of the array struct, so we
         /// simply load that word into the target register. 
-
         (doCodegen env target).AddText([
                 (RV.LW(Reg.r(env.Target), Imm12(4), Reg.r(env.Target)), "Load array length")
             ])
