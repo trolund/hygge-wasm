@@ -2,37 +2,52 @@
 
 .text:
     mv fp, sp  # Initialize frame pointer
+    # Before system call: save registers
+    addi sp, sp, -8  # Update stack pointer to make room for saved registers
+    sw a7, 0(sp)
+    sw a0, 4(sp)
+    li a0, 8  # Amount of memory to allocate for the array struct {data, length} (in bytes)
+    li a7, 9  # RARS syscall: Sbrk
+    ecall
+    mv t0, a0  # Move syscall result (struct mem address) to target
+    # After system call: restore registers
+    lw a7, 0(sp)
+    lw a0, 4(sp)
+    addi sp, sp, 8  # Restore stack pointer after register restoration
+    mv t6, t0  # Move adrress to t6
     li t0, 2
     li t1, 2
     add t0, t0, t1
+    sw t0, 4(t6)  # Initialize array length field
+    mv t4, t0  # Move length to t4
     # Before system call: save registers
     addi sp, sp, -8  # Update stack pointer to make room for saved registers
     sw a7, 0(sp)
     sw a0, 4(sp)
     li a0, 4  # 4 (bytes)
-    mv a1, t0  # Move length to a1
     mul a0, a0, t0  # Multiply length * 4 to get array size
     li a7, 9  # RARS syscall: Sbrk
-    mv a2, a0  # Move size to a2
-    ecall  # Execute syscall
-    mv t0, a0  # Move syscall result (Array mem address) to target register
+    ecall
+    mv t2, a0  # Move syscall result (array data mem address) to target+2
     # After system call: restore registers
     lw a7, 0(sp)
     lw a0, 4(sp)
     addi sp, sp, 8  # Restore stack pointer after register restoration
-    # Store the init value in all positions of the array
-    mv a3, t0  # Array adress to a3
+    sw t2, 0(t6)  # Initialize array data field
+    mv t5, t2  # Move array data address to t6
     li t0, 40
     li t1, 2
     add t0, t0, t1
-    li t2, 4  # Load the size of each element in the array
-    li t3, 0  # Load the starting index
+    li a2, 4  # Load the size of each element in the array
+    li a3, 0  # Load the starting index
 loop:
-    mul t5, t2, t3  # Calculate the offset from the base address
-    add t6, a3, t5  # Calculate the address of the element
-    sw t0, 0(t6)  # Store the value in the element
-    addi t3, t3, 1  # Increment the index
-    blt t3, a1, loop  # Loop if the index is less than the ending index
+    mul t1, a2, a3  # Calculate the offset (index) from the base address
+    add t1, t5, t1  # Calculate the address of the element
+    sw t0, 0(t1)  # Store the value in the element
+    addi a3, a3, 1  # Increment the index
+    blt a3, t4, loop  # Loop if the index is less than the ending index
+    mv t0, a0  # Move array mem address to target register
+    # Allocation done
     mv t1, t0  # Load variable 'arr'
     lw t1, 0(t1)  # Load array length
     mv t2, t1  # Load variable 'len'

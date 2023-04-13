@@ -771,49 +771,67 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             ++ retCode
             .AddText(RV.COMMENT("Restore caller-saved registers"))
                   ++ (restoreRegisters saveRegs [])
-    | Array(length, data: Node<TypingEnv,Type>) ->
-        /// Assembly code that allocates space on the heap for the new array,
-        /// through an 'Sbrk' system call.  The size of the array is computed by
-        /// multiplying the number of elements by the word size (4 bytes).
-        let codeGenLen = (doCodegen env length)
+    | Array(length, data) ->
 
+        // Generate code for the data expression
+        // let dataCode = doCodegen env data
+
+        // Allocate space for the array struct on the heap
         let structAllocCode =
             (beforeSysCall [Reg.a0] [])
                 .AddText([
-                    (RV.LI(Reg.a0, 4), "4 (bytes)") //  first load the size of the memory block we want to allocate into register a0, this is length * 4 (in bytes)
-                    (RV.MV(Reg.a1, Reg.r(env.Target)), "Move length to a1")
-                    (RV.MUL(Reg.a0, Reg.a0, Reg.r(env.Target)), "Multiply length * 4 to get array size")
+                    (RV.LI(Reg.a0, 2 * 4), "Amount of memory to allocate for the array struct {data, length} (in bytes)")
                     (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
-                    (RV.MV(Reg.a2, Reg.a0), "Move size to a2")
-                    (RV.ECALL, "Execute syscall")
-                    (RV.MV(Reg.r(env.Target), Reg.a0), "Move syscall result (Array mem address) to target register")
+                    (RV.ECALL, "")
+                    (RV.MV(Reg.r(env.Target), Reg.a0), "Move syscall result (struct mem address) to target")
                 ])
                 ++ (afterSysCall [Reg.a0] [])
-        
-        // when compiling the (doCodegen env data) t0 is overwritten with the value of the array instead of the length
-        let codeGenData =
-            Asm(RV.COMMENT("Store the init value in all positions of the array")).AddText([
-                RV.MV(Reg.a3, Reg.r(env.Target)), "Array adress to a3"
-            ]) ++ 
-            (doCodegen env data) // put the value of the array in t0
+
+        // t0 have the address of the array struct
+        // Initialize the length field of the array struct
+        let lengthCode = Asm(RV.MV(Reg.t6, Reg.r(env.Target)), "Move adrress to t6") ++ (doCodegen env length).AddText([
+            RV.SW(Reg.r(env.Target), Imm12(4), Reg.t6), "Initialize array length field"
+            RV.MV(Reg.t4, Reg.r(env.Target)), "Move length to t4"
+        ])
+
+        // Generate code to allocate space for the array data on the heap
+        let dataAllocCode =
+            (beforeSysCall [Reg.a0] [])
                 .AddText([
-                    RV.LI(Reg.t2, 4), "Load the size of each element in the array"
-                    RV.LI(Reg.t3, 0), "Load the starting index"
-                    // RV.LI(Reg.t4, 5), "Load the ending index"
-                    // RV.LI(Reg.t1, 0), "Initialize the counter to 0"
+                    (RV.LI(Reg.a0, 4), "4 (bytes)") //  first load the size of the memory block we want to allocate into register a0, this is length * 4 (in bytes)
+                    (RV.MUL(Reg.a0, Reg.a0, Reg.r(env.Target)), "Multiply length * 4 to get array size")
+                    (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
+                    (RV.ECALL, "")
+                    (RV.MV(Reg.r(env.Target + 2u), Reg.a0), "Move syscall result (array data mem address) to target+2")
+                ])
+                ++ (afterSysCall [Reg.a0] [])
+
+        // Generate code to store the array data pointer in the data field of the array struct
+        let dataInitCode =
+             Asm(RV.SW(Reg.r(env.Target + 2u), Imm12(0), Reg.t6), "Initialize array data field").AddText([
+                RV.MV(Reg.t5, Reg.r(env.Target + 2u)), "Move array data address to t6"
+             ])
+        // Now t5 have the address of the array data
+        // Generate code to store the array data in the allocated memory
+        let codeGenData = 
+            (doCodegen env data)
+                .AddText([
+                    RV.LI(Reg.a2, 4), "Load the size of each element in the array"
+                    RV.LI(Reg.a3, 0), "Load the starting index"
                 ])
                 .AddText(RV.LABEL("loop"))
                 .AddText([
-                    RV.MUL(Reg.t5, Reg.t2, Reg.t3), "Calculate the offset from the base address"
-                    RV.ADD(Reg.t6, Reg.a3, Reg.t5), "Calculate the address of the element"
-                    RV.SW(Reg.t0, Imm12(0), Reg.t6), "Store the value in the element"
-                    // RV.ADDI(Reg.t1, Reg.t1, Imm12(1)), "Increment the counter"
-                    RV.ADDI(Reg.t3, Reg.t3, Imm12(1)), "Increment the index"
-                    RV.BLT(Reg.t3, Reg.a1, "loop"), "Loop if the index is less than the ending index"
-                ])
+                RV.MUL(Reg.r(env.Target + 1u), Reg.a2, Reg.a3), "Calculate the offset (index) from the base address"
+                RV.ADD(Reg.t1, Reg.t5, Reg.r(env.Target + 1u)), "Calculate the address of the element"
+                RV.SW(Reg.r(env.Target), Imm12(0), Reg.t1), "Store the value in the element"
+                RV.ADDI(Reg.a3, Reg.a3, Imm12(1)), "Increment the index"
+                RV.BLT(Reg.a3, Reg.t4, "loop"), "Loop if the index is less than the ending index"
+                RV.MV(Reg.r(env.Target), Reg.a0), "Move array mem address to target register"
+            ]).AddText(RV.COMMENT("Allocation done"))
 
-        // Put everything together: allocate heap space, init all struct fields
-        codeGenLen ++ structAllocCode ++ codeGenData
+
+        // Combine all the generated code
+        structAllocCode ++ lengthCode ++ dataAllocCode ++ dataInitCode ++ codeGenData
     | ArrayElement(array, index) ->
         /// Assembly code that computes the address of the array element at the
         /// given index. The address is computed by adding the index to the
