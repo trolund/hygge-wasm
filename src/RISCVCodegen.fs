@@ -848,14 +848,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
     | ArrayLength(target) ->
         /// Assembly code that computes the length of the given array. The
         /// length is stored in the first word of the array struct, so we
-        /// simply load that word into the target register.
-        
-        let selTargetCode = (doCodegen env target).AddText([
+        /// simply load that word into the target register. 
+
+        (doCodegen env target).AddText([
                 (RV.LW(Reg.r(env.Target), Imm12(4), Reg.r(env.Target)), "Load array length")
             ])
-
-        // Put everything together: compute array length
-        selTargetCode
     | Struct(fields) ->
         // To compile a struct, we allocate heap space for the whole struct
         // instance, and then compile its field initialisations one-by-one,
