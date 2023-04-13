@@ -780,8 +780,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         let structAllocCode =
             (beforeSysCall [Reg.a0] [])
                 .AddText([
-                    (RV.LI(Reg.a0, 4), "length * 4 (in bytes)") //  first load the size of the memory block we want to allocate into register a0, this is length * 4 (in bytes)
-                    (RV.MUL(Reg.a0, Reg.a0, Reg.r(env.Target)), "Multiply array length to get size by number of structs")
+                    (RV.LI(Reg.a0, 4), "4 (bytes)") //  first load the size of the memory block we want to allocate into register a0, this is length * 4 (in bytes)
+                    (RV.MUL(Reg.a0, Reg.a0, Reg.r(env.Target)), "Multiply length * 4 to get array size")
                     (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
                     (RV.ECALL, "")
                     (RV.MV(Reg.r(env.Target), Reg.a0),
@@ -812,9 +812,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             (doCodegen env data)
                 .AddText([
                     RV.LI(Reg.t2, 4), "Load the size of each element in the array"
-                    RV.LI(Reg.t3, 1), "Load the starting index"
-                    RV.LI(Reg.t4, 5), "Load the ending index"
-                    RV.LI(Reg.t1, 1), "Initialize the counter to 1"
+                   // RV.LI(Reg.t3, 1), "Load the starting index"
+                   // RV.LI(Reg.t4, 5), "Load the ending index"
+                    RV.LI(Reg.t1, 0), "Initialize the counter to 0"
                 ])
                 .AddText(RV.LABEL("loop"))
                 .AddText([

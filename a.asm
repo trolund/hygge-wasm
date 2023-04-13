@@ -22,9 +22,7 @@
     li t1, 2
     add t0, t0, t1
     li t2, 4  # Load the size of each element in the array
-    li t3, 1  # Load the starting index
-    li t4, 5  # Load the ending index
-    li t1, 1  # Initialize the counter to 1
+    li t1, 0  # Initialize the counter to 0
 loop:
     mul t5, t2, t3  # Calculate the offset from the base address
     add t6, t0, t5  # Calculate the address of the element
