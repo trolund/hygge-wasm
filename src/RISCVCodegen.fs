@@ -797,15 +797,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             ]) ++ 
             (doCodegen env data) // put the value of the array in t0
                 .AddText([
-                    // RV.LI(Reg.t2, 4), "Load the size of each element in the array"
+                    RV.LI(Reg.t2, 4), "Load the size of each element in the array"
                     RV.LI(Reg.t3, 0), "Load the starting index"
                     // RV.LI(Reg.t4, 5), "Load the ending index"
                     // RV.LI(Reg.t1, 0), "Initialize the counter to 0"
                 ])
                 .AddText(RV.LABEL("loop"))
                 .AddText([
-                    RV.MUL(Reg.t5, Reg.a3, Reg.t3), "Calculate the offset from the base address"
-                    RV.ADD(Reg.t6, Reg.r(env.Target), Reg.t5), "Calculate the address of the element"
+                    RV.MUL(Reg.t5, Reg.t2, Reg.t3), "Calculate the offset from the base address"
+                    RV.ADD(Reg.t6, Reg.a3, Reg.t5), "Calculate the address of the element"
                     RV.SW(Reg.t0, Imm12(0), Reg.t6), "Store the value in the element"
                     // RV.ADDI(Reg.t1, Reg.t1, Imm12(1)), "Increment the counter"
                     RV.ADDI(Reg.t3, Reg.t3, Imm12(1)), "Increment the index"

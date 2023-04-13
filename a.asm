@@ -25,10 +25,11 @@
     li t0, 40
     li t1, 2
     add t0, t0, t1
+    li t2, 4  # Load the size of each element in the array
     li t3, 0  # Load the starting index
 loop:
-    mul t5, a3, t3  # Calculate the offset from the base address
-    add t6, t0, t5  # Calculate the address of the element
+    mul t5, t2, t3  # Calculate the offset from the base address
+    add t6, a3, t5  # Calculate the address of the element
     sw t0, 0(t6)  # Store the value in the element
     addi t3, t3, 1  # Increment the index
     blt t3, a1, loop  # Loop if the index is less than the ending index
