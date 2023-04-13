@@ -9,27 +9,29 @@
     addi sp, sp, -8  # Update stack pointer to make room for saved registers
     sw a7, 0(sp)
     sw a0, 4(sp)
-    li a0, 4  # length * 4 (in bytes)
-    mul a0, a0, t0  # Multiply array length to get size by number of structs
+    li a0, 4  # 4 (bytes)
+    mv a1, t0  # Move length to a1
+    mul a0, a0, t0  # Multiply length * 4 to get array size
     li a7, 9  # RARS syscall: Sbrk
-    ecall
-    mv t0, a0  # Move syscall result (struct mem address) to target, stores the address of the allocated memory block in t0
+    mv a2, a0  # Move size to a2
+    ecall  # Execute syscall
+    mv t0, a0  # Move syscall result (Array mem address) to target register
     # After system call: restore registers
     lw a7, 0(sp)
     lw a0, 4(sp)
     addi sp, sp, 8  # Restore stack pointer after register restoration
+    # Store the init value in all positions of the array
+    mv a3, t0  # Array adress to a3
     li t0, 40
     li t1, 2
     add t0, t0, t1
-    li t2, 4  # Load the size of each element in the array
-    li t1, 0  # Initialize the counter to 0
+    li t3, 0  # Load the starting index
 loop:
-    mul t5, t2, t3  # Calculate the offset from the base address
+    mul t5, a3, t3  # Calculate the offset from the base address
     add t6, t0, t5  # Calculate the address of the element
     sw t0, 0(t6)  # Store the value in the element
-    addi t1, t1, 1  # Increment the counter
     addi t3, t3, 1  # Increment the index
-    blt t3, t4, loop  # Loop if the index is less than the ending index
+    blt t3, a1, loop  # Loop if the index is less than the ending index
     mv t1, t0  # Load variable 'arr'
     lw t1, 0(t1)  # Load array length
     mv t2, t1  # Load variable 'len'

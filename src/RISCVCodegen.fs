@@ -781,51 +781,36 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             (beforeSysCall [Reg.a0] [])
                 .AddText([
                     (RV.LI(Reg.a0, 4), "4 (bytes)") //  first load the size of the memory block we want to allocate into register a0, this is length * 4 (in bytes)
+                    (RV.MV(Reg.a1, Reg.r(env.Target)), "Move length to a1")
                     (RV.MUL(Reg.a0, Reg.a0, Reg.r(env.Target)), "Multiply length * 4 to get array size")
                     (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
-                    (RV.ECALL, "")
-                    (RV.MV(Reg.r(env.Target), Reg.a0),
-                     "Move syscall result (struct mem address) to target, stores the address of the allocated memory block in t0")
+                    (RV.MV(Reg.a2, Reg.a0), "Move size to a2")
+                    (RV.ECALL, "Execute syscall")
+                    (RV.MV(Reg.r(env.Target), Reg.a0), "Move syscall result (Array mem address) to target register")
                 ])
                 ++ (afterSysCall [Reg.a0] [])
-
-        // let codeGenData = (doCodegen env data)
-        //                         .AddText([
-        //                             RV.SW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Store data in array" // target maybe t6
-        //                             ])
-
-        // # Store the numbers 1 to 5 in the first 5 positions of the array
-        //     li t2, 4       # Load the size of each element in the array
-        //     li t3, 1       # Load the starting index
-        //     li t4, 5       # Load the ending index
-        //     li t1, 1       # Initialize the counter to 1
-        //     loop:
-        //     mul t5, t2, t3 # Calculate the offset from the base address
-        //     add t6, t0, t5 # Calculate the address of the element
-        //     sw t1, 0(t6)   # Store the value in the element
-        //     addi t1, t1, 1 # Increment the counter
-        //     addi t3, t3, 1 # Increment the index
-        //     blt t3, t4, loop # Loop if the index is less than the ending index
         
-        // turn the abow code into f# code
+        // when compiling the (doCodegen env data) t0 is overwritten with the value of the array instead of the length
         let codeGenData =
-            (doCodegen env data)
+            Asm(RV.COMMENT("Store the init value in all positions of the array")).AddText([
+                RV.MV(Reg.a3, Reg.r(env.Target)), "Array adress to a3"
+            ]) ++ 
+            (doCodegen env data) // put the value of the array in t0
                 .AddText([
-                    RV.LI(Reg.t2, 4), "Load the size of each element in the array"
-                   // RV.LI(Reg.t3, 1), "Load the starting index"
-                   // RV.LI(Reg.t4, 5), "Load the ending index"
-                    RV.LI(Reg.t1, 0), "Initialize the counter to 0"
+                    // RV.LI(Reg.t2, 4), "Load the size of each element in the array"
+                    RV.LI(Reg.t3, 0), "Load the starting index"
+                    // RV.LI(Reg.t4, 5), "Load the ending index"
+                    // RV.LI(Reg.t1, 0), "Initialize the counter to 0"
                 ])
                 .AddText(RV.LABEL("loop"))
                 .AddText([
-                    RV.MUL(Reg.t5, Reg.t2, Reg.t3), "Calculate the offset from the base address"
+                    RV.MUL(Reg.t5, Reg.a3, Reg.t3), "Calculate the offset from the base address"
                     RV.ADD(Reg.t6, Reg.r(env.Target), Reg.t5), "Calculate the address of the element"
                     RV.SW(Reg.t0, Imm12(0), Reg.t6), "Store the value in the element"
-                    RV.ADDI(Reg.t1, Reg.t1,Imm12(1)), "Increment the counter"
+                    // RV.ADDI(Reg.t1, Reg.t1, Imm12(1)), "Increment the counter"
                     RV.ADDI(Reg.t3, Reg.t3, Imm12(1)), "Increment the index"
-                    RV.BLT(Reg.t3, Reg.t4, "loop"), "Loop if the index is less than the ending index"
+                    RV.BLT(Reg.t3, Reg.a1, "loop"), "Loop if the index is less than the ending index"
                 ])
-
 
         // Put everything together: allocate heap space, init all struct fields
         codeGenLen ++ structAllocCode ++ codeGenData
@@ -900,12 +885,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         let structAllocCode =
             (beforeSysCall [Reg.a0] [])
                 .AddText([
-                    (RV.LI(Reg.a0, fields.Length * 4),
-                     "Amount of memory to allocate for a struct (in bytes)")
+                    (RV.LI(Reg.a0, fields.Length * 4), "Amount of memory to allocate for a struct (in bytes)")
                     (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
                     (RV.ECALL, "")
-                    (RV.MV(Reg.r(env.Target), Reg.a0),
-                     "Move syscall result (struct mem address) to target")
+                    (RV.MV(Reg.r(env.Target), Reg.a0), "Move syscall result (struct mem address) to target")
                 ])
                 ++ (afterSysCall [Reg.a0] [])
 
