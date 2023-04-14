@@ -474,8 +474,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             | IntVal(i) ->
                 match dataPointer with
                 | Some(dataPointer') ->
-                    // let offsetIndex = i + 1  // +1 to skip length field
-                    if i < 0 || i >= getLen + 1 then // Check if index is out of bounds, +1 for length field
+                    if i < 0 || i >= getLen then // write of out of bounds
                         Log.debug $"Array index %i{i} out of bounds in array of length %i{getLen}"
                         None // Out of bounds
                     else
@@ -651,6 +650,15 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
     | ArrayElement({Expr = Pointer(addr)}, index) when (isValue index) ->
         match (env.PtrInfo.TryFind addr) with
         | Some(elements) ->
+
+            let getLen = // Get length of array
+                match (List.tryFindIndex (fun f -> f = "length") elements) with
+                | Some(offset) ->
+                    match env.Heap[addr + (uint offset)].Expr with
+                    | IntVal(i) -> i
+                    | _ -> 0
+                | None -> 0
+
             match (List.tryFindIndex (fun f -> f = "data") elements) with
             | Some(offset) ->
                 let dataPointer = env.Heap[addr + (uint offset)]
@@ -658,7 +666,11 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 | Pointer(dataPointer') ->
                     match index.Expr with
                     | IntVal(index') ->
-                        Some(env, env.Heap[dataPointer' + (uint offset) + (uint index')])
+                        if index' < 0 || index' >= getLen then // read of out of bounds
+                            Log.debug $"Array index %i{index'} out of bounds in array of length %i{getLen}"
+                            None // Out of bounds
+                        else
+                            Some(env, env.Heap[dataPointer' + (uint offset) + (uint index')])
                     | _ -> None
                 | _ -> None
             | None -> None
