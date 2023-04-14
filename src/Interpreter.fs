@@ -462,15 +462,26 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                     | _ -> 0
                 | None -> 0
 
+            let dataPointer = // Get length of array
+                match (List.tryFindIndex (fun f -> f = "data") elements) with
+                | Some(offset) ->
+                    match env.Heap[addr + (uint offset)].Expr with
+                    | Pointer(addr) -> Some(addr)
+                    | _ -> None
+                | None -> None
+
             match index.Expr with
             | IntVal(i) ->
-                let offsetIndex = i + 1  // +1 to skip length field
-                if offsetIndex < 0 || offsetIndex >= getLen + 1 then // Check if index is out of bounds, +1 for length field
-                    None // Out of bounds
-                else
-                    /// Updated env with selected array element overwritten by 'value'
-                    let env' = {env with Heap = env.Heap.Add(addr + (uint offsetIndex), value)}
-                    Some(env', value)
+                match dataPointer with
+                | Some(dataPointer') ->
+                    // let offsetIndex = i + 1  // +1 to skip length field
+                    if i < 0 || i >= getLen + 1 then // Check if index is out of bounds, +1 for length field
+                        None // Out of bounds
+                    else
+                        /// Updated env with selected array element overwritten by 'value'
+                        let env' = {env with Heap = env.Heap.Add(dataPointer' + (uint i), value)}
+                        Some(env', value)
+                | None -> None
             | _ -> None
         | None -> None
 
@@ -578,12 +589,18 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
     | Array(length, data) when (isValue length) && (isValue data) ->
         // If both the length and data are values, place them on the heap in
         // consecutive addresses
+        // create strcut with the fields length and data
+        // place the struct on the heap
+        // return a pointer to the struct
         match length.Expr with
         | IntVal(length') ->
-            let (heap', baseAddr) = heapAlloc env.Heap ([length] @ (List.replicate length' data))
-            let ptrInfo' = env.PtrInfo.Add(baseAddr, ["length"; "data"])
-            Some({env with Heap = heap'; PtrInfo = ptrInfo'},
-                         {node with Expr = Pointer(baseAddr)})
+            // allocate space for the array and fill it with the data
+            let (heap', baseAddr) = heapAlloc env.Heap (List.replicate length' data)
+            // allocate space for the struct and fill it with the length and the pointer to the array
+            let pointerStruct = Struct(["data", {node with Expr = Pointer(baseAddr)}; "length", length])
+            
+            Some({env with Heap = heap'},
+                         {node with Expr = pointerStruct})
         | _ -> None
 
     | Array(length, data) when (isValue length) ->
@@ -603,16 +620,19 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
         | Some(elements) ->
             match (List.tryFindIndex (fun f -> f = "data") elements) with
             | Some(offset) ->
-                match (index.Expr) with
-                | IntVal(index') ->
-                    Some(env, env.Heap[addr + (uint offset) + (uint index')])
+                let dataPointer = env.Heap[addr + (uint offset)]
+                match dataPointer.Expr with
+                | Pointer(dataPointer') ->
+                    match index.Expr with
+                    | IntVal(index') ->
+                        Some(env, env.Heap[dataPointer' + (uint offset) + (uint index')])
+                    | _ -> None
                 | _ -> None
             | None -> None
         | None -> None
     | ArrayElement(target, index) when not (isValue target)-> 
         match (reduce env target) with
         | Some(env', target') ->
-
             Some(env', {node with Expr = ArrayElement(target', index)})
         | None -> None
     | ArrayElement(target, index) when not (isValue index)  -> 
