@@ -1,5 +1,0 @@
-let n: int = 5;
-let arr: array {int} = array(n, 1);
-arrayElem(arr, 2) <- arrayElem(arr, 2) + n;
-
-assert(arrayElem(arr, 2) = 6)

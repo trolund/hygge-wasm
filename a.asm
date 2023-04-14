@@ -63,6 +63,7 @@ loop:
     add s2, s2, s3
     li s3, 4  # Loading size of array element
     mul s1, s1, s3  # Multiplying index by size of array element
+    add t2, t2, s1  # Adding index to array address
     sw s1, 0(t2)  # Copying index to array address
     sw s2, 0(t2)  # Assigning value to array element
     mv t2, s2  # Copying assigned value to target register
@@ -86,6 +87,79 @@ loop:
     add s2, s2, s3
     li s3, 4  # Loading size of array element
     mul s1, s1, s3  # Multiplying index by size of array element
+    add t2, t2, s1  # Adding index to array address
+    sw s1, 0(t2)  # Copying index to array address
+    sw s2, 0(t2)  # Assigning value to array element
+    mv t2, s2  # Copying assigned value to target register
+    # Array element assignment begin
+    mv t2, t1  # Load variable 'arr'
+    lw t2, 0(t2)  # Copying array address to target register
+    # Index begin
+    li s1, 2
+    # Right hand side begin
+    # Array element lookup
+    mv s2, t1  # Load variable 'arr'
+    lw s3, 0(s2)  # Load array data pointer
+    li s2, 2
+    li t3, 4  # Load the size of each element in the array
+    mul s2, s2, t3  # Calculate the offset (index) from the base address
+    add s2, s2, s3  # Compute array element address
+    lw s2, 0(s2)  # Load array element
+    mv s3, t0  # Load variable 'n'
+    add s2, s2, s3
+    li s3, 2
+    add s2, s2, s3
+    li s3, 4  # Loading size of array element
+    mul s1, s1, s3  # Multiplying index by size of array element
+    add t2, t2, s1  # Adding index to array address
+    sw s1, 0(t2)  # Copying index to array address
+    sw s2, 0(t2)  # Assigning value to array element
+    mv t2, s2  # Copying assigned value to target register
+    # Array element assignment begin
+    mv t2, t1  # Load variable 'arr'
+    lw t2, 0(t2)  # Copying array address to target register
+    # Index begin
+    li s1, 3
+    # Right hand side begin
+    # Array element lookup
+    mv s2, t1  # Load variable 'arr'
+    lw s3, 0(s2)  # Load array data pointer
+    li s2, 3
+    li t3, 4  # Load the size of each element in the array
+    mul s2, s2, t3  # Calculate the offset (index) from the base address
+    add s2, s2, s3  # Compute array element address
+    lw s2, 0(s2)  # Load array element
+    mv s3, t0  # Load variable 'n'
+    add s2, s2, s3
+    li s3, 3
+    add s2, s2, s3
+    li s3, 4  # Loading size of array element
+    mul s1, s1, s3  # Multiplying index by size of array element
+    add t2, t2, s1  # Adding index to array address
+    sw s1, 0(t2)  # Copying index to array address
+    sw s2, 0(t2)  # Assigning value to array element
+    mv t2, s2  # Copying assigned value to target register
+    # Array element assignment begin
+    mv t2, t1  # Load variable 'arr'
+    lw t2, 0(t2)  # Copying array address to target register
+    # Index begin
+    li s1, 4
+    # Right hand side begin
+    # Array element lookup
+    mv s2, t1  # Load variable 'arr'
+    lw s3, 0(s2)  # Load array data pointer
+    li s2, 4
+    li t3, 4  # Load the size of each element in the array
+    mul s2, s2, t3  # Calculate the offset (index) from the base address
+    add s2, s2, s3  # Compute array element address
+    lw s2, 0(s2)  # Load array element
+    mv s3, t0  # Load variable 'n'
+    add s2, s2, s3
+    li s3, 4
+    add s2, s2, s3
+    li s3, 4  # Loading size of array element
+    mul s1, s1, s3  # Multiplying index by size of array element
+    add t2, t2, s1  # Adding index to array address
     sw s1, 0(t2)  # Copying index to array address
     sw s2, 0(t2)  # Assigning value to array element
     mv t2, s2  # Copying assigned value to target register
@@ -131,6 +205,69 @@ eq_end_2:
     li a0, 42  # Assertion violation exit code
     ecall
 assert_true_0:
+    # Array element lookup
+    mv t2, t1  # Load variable 'arr'
+    lw s1, 0(t2)  # Load array data pointer
+    li t2, 2
+    li t3, 4  # Load the size of each element in the array
+    mul t2, t2, t3  # Calculate the offset (index) from the base address
+    add t2, t2, s1  # Compute array element address
+    lw t2, 0(t2)  # Load array element
+    li s1, 8
+    beq t2, s1, eq_true_4
+    li t2, 0  # Comparison result is false
+    j eq_end_5
+eq_true_4:
+    li t2, 1  # Comparison result is true
+eq_end_5:
+    addi t2, t2, -1
+    beqz t2, assert_true_3  # Jump if assertion OK
+    li a7, 93  # RARS syscall: Exit2
+    li a0, 42  # Assertion violation exit code
+    ecall
+assert_true_3:
+    # Array element lookup
+    mv t2, t1  # Load variable 'arr'
+    lw s1, 0(t2)  # Load array data pointer
+    li t2, 3
+    li t3, 4  # Load the size of each element in the array
+    mul t2, t2, t3  # Calculate the offset (index) from the base address
+    add t2, t2, s1  # Compute array element address
+    lw t2, 0(t2)  # Load array element
+    li s1, 9
+    beq t2, s1, eq_true_7
+    li t2, 0  # Comparison result is false
+    j eq_end_8
+eq_true_7:
+    li t2, 1  # Comparison result is true
+eq_end_8:
+    addi t2, t2, -1
+    beqz t2, assert_true_6  # Jump if assertion OK
+    li a7, 93  # RARS syscall: Exit2
+    li a0, 42  # Assertion violation exit code
+    ecall
+assert_true_6:
+    # Array element lookup
+    mv t2, t1  # Load variable 'arr'
+    lw s1, 0(t2)  # Load array data pointer
+    li t2, 4
+    li t3, 4  # Load the size of each element in the array
+    mul t2, t2, t3  # Calculate the offset (index) from the base address
+    add t2, t2, s1  # Compute array element address
+    lw t2, 0(t2)  # Load array element
+    li s1, 10
+    beq t2, s1, eq_true_10
+    li t2, 0  # Comparison result is false
+    j eq_end_11
+eq_true_10:
+    li t2, 1  # Comparison result is true
+eq_end_11:
+    addi t2, t2, -1
+    beqz t2, assert_true_9  # Jump if assertion OK
+    li a7, 93  # RARS syscall: Exit2
+    li a0, 42  # Assertion violation exit code
+    ecall
+assert_true_9:
     mv t1, t2  # Move 'let' scope result to 'let' target register
     mv t0, t1  # Move 'let' scope result to 'let' target register
     li a7, 10  # RARS syscall: Exit
