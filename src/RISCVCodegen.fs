@@ -838,6 +838,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 RV.MV(Reg.t5, Reg.r(env.Target + 2u)), "Move array data address to t6"
              ])
         // Now t5 have the address of the array data
+        
+        let beginLabel = Util.genSymbol "loop_begin"
+
         // Generate code to store the array data in the allocated memory
         let codeGenData = 
             (doCodegen env data)
@@ -845,13 +848,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     RV.LI(Reg.a2, 4), "Load the size of each element in the array"
                     RV.LI(Reg.a3, 0), "Load the starting index"
                 ])
-                .AddText(RV.LABEL("loop"))
+                .AddText(RV.LABEL(beginLabel))
                 .AddText([
                 RV.MUL(Reg.r(env.Target + 2u), Reg.a2, Reg.a3), "Calculate the offset (index) from the base address"
                 RV.ADD(Reg.r(env.Target + 3u), Reg.t5, Reg.r(env.Target + 2u)), "Calculate the address of the element"
                 RV.SW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target + 3u)), "Store the value in the element"
                 RV.ADDI(Reg.a3, Reg.a3, Imm12(1)), "Increment the index"
-                RV.BLT(Reg.a3, Reg.t4, "loop"), "Loop if the index is less than the ending index"
+                RV.BLT(Reg.a3, Reg.t4, beginLabel), "Loop if the index is less than the ending index"
                 RV.MV(Reg.r(env.Target), Reg.t6), "Move array mem address to target register"
             ]).AddText(RV.COMMENT("Allocation done"))
 
