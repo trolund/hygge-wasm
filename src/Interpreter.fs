@@ -587,20 +587,14 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
     | FieldSelect(_, _) -> None
 
     | Array(length, data) when (isValue length) && (isValue data) ->
-        // If both the length and data are values, place them on the heap in
-        // consecutive addresses
-        // create strcut with the fields length and data
-        // place the struct on the heap
-        // return a pointer to the struct
         match length.Expr with
         | IntVal(length') ->
             // allocate space for the array and fill it with the data
             let (heap', baseAddr) = heapAlloc env.Heap (List.replicate length' data)
             // allocate space for the struct and fill it with the length and the pointer to the array
             let pointerStruct = Struct(["data", {node with Expr = Pointer(baseAddr)}; "length", length])
-            
-            Some({env with Heap = heap'},
-                         {node with Expr = pointerStruct})
+            // return the new heap and the pointer to the struct
+            Some({env with Heap = heap'}, {node with Expr = pointerStruct})
         | _ -> None
 
     | Array(length, data) when (isValue length) ->
