@@ -652,7 +652,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
 
     | Pointer(_) ->
         Error([(node.Pos, "pointers cannot be type-checked (by design!)")])
-    | Array(length, data) -> // array conttructor
+    | Array(length, data) -> // array constructor
         match (typer env length) with
         | Ok(tlength) ->
             if not (isSubtypeOf tlength.Env tlength.Type TInt) then // check int subtype 
@@ -660,13 +660,13 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             else
                 match (typer env data) with
                 | Ok(tdata) ->
-                    /// Check whether the given type is a basic type.
-                    let isBasicType (t: Type): bool =
-                        Type.basicTypes |> List.exists (fun bt -> bt = t)
+                    // /// Check whether the given type is a basic type.
+                    // let isBasicType (t: Type): bool =
+                    //     Type.basicTypes |> List.exists (fun bt -> bt = t)
 
-                    if not (isBasicType tdata.Type) then
-                        Error([(node.Pos, $"array data must be of a basic type, found %O{tdata.Type}")])
-                    else
+                    // if not (isBasicType tdata.Type) then
+                    //     Error([(node.Pos, $"array data must be of a basic type, found %O{tdata.Type}")])
+                    // else
                         Ok { Pos = node.Pos; Env = env; Type = TArray(tdata.Type);
                             Expr = Array(tlength, tdata) }
                 | Error(es) -> Error(es)
@@ -682,7 +682,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
                         Error([(node.Pos, $"array index must be of type int, found %O{tindex.Type}")])
                     else
                         Ok { Pos = node.Pos; Env = env; Type = t;
-                             Expr = ArrayElement(tarr, tindex) }
+                            Expr = ArrayElement(tarr, tindex) }
                 | Error(es) -> Error(es)
             | _ -> Error([(node.Pos, $"cannot access array element on expression of type %O{tarr.Type}")])
         | Error(es) -> Error(es)

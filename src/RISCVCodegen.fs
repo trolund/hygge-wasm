@@ -820,10 +820,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             .AddText(RV.COMMENT("Restore caller-saved registers"))
                   ++ (restoreRegisters saveRegs [])
     | Array(length, data) ->
-
-        // Generate code for the data expression
-        // let dataCode = doCodegen env data
-
         // Allocate space for the array struct on the heap
         let structAllocCode =
             (beforeSysCall [Reg.a0] [])
@@ -886,7 +882,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         /// Assembly code that computes the address of the array element at the
         /// given index. The address is computed by adding the index to the
         /// address of the first element of the array.
-        let arrayAccessCode = Asm(RV.COMMENT("Array element lookup")) ++ (doCodegen env target).AddText([
+        let arrayAccessCode = (doCodegen env target).AddText([
                 (RV.LW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Load array data pointer")
             ])
 
