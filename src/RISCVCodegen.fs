@@ -658,24 +658,25 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             /// Assembly code for computing the 'target' array of which we are
             /// selecting the 'index' element.  We write the computation result
             /// (which should be an array memory address) in the target register.
-            let selTargetCode = Asm(RV.COMMENT("Array element assignment begin")) ++ doCodegen env target
+            let selTargetCode = Asm(RV.COMMENT("Array element assignment begin")) ++ (doCodegen env target).AddText(RV.LW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Copying array address to target register")
 
             /// Assembly code for computing the 'index' of the array element
             /// that we are selecting. We write the computation result (which
             /// should be an integer) in the target+1 register.
-            let indexCode = (doCodegen {env with Target = env.Target + 1u} index)
+            let indexCode = Asm(RV.COMMENT("Index begin")) ++ (doCodegen {env with Target = env.Target + 1u} index)
 
             /// Assembly code for computing the 'rhs' value that we are
             /// assigning to the array element. We write the computation result
             /// (which should be an integer) in the target+2 register.
-            let rhsCode = (doCodegen {env with Target = env.Target + 2u} rhs)
+            let rhsCode = Asm(RV.COMMENT("Right hand side begin")) ++ (doCodegen {env with Target = env.Target + 2u} rhs)
 
             let assignCode = 
-                    Asm([(RV.SW(Reg.r(env.Target + 2u), Imm12(4),
-                                Reg.r(env.Target)),
-                          "Assigning value to array element")
-                         (RV.MV(Reg.r(env.Target), Reg.r(env.Target + 2u)),
-                          "Copying assigned value to target register")])
+                    Asm([(RV.LI(Reg.r(env.Target + 3u), 4), "Loading size of array element")
+                         (RV.MUL(Reg.r(env.Target + 1u), Reg.r(env.Target + 1u), Reg.r(env.Target + 3u)), "Multiplying index by size of array element")
+                         (RV.ADD(Reg.r(env.Target), Reg.r(env.Target), Reg.r(env.Target + 1u)), "Adding index to array address")
+                         (RV.SW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Copying index to array address")
+                         (RV.SW(Reg.r(env.Target + 2u), Imm12(0), Reg.r(env.Target)),"Assigning value to array element")
+                         (RV.MV(Reg.r(env.Target), Reg.r(env.Target + 2u)), "Copying assigned value to target register")])
 
             selTargetCode ++ indexCode ++ rhsCode ++ assignCode
         | _ ->
@@ -846,9 +847,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 ])
                 .AddText(RV.LABEL("loop"))
                 .AddText([
-                RV.MUL(Reg.r(env.Target + 1u), Reg.a2, Reg.a3), "Calculate the offset (index) from the base address"
-                RV.ADD(Reg.t1, Reg.t5, Reg.r(env.Target + 1u)), "Calculate the address of the element"
-                RV.SW(Reg.r(env.Target), Imm12(0), Reg.t1), "Store the value in the element"
+                RV.MUL(Reg.r(env.Target + 2u), Reg.a2, Reg.a3), "Calculate the offset (index) from the base address"
+                RV.ADD(Reg.r(env.Target + 3u), Reg.t5, Reg.r(env.Target + 2u)), "Calculate the address of the element"
+                RV.SW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target + 3u)), "Store the value in the element"
                 RV.ADDI(Reg.a3, Reg.a3, Imm12(1)), "Increment the index"
                 RV.BLT(Reg.a3, Reg.t4, "loop"), "Loop if the index is less than the ending index"
                 RV.MV(Reg.r(env.Target), Reg.t6), "Move array mem address to target register"
@@ -867,6 +868,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         let indexCode = (doCodegen env index).AddText([
                 (RV.LI(Reg.t3, 4), "Load the size of each element in the array")
                 (RV.MUL(Reg.r(env.Target), Reg.r(env.Target), Reg.t3), "Calculate the offset (index) from the base address")
+                // (RV.ADDI(Reg.r(env.Target), Reg.r(env.Target), Imm12(-4)), "Add the offset to the base address")
                 (RV.ADD(Reg.r(env.Target), Reg.r(env.Target), Reg.r(env.Target + 1u)), "Compute array element address")
                 (RV.LW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Load array element")
             ])
