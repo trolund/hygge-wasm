@@ -626,8 +626,15 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             else
                 match (typer env data) with
                 | Ok(tdata) ->
-                    Ok { Pos = node.Pos; Env = env; Type = TArray(tdata.Type);
-                         Expr = Array(tlength, tdata) }
+                    /// Check whether the given type is a basic type.
+                    let isBasicType (t: Type): bool =
+                        Type.basicTypes |> List.exists (fun bt -> bt = t)
+
+                    if not (isBasicType tdata.Type) then
+                        Error([(node.Pos, $"array data must be of a basic type, found %O{tdata.Type}")])
+                    else
+                        Ok { Pos = node.Pos; Env = env; Type = TArray(tdata.Type);
+                            Expr = Array(tlength, tdata) }
                 | Error(es) -> Error(es)
         | Error(errorValue) -> Error(errorValue)
     | ArrayElement(arr, index) -> // array element access
@@ -645,7 +652,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
                 | Error(es) -> Error(es)
             | _ -> Error([(node.Pos, $"cannot access array element on expression of type %O{tarr.Type}")])
         | Error(es) -> Error(es)
-    | ArrayLength(arr) -> // array length
+    | ArrayLength(arr) -> 
         match (typer env arr) with
         | Ok(tarr) ->
             match (expandType env tarr.Type) with
@@ -792,7 +799,6 @@ and internal letTyper pos (isRec: bool) (isMutable: bool) (env: TypingEnv)
             | Ok(_) -> Error(esd)
             | Error(esb) -> Error(esd @ esb)
     | Error(es) -> Error(es)
-
 
 /// Perform type checking of the given untyped AST.  Return a well-typed AST in
 /// case of success, or a sequence of error messages in case of failure.

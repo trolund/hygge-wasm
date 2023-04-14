@@ -1,5 +1,7 @@
 let arr: array {bool} = array(2 + 2, true);
 let arr2: array {float} = array(2 + 2, 1.2f);
+let arr3: array {string} = array(2 + 2, "hygge");
 let len: int = arrayLength(arr);
 
-assert(len = 4)
+assert(len = 4);
+assert(arrayLength(arr3) = 4)

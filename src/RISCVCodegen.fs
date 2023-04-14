@@ -654,7 +654,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 selTargetCode ++ rhsCode ++ assignCode
             | t ->
                 failwith $"BUG: field selection on invalid object type: %O{t}"
-        | ArrayElement(target, index) -> // TODO: implement array element assignment
+        | ArrayElement(target, index) ->
             /// Assembly code for computing the 'target' array of which we are
             /// selecting the 'index' element.  We write the computation result
             /// (which should be an array memory address) in the target register.
@@ -838,7 +838,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 RV.MV(Reg.t5, Reg.r(env.Target + 2u)), "Move array data address to t6"
              ])
         // Now t5 have the address of the array data
-        
+
         let beginLabel = Util.genSymbol "loop_begin"
 
         // Generate code to store the array data in the allocated memory
