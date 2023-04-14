@@ -476,6 +476,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 | Some(dataPointer') ->
                     // let offsetIndex = i + 1  // +1 to skip length field
                     if i < 0 || i >= getLen + 1 then // Check if index is out of bounds, +1 for length field
+                        Log.debug $"Array index %i{i} out of bounds in array of length %i{getLen}"
                         None // Out of bounds
                     else
                         /// Updated env with selected array element overwritten by 'value'
