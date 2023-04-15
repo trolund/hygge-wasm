@@ -690,11 +690,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     RV.LABEL(checkLesThenLengthLabel), "Index is ok"
                 ])
 
-            // Check bigger then positive
+            // Check index >= 0
             let checkBiggerThenZeroLabel = Util.genSymbol $"index_ok"
             let checkBiggerThenZero = Asm([
                     RV.LI(Reg.a7, 0), "Set a7 to 0"
-                    RV.BGE(Reg.r(env.Target + 1u), Reg.a7, checkBiggerThenZeroLabel), "Check if index is 0 >= index"
+                    RV.BGE(Reg.r(env.Target + 1u), Reg.a7, checkBiggerThenZeroLabel), "Check if index >= 0"
                     RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
                     RV.LI(Reg.a0, 42), "Assertion violation exit code"
                     RV.ECALL, "Call exit"
@@ -847,6 +847,23 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             .AddText(RV.COMMENT("Restore caller-saved registers"))
                   ++ (restoreRegisters saveRegs [])
     | Array(length, data) ->
+
+        let len = (doCodegen env length)
+
+        let length_ok = Util.genSymbol $"length_ok"
+
+        // check that length is bigger then 1
+        let checkLength = Asm([
+                    RV.LI(Reg.r(env.Target + 1u), 0), ""
+                    RV.BLT(Reg.r(env.Target + 1u), Reg.r(env.Target), length_ok), "Check if length is less then 1"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, 42), "Assertion violation exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(length_ok), "length is ok"
+                ])
+
+        let checkSize = len ++ checkLength
+
         // Allocate space for the array struct on the heap
         let structAllocCode =
             (beforeSysCall [Reg.a0] [])
@@ -904,16 +921,40 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             ]).AddText(RV.COMMENT("Allocation done"))
 
         // Combine all the generated code
-        structAllocCode ++ lengthCode ++ dataAllocCode ++ dataInitCode ++ codeGenData
+        checkSize ++ structAllocCode ++ lengthCode ++ dataAllocCode ++ dataInitCode ++ codeGenData
     | ArrayElement(target, index) ->
         /// Assembly code that computes the address of the array element at the
         /// given index. The address is computed by adding the index to the
         /// address of the first element of the array.
         let arrayAccessCode = (doCodegen env target).AddText([
-                (RV.LW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Load array data pointer")
+                RV.LW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Load array data pointer"
+                RV.LW(Reg.r(env.Target + 4u), Imm12(-4), Reg.r(env.Target + 1u)), "Copying array length to target register + 4"
             ])
 
-        let indexCode = (doCodegen env index).AddText([
+        let indexCode = (doCodegen env index)
+
+        // env.Target contains the index
+        let checkLesThenLengthLabel = Util.genSymbol $"index_ok"
+        let checkLesThenLength = Asm([
+                    RV.BLT(Reg.r(env.Target), Reg.r(env.Target + 4u), checkLesThenLengthLabel), "Check if index less then length"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, 42), "Assertion violation exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkLesThenLengthLabel), "Index is ok"
+                ])
+
+        // Check index >= 0
+        let checkBiggerThenZeroLabel = Util.genSymbol $"index_ok"
+        let checkBiggerThenZero = Asm([
+                    RV.LI(Reg.a7, 0), "Set a7 to 0"
+                    RV.BGE(Reg.r(env.Target), Reg.a7, checkBiggerThenZeroLabel), "Check if index >= 0"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, 42), "Assertion violation exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkBiggerThenZeroLabel), "Index is ok"
+                ])
+        
+        let readElment = Asm([
                 (RV.LI(Reg.t3, 4), "Load the size of each element in the array")
                 (RV.MUL(Reg.r(env.Target), Reg.r(env.Target), Reg.t3), "Calculate the offset (index) from the base address")
                 // (RV.ADDI(Reg.r(env.Target), Reg.r(env.Target), Imm12(-4)), "Add the offset to the base address")
@@ -922,7 +963,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             ])
 
         // Put everything together: compute array element address
-        arrayAccessCode ++ indexCode
+        arrayAccessCode ++ indexCode ++ checkLesThenLength ++ checkBiggerThenZero ++ readElment
     | ArrayLength(target) ->
         /// Assembly code that computes the length of the given array. The
         /// length is stored in the first word of the array struct, so we

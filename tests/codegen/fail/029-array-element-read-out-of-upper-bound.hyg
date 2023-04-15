@@ -1,6 +1,4 @@
 let arr: array {int} = array(2, 1);
 let arr2: array {int} = array(2, 2);
 let x: int = arrayElem(arr, 2);
-let i: int = 2 - 3;
-let y: int = arrayElem(arr, i);
 print("should not print!")
