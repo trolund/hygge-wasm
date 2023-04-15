@@ -627,6 +627,10 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
     | Array(length, data) when (isValue length) && (isValue data) ->
         match length.Expr with
         | IntVal(length') ->
+
+            if length' < 1 then None // array length must be at least size 1
+            else
+
             // allocate space for the array and fill it with the data
             let (heap', baseAddr) = heapAlloc env.Heap (List.replicate length' data)
             // allocate space for the struct and fill it with the length and the pointer to the array

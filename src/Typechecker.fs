@@ -660,14 +660,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             else
                 match (typer env data) with
                 | Ok(tdata) ->
-                    // /// Check whether the given type is a basic type.
-                    // let isBasicType (t: Type): bool =
-                    //     Type.basicTypes |> List.exists (fun bt -> bt = t)
-
-                    // if not (isBasicType tdata.Type) then
-                    //     Error([(node.Pos, $"array data must be of a basic type, found %O{tdata.Type}")])
-                    // else
-                        Ok { Pos = node.Pos; Env = env; Type = TArray(tdata.Type);
+                    Ok { Pos = node.Pos; Env = env; Type = TArray(tdata.Type);
                             Expr = Array(tlength, tdata) }
                 | Error(es) -> Error(es)
         | Error(errorValue) -> Error(errorValue)
