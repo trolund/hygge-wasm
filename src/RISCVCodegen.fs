@@ -667,12 +667,39 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             /// Assembly code for computing the 'target' array of which we are
             /// selecting the 'index' element.  We write the computation result
             /// (which should be an array memory address) in the target register.
-            let selTargetCode = Asm(RV.COMMENT("Array element assignment begin")) ++ (doCodegen env target).AddText(RV.LW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Copying array address to target register")
+            let selTargetCode = Asm(RV.COMMENT("Array element assignment begin")) ++ (doCodegen env target).AddText([
+                RV.LW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Copying array address to target register"
+                RV.LW(Reg.r(env.Target + 4u), Imm12(-4), Reg.r(env.Target)), "Copying array length to target register + 4"
+                ])
 
             /// Assembly code for computing the 'index' of the array element
-            /// that we are selecting. We write the computation result (which
+            /// that we are selecting. We write the computation result, the index (which
             /// should be an integer) in the target+1 register.
             let indexCode = Asm(RV.COMMENT("Index begin")) ++ (doCodegen {env with Target = env.Target + 1u} index)
+
+            // Check if index is out of bounds
+            // env.Target + 4u contains the length of the array
+            // env.Target + 1u contains the index
+            let checkLesThenLengthLabel = Util.genSymbol $"index_ok"
+
+            let checkLesThenLength = Asm([
+                    RV.BLT(Reg.r(env.Target + 1u), Reg.r(env.Target + 4u), checkLesThenLengthLabel), "Check if index less then length"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, 42), "Assertion violation exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkLesThenLengthLabel), "Index is ok"
+                ])
+
+            // Check bigger then positive
+            let checkBiggerThenZeroLabel = Util.genSymbol $"index_ok"
+            let checkBiggerThenZero = Asm([
+                    RV.LI(Reg.a7, 0), "Set a7 to 0"
+                    RV.BGE(Reg.r(env.Target + 1u), Reg.a7, checkBiggerThenZeroLabel), "Check if index is 0 >= index"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, 42), "Assertion violation exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkBiggerThenZeroLabel), "Index is ok"
+                ])
 
             /// Assembly code for computing the 'rhs' value that we are
             /// assigning to the array element. We write the computation result
@@ -687,7 +714,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                          (RV.SW(Reg.r(env.Target + 2u), Imm12(0), Reg.r(env.Target)),"Assigning value to array element")
                          (RV.MV(Reg.r(env.Target), Reg.r(env.Target + 2u)), "Copying assigned value to target register")])
 
-            selTargetCode ++ indexCode ++ rhsCode ++ assignCode
+            selTargetCode ++ indexCode ++ checkLesThenLength ++ checkBiggerThenZero ++ rhsCode ++ assignCode
         | _ ->
             failwith ($"BUG: assignment to invalid target:%s{Util.nl}"
                       + $"%s{PrettyPrinter.prettyPrint lhs}")
