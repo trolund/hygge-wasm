@@ -685,7 +685,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             let checkLesThenLength = Asm([
                     RV.BLT(Reg.r(env.Target + 1u), Reg.r(env.Target + 4u), checkLesThenLengthLabel), "Check if index less then length"
                     RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
-                    RV.LI(Reg.a0, 42), "Assertion violation exit code"
+                    RV.LI(Reg.a0, assertExitCode), "Load exit code"
                     RV.ECALL, "Call exit"
                     RV.LABEL(checkLesThenLengthLabel), "Index is ok"
                 ])
@@ -696,7 +696,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     RV.LI(Reg.a7, 0), "Set a7 to 0"
                     RV.BGE(Reg.r(env.Target + 1u), Reg.a7, checkBiggerThenZeroLabel), "Check if index >= 0"
                     RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
-                    RV.LI(Reg.a0, 42), "Assertion violation exit code"
+                    RV.LI(Reg.a0, assertExitCode), "load exit code"
                     RV.ECALL, "Call exit"
                     RV.LABEL(checkBiggerThenZeroLabel), "Index is ok"
                 ])
@@ -857,7 +857,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     RV.LI(Reg.r(env.Target + 1u), 0), ""
                     RV.BLT(Reg.r(env.Target + 1u), Reg.r(env.Target), length_ok), "Check if length is less then 1"
                     RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
-                    RV.LI(Reg.a0, 42), "Assertion violation exit code"
+                    RV.LI(Reg.a0, assertExitCode), "Load exit code"
                     RV.ECALL, "Call exit"
                     RV.LABEL(length_ok), "length is ok"
                 ])
@@ -938,7 +938,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         let checkLesThenLength = Asm([
                     RV.BLT(Reg.r(env.Target), Reg.r(env.Target + 4u), checkLesThenLengthLabel), "Check if index less then length"
                     RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
-                    RV.LI(Reg.a0, 42), "Assertion violation exit code"
+                    RV.LI(Reg.a0, assertExitCode), "Load exit code"
                     RV.ECALL, "Call exit"
                     RV.LABEL(checkLesThenLengthLabel), "Index is ok"
                 ])
@@ -949,7 +949,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     RV.LI(Reg.a7, 0), "Set a7 to 0"
                     RV.BGE(Reg.r(env.Target), Reg.a7, checkBiggerThenZeroLabel), "Check if index >= 0"
                     RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
-                    RV.LI(Reg.a0, 42), "Assertion violation exit code"
+                    RV.LI(Reg.a0, assertExitCode), "Load exit code"
                     RV.ECALL, "Call exit"
                     RV.LABEL(checkBiggerThenZeroLabel), "Index is ok"
                 ])
