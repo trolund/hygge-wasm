@@ -501,7 +501,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             ])
 
     // Special case for compiling a function with a given name in the input
-    // source file.  We recognise this case by checking whether the 'Let...'
+    // source file. We recognise this case by checking whether the 'Let...'
     // declares 'name' as a Lambda expression with a TFun type
     | Let(name, _,
           {Node.Expr = Lambda(args, body);
@@ -665,7 +665,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 failwith $"BUG: field selection on invalid object type: %O{t}"
         | ArrayElement(target, index) ->
             /// Assembly code for computing the 'target' array of which we are
-            /// selecting the 'index' element.  We write the computation result
+            /// selecting the 'index' element. We write the computation result
             /// (which should be an array memory address) in the target register.
             let selTargetCode = Asm(RV.COMMENT("Array element assignment begin")) ++ (doCodegen env target).AddText([
                 RV.LW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Copying array address to target register"
@@ -882,7 +882,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             RV.MV(Reg.t4, Reg.r(env.Target)), "Move length to t4"
         ])
 
-        // Generate code to allocate space for the array data on the heap
+        // Allocate space for the array data on the heap
         let dataAllocCode =
             (beforeSysCall [Reg.a0] [])
                 .AddText([
@@ -894,16 +894,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 ])
                 ++ (afterSysCall [Reg.a0] [])
 
-        // Generate code to store the array data pointer in the data field of the array struct
+        // Store the array data pointer in the data field of the array struct
         let dataInitCode =
              Asm(RV.SW(Reg.r(env.Target + 2u), Imm12(0), Reg.t6), "Initialize array data field").AddText([
                 RV.MV(Reg.t5, Reg.r(env.Target + 2u)), "Move array data address to t6"
              ])
+            
         // Now t5 have the address of the array data
 
         let beginLabel = Util.genSymbol "loop_begin"
 
-        // Generate code to store the array data in the allocated memory
+        // Store the array data in the allocated memory
         let codeGenData = 
             (doCodegen env data)
                 .AddText([
