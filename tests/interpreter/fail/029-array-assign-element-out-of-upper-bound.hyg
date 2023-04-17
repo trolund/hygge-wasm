@@ -1,0 +1,4 @@
+let arr: array {int} = array(2, 1);
+let index: int = 2 - 3;
+arrayElem(arr, index) <- arrayElem(arr, 0);
+print("should not print!")

@@ -918,7 +918,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 RV.SW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target + 3u)), "Store the value in the element"
                 RV.ADDI(Reg.a3, Reg.a3, Imm12(1)), "Increment the index"
                 RV.BLT(Reg.a3, Reg.t4, beginLabel), "Loop if the index is less than the ending index"
-                RV.MV(Reg.r(env.Target), Reg.t6), "Move array mem address to target register"
+                RV.MV(Reg.r(env.Target), Reg.t6), "Move struct array mem address to target register"
             ]).AddText(RV.COMMENT("Allocation done"))
 
         // Combine all the generated code
