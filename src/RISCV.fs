@@ -180,7 +180,7 @@ type FPReg (n: uint) =
     static member r (n: uint): FPReg =
         match n with
         | m when (m >= 0u) && (m <= 9u) -> FPReg(m) // Maps to ft0..ft7 and fs0..fs1
-        | m when (m >= 10u) && (m <= 24u) -> FPReg(m + 8u) // Maps to fs2..fs11 and ft8..ft11
+        | m when (m >= 10u) && (m <= 23u) -> FPReg(m + 8u) // Maps to fs2..fs11 and ft8..ft11
         | x -> failwith $"BUG: invalid generic floating-point register number %u{x}"
 
     // fsharplint:enable memberNames
