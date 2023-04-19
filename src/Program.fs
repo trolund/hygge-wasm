@@ -32,7 +32,13 @@ let internal parse (opt: CmdLine.ParserOptions): int =
         Log.error $"%s{msg}"; 1 // Non-zero exit code
     | Ok(ast) ->
         Log.info "Lexing and parsing succeeded."
-        printf $"%s{PrettyPrinter.prettyPrint ast}"
+        if (opt.ANF) then
+            Log.debug $"Parsed AST:%s{Util.nl}%s{PrettyPrinter.prettyPrint ast}"
+            Log.debug $"Transforming AST into ANF"
+            let anf = ANF.transform ast
+            printf $"%s{PrettyPrinter.prettyPrint anf}"
+        else
+            printf $"%s{PrettyPrinter.prettyPrint ast}"
         0 // Success!
 
 
@@ -83,7 +89,13 @@ let rec internal interpret (opt: CmdLine.InterpreterOptions): int =
         Log.info "Lexing and parsing succeeded."
         if (not opt.Typecheck) then
             Log.info "Skipping type checking."
-            doInterpret ast (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
+            if (opt.ANF) then
+                Log.debug $"Parsed AST:%s{Util.nl}%s{PrettyPrinter.prettyPrint ast}"
+                Log.debug $"Transforming AST into ANF"
+                let anf = ANF.transform ast
+                doInterpret anf (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
+            else
+                doInterpret ast (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
         else
             Log.info "Running type checker (as requested)."
             match (Typechecker.typecheck ast) with
@@ -93,7 +105,13 @@ let rec internal interpret (opt: CmdLine.InterpreterOptions): int =
                 1 // Non-zero exit code
             | Ok(tast) ->
                 Log.info "Type checking succeeded."
-                doInterpret tast (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
+                if (opt.ANF) then
+                    Log.debug $"Parsed and typed AST:%s{Util.nl}%s{PrettyPrinter.prettyPrint tast}"
+                    Log.debug $"Transforming AST into ANF"
+                    let anf = ANF.transform tast
+                    doInterpret anf (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
+                else
+                    doInterpret tast (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
 
 
 /// Run the Hygge compiler with the given options, and return the exit code
@@ -114,7 +132,20 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
             1 // Non-zero exit code
         | Ok(tast) ->
             Log.info "Type checking succeeded."
-            let asm = RISCVCodegen.codegen tast
+            let asm =
+                if (opt.ANF) then
+                    Log.debug $"Transforming AST into ANF"
+                    let anf = ANF.transform tast
+                    let registers =
+                        if (opt.Registers >= 3u) && (opt.Registers <= 18u) then
+                            opt.Registers
+                        else if opt.Registers = 0u then
+                            18u // Default
+                        else
+                            failwith $"The number of registers must be between 3 and 18 (got %d{opt.Registers} instead)"
+                    ANFRISCVCodegen.codegen anf registers
+                else
+                    RISCVCodegen.codegen tast
             match opt.OutFile with
             | Some(f) ->
                 try
@@ -146,7 +177,20 @@ let internal launchRARS (opt: CmdLine.RARSLaunchOptions): int =
             1
         | Ok(tast) ->
             Log.info "Type checking succeeded."
-            let asm = RISCVCodegen.codegen tast
+            let asm =
+                if (opt.ANF) then
+                    Log.debug $"Transforming AST into ANF"
+                    let anf = ANF.transform tast
+                    let registers =
+                        if (opt.Registers >= 3u) && (opt.Registers <= 18u) then
+                            opt.Registers
+                        else if opt.Registers = 0u then
+                            18u // Default
+                        else
+                            failwith $"The number of registers must be between 3 and 18 (got %d{opt.Registers} instead)"
+                    ANFRISCVCodegen.codegen anf registers
+                else
+                    RISCVCodegen.codegen tast
             let exitCode = RARS.launch (asm.ToString()) true
             exitCode
 
