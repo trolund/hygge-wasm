@@ -1,0 +1,12 @@
+type t = union {
+    Some: int;
+    None: unit
+};
+
+// constructor
+let x: t = Some{42};
+
+match x with {
+    Some{x} -> println(x);
+    None{_} -> println("None")
+}

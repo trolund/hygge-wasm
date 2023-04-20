@@ -1059,6 +1059,38 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         // Put everything together: compile the target, access the field
         selTargetCode ++ fieldAccessCode
 
+    | UnionCons(label, expr) ->
+
+        // allocate space for union case on heap
+        let unionAllocCode =
+            (beforeSysCall [Reg.a0] [])
+                .AddText([
+                    (RV.LI(Reg.a0, 2 * 4), "Amount of memory to allocate on heap for one label (in bytes)")
+                    (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
+                    (RV.ECALL, "")
+                    (RV.MV(Reg.r(env.Target), Reg.a0), "Move syscall result to target (pointer to label)")
+                ])
+                ++ (afterSysCall [Reg.a0] [])
+
+        // put label in a StringValue
+        let string_val = {node with Expr = StringVal(label)}
+
+        // place label on heap
+        let labelCode = (doCodegen {env with Target = env.Target + 1u} string_val).AddText([
+            (RV.SW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Store label on heap")
+        ])
+
+        // t2 = pointer to label
+        // place value on heap
+        let nodeCode = (doCodegen {env with Target = env.Target + 2u} expr).AddText([
+            (RV.SW(Reg.r(env.Target + 2u), Imm12(4), Reg.r(env.Target)), "Store node on heap")
+        ])
+        
+        unionAllocCode ++ labelCode ++ nodeCode
+    | Match(target, cases) -> 
+        let targetCode = doCodegen env target
+        
+        targetCode
     | Pointer(_) ->
         failwith "BUG: pointers cannot be compiled (by design!)"
 
