@@ -372,7 +372,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             Some(env, {node with Expr = (ASTUtil.subst scope name init).Expr})
         | None -> None
 
-    | LetRec(name, tpe, init, scope) -> // TODO
+    | LetRec(name, tpe, init, scope) ->
             match init.Expr with
             | Lambda(_) -> 
                 let s = {scope with Expr = Var(name)}
@@ -431,6 +431,60 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 Some(env', value)
             | None -> None
         | None -> None
+        
+    | Assign({Expr = ArrayElement(selTarget, index)} as target,
+             expr) when not (isValue selTarget)->
+        match (reduce env selTarget) with
+        | Some(env', selTarget') ->
+            let target' = {target with Expr = ArrayElement(selTarget', index)}
+            Some(env', {node with Expr = Assign(target', expr)})
+        | None -> None
+    | Assign({Expr = ArrayElement(_, _)} as target, expr) when not (isValue expr) ->
+        match (reduce env expr) with
+        | Some(env', expr') ->
+            Some(env', {node with Expr = Assign(target, expr')})
+        | None -> None
+    | Assign({Expr = ArrayElement({Expr = Pointer(addr)}, index)}, value) when not (isValue index) ->
+        match (reduce env index) with
+        | Some(env', index') ->
+            let target' = {node with Expr = ArrayElement({node with Expr = Pointer(addr)}, index')}
+            Some(env', {node with Expr = Assign(target', value)})
+        | None -> None
+    | Assign({Expr = ArrayElement({Expr = Pointer(addr)}, index)}, value) -> 
+        match (env.PtrInfo.TryFind addr) with
+        | Some(elements) ->
+
+            let getLen = // Get length of array
+                match (List.tryFindIndex (fun f -> f = "length") elements) with
+                | Some(offset) ->
+                    match env.Heap[addr + (uint offset)].Expr with
+                    | IntVal(i) -> i
+                    | _ -> 0
+                | None -> 0
+
+            let dataPointer = // Get length of array
+                match (List.tryFindIndex (fun f -> f = "data") elements) with
+                | Some(offset) ->
+                    match env.Heap[addr + (uint offset)].Expr with
+                    | Pointer(addr) -> Some(addr)
+                    | _ -> None
+                | None -> None
+
+            match index.Expr with
+            | IntVal(i) ->
+                match dataPointer with
+                | Some(dataPointer') ->
+                    if i < 0 || i >= getLen then // write of out of bounds
+                        Log.debug $"Array index %i{i} out of bounds in array of length %i{getLen}"
+                        None // Out of bounds
+                    else
+                        /// Updated env with selected array element overwritten by 'value'
+                        let env' = {env with Heap = env.Heap.Add(dataPointer' + (uint i), value)}
+                        Some(env', value)
+                | None -> None
+            | _ -> None
+        | None -> None
+
     | Assign(target, expr) when not (isValue expr) ->
         match (reduce env expr) with
         | Some(env', expr') ->
@@ -569,6 +623,89 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 | _ -> None
             | _ -> None
         | None -> None
+
+    | Array(length, data) when (isValue length) && (isValue data) ->
+        match length.Expr with
+        | IntVal(length') ->
+
+            if length' < 1 then None // array length must be at least size 1
+            else
+
+            // allocate space for the array and fill it with the data
+            let (heap', baseAddr) = heapAlloc env.Heap (List.replicate length' data)
+            // allocate space for the struct and fill it with the length and the pointer to the array
+            let pointerStruct = Struct(["data", {node with Expr = Pointer(baseAddr)}; "length", length])
+            // return the new heap and the pointer to the struct
+            Some({env with Heap = heap'}, {node with Expr = pointerStruct})
+        | _ -> None
+
+    | Array(length, data) when (isValue length) ->
+        match (reduce env data) with
+        | Some(env', data') ->
+            Some(env', {node with Expr = Array(length, data')})
+        | None -> None
+
+    | Array(length, data) ->    
+        match (reduce env length) with
+        | Some(env', length') ->
+            Some(env', {node with Expr = Array(length', data)})
+        | None -> None
+    
+    | ArrayElement({Expr = Pointer(addr)}, index) when (isValue index) ->
+        match (env.PtrInfo.TryFind addr) with
+        | Some(elements) ->
+
+            let getLen = // Get length of array
+                match (List.tryFindIndex (fun f -> f = "length") elements) with
+                | Some(offset) ->
+                    match env.Heap[addr + (uint offset)].Expr with
+                    | IntVal(i) -> i
+                    | _ -> 0
+                | None -> 0
+
+            match (List.tryFindIndex (fun f -> f = "data") elements) with
+            | Some(offset) ->
+                let dataPointer = env.Heap[addr + (uint offset)]
+                match dataPointer.Expr with
+                | Pointer(dataPointer') ->
+                    match index.Expr with
+                    | IntVal(index') ->
+                        if index' < 0 || index' >= getLen then // read of out of bounds
+                            Log.debug $"Array index %i{index'} out of bounds in array of length %i{getLen}"
+                            None // Out of bounds
+                        else
+                            Some(env, env.Heap[dataPointer' + (uint offset) + (uint index')])
+                    | _ -> None
+                | _ -> None
+            | None -> None
+        | None -> None
+    | ArrayElement(target, index) when not (isValue target)-> 
+        match (reduce env target) with
+        | Some(env', target') ->
+            Some(env', {node with Expr = ArrayElement(target', index)})
+        | None -> None
+    | ArrayElement(target, index) when not (isValue index)  -> 
+        match (reduce env index) with
+        | Some(env', index') ->
+            Some(env', {node with Expr = ArrayElement(target, index')})
+        | None -> None
+    | ArrayElement(_, _) -> None
+
+    | ArrayLength({Expr = Pointer(addr)}) ->
+        match (env.PtrInfo.TryFind addr) with
+        | Some(elements) ->
+            match (List.tryFindIndex (fun f -> f = "length") elements) with
+            | Some(offset) ->
+                Some(env, env.Heap[addr + (uint offset)])
+            | None -> None
+        | None -> None
+    
+    | ArrayLength(target) when not (isValue target) -> 
+        match (reduce env target) with
+        | Some(env', target') ->
+            Some(env', {node with Expr = ArrayLength(target')})
+        | None -> None
+    | ArrayLength(_) -> None
 
 /// Attempt to reduce the given lhs, and then (if the lhs is a value) the rhs,
 /// using the given runtime environment.  Return None if either (a) the lhs

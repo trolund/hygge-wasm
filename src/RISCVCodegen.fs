@@ -501,7 +501,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             ])
 
     // Special case for compiling a function with a given name in the input
-    // source file.  We recognise this case by checking whether the 'Let...'
+    // source file. We recognise this case by checking whether the 'Let...'
     // declares 'name' as a Lambda expression with a TFun type
     | Let(name, _,
           {Node.Expr = Lambda(args, body);
@@ -636,6 +636,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             let selTargetCode = doCodegen env target
             /// Code for the 'rhs', leaving its result in the target+1 register
             let rhsCode = doCodegen {env with Target = env.Target + 1u} rhs
+
             match (expandType target.Env target.Type) with
             | TStruct(fields) ->
                 /// Names of the struct fields
@@ -662,6 +663,58 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 selTargetCode ++ rhsCode ++ assignCode
             | t ->
                 failwith $"BUG: field selection on invalid object type: %O{t}"
+        | ArrayElement(target, index) ->
+            /// Assembly code for computing the 'target' array of which we are
+            /// selecting the 'index' element. We write the computation result
+            /// (which should be an array memory address) in the target register.
+            let selTargetCode = Asm(RV.COMMENT("Array element assignment begin")) ++ (doCodegen env target).AddText([
+                RV.LW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Copying array address to target register"
+                RV.LW(Reg.r(env.Target + 4u), Imm12(-4), Reg.r(env.Target)), "Copying array length to target register + 4"
+                ])
+
+            /// Assembly code for computing the 'index' of the array element
+            /// that we are selecting. We write the computation result, the index (which
+            /// should be an integer) in the target+1 register.
+            let indexCode = Asm(RV.COMMENT("Index begin")) ++ (doCodegen {env with Target = env.Target + 1u} index)
+
+            // Check if index is out of bounds
+            // env.Target + 4u contains the length of the array
+            // env.Target + 1u contains the index
+            let checkLesThenLengthLabel = Util.genSymbol $"index_ok"
+
+            let checkLesThenLength = Asm([
+                    RV.BLT(Reg.r(env.Target + 1u), Reg.r(env.Target + 4u), checkLesThenLengthLabel), "Check if index less then length"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "Load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkLesThenLengthLabel), "Index is ok"
+                ])
+
+            // Check index >= 0
+            let checkBiggerThenZeroLabel = Util.genSymbol $"index_ok"
+            let checkBiggerThenZero = Asm([
+                    RV.LI(Reg.a7, 0), "Set a7 to 0"
+                    RV.BGE(Reg.r(env.Target + 1u), Reg.a7, checkBiggerThenZeroLabel), "Check if index >= 0"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkBiggerThenZeroLabel), "Index is ok"
+                ])
+
+            /// Assembly code for computing the 'rhs' value that we are
+            /// assigning to the array element. We write the computation result
+            /// (which should be an integer) in the target+2 register.
+            let rhsCode = Asm(RV.COMMENT("Right hand side begin")) ++ (doCodegen {env with Target = env.Target + 2u} rhs)
+
+            let assignCode = 
+                    Asm([(RV.LI(Reg.r(env.Target + 3u), 4), "Loading size of array element")
+                         (RV.MUL(Reg.r(env.Target + 1u), Reg.r(env.Target + 1u), Reg.r(env.Target + 3u)), "Multiplying index by size of array element")
+                         (RV.ADD(Reg.r(env.Target), Reg.r(env.Target), Reg.r(env.Target + 1u)), "Adding index to array address")
+                         (RV.SW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Copying index to array address")
+                         (RV.SW(Reg.r(env.Target + 2u), Imm12(0), Reg.r(env.Target)),"Assigning value to array element")
+                         (RV.MV(Reg.r(env.Target), Reg.r(env.Target + 2u)), "Copying assigned value to target register")])
+
+            selTargetCode ++ indexCode ++ checkLesThenLength ++ checkBiggerThenZero ++ rhsCode ++ assignCode
         | _ ->
             failwith ($"BUG: assignment to invalid target:%s{Util.nl}"
                       + $"%s{PrettyPrinter.prettyPrint lhs}")
@@ -793,7 +846,132 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             ++ retCode
             .AddText(RV.COMMENT("Restore caller-saved registers"))
                   ++ (restoreRegisters saveRegs [])
+    | Array(length, data) ->
 
+        let len = (doCodegen env length)
+
+        let length_ok = Util.genSymbol $"length_ok"
+
+        // check that length is bigger then 1
+        let checkLength = Asm([
+                    RV.LI(Reg.r(env.Target + 1u), 0), ""
+                    RV.BLT(Reg.r(env.Target + 1u), Reg.r(env.Target), length_ok), "Check if length is less then 1"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "Load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(length_ok), "length is ok"
+                ])
+
+        let checkSize = len ++ checkLength
+
+        // Allocate space for the array struct on the heap
+        let structAllocCode =
+            (beforeSysCall [Reg.a0] [])
+                .AddText([
+                    (RV.LI(Reg.a0, 2 * 4), "Amount of memory to allocate for the array struct {data, length} (in bytes)")
+                    (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
+                    (RV.ECALL, "")
+                    (RV.MV(Reg.r(env.Target), Reg.a0), "Move syscall result (struct mem address) to target")
+                ])
+                ++ (afterSysCall [Reg.a0] [])
+
+        // t0 have the address of the array struct
+        // Initialize the length field of the array struct
+        let lengthCode = Asm(RV.MV(Reg.t6, Reg.r(env.Target)), "Move adrress to t6") ++ (doCodegen env length).AddText([
+            RV.SW(Reg.r(env.Target), Imm12(4), Reg.t6), "Initialize array length field"
+            RV.MV(Reg.t4, Reg.r(env.Target)), "Move length to t4"
+        ])
+
+        // Allocate space for the array data on the heap
+        let dataAllocCode =
+            (beforeSysCall [Reg.a0] [])
+                .AddText([
+                    (RV.LI(Reg.a0, 4), "4 (bytes)") //  first load the size of the memory block we want to allocate into register a0, this is length * 4 (in bytes)
+                    (RV.MUL(Reg.a0, Reg.a0, Reg.r(env.Target)), "Multiply length * 4 to get array size")
+                    (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
+                    (RV.ECALL, "")
+                    (RV.MV(Reg.r(env.Target + 2u), Reg.a0), "Move syscall result (array data mem address) to target+2")
+                ])
+                ++ (afterSysCall [Reg.a0] [])
+
+        // Store the array data pointer in the data field of the array struct
+        let dataInitCode =
+             Asm(RV.SW(Reg.r(env.Target + 2u), Imm12(0), Reg.t6), "Initialize array data field").AddText([
+                RV.MV(Reg.t5, Reg.r(env.Target + 2u)), "Move array data address to t6"
+             ])
+            
+        // Now t5 have the address of the array data
+
+        let beginLabel = Util.genSymbol "loop_begin"
+
+        // Store the array data in the allocated memory
+        let codeGenData = 
+            (doCodegen env data)
+                .AddText([
+                    RV.LI(Reg.a2, 4), "Load the size of each element in the array"
+                    RV.LI(Reg.a3, 0), "Load the starting index"
+                ])
+                .AddText(RV.LABEL(beginLabel))
+                .AddText([
+                RV.MUL(Reg.r(env.Target + 2u), Reg.a2, Reg.a3), "Calculate the offset (index) from the base address"
+                RV.ADD(Reg.r(env.Target + 3u), Reg.t5, Reg.r(env.Target + 2u)), "Calculate the address of the element"
+                RV.SW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target + 3u)), "Store the value in the element"
+                RV.ADDI(Reg.a3, Reg.a3, Imm12(1)), "Increment the index"
+                RV.BLT(Reg.a3, Reg.t4, beginLabel), "Loop if the index is less than the ending index"
+                RV.MV(Reg.r(env.Target), Reg.t6), "Move struct array mem address to target register"
+            ]).AddText(RV.COMMENT("Allocation done"))
+
+        // Combine all the generated code
+        checkSize ++ structAllocCode ++ lengthCode ++ dataAllocCode ++ dataInitCode ++ codeGenData
+    | ArrayElement(target, index) ->
+        /// Assembly code that computes the address of the array element at the
+        /// given index. The address is computed by adding the index to the
+        /// address of the first element of the array.
+        let arrayAccessCode = (doCodegen env target).AddText([
+                RV.LW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Load array data pointer"
+                RV.LW(Reg.r(env.Target + 4u), Imm12(-4), Reg.r(env.Target + 1u)), "Copying array length to target register + 4"
+            ])
+
+        let indexCode = (doCodegen env index)
+
+        // env.Target contains the index
+        let checkLesThenLengthLabel = Util.genSymbol $"index_ok"
+        let checkLesThenLength = Asm([
+                    RV.BLT(Reg.r(env.Target), Reg.r(env.Target + 4u), checkLesThenLengthLabel), "Check if index less then length"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "Load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkLesThenLengthLabel), "Index is ok"
+                ])
+
+        // Check index >= 0
+        let checkBiggerThenZeroLabel = Util.genSymbol $"index_ok"
+        let checkBiggerThenZero = Asm([
+                    RV.LI(Reg.a7, 0), "Set a7 to 0"
+                    RV.BGE(Reg.r(env.Target), Reg.a7, checkBiggerThenZeroLabel), "Check if index >= 0"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "Load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkBiggerThenZeroLabel), "Index is ok"
+                ])
+        
+        let readElment = Asm([
+                (RV.LI(Reg.t3, 4), "Load the size of each element in the array")
+                (RV.MUL(Reg.r(env.Target), Reg.r(env.Target), Reg.t3), "Calculate the offset (index) from the base address")
+                // (RV.ADDI(Reg.r(env.Target), Reg.r(env.Target), Imm12(-4)), "Add the offset to the base address")
+                (RV.ADD(Reg.r(env.Target), Reg.r(env.Target), Reg.r(env.Target + 1u)), "Compute array element address")
+                (RV.LW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Load array element")
+            ])
+
+        // Put everything together: compute array element address
+        arrayAccessCode ++ indexCode ++ checkLesThenLength ++ checkBiggerThenZero ++ readElment
+    | ArrayLength(target) ->
+        /// Assembly code that computes the length of the given array. The
+        /// length is stored in the first word of the array struct, so we
+        /// simply load that word into the target register. 
+        (doCodegen env target).AddText([
+                (RV.LW(Reg.r(env.Target), Imm12(4), Reg.r(env.Target)), "Load array length")
+            ])
     | Struct(fields) ->
         // To compile a struct, we allocate heap space for the whole struct
         // instance, and then compile its field initialisations one-by-one,
@@ -838,12 +1016,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         let structAllocCode =
             (beforeSysCall [Reg.a0] [])
                 .AddText([
-                    (RV.LI(Reg.a0, fields.Length * 4),
-                     "Amount of memory to allocate for a struct (in bytes)")
+                    (RV.LI(Reg.a0, fields.Length * 4), "Amount of memory to allocate for a struct (in bytes)")
                     (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
                     (RV.ECALL, "")
-                    (RV.MV(Reg.r(env.Target), Reg.a0),
-                     "Move syscall result (struct mem address) to target")
+                    (RV.MV(Reg.r(env.Target), Reg.a0), "Move syscall result (struct mem address) to target")
                 ])
                 ++ (afterSysCall [Reg.a0] [])
 

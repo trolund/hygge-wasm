@@ -53,7 +53,8 @@ and Pretype =
     | TStruct of fields: List<string * PretypeNode>
     /// Discriminated union type.  Each case consists of a name and a pretype.
     | TUnion of cases: List<string * PretypeNode>
-
+    /// A Array pretype, with pretype of elements in the array.
+    | TArray of elements: PretypeNode
 
 /// Node of the Abstract Syntax Tree of a Hygge expression.  The meaning of the
 /// two type arguments is the following: 'E specifies what typing environment
@@ -246,7 +247,19 @@ and Expr<'E,'T> =
 
     /// Access a field of a target expression (e.g. a structure).
     | FieldSelect of target: Node<'E,'T>
-                   * field: string
+                    * field: string
+
+    /// Instance of an array
+    /// Array conttructor
+    | Array of length: Node<'E,'T>
+               * data: Node<'E,'T>
+
+    /// Access an element in the array
+    | ArrayElement of target: Node<'E,'T>
+                     * index: Node<'E,'T>
+                   
+    /// Get length of the array
+    | ArrayLength of target: Node<'E,'T>
 
     /// Pointer to a location in the heap, with its address.  This is a runtime
     /// value that is only used by the Hygge interpreter as an intermediate

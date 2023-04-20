@@ -144,6 +144,13 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | FieldSelect(target, field) ->
         {node with Expr = FieldSelect((subst target var sub), field)}
 
+    | Array(length, data) -> 
+        {node with Expr = Array((subst length var sub), (subst data var sub))} 
+    | ArrayElement(arr, index) -> 
+        {node with Expr = ArrayElement((subst arr var sub), index)}
+    | ArrayLength(arr) -> 
+        {node with Expr = ArrayLength((subst arr var sub))}
+
     | UnionCons(label, expr) ->
         {node with Expr = UnionCons(label, (subst expr var sub))}
 
@@ -294,3 +301,4 @@ and internal capturedVarsInList (nodes: List<Node<'E,'T>>): Set<string> =
     let folder (acc: Set<string>) (node: Node<'E,'T> ) =
         Set.union acc (capturedVars node)
     List.fold folder Set[] nodes
+

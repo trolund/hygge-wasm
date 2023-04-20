@@ -1,0 +1,5 @@
+let arr: array {int} = array(2, 1);
+let arr2: array {int} = array(2, 1);
+let x: int = arrayElem(arr, 2);
+
+assert(x = 0)

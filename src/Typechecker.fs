@@ -127,8 +127,12 @@ let rec internal resolvePretype (env: TypingEnv) (pt: AST.PretypeNode): Result<T
                 /// Type of each union case
                 let caseTypes = List.map getOkValue caseTypes
                 Ok(TUnion(List.zip caseLabels caseTypes))
-
-
+    | Pretype.TArray(elements) -> 
+            let arrayType = resolvePretype env elements
+            match arrayType with
+            | Ok(t) -> Ok(TArray(t))
+            | Error(es) -> Error(es)
+            
 /// Resolve a type variable using the given typing environment: optionally
 /// return the Type corresponding to variable 'name', or None if 'name' is not
 /// defined in the given environment.
@@ -427,6 +431,9 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             | FieldSelect(_, _) ->
                 Ok { Pos = node.Pos; Env = env; Type = ttarget.Type;
                      Expr = Assign(ttarget, texpr) }
+            | ArrayElement(_, _) ->
+                Ok { Pos = node.Pos; Env = env; Type = ttarget.Type;
+                     Expr = Assign(ttarget, texpr) }
             | _ -> Error([(node.Pos, "invalid assignment target")])
         | (Ok(ttarget), Ok(texpr)) ->
             Error([(texpr.Pos,
@@ -645,6 +652,42 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
 
     | Pointer(_) ->
         Error([(node.Pos, "pointers cannot be type-checked (by design!)")])
+    | Array(length, data) -> // array constructor
+        match (typer env length) with
+        | Ok(tlength) ->
+            if not (isSubtypeOf tlength.Env tlength.Type TInt) then // check int subtype 
+                Error([(node.Pos, $"array length must be of type int, found %O{tlength.Type}")])
+            else
+                match (typer env data) with
+                | Ok(tdata) ->
+                    Ok { Pos = node.Pos; Env = env; Type = TArray(tdata.Type);
+                            Expr = Array(tlength, tdata) }
+                | Error(es) -> Error(es)
+        | Error(errorValue) -> Error(errorValue)
+    | ArrayElement(arr, index) -> // array element access
+        match (typer env arr) with
+        | Ok(tarr) ->
+            match (expandType env tarr.Type) with
+            | TArray(t) ->
+                match (typer env index) with
+                | Ok(tindex) ->
+                    if not (isSubtypeOf tindex.Env tindex.Type TInt) then
+                        Error([(node.Pos, $"array index must be of type int, found %O{tindex.Type}")])
+                    else
+                        Ok { Pos = node.Pos; Env = env; Type = t;
+                            Expr = ArrayElement(tarr, tindex) }
+                | Error(es) -> Error(es)
+            | _ -> Error([(node.Pos, $"cannot access array element on expression of type %O{tarr.Type}")])
+        | Error(es) -> Error(es)
+    | ArrayLength(arr) -> 
+        match (typer env arr) with
+        | Ok(tarr) ->
+            match (expandType env tarr.Type) with
+            | TArray(_) ->
+                Ok { Pos = node.Pos; Env = env; Type = TInt;
+                     Expr = ArrayLength(tarr) }
+            | _ -> Error([(node.Pos, $"cannot access array length on expression of type %O{tarr.Type}")])
+        | Error(es) -> Error(es)
 
     | UnionCons(label, expr) ->
         match (typer env expr) with
@@ -851,7 +894,6 @@ and internal letTyper pos (isRec: bool) (isMutable: bool) (env: TypingEnv)
             | Ok(_) -> Error(esd)
             | Error(esb) -> Error(esd @ esb)
     | Error(es) -> Error(es)
-
 
 /// Perform type checking of the given untyped AST.  Return a well-typed AST in
 /// case of success, or a sequence of error messages in case of failure.

@@ -1,0 +1,3 @@
+let arr: array {int} = array(42, 40 + 2);
+let len: int = arrayLength(arr);
+len
