@@ -1,0 +1,13 @@
+// An optional integer value.
+type OptionalInt = union {
+    Some: int;
+    None: unit
+};
+
+fun double(o: OptionalInt): unit =
+    match o with {
+        Some{x} -> x * 2;
+        None{_} -> 0
+    };
+
+double(Some{2})

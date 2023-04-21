@@ -721,7 +721,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
                             /// case continuation
                             let env2 = {env with Vars = env.Vars.Add(variables[i], t)}
                             typer env2 cont[i]
-                        | None -> Error([(expr.Pos, $"invalid match case: %s{label}")])
+                        | None -> Error([(expr.Pos, $"Match case missing the <%s{label}> case.")])
                     /// Typed continuations (possibly with errors)
                     let tconts = List.map caseTyper unionCases
                     /// Typing errors in continuations

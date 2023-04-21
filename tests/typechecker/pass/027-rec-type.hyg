@@ -13,7 +13,8 @@ assert(
                                     match e2.next with {
                                         Elem{_} -> false; 
                                         Nil{_} -> true
-                                    })
+                                    });
+                        Nil{_} -> false
                     });
         Nil{_} -> false
     }
