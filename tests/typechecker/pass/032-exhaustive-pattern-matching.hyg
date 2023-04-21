@@ -1,0 +1,17 @@
+// An optional variable
+type Option = union {
+    SomeInt: int;
+    SomeFloat: float;
+    SomeString: string
+};
+
+fun displayOption(o: Option): unit =
+    match o with {
+        SomeInt{x} -> println(x);
+        SomeFloat{x} -> println(x);
+        SomeString{x} -> println(x)
+    };
+
+displayOption(SomeInt{42});
+displayOption(SomeFloat{42.0f});
+displayOption(SomeString{"42"})
