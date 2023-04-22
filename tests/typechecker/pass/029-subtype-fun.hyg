@@ -1,0 +1,17 @@
+type Shape = struct { name: string;
+                      area: float };
+
+type Square = struct { name: string;
+                       area: float;
+                       side: float };
+
+fun retShapeArea(shape : Shape): float = shape.area; 
+
+fun retSquareArea(f: (Shape) -> float, square : Square): float =
+    retShapeArea(square);
+
+let square: Square = struct { name = "Square";
+                         area = 2.0f * 2.0f;
+                         side = 2.0f };
+
+assert(retSquareArea(retShapeArea, square) = 4.0f)
