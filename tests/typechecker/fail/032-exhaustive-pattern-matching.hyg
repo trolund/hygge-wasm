@@ -6,6 +6,7 @@ type OptionalInt = union {
 
 fun double(o: OptionalInt): float =
     match o with {
+        // type of continuation expression does not match type of whole matching expression
         Some{x} -> x * 2.0f;
         None{_} -> 0.0f
     };

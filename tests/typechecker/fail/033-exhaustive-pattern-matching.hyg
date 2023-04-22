@@ -6,8 +6,9 @@ type OptionalInt = union {
 
 fun double(o: OptionalInt): unit =
     match o with {
+        // type of continuation expression does not match type of whole matching expression
         Some{x} -> x * 2;
-        None{_} -> 0
+        None{_} -> ()
     };
 
 double(Some{2})
