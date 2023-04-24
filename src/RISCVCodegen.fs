@@ -1118,10 +1118,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             
                 acc ++ matchCode ++ exprCode
 
-        let checkLesThenLength = Asm([
-
-                ])
-
         let casesInitCode =
             (List.fold folder (Asm()) indexedLabels).AddText([
                 // failer case - if no case was executed
