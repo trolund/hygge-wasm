@@ -1118,9 +1118,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             
                 acc ++ matchCode ++ exprCode
 
+        let checkLesThenLength = Asm([
+
+                ])
 
         let casesInitCode =
-            (List.fold folder (Asm()) indexedLabels).AddText([ // added failer case here
+            (List.fold folder (Asm()) indexedLabels).AddText([
+                // failer case - if no case was executed
+                RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                RV.LI(Reg.a0, assertExitCode), "Load exit code"
+                RV.ECALL, "Call exit"
+                // end of match
                 RV.LABEL(matchEndLabel), "match end label"
                 RV.LW(Reg.r(env.Target), Imm12(4), Reg.r(env.Target)), "Load label value from heap"
         ])

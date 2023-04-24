@@ -83,6 +83,9 @@ case_end:  # Case end id: 1, label: Some
     addi sp, sp, 8  # Restore stack pointer after register restoration
     j match_end  # Jump to match end
 case_end_0:  # Case end id: 2, label: None
+    li a7, 93  # RARS syscall: Exit2
+    li a0, 42  # Load exit code
+    ecall  # Call exit
 match_end:  # match end label
     lw t1, 4(t1)  # Load label value from heap
     # Before system call: save registers
@@ -159,6 +162,9 @@ case_end_2:  # Case end id: 1, label: Some
     addi sp, sp, 8  # Restore stack pointer after register restoration
     j match_end_1  # Jump to match end
 case_end_3:  # Case end id: 2, label: None
+    li a7, 93  # RARS syscall: Exit2
+    li a0, 42  # Load exit code
+    ecall  # Call exit
 match_end_1:  # match end label
     lw t2, 4(t2)  # Load label value from heap
     # Before system call: save registers
@@ -236,6 +242,9 @@ case_end_6:  # Case end id: 1, label: Some
     addi sp, sp, 8  # Restore stack pointer after register restoration
     j match_end_5  # Jump to match end
 case_end_7:  # Case end id: 2, label: None
+    li a7, 93  # RARS syscall: Exit2
+    li a0, 42  # Load exit code
+    ecall  # Call exit
 match_end_5:  # match end label
     lw s1, 4(s1)  # Load label value from heap
     mv t2, s1  # Move 'let' scope result to 'let' target register
