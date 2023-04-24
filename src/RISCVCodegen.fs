@@ -1073,10 +1073,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 ++ (afterSysCall [Reg.a0] [])
 
         // put label in a StringValue
-        let string_val = {node with Expr = StringVal(label)}
+        let id = Util.genSymbolId label
+        let idNode = {node with Expr = IntVal(id)}
 
         // place label on heap
-        let labelCode = (doCodegen {env with Target = env.Target + 1u} string_val).AddText([
+        let labelCode = (doCodegen {env with Target = env.Target + 1u} idNode).AddText([
             (RV.SW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Store label on heap")
         ])
 
@@ -1088,9 +1089,43 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         
         unionAllocCode ++ labelCode ++ nodeCode
     | Match(target, cases) -> 
-        let targetCode = doCodegen env target
+        let selTargetCode = doCodegen env target
         
-        targetCode
+        let (labels, vars, exprs) = List.unzip3 cases
+        let indexedLabels = List.indexed labels
+
+        let matchEndLabel = Util.genSymbol $"match_end"
+
+        let folder = 
+            fun (acc: Asm) (i: int * string) ->
+                let (index, label) = i
+                let id = Util.genSymbolId label
+                let expr = exprs.[index]
+
+                let caseEndLabel = Util.genSymbol $"case_end"
+
+                let matchCode = Asm([
+                    RV.LI(Reg.r(env.Target + 2u), id), $"Load label id: {id}, label: {label}" 
+                    RV.LW(Reg.r(env.Target + 3u), Imm12(0), Reg.r(env.Target)), "Load label id from heap"
+                    RV.BNE(Reg.r(env.Target + 3u), Reg.r(env.Target + 2u), caseEndLabel), "Compare label id with target (Branch if Not Equal)" 
+                    RV.LW(Reg.r(env.Target - 1u), Imm12(4), Reg.r(env.Target)), "Load value from heap"
+                ])
+
+                let exprCode = (doCodegen {env with Target = env.Target + 4u} expr).AddText([
+                        RV.J(matchEndLabel), "Jump to match end" // case was executed jump to end
+                        RV.LABEL(caseEndLabel), $"Case end id: {id}, label: {label}"
+                    ])
+            
+                acc ++ matchCode ++ exprCode
+
+
+        let casesInitCode =
+            (List.fold folder (Asm()) indexedLabels).AddText([ // added failer case here
+                RV.LABEL(matchEndLabel), "match end label"
+                RV.LW(Reg.r(env.Target), Imm12(4), Reg.r(env.Target)), "Load label value from heap"
+        ])
+
+        selTargetCode ++ casesInitCode
     | Pointer(_) ->
         failwith "BUG: pointers cannot be compiled (by design!)"
 
