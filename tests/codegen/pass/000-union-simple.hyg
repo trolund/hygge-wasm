@@ -9,4 +9,18 @@ let x: t = Some{42};
 match x with {
     Some{x} -> println(x);
     None{_} -> println("None")
+};
+
+let y: t = None{()};
+
+match y with {
+    Some{y} -> println(y);
+    None{_} -> println("None")
+};
+
+let z: t = Some{100};
+
+match z with {
+    Some{z} -> println(z);
+    None{_} -> println("None")
 }
