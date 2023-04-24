@@ -21,6 +21,6 @@ match y with {
 let z: t = Some{100};
 
 match z with {
-    Some{z} -> println(z);
+    Some{x} -> println(x);
     None{_} -> println("None")
 }

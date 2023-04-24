@@ -1101,6 +1101,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 let (index, label) = i
                 let id = Util.genSymbolId label
                 let expr = exprs.[index]
+                let var = vars.[index]
+
+                let scopeTarget = env.Target
+                /// Variable storage for compiling the 'let' scope
+                let scopeVarStorage =
+                    env.VarStorage.Add(var, Storage.Reg(Reg.r(env.Target)))
+                /// Environment for compiling the 'let' scope
+                let scopeEnv = { env with Target = scopeTarget; VarStorage = scopeVarStorage }
 
                 let caseEndLabel = Util.genSymbol $"case_end"
 
@@ -1108,10 +1116,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     RV.LI(Reg.r(env.Target + 2u), id), $"Load label id: {id}, label: {label}" 
                     RV.LW(Reg.r(env.Target + 3u), Imm12(0), Reg.r(env.Target)), "Load label id from heap"
                     RV.BNE(Reg.r(env.Target + 3u), Reg.r(env.Target + 2u), caseEndLabel), "Compare label id with target (Branch if Not Equal)" 
-                    RV.LW(Reg.r(env.Target - 1u), Imm12(4), Reg.r(env.Target)), "Load value from heap"
+                    RV.LW(Reg.r(env.Target), Imm12(4), Reg.r(env.Target)), "Load value from heap"
                 ])
 
-                let exprCode = (doCodegen {env with Target = env.Target + 4u} expr).AddText([
+                let exprCode = (doCodegen {scopeEnv with Target = env.Target} expr).AddText([
                         RV.J(matchEndLabel), "Jump to match end" // case was executed jump to end
                         RV.LABEL(caseEndLabel), $"Case end id: {id}, label: {label}"
                     ])
@@ -1126,7 +1134,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 RV.ECALL, "Call exit"
                 // end of match
                 RV.LABEL(matchEndLabel), "match end label"
-                RV.LW(Reg.r(env.Target), Imm12(4), Reg.r(env.Target)), "Load label value from heap"
+                RV.LW(Reg.r(env.Target), Imm12(4), Reg.r(env.Target - 1u)), "Load label value from heap"
         ])
 
         selTargetCode ++ casesInitCode

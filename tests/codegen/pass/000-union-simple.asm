@@ -28,13 +28,13 @@ string_val_8:
     li s1, 1  # Load label id: 1, label: Some
     lw s2, 0(t1)  # Load label id from heap
     bne s2, s1, case_end  # Compare label id with target (Branch if Not Equal)
-    lw t0, 4(t1)  # Load value from heap
-    mv s3, t0  # Load variable 'x'
+    lw t1, 4(t1)  # Load value from heap
+    mv t1, t1  # Load variable 'x'
     # Before system call: save registers
     addi sp, sp, -8  # Update stack pointer to make room for saved registers
     sw a7, 0(sp)
     sw a0, 4(sp)
-    mv a0, s3  # Copy to a0 for printing
+    mv a0, t1  # Copy to a0 for printing
     li a7, 1  # RARS syscall: PrintInt
     ecall
     # After system call: restore registers
@@ -57,13 +57,13 @@ case_end:  # Case end id: 1, label: Some
     li s1, 2  # Load label id: 2, label: None
     lw s2, 0(t1)  # Load label id from heap
     bne s2, s1, case_end_0  # Compare label id with target (Branch if Not Equal)
-    lw t0, 4(t1)  # Load value from heap
-    la s3, string_val
+    lw t1, 4(t1)  # Load value from heap
+    la t1, string_val
     # Before system call: save registers
     addi sp, sp, -8  # Update stack pointer to make room for saved registers
     sw a7, 0(sp)
     sw a0, 4(sp)
-    mv a0, s3  # Copy to a0 for printing
+    mv a0, t1  # Copy to a0 for printing
     li a7, 4  # RARS syscall: PrintString
     ecall
     # After system call: restore registers
@@ -87,7 +87,7 @@ case_end_0:  # Case end id: 2, label: None
     li a0, 42  # Load exit code
     ecall  # Call exit
 match_end:  # match end label
-    lw t1, 4(t1)  # Load label value from heap
+    lw t1, 4(t0)  # Load label value from heap
     # Before system call: save registers
     addi sp, sp, -8  # Update stack pointer to make room for saved registers
     sw a7, 0(sp)
@@ -107,13 +107,13 @@ match_end:  # match end label
     li s2, 1  # Load label id: 1, label: Some
     lw s3, 0(t2)  # Load label id from heap
     bne s3, s2, case_end_2  # Compare label id with target (Branch if Not Equal)
-    lw t1, 4(t2)  # Load value from heap
-    mv s4, t1  # Load variable 'y'
+    lw t2, 4(t2)  # Load value from heap
+    mv t2, t2  # Load variable 'y'
     # Before system call: save registers
     addi sp, sp, -8  # Update stack pointer to make room for saved registers
     sw a7, 0(sp)
     sw a0, 4(sp)
-    mv a0, s4  # Copy to a0 for printing
+    mv a0, t2  # Copy to a0 for printing
     li a7, 1  # RARS syscall: PrintInt
     ecall
     # After system call: restore registers
@@ -136,13 +136,13 @@ case_end_2:  # Case end id: 1, label: Some
     li s2, 2  # Load label id: 2, label: None
     lw s3, 0(t2)  # Load label id from heap
     bne s3, s2, case_end_3  # Compare label id with target (Branch if Not Equal)
-    lw t1, 4(t2)  # Load value from heap
-    la s4, string_val_4
+    lw t2, 4(t2)  # Load value from heap
+    la t2, string_val_4
     # Before system call: save registers
     addi sp, sp, -8  # Update stack pointer to make room for saved registers
     sw a7, 0(sp)
     sw a0, 4(sp)
-    mv a0, s4  # Copy to a0 for printing
+    mv a0, t2  # Copy to a0 for printing
     li a7, 4  # RARS syscall: PrintString
     ecall
     # After system call: restore registers
@@ -166,7 +166,7 @@ case_end_3:  # Case end id: 2, label: None
     li a0, 42  # Load exit code
     ecall  # Call exit
 match_end_1:  # match end label
-    lw t2, 4(t2)  # Load label value from heap
+    lw t2, 4(t1)  # Load label value from heap
     # Before system call: save registers
     addi sp, sp, -8  # Update stack pointer to make room for saved registers
     sw a7, 0(sp)
@@ -187,13 +187,13 @@ match_end_1:  # match end label
     li s3, 1  # Load label id: 1, label: Some
     lw s4, 0(s1)  # Load label id from heap
     bne s4, s3, case_end_6  # Compare label id with target (Branch if Not Equal)
-    lw t2, 4(s1)  # Load value from heap
-    mv s5, t2  # Load variable 'z'
+    lw s1, 4(s1)  # Load value from heap
+    mv s1, s1  # Load variable 'x'
     # Before system call: save registers
     addi sp, sp, -8  # Update stack pointer to make room for saved registers
     sw a7, 0(sp)
     sw a0, 4(sp)
-    mv a0, s5  # Copy to a0 for printing
+    mv a0, s1  # Copy to a0 for printing
     li a7, 1  # RARS syscall: PrintInt
     ecall
     # After system call: restore registers
@@ -216,13 +216,13 @@ case_end_6:  # Case end id: 1, label: Some
     li s3, 2  # Load label id: 2, label: None
     lw s4, 0(s1)  # Load label id from heap
     bne s4, s3, case_end_7  # Compare label id with target (Branch if Not Equal)
-    lw t2, 4(s1)  # Load value from heap
-    la s5, string_val_8
+    lw s1, 4(s1)  # Load value from heap
+    la s1, string_val_8
     # Before system call: save registers
     addi sp, sp, -8  # Update stack pointer to make room for saved registers
     sw a7, 0(sp)
     sw a0, 4(sp)
-    mv a0, s5  # Copy to a0 for printing
+    mv a0, s1  # Copy to a0 for printing
     li a7, 4  # RARS syscall: PrintString
     ecall
     # After system call: restore registers
@@ -246,7 +246,7 @@ case_end_7:  # Case end id: 2, label: None
     li a0, 42  # Load exit code
     ecall  # Call exit
 match_end_5:  # match end label
-    lw s1, 4(s1)  # Load label value from heap
+    lw s1, 4(t2)  # Load label value from heap
     mv t2, s1  # Move 'let' scope result to 'let' target register
     mv t1, t2  # Move 'let' scope result to 'let' target register
     mv t0, t1  # Move 'let' scope result to 'let' target register
