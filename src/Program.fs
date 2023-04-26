@@ -146,16 +146,20 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
                     ANFRISCVCodegen.codegen anf registers
                 else
                     RISCVCodegen.codegen tast
+            /// Assembly code after optimization (if enabled)
+            let asm2 = if (opt.Optimize >= 1u)
+                           then Peephole.optimize asm
+                           else asm
             match opt.OutFile with
             | Some(f) ->
                 try
-                    System.IO.File.WriteAllText(f, asm.ToString())
+                    System.IO.File.WriteAllText(f, asm2.ToString())
                     0 // Success!
                 with e ->
                     Log.error $"Error writing file %s{f}: %s{e.Message}"
                     1 // Non-zero exit code
             | None ->
-                printf $"%O{asm}"
+                printf $"%O{asm2}"
                 0 // Success!
 
 
@@ -191,7 +195,11 @@ let internal launchRARS (opt: CmdLine.RARSLaunchOptions): int =
                     ANFRISCVCodegen.codegen anf registers
                 else
                     RISCVCodegen.codegen tast
-            let exitCode = RARS.launch (asm.ToString()) true
+            /// Assembly code after optimization (if enabled)
+            let asm2 = if (opt.Optimize >= 1u)
+                           then Peephole.optimize asm
+                           else asm
+            let exitCode = RARS.launch (asm2.ToString()) true
             exitCode
 
 

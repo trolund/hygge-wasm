@@ -204,9 +204,14 @@ type FPReg (n: uint) =
         member this.CompareTo(o: obj) = compare this.Number (o :?> FPReg).Number
 
 
+/// Does the given integer fit in 12 bits?
+let isImm12 (value: int32): bool =
+    (value >= (-(2<<<(12-1)))) && ((value <= (2<<<(12-1)-1)))
+
+
 /// Immediate signed integer value of 12 bits.
 type Imm12 (value: int32) =
-    do if ((value < (-(2<<<(12-1)))) || ((value > (2<<<(12-1)-1))))
+    do if not (isImm12 value)
         then failwith $"BUG: out-of-range imm12: %d{value}"
     member this.Value = value
 
@@ -214,9 +219,14 @@ type Imm12 (value: int32) =
     override this.ToString(): string = $"%d{this.Value}"
 
 
+/// Does the given unsigned integer fit in 12 bits?
+let isImm12U (value: uint32): bool =
+    value <= (2u<<<12)
+
+
 /// Immediate unsigned integer value of 12 bits.
 type Imm12U (value: uint32) =
-    do if (value > (2u<<<12))
+    do if not (isImm12U value)
         then failwith $"BUG: out-of-range unsigned imm12: %u{value}"
     member this.Value = value
 
@@ -224,9 +234,14 @@ type Imm12U (value: uint32) =
     override this.ToString(): string = $"%u{this.Value}"
 
 
+/// Does the given integer fit in 20 bits?
+let isImm20 (value: int32): bool =
+    (value >= (-(2<<<(20-1)))) && ((value <= (2<<<(20-1)-1)))
+
+
 /// Immediate integer value of 20 bits.
 type Imm20 (value: int32) =
-    do if ((value < (-(2<<<(20-1)))) || ((value > (2<<<(20-1)-1))))
+    do if not (isImm20 value)
         then failwith $"BUG: out-of-range imm20: %d{value}"
     member this.Value = value
 
@@ -485,7 +500,7 @@ type internal DataStmt = string * Alloc * string
 
 
 /// A text segment statement: a tuple with an instruction and a comment.
-type internal TextStmt = RV * string
+type TextStmt = RV * string
 
 
 /// Representation of assembly code, with methods to combine and manipulate
@@ -551,6 +566,19 @@ type Asm private (data: list<DataStmt>, text: list<TextStmt>, postText: list<Tex
     /// contents of its Text segment after its PostText.
     member this.TextToPostText: Asm =
         Asm(this.Data, [], this.Text @ this.PostText)
+
+    /// Return the list of RISC-V assembly statements in the Text segment
+    /// (including the "PostText").
+    member this.GetText: List<TextStmt> =
+        // Remember that the RISC-V instructions are stored in reverse order
+        List.rev (this.PostText @ this.Text)
+
+    /// Creat e new RISC-V assembly code fragment from this one, by replacing
+    /// the contents of the Text segment (including the "PostText") with the
+    /// given list of statements.
+    member this.SetText (text: List<TextStmt>): Asm =
+        // Remember that the RISC-V instructions are stored in reverse order
+        Asm(this.Data, List.rev(text), [])
 
     /// Return the string representation of a Data segment.
     static member private DataToString (data: list<DataStmt>): string =
