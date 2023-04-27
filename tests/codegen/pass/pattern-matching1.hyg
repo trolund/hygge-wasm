@@ -4,11 +4,11 @@ type OptionalInt = union {
     None: unit
 };
 
-fun displayOption(o: OptionalInt): unit =
+fun checkOption(o: OptionalInt): int =
     match o with {
-        Some{x} -> println(x);
-        None{_} -> println("None")
+        Some{x} -> x;
+        None{_} -> 0
     };
 
-displayOption(Some{42});
-displayOption(None{()})
+assert(checkOption(Some{42}) = 42);
+assert(checkOption(None{()}) = 0)

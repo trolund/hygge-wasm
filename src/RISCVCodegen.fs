@@ -1134,7 +1134,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 RV.ECALL, "Call exit"
                 // end of match
                 RV.LABEL(matchEndLabel), "match end label"
-                RV.LW(Reg.r(env.Target), Imm12(4), Reg.r(env.Target - 1u)), "Load label value from heap"
+                // RV.LW(Reg.r(env.Target), Imm12(4), Reg.t0), "Load label value from heap"
         ])
 
         selTargetCode ++ casesInitCode
