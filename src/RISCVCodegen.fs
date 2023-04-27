@@ -1104,11 +1104,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 let var = vars.[index]
 
                 let scopeTarget = env.Target
-                /// Variable storage for compiling the 'let' scope
+                /// Variable storage for compiling the 'case' scope
                 let scopeVarStorage =
                     env.VarStorage.Add(var, Storage.Reg(Reg.r(env.Target)))
-                /// Environment for compiling the 'let' scope
-                let scopeEnv = { env with Target = scopeTarget; VarStorage = scopeVarStorage }
+                /// Environment for compiling the 'case' scope
+                let scopeEnv = {env with Target = scopeTarget; VarStorage = scopeVarStorage}
 
                 let caseEndLabel = Util.genSymbol $"case_end"
 
