@@ -17,7 +17,8 @@ let rec internal optimizeText (text: List<TextStmt>): List<TextStmt> =
     | (RV.LI(rd1, value), comment1) ::
       (RV.ADD(rd2, rs1, rs2), comment2) ::
       rest                                 when rd1 = rs2 && (isImm12 value) ->
-        (RV.ADDI(rd2, rs1, Imm12(value)), comment1 + " " + comment2) ::
+        (RV.LI(rd1, value), comment1) ::
+        (RV.ADDI(rd2, rs1, Imm12(value)), comment2) ::
         optimizeText rest
 
     | stmt :: rest ->
