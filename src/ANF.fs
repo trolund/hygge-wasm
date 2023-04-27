@@ -313,6 +313,21 @@ let rec internal toANFDefs (node: Node<'E,'T>): Node<'E,'T> * ANFDefs<'E,'T> =
         let anfDef = ANFDef(false, {node with Expr = While(condANF, bodyANF)})
 
         ({node with Expr = Var(anfDef.Var)}, [anfDef])
+
+    | For(init, cond, update, body) ->
+        /// Initialization expression in ANF
+        let initANF = toANF (toANFDefs init)
+        /// Condition expression in ANF
+        let condANF = toANF (toANFDefs cond)
+        /// Update expression in ANF
+        let updateANF = toANF (toANFDefs update)
+        /// Body expression in ANF
+        let bodyANF = toANF (toANFDefs body)
+
+        /// Definition binding this expression in ANF to its variable
+        let anfDef = ANFDef(false, {node with Expr = For(initANF, condANF, updateANF, bodyANF)})
+
+        ({node with Expr = Var(anfDef.Var)}, [anfDef])
     
     | Type(name, def, scope) ->
         /// Scope expression in ANF
