@@ -1072,8 +1072,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 ])
                 ++ (afterSysCall [Reg.a0] [])
 
-        // put label in a StringValue
+        // compute label id
         let id = Util.genSymbolId label
+        // create node for label
         let idNode = {node with Expr = IntVal(id)}
 
         // place label on heap
@@ -1134,7 +1135,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 RV.ECALL, "Call exit"
                 // end of match
                 RV.LABEL(matchEndLabel), "match end label"
-                // RV.LW(Reg.r(env.Target), Imm12(4), Reg.t0), "Load label value from heap"
         ])
 
         selTargetCode ++ casesInitCode
