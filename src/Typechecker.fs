@@ -708,23 +708,22 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             | Ok(texpr) ->
                 match (expandType env texpr.Type) with
                 | TUnion(unionCases) ->
-                    let (unionLabels, unionTypes) = List.unzip unionCases
+                    let (labels, variables, cont) = List.unzip3 cases
                     /// The function 'caseTyper' is mapped over all
                     /// 'unionCases': it looks for the matched label in
-                    /// 'unionLabels', extracts the corresponding type from
-                    /// 'unionTypes', and type-checks the match continuation by
+                    /// 'labels', and type-checks the continuation by
                     /// introducing the matched variable and type in the
                     /// environment.
-                    let caseTyper (label, v, cont: UntypedAST): TypingResult =
-                        match (List.tryFindIndex (fun l -> l = label) unionLabels) with
+                    let caseTyper (label, t): TypingResult =
+                        match (List.tryFindIndex (fun l -> l = label) labels) with
                         | Some(i) ->
                             /// Updated environment for type-checking the union
                             /// case continuation
-                            let env2 = {env with Vars = env.Vars.Add(v, unionTypes.[i])}
-                            typer env2 cont
-                        | None -> Error([(cont.Pos, $"invalid match case: %s{label}")])
+                            let env2 = {env with Vars = env.Vars.Add(variables[i], t)}
+                            typer env2 cont[i]
+                        | None -> Error([(expr.Pos, $"Match case missing the <%s{label}> case.")])
                     /// Typed continuations (possibly with errors)
-                    let tconts = List.map caseTyper cases
+                    let tconts = List.map caseTyper unionCases
                     /// Typing errors in continuations
                     let errors = collectErrors tconts
                     if errors.IsEmpty then

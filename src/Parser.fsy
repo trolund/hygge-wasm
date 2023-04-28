@@ -81,7 +81,7 @@ let mkNode (parseState: IParseState, inputIdx: int, e: UntypedExpr): UntypedAST 
 %token DO
 %token FOR
 %token FUN
-%token STRUCT
+%token STRUCT TUPLE
 %token UNION MATCH WITH
 %token ARRAY
 %token ARRAYE
@@ -236,6 +236,10 @@ primary:
   | value                              { $1 }
   | variable                           { mkNode(parseState, 1, Expr.Var($1)) }
   | STRUCT LCURLY fieldInitSeq RCURLY  { mkNode(parseState, 1, Expr.Struct($3)) }
+  | TUPLE LCURLY exprCommaSeq RCURLY   {
+      let fieldInitSequence = List.mapi (fun index n -> (("_" + string (index + 1)), n)) $3
+      mkNode(parseState, 1, Expr.Struct(fieldInitSequence))
+    }
   | ARRAY LPAR simpleExpr COMMA simpleExpr RPAR { mkNode(parseState, 2, Expr.Array($3, $5)) }
   | ARRAYL LPAR simpleExpr RPAR                 { mkNode(parseState, 2, Expr.ArrayLength($3)) }
   | ARRAYE LPAR simpleExpr COMMA simpleExpr RPAR { mkNode(parseState, 2, Expr.ArrayElement($3, $5)) }
@@ -260,6 +264,10 @@ pretype:
   | parenTypesSeq RARROW pretype  { mkPretypeNode(parseState, 1, Pretype.TFun($1, $3)) }
   | STRUCT LCURLY fieldTypeSeq RCURLY  { mkPretypeNode(parseState, 1,
                                                        Pretype.TStruct($3)) }
+  | TUPLE LCURLY typesSeq RCURLY {
+      let typesSequence = List.mapi (fun index t -> (("_" + string (index + 1)), t)) $3
+      mkPretypeNode(parseState, 1, Pretype.TStruct(typesSequence))
+    }
   | UNION LCURLY fieldTypeSeq RCURLY   { mkPretypeNode(parseState, 1,
                                                        Pretype.TUnion($3)) }
   | ARRAY LCURLY pretype RCURLY  { mkPretypeNode(parseState, 1,
