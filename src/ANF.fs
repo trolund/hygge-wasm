@@ -106,6 +106,13 @@ let rec substVar (node: Node<'E,'T>) (var: string) (var2: string): Node<'E,'T> =
         let substBody = substVar body var var2
         {node with Expr = While(substCond, substBody)}
 
+    | For(init, cond, update, body) ->
+        let substInit = substVar init var var2
+        let substCond = substVar cond var var2
+        let substUpdate = substVar update var var2
+        let substBody = substVar body var var2
+        {node with Expr = For(substInit, substCond, substUpdate, substBody)}
+
     | Assertion(arg) ->
         {node with Expr = Assertion(substVar arg var var2)}
 
