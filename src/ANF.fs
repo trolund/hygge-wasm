@@ -204,7 +204,7 @@ let rec internal toANFDefs (node: Node<'E,'T>): Node<'E,'T> * ANFDefs<'E,'T> =
         /// This expression in ANF
         let anfExpr = match expr with
                       | Add(_,_) -> Add(lhsANF, rhsANF)
-                      | Sub(_,_) -> Add(lhsANF, rhsANF)
+                      | Sub(_,_) -> Sub(lhsANF, rhsANF)
                       | Mult(_,_) -> Mult(lhsANF, rhsANF)
                       | And(_,_) -> And(lhsANF, rhsANF)
                       | Or(_,_) -> Or(lhsANF, rhsANF)

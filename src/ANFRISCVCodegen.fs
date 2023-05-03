@@ -539,7 +539,9 @@ and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenR
                         .AddText(RV.LABEL(labelEnd))
         { Asm = ifAsm
           Env = falseCodegenRes.Env }
+
     | For(init, cond, update, body) ->
+        failwith ("Not supported yet")
         
     | _ ->
         failwith ($"BUG: unsupported AST node for 'let' init, maybe not in ANF:%s{Util.nl}"
