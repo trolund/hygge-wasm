@@ -372,11 +372,30 @@ let rec internal doCodegen (env: ANFCodegenEnv)
         { Asm = initRes.Asm ++ scopeCodegenResult.Asm
           Env = scopeCodegenResult.Env }
 
+    | For(init, cond, update, body) ->
+        /// Cleaned-up codegen environment reduced to the variables that are
+        /// actually used in the 'for' init and scope
+        let vars = (ASTUtil.freeVars body) 
+                                |> Set.union (ASTUtil.freeVars init)
+                                |> Set.union (ASTUtil.freeVars cond)
+                                |> Set.union (ASTUtil.freeVars update)
 
+        let initEnv = cleanupUnusedVars env vars
+
+        let initRes = doCodegen initEnv init
+
+        let bodyEnv =
+            cleanupUnusedVars {initRes.Env with NeededVars = env.NeededVars
+                                                TargetVar = env.TargetVar }
+                              ((ASTUtil.freeVars body))
+
+        /// Code generation for the 'for' scope
+        let scopeCodegenResult = doCodegen bodyEnv body
+        { Asm = initRes.Asm ++ scopeCodegenResult.Asm
+          Env = scopeCodegenResult.Env }
     | LetMut(name, tpe, init, scope) ->
         // The code generation is not different from 'let...', so we recycle it
         doCodegen env {node with Expr = Let(name, tpe, init, scope)}
-
     | _ ->
         failwith ($"BUG: unsupported AST node for 'let' scope, maybe not in ANF:%s{Util.nl}"
                   + $"%s{PrettyPrinter.prettyPrint node}")
@@ -520,7 +539,8 @@ and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenR
                         .AddText(RV.LABEL(labelEnd))
         { Asm = ifAsm
           Env = falseCodegenRes.Env }
-
+    | For(init, cond, update, body) ->
+        
     | _ ->
         failwith ($"BUG: unsupported AST node for 'let' init, maybe not in ANF:%s{Util.nl}"
                   + $"%s{PrettyPrinter.prettyPrint init}")

@@ -173,6 +173,7 @@ let rec freeVars (node: Node<'E,'T>): Set<string> =
     | Pointer(_) -> Set[]
     | Var(name) -> Set[name]
     | Add(lhs, rhs)
+    | Sub(lhs, rhs)
     | Mult(lhs, rhs) ->
         Set.union (freeVars lhs) (freeVars rhs)
     | And(lhs, rhs)
@@ -200,6 +201,10 @@ let rec freeVars (node: Node<'E,'T>): Set<string> =
         // Union of the free names of the lhs and the rhs of the assignment
         Set.union (freeVars target) (freeVars expr)
     | While(cond, body) -> Set.union (freeVars cond) (freeVars body)
+    | For(init, cond, update, body) ->
+        Set.union (freeVars init)
+                  (Set.union (freeVars cond)
+                             (Set.union (freeVars update) (freeVars body)))
     | Assertion(arg) -> freeVars arg
     | Type(_, _, scope) -> freeVars scope
     | Lambda(args, body) ->
@@ -225,6 +230,7 @@ let rec freeVars (node: Node<'E,'T>): Set<string> =
         /// Free variables in all match continuations
         let fvConts = List.fold folder Set[] cases
         Set.union (freeVars expr) fvConts
+     | x -> failwith (sprintf "BUG: unhandled node in ANF conversion: %A" node)
 
 /// Compute the union of the free variables in a list of AST nodes.
 and internal freeVarsInList (nodes: List<Node<'E,'T>>): Set<string> =
