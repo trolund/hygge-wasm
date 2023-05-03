@@ -50,6 +50,8 @@ let rec substVar (node: Node<'E,'T>) (var: string) (var2: string): Node<'E,'T> =
 
     | Add(lhs, rhs) ->
         {node with Expr = Add((substVar lhs var var2), (substVar rhs var var2))}
+    | Sub(lhs, rhs) ->
+        {node with Expr = Sub((substVar lhs var var2), (substVar rhs var var2))}
     | Mult(lhs, rhs) ->
         {node with Expr = Mult((substVar lhs var var2), (substVar rhs var var2))}
 
@@ -148,6 +150,7 @@ let rec substVar (node: Node<'E,'T>) (var: string) (var2: string): Node<'E,'T> =
             else (lab, v, (substVar cont var var2))
         let cases2 = List.map substCase cases
         {node with Expr = Match((substVar expr var var2), cases2)}
+    | x -> failwithf "substVar: unhandled case %A" node
 
 
 /// Convert a given AST node (expected to contain a variable) and a list of ANF
@@ -187,7 +190,7 @@ let rec internal toANFDefs (node: Node<'E,'T>): Node<'E,'T> * ANFDefs<'E,'T> =
 
     | Var(_) ->
         (node, []) // This AST node is already in ANF
-    
+    | Sub(lhs, rhs)
     | Add(lhs, rhs)
     | Mult(lhs, rhs)
     | And(lhs, rhs)
@@ -201,6 +204,7 @@ let rec internal toANFDefs (node: Node<'E,'T>): Node<'E,'T> * ANFDefs<'E,'T> =
         /// This expression in ANF
         let anfExpr = match expr with
                       | Add(_,_) -> Add(lhsANF, rhsANF)
+                      | Sub(_,_) -> Add(lhsANF, rhsANF)
                       | Mult(_,_) -> Mult(lhsANF, rhsANF)
                       | And(_,_) -> And(lhsANF, rhsANF)
                       | Or(_,_) -> Or(lhsANF, rhsANF)
@@ -423,6 +427,7 @@ let rec internal toANFDefs (node: Node<'E,'T>): Node<'E,'T> * ANFDefs<'E,'T> =
         let anfDef = ANFDef(false, {node with Expr = Match(matchExprANF, cases2)})
 
         ({node with Expr = Var(anfDef.Var)}, anfDef :: matchExprDefs)
+        | x -> failwith (sprintf "BUG: unhandled node in ANF conversion: %A" node)
 
 
 /// Transform the given AST node into Administrative Normal Form.
