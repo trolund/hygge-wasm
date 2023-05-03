@@ -55,6 +55,9 @@ type internal ANFCodegenResult = {
 let internal getVarNameAndType (node: TypedAST): string * Type =
     match node.Expr with
     | Var(vname) -> (vname, expandType node.Env node.Type)
+    | Let(_, _, _, _) -> // TODO : remove this case
+        failwith ($"BUG: expecting an AST node with a variable, but got:%s{Util.nl}"
+                  + $"%s{PrettyPrinter.prettyPrint node}")
     | _ -> 
         failwith ($"BUG: expecting an AST node with a variable, but got:%s{Util.nl}"
                   + $"%s{PrettyPrinter.prettyPrint node}")
@@ -405,6 +408,7 @@ let rec internal doCodegen (env: ANFCodegenEnv)
 /// environment.  The expression is expected to be in ANF.
 and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenResult =
     match init.Expr with
+    | UnitVal -> { Asm = Asm(); Env = env } // Nothing to do
     | Var(_) ->
         doCodegen env init
 
@@ -420,7 +424,7 @@ and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenR
         let (targetReg, targetLoadRes) = loadIntVar env env.TargetVar []
         { Asm = targetLoadRes.Asm ++ Asm(RV.LI(targetReg, value))
           Env = targetLoadRes.Env }
-
+    | Sub(lhs, rhs)
     | Add(lhs, rhs)
     | Mult(lhs, rhs) as expr ->
         /// Names of the variables used by the lhs and rhs of this operation
@@ -436,6 +440,9 @@ and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenR
                 | Add(_,_) -> Asm(RV.ADD(targetReg, lhsReg, rhsReg),
                                   $"%s{env.TargetVar} <- %s{lrVarNames.[0]} + %s{lrVarNames.[1]}")
                 | Mult(_,_) -> Asm(RV.MUL(targetReg, lhsReg, rhsReg),
+                                   $"%s{env.TargetVar} <- %s{lrVarNames.[0]} * %s{lrVarNames.[1]}")
+                | Sub(_,_) ->                      
+                     Asm(RV.SUB(targetReg, lhsReg, rhsReg),
                                    $"%s{env.TargetVar} <- %s{lrVarNames.[0]} * %s{lrVarNames.[1]}")
                 | x -> failwith $"BUG: unexpected operation %O{x}"
             { Asm = argLoadRes.Asm ++ targetLoadRes.Asm ++ opAsm
@@ -541,8 +548,39 @@ and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenR
           Env = falseCodegenRes.Env }
 
     | For(init, cond, update, body) ->
-        failwith ("Not supported yet")
-        
+        /// Code generation result for the 'init' expression
+        let initCodegenRes = doCodegen env init
+        /// Register holding 'for' condition, and code to load it
+        let (condReg, condLoadRes) = loadIntVar initCodegenRes.Env (getVarName cond) []
+        /// Code generation result for the 'update' expression
+        let updateCodegenRes = doCodegen condLoadRes.Env update
+        /// Code generation result for the 'body' expression
+        let bodyCodegenRes = doCodegen updateCodegenRes.Env body
+        /// Assembly code to spill/load variables after the 'body' expression,
+        /// to get the same register allocation obteined after the 'update'
+        /// expression
+        let syncAsm = syncANFCodegenEnvs bodyCodegenRes.Env updateCodegenRes.Env
+
+        /// Label to jump to when the 'for' condition is true
+        let labelTrue = Util.genSymbol "for_true"
+        /// Label to mark the end of the for loop
+        let labelEnd = Util.genSymbol "for_end"
+
+        /// Assembly code for the whole 'for' expression
+        let forAsm =
+            initCodegenRes.Asm
+                .AddText(RV.LABEL(labelTrue), "")
+                ++ condLoadRes.Asm
+                    .AddText(RV.BEQZ(condReg, labelEnd), "Jump when 'for' condition is false")
+                    ++ bodyCodegenRes.Asm
+                    .AddText([ (RV.J(labelTrue), "Jump to the 'for' condition")
+                               (RV.LABEL(labelEnd), "") ])
+                    ++ updateCodegenRes.Asm
+                    ++ Asm(RV.COMMENT("Branch synchronization code begins here"))
+                    ++ syncAsm
+                    ++ Asm(RV.COMMENT("Branch synchronization code ends here"))
+        { Asm = forAsm
+          Env = updateCodegenRes.Env }
     | _ ->
         failwith ($"BUG: unsupported AST node for 'let' init, maybe not in ANF:%s{Util.nl}"
                   + $"%s{PrettyPrinter.prettyPrint init}")
