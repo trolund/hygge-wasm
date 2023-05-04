@@ -493,6 +493,8 @@ and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenR
 
             { Asm = argLoadRes.Asm ++ targetLoadRes.Asm ++ a
               Env = targetLoadRes.Env }
+        | x ->
+            failwith $"BUG: unexpected return value from 'loadVars': %O{x}"
     | Eq(lhs, rhs)
     | Less(lhs, rhs) as expr when (expandType lhs.Env lhs.Type) = TInt ->
         /// Names of the variables used by the lhs and rhs of this operation
