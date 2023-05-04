@@ -481,9 +481,8 @@ and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenR
                     Asm(RV.BLT(lhsReg, rhsReg, trueLabel))
                 | x -> failwith $"BUG: unexpected operation %O{x}"
 
-            
-            // Put everything together
-            let a = (opAsm).AddText([
+            /// Assembly code for the whole operation
+            let moveResult = (opAsm).AddText([
                         (RV.MV(targetReg, rhsReg), "right is greatest")
                         (RV.J(endLabel), "end max/min func")
                         (RV.LABEL(trueLabel), "")
@@ -491,7 +490,7 @@ and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenR
                         (RV.LABEL(endLabel), "end of max/min func")
                     ])
 
-            { Asm = argLoadRes.Asm ++ targetLoadRes.Asm ++ a
+            { Asm = argLoadRes.Asm ++ targetLoadRes.Asm ++ moveResult
               Env = targetLoadRes.Env }
         | x ->
             failwith $"BUG: unexpected return value from 'loadVars': %O{x}"
