@@ -38,6 +38,8 @@ type internal CodegenEnv = {
     FPTarget: uint
     /// Storage information about known variables.
     VarStorage: Map<string, Storage>
+
+    AtTopLevel: bool
 }
 
 
@@ -538,7 +540,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         /// 'let...' initialisation code, which leaves its result in the
         /// 'target' register (which we overwrite at the end of the 'scope'
         /// execution)
-        let initCode = doCodegen env init
+        
+        let initCode = doCodegen env  init
+        let isTopLevel = env.AtTopLevel
+        let env =
+            match isTopLevel with
+            | true ->
+                let storage = env.VarStorage.Add(name, Storage.Label("label_var_x"))
+                {env with VarStorage =storage}
+            | false ->
+                env
         match init.Type with
         | t when (isSubtypeOf init.Env t TUnit) ->
             // The 'init' produces a unit value, i.e. nothing: we can keep using
@@ -549,11 +560,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             /// Target register for compiling the 'let' scope
             let scopeTarget = env.FPTarget + 1u
             /// Variable storage for compiling the 'let' scope
+           
+
             let scopeVarStorage =
                 env.VarStorage.Add(name, Storage.FPReg(FPReg.r(env.FPTarget)))
             /// Environment for compiling the 'let' scope
             let scopeEnv = { env with FPTarget = scopeTarget
-                                      VarStorage = scopeVarStorage }
+                                      VarStorage = scopeVarStorage
+                                      AtTopLevel = false }
             initCode
                 ++ (doCodegen scopeEnv scope)
                     .AddText(RV.FMV_S(FPReg.r(env.FPTarget),
@@ -567,7 +581,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 env.VarStorage.Add(name, Storage.Reg(Reg.r(env.Target)))
             /// Environment for compiling the 'let' scope
             let scopeEnv = { env with Target = scopeTarget
-                                      VarStorage = scopeVarStorage }
+                                      VarStorage = scopeVarStorage
+                                      AtTopLevel = false }
             initCode
                 ++ (doCodegen scopeEnv scope)
                     .AddText(RV.MV(Reg.r(env.Target), Reg.r(scopeTarget)),
@@ -1232,7 +1247,7 @@ and internal compileFunction (args: List<string * Type>)
     /// ends, we need to move that result into the function return value
     /// register 'a0' or 'fa0'.
     let bodyCode =
-        let env = {Target = 0u; FPTarget = 0u; VarStorage = varStorage2}
+        let env = {Target = 0u; FPTarget = 0u; VarStorage = varStorage2; AtTopLevel = true;}
         doCodegen env body
     /// Code to move the body result into the function return value register
     let returnCode =
@@ -1263,7 +1278,7 @@ and internal compileFunction (args: List<string * Type>)
 let codegen (node: TypedAST): RISCV.Asm =
     /// Initial codegen environment, targeting generic registers 0 and without
     /// any variable in the storage map
-    let env = {Target = 0u; FPTarget = 0u; VarStorage =  Map[]}
+    let env = {Target = 0u; FPTarget = 0u; VarStorage =  Map[]; AtTopLevel = true;}
     Asm(RV.MV(Reg.fp, Reg.sp), "Initialize frame pointer")
     ++ (doCodegen env node)
         .AddText([
