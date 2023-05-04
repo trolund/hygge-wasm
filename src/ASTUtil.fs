@@ -174,6 +174,7 @@ let rec freeVars (node: Node<'E,'T>): Set<string> =
     | Var(name) -> Set[name]
     | Add(lhs, rhs)
     | Sub(lhs, rhs)
+    | Div(lhs, rhs)
     | Mult(lhs, rhs) ->
         Set.union (freeVars lhs) (freeVars rhs)
     | And(lhs, rhs)
