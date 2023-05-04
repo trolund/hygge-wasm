@@ -1,0 +1,4 @@
+assert(max(12, 10) = 12);
+assert(min(12, 10) = 10);
+assert(max(1, 10) = 10);
+assert(min(0, 100) = 0)
