@@ -55,9 +55,6 @@ type internal ANFCodegenResult = {
 let internal getVarNameAndType (node: TypedAST): string * Type =
     match node.Expr with
     | Var(vname) -> (vname, expandType node.Env node.Type)
-    // | Let(_, _, _, _) -> // TODO : remove this case
-    //     failwith ($"BUG: expecting an AST node with a variable, but got:%s{Util.nl}"
-    //               + $"%s{PrettyPrinter.prettyPrint node}")
     | _ -> 
         failwith ($"BUG: expecting an AST node with a variable, but got:%s{Util.nl}"
                   + $"%s{PrettyPrinter.prettyPrint node}")
