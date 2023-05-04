@@ -197,7 +197,9 @@ let rec internal toANFDefs (node: Node<'E,'T>): Node<'E,'T> * ANFDefs<'E,'T> =
     | And(lhs, rhs)
     | Or(lhs, rhs)
     | Eq(lhs, rhs)
-    | Less(lhs, rhs) as expr ->
+    | Less(lhs, rhs)
+    | Min(lhs, rhs)
+    | Max(lhs, rhs) as expr ->
         /// Left-hand-side argument in ANF and related definitions
         let (lhsANF, lhsDefs) = toANFDefs lhs
         /// Right-hand-side argument in ANF and related definitions
@@ -212,6 +214,8 @@ let rec internal toANFDefs (node: Node<'E,'T>): Node<'E,'T> * ANFDefs<'E,'T> =
                       | Or(_,_) -> Or(lhsANF, rhsANF)
                       | Eq(_,_) -> Eq(lhsANF, rhsANF)
                       | Less(_,_) -> Less(lhsANF, rhsANF)
+                      | Min(_,_) -> Min(lhsANF, rhsANF)
+                      | Max(_,_) -> Max(lhsANF, rhsANF)
                       | e -> failwith $"BUG: unexpected expression: %O{e}"
         /// Definition binding this expression in ANF to its variable
         let anfDef = ANFDef(false, {node with Expr = anfExpr})
