@@ -456,13 +456,11 @@ and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenR
     | Min(lhs, rhs) as expr ->
         /// Names of the variables used by the lhs and rhs of this operation
         let lrVarNames = getVarNames [lhs; rhs]
+        
         match (loadVars env [lhs; rhs] []) with
         | ([lhsReg; rhsReg], argLoadRes) ->
             /// Target register to store the operation result + code to load it
             let (targetReg, targetLoadRes) =
-                loadIntVar argLoadRes.Env env.TargetVar lrVarNames
-
-            let (targetReg2, targetLoadRes2) =
                 loadIntVar argLoadRes.Env env.TargetVar lrVarNames
 
             let labelName = match expr with
@@ -478,18 +476,18 @@ and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenR
             let opAsm =
                 match expr with
                 | Max(_,_) ->
-                    Asm(RV.BGE(targetReg, targetReg2, trueLabel))
+                    Asm(RV.BGE(lhsReg, rhsReg, trueLabel))
                 | Min(_,_) ->
-                    Asm(RV.BLT(targetReg, targetReg2, trueLabel))
+                    Asm(RV.BLT(lhsReg, rhsReg, trueLabel))
                 | x -> failwith $"BUG: unexpected operation %O{x}"
 
             
             // Put everything together
             let a = (opAsm).AddText([
-                        (RV.MV(lhsReg, rhsReg), "right is greatest")
+                        (RV.MV(targetReg, rhsReg), "right is greatest")
                         (RV.J(endLabel), "end max/min func")
                         (RV.LABEL(trueLabel), "")
-                        (RV.MV(lhsReg, rhsReg), "left is greatest")
+                        (RV.MV(targetReg, lhsReg), "left is greatest")
                         (RV.LABEL(endLabel), "end of max/min func")
                     ])
 
