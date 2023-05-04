@@ -452,7 +452,49 @@ and internal doLetInitCodegen (env: ANFCodegenEnv) (init: TypedAST): ANFCodegenR
               Env = targetLoadRes.Env }
         | x ->
             failwith $"BUG: unexpected return value from 'loadVars': %O{x}"
+    | Max(lhs, rhs)
+    | Min(lhs, rhs) as expr ->
+        /// Names of the variables used by the lhs and rhs of this operation
+        let lrVarNames = getVarNames [lhs; rhs]
+        match (loadVars env [lhs; rhs] []) with
+        | ([lhsReg; rhsReg], argLoadRes) ->
+            /// Target register to store the operation result + code to load it
+            let (targetReg, targetLoadRes) =
+                loadIntVar argLoadRes.Env env.TargetVar lrVarNames
 
+            let (targetReg2, targetLoadRes2) =
+                loadIntVar argLoadRes.Env env.TargetVar lrVarNames
+
+            let labelName = match expr with
+                            | Max(_,_) -> "max"
+                            | Min(_,_) -> "min"
+                            | x -> failwith $"BUG: unexpected operation %O{x}"
+            
+            /// Label to jump to when the comparison is true
+            let trueLabel = Util.genSymbol $"%O{labelName}_true"
+            /// Label to mark the end of the comparison code
+            let endLabel = Util.genSymbol $"%O{labelName}_end"
+            /// Assembly code for the operation
+            let opAsm =
+                match expr with
+                | Max(_,_) ->
+                    Asm(RV.BGE(targetReg, targetReg2, trueLabel))
+                | Min(_,_) ->
+                    Asm(RV.BLT(targetReg, targetReg2, trueLabel))
+                | x -> failwith $"BUG: unexpected operation %O{x}"
+
+            
+            // Put everything together
+            let a = (opAsm).AddText([
+                        (RV.MV(lhsReg, rhsReg), "right is greatest")
+                        (RV.J(endLabel), "end max/min func")
+                        (RV.LABEL(trueLabel), "")
+                        (RV.MV(lhsReg, rhsReg), "left is greatest")
+                        (RV.LABEL(endLabel), "end of max/min func")
+                    ])
+
+            { Asm = argLoadRes.Asm ++ targetLoadRes.Asm ++ a
+              Env = targetLoadRes.Env }
     | Eq(lhs, rhs)
     | Less(lhs, rhs) as expr when (expandType lhs.Env lhs.Type) = TInt ->
         /// Names of the variables used by the lhs and rhs of this operation
