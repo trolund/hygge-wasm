@@ -1,0 +1,45 @@
+type t = union {
+    Some: int;
+    None: unit
+};
+
+let mutable i: int = 0;
+
+assert(i = 0);
+
+// constructor
+let x: t = Some{42};
+
+match x with {
+    Some{x} -> i <- x + 1;
+    None{_} -> 0
+};
+
+assert(i = 43);
+
+let y: t = None{()};
+
+match y with {
+    Some{y} -> i <- i + y;
+    None{_} -> i <- i + 2
+};
+
+assert(i = 45);
+
+let z: t = Some{i};
+
+match z with {
+    Some{x} -> i <- i + x;
+    None{_} -> i <- 0
+};
+
+assert(i = 90);
+
+let k: t = None{()};
+
+match k with {
+    Some{x} -> i <- 1;
+    None{_} -> i <- 0
+};
+
+assert(i = 0)

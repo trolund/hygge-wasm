@@ -1059,6 +1059,85 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         // Put everything together: compile the target, access the field
         selTargetCode ++ fieldAccessCode
 
+    | UnionCons(label, expr) ->
+
+        // allocate space for union case on heap
+        let unionAllocCode =
+            (beforeSysCall [Reg.a0] [])
+                .AddText([
+                    (RV.LI(Reg.a0, 2 * 4), "Amount of memory to allocate on heap for one label (in bytes)")
+                    (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
+                    (RV.ECALL, "")
+                    (RV.MV(Reg.r(env.Target), Reg.a0), "Move syscall result to target (pointer to label)")
+                ])
+                ++ (afterSysCall [Reg.a0] [])
+
+        // compute label id
+        let id = Util.genSymbolId label
+        // create node for label
+        let idNode = {node with Expr = IntVal(id)}
+
+        // place label on heap
+        let labelCode = (doCodegen {env with Target = env.Target + 1u} idNode).AddText([
+            (RV.SW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Store label on heap")
+        ])
+
+        // t2 = pointer to label
+        // place value on heap
+        let nodeCode = (doCodegen {env with Target = env.Target + 2u} expr).AddText([
+            (RV.SW(Reg.r(env.Target + 2u), Imm12(4), Reg.r(env.Target)), "Store node on heap")
+        ])
+        
+        unionAllocCode ++ labelCode ++ nodeCode
+    | Match(target, cases) -> 
+        let selTargetCode = doCodegen env target
+        
+        let (labels, vars, exprs) = List.unzip3 cases
+        let indexedLabels = List.indexed labels
+
+        let matchEndLabel = Util.genSymbol $"match_end"
+
+        let folder = 
+            fun (acc: Asm) (i: int * string) ->
+                let (index, label) = i
+                let id = Util.genSymbolId label
+                let expr = exprs.[index]
+                let var = vars.[index]
+
+                let scopeTarget = env.Target
+                /// Variable storage for compiling the 'case' scope
+                let scopeVarStorage =
+                    env.VarStorage.Add(var, Storage.Reg(Reg.r(env.Target)))
+                /// Environment for compiling the 'case' scope
+                let scopeEnv = {env with Target = scopeTarget; VarStorage = scopeVarStorage}
+
+                let caseEndLabel = Util.genSymbol $"case_end"
+
+                let matchCode = Asm([
+                    RV.LI(Reg.r(env.Target + 2u), id), $"Load label id: {id}, label: {label}" 
+                    RV.LW(Reg.r(env.Target + 3u), Imm12(0), Reg.r(env.Target)), "Load label id from heap"
+                    RV.BNE(Reg.r(env.Target + 3u), Reg.r(env.Target + 2u), caseEndLabel), "Compare label id with target (Branch if Not Equal)" 
+                    RV.LW(Reg.r(env.Target), Imm12(4), Reg.r(env.Target)), "Load value from heap"
+                ])
+
+                let exprCode = (doCodegen {scopeEnv with Target = env.Target} expr).AddText([
+                        RV.J(matchEndLabel), "Jump to match end" // case was executed jump to end
+                        RV.LABEL(caseEndLabel), $"Case end id: {id}, label: {label}"
+                    ])
+            
+                acc ++ matchCode ++ exprCode
+
+        let casesInitCode =
+            (List.fold folder (Asm()) indexedLabels).AddText([
+                // failer case - if no case was executed
+                RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                RV.LI(Reg.a0, assertExitCode), "Load exit code"
+                RV.ECALL, "Call exit"
+                // end of match
+                RV.LABEL(matchEndLabel), "match end label"
+        ])
+
+        selTargetCode ++ casesInitCode
     | Pointer(_) ->
         failwith "BUG: pointers cannot be compiled (by design!)"
 
