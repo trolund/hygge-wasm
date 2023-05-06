@@ -1,2 +1,3 @@
 assert(max(12, 10) = 12);
-assert(max(120, 1) = 120)
+assert(max(120, 1) = 120);
+assert(max(120, 120) = 120)
