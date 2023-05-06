@@ -54,6 +54,13 @@ let rec substVar (node: Node<'E,'T>) (var: string) (var2: string): Node<'E,'T> =
         {node with Expr = Sub((substVar lhs var var2), (substVar rhs var var2))}
     | Mult(lhs, rhs) ->
         {node with Expr = Mult((substVar lhs var var2), (substVar rhs var var2))}
+    | Div(lhs, rhs) ->
+        {node with Expr = Div((substVar lhs var var2), (substVar rhs var var2))}
+
+    | Min(lhs, rhs) ->
+        {node with Expr = Min((substVar lhs var var2), (substVar rhs var var2))}
+    | Max(lhs, rhs) ->
+        {node with Expr = Max((substVar lhs var var2), (substVar rhs var var2))}
 
     | And(lhs, rhs) ->
         {node with Expr = And((substVar lhs var var2), (substVar rhs var var2))}
