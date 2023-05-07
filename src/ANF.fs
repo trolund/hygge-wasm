@@ -442,6 +442,23 @@ let rec internal toANFDefs (node: Node<'E,'T>): Node<'E,'T> * ANFDefs<'E,'T> =
         ({node with Expr = Var(anfDef.Var)}, anfDef :: matchExprDefs)
         | x -> failwith (sprintf "BUG: unhandled node in ANF conversion: %A" node)
 
+/// Apply copy propagation to the given list of ANF definitions
+let rec internal applyCopyPropagation (anfDefs : ANFDefs<'E,'T>) : ANFDefs<'E,'T> = 
+    match anfDefs with
+    | [] -> []
+    | def :: defs -> 
+        match def.Init.Expr with
+        | Var(vname) ->
+            if (not def.IsMutable) || (def.IsMutable && not (List.contains def.Var (List.map (fun (def:ANFDef<'E,'T>) -> def.Var) defs)))
+            then applyCopyPropagation (List.map (fun (def:ANFDef<'E,'T>) -> ANFDef(def.Var, def.IsMutable, substVar def.Init def.Var vname)) defs)
+            else def :: applyCopyPropagation defs
+        | _ -> def :: applyCopyPropagation defs
+
+/// Transform the given AST node into an optimized Administrative Normal Form.
+let transformOpt (ast: Node<'E,'T>): Node<'E,'T> =
+    let anfDefs = toANFDefs ast
+    let anfDefsOpt = applyCopyPropagation (List.rev (snd anfDefs))
+    toANF (fst anfDefs, anfDefsOpt)
 
 /// Transform the given AST node into Administrative Normal Form.
 let transform (ast: Node<'E,'T>): Node<'E,'T> =

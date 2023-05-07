@@ -135,7 +135,9 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
             let asm =
                 if (opt.ANF) then
                     Log.debug $"Transforming AST into ANF"
-                    let anf = ANF.transform tast
+                    let anf = if (opt.Optimize >= 1u)
+                                then ANF.transformOpt tast
+                                else ANF.transform tast
                     let registers =
                         if (opt.Registers >= 3u) && (opt.Registers <= 18u) then
                             opt.Registers
