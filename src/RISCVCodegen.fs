@@ -718,6 +718,57 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         | _ ->
             failwith ($"BUG: assignment to invalid target:%s{Util.nl}"
                       + $"%s{PrettyPrinter.prettyPrint lhs}")
+    // TODO Array slice 
+    | ArraySlice(target, start, ending) -> 
+        let startIndex = (doCodegen env start)
+        let endIndex = (doCodegen {env with Target = env.Target + 1u} ending)
+
+        let len = Asm(RV.COMMENT("Array slice begin")) ++ startIndex ++ endIndex.AddText([
+            // compute the length of the slice
+            RV.SUB(Reg.r(env.Target), Reg.r(env.Target + 1u), Reg.r(env.Target)), "Subtracting start index from end index"
+        ])
+
+        let length_ok = Util.genSymbol $"length_ok"
+
+        // check that length is bigger then 1
+        let checkLength = Asm([
+                    RV.LI(Reg.r(env.Target + 1u), 0), ""
+                    RV.BLT(Reg.r(env.Target + 1u), Reg.r(env.Target), length_ok), "Check if length is less then 1"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "Load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(length_ok), "length is ok"
+                ])
+
+        let checkSize = len ++ checkLength
+
+        // Allocate space for the array struct on the heap
+        let structAllocCode =
+            (beforeSysCall [Reg.a0] [])
+                .AddText([
+                    (RV.LI(Reg.a0, 2 * 4), "Amount of memory to allocate for the array struct {data, length} (in bytes)")
+                    (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
+                    (RV.ECALL, "")
+                    (RV.MV(Reg.r(env.Target + 1u), Reg.a0), "Move syscall result (struct mem address) to target + 1u")
+                ])
+                ++ (afterSysCall [Reg.a0] [])
+
+        // t0 have the address of the array struct
+        // Initialize the length field of the array struct
+        let lengthCode = Asm(RV.MV(Reg.t6, Reg.r(env.Target + 1u)), "Move adrress to t6").AddText([
+            RV.SW(Reg.r(env.Target), Imm12(4), Reg.t6), "Initialize array length field"
+            RV.MV(Reg.t4, Reg.r(env.Target)), "Move length to t4"
+        ])
+
+        // Store the array data pointer in the data field of the array struct
+        let dataInitCode = (doCodegen env target).AddText([
+                RV.SW(Reg.r(env.Target + 2u), Imm12(0), Reg.t6), "Initialize array data pointer field"
+                RV.MV(Reg.t0, Reg.r(env.Target + 2u)), "Move array data address to t6"
+             ])
+
+        // Combine all the generated code
+        checkSize ++ structAllocCode ++ lengthCode ++ dataInitCode
+
 
     | While(cond, body) ->
         /// Label to mark the beginning of the 'while' loop
