@@ -761,14 +761,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         ])
 
         // Store the array data pointer in the data field of the array struct
-        let dataInitCode = (doCodegen env target).AddText([
+        let dataInitCode = (doCodegen {env with Target = env.Target - 1u} target).AddText([
                 RV.SW(Reg.r(env.Target + 2u), Imm12(0), Reg.t6), "Initialize array data pointer field"
-                RV.MV(Reg.t0, Reg.r(env.Target + 2u)), "Move array data address to t6"
+                RV.MV(Reg.r(env.Target), Reg.t6), "Move array struct address to target"
              ])
 
         // Combine all the generated code
         checkSize ++ structAllocCode ++ lengthCode ++ dataInitCode
-
 
     | While(cond, body) ->
         /// Label to mark the beginning of the 'while' loop
@@ -980,7 +979,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         /// address of the first element of the array.
         let arrayAccessCode = (doCodegen env target).AddText([
                 RV.LW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Load array data pointer"
-                RV.LW(Reg.r(env.Target + 4u), Imm12(-4), Reg.r(env.Target + 1u)), "Copying array length to target register + 4"
+                RV.LW(Reg.r(env.Target + 4u), Imm12(4), Reg.r(env.Target)), "Copying array length to target register + 4"
             ])
 
         let indexCode = (doCodegen env index)

@@ -76,12 +76,12 @@ length_ok_0:  # length is ok
     mv t6, t2  # Move adrress to t6
     sw t1, 4(t6)  # Initialize array length field
     mv t4, t1  # Move length to t4
-    mv t1, t0  # Load variable 'arr'
+    mv t0, t0  # Load variable 'arr'
     sw s1, 0(t6)  # Initialize array data pointer field
-    mv t5, s1  # Move array data address to t6
+    mv t1, t6  # Move array struct address to target
     mv t2, t1  # Load variable 'sliced'
     lw s1, 0(t2)  # Load array data pointer
-    lw s4, -4(s1)  # Copying array length to target register + 4
+    lw s4, 4(t2)  # Copying array length to target register + 4
     li t2, 0
     blt t2, s4, index_ok  # Check if index less then length
     li a7, 93  # RARS syscall: Exit2
@@ -139,7 +139,7 @@ index_ok_3:  # Index is ok
     mv s1, s3  # Copying assigned value to target register
     mv s1, t0  # Load variable 'arr'
     lw s2, 0(s1)  # Load array data pointer
-    lw s5, -4(s2)  # Copying array length to target register + 4
+    lw s5, 4(s1)  # Copying array length to target register + 4
     li s1, 1
     blt s1, s5, index_ok_5  # Check if index less then length
     li a7, 93  # RARS syscall: Exit2
@@ -171,7 +171,7 @@ eq_end_8:
 assert_true_4:
     mv s1, t1  # Load variable 'sliced'
     lw s2, 0(s1)  # Load array data pointer
-    lw s5, -4(s2)  # Copying array length to target register + 4
+    lw s5, 4(s1)  # Copying array length to target register + 4
     li s1, 0
     blt s1, s5, index_ok_10  # Check if index less then length
     li a7, 93  # RARS syscall: Exit2
