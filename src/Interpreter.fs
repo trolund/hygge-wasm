@@ -773,7 +773,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
         | None -> None
     | ArrayLength(_) -> None
 
-    // TODO - ArraySlice
+    // ArraySlice
     | ArraySlice({Expr = Pointer(addr)}, start, ending) when ((isValue start) && (isValue ending)) ->
         match start.Expr, ending.Expr with
         | IntVal(start'), IntVal(end') ->
