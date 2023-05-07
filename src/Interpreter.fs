@@ -783,6 +783,23 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             
             match (env.PtrInfo.TryFind addr) with
             | Some(elements) -> // Get length of array
+
+                    let getLen = // Get length of array
+                        match (List.tryFindIndex (fun f -> f = "length") elements) with
+                        | Some(offset) ->
+                            match env.Heap[addr + (uint offset)].Expr with
+                            | IntVal(i) -> i
+                            | _ -> 0
+                        | None -> 0
+
+                    if start' < 0 || start' >= getLen then // read of out of bounds
+                        Log.debug $"Array start index %i{start'} out of bounds in array of length %i{getLen}"
+                        None // Out of bounds
+                    else if end' < 0 || end' >= getLen then // read of out of bounds
+                        Log.debug $"Array end index %i{end'} out of bounds in array of length %i{getLen}"
+                        None // Out of bounds
+                    else
+
                     match (List.tryFindIndex (fun f -> f = "data") elements) with
                     | Some(offset) ->
                         match env.Heap[addr + (uint offset)].Expr with
