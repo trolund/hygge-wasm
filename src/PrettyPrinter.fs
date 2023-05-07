@@ -237,6 +237,10 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
                                          ("index", formatASTRec index)]
     | ArrayLength(arr) -> 
             mkTree $"ArrayLength" node [("arr", formatASTRec arr)]
+    | ArraySlice(arr, start, ending) -> 
+            mkTree $"ArraySlice" node [("arr", formatASTRec arr)
+                                       ("start", formatASTRec start)
+                                       ("end", formatASTRec ending)]
 
 /// Return a description of an AST node, and possibly some subtrees (that are
 /// added to the overall tree structure).

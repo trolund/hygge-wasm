@@ -689,6 +689,29 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             | _ -> Error([(node.Pos, $"cannot access array length on expression of type %O{tarr.Type}")])
         | Error(es) -> Error(es)
 
+    | ArraySlice(arr, start, ending) -> // array slice
+        match (typer env arr) with
+        | Ok(tarr) ->
+            match (expandType env tarr.Type) with
+            | TArray(t) ->
+                // check that start and end are of type int
+                match (typer env start) with
+                | Ok(tstart) ->
+                    if not (isSubtypeOf tstart.Env tstart.Type TInt) then
+                        Error([(node.Pos, $"array slice start must be of type int, found %O{tstart.Type}")])
+                    else
+                        match (typer env ending) with
+                        | Ok(tend) ->
+                            if not (isSubtypeOf tend.Env tend.Type TInt) then
+                                Error([(node.Pos, $"array slice end must be of type int, found %O{tend.Type}")])
+                            else
+                                Ok { Pos = node.Pos; Env = env; Type = TArray(t);
+                                    Expr = ArraySlice(tarr, tstart, tend) }
+                        | Error(es) -> Error(es)
+                | Error(es) -> Error(es)
+            | _ -> Error([(node.Pos, $"cannot access array element on expression of type %O{tarr.Type}")])
+        | Error(es) -> Error(es)
+
     | UnionCons(label, expr) ->
         match (typer env expr) with
         | Ok(texpr) ->

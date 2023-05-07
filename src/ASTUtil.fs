@@ -151,6 +151,9 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | ArrayLength(arr) -> 
         {node with Expr = ArrayLength((subst arr var sub))}
 
+    | ArraySlice(arr, start, ending) -> 
+        {node with Expr = ArraySlice((subst arr var sub), start, ending)}
+
     | UnionCons(label, expr) ->
         {node with Expr = UnionCons(label, (subst expr var sub))}
 
