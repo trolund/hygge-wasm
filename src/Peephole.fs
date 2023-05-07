@@ -8,9 +8,8 @@ module Peephole
 
 open RISCV
 
-
+// Check if x is a power of 2
 let isPowerOfTwo (x: int): bool =
-    // Check if x is a power of 2
     let rec isPowerOfTwoRec (x: int): bool =
         if x = 1 then true
                  else if x % 2 = 0 then isPowerOfTwoRec (x / 2)
