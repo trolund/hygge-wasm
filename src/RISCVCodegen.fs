@@ -755,14 +755,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
 
         // t0 have the address of the array struct
         // Initialize the length field of the array struct
-        let lengthCode = Asm(RV.MV(Reg.t6, Reg.r(env.Target + 1u)), "Move adrress to t6").AddText([
+        let lengthCode = Asm(RV.MV(Reg.t6, Reg.r(env.Target + 1u)), "Move array struct adrress to t6").AddText([
             RV.SW(Reg.r(env.Target), Imm12(4), Reg.t6), "Initialize array length field"
             RV.MV(Reg.t4, Reg.r(env.Target)), "Move length to t4"
         ])
 
         // Store the array data pointer in the data field of the array struct
-        let dataInitCode = (doCodegen {env with Target = env.Target - 1u} target).AddText([
-                RV.SW(Reg.r(env.Target + 2u), Imm12(0), Reg.t6), "Initialize array data pointer field"
+        let dataInitCode = (doCodegen {env with Target = env.Target - 1u} target) ++ (doCodegen env start).AddText([
+                // Initialize array data pointer field with the address of the array data with the start offset * 4 added
+                RV.LI(Reg.a0, 4), "(in bytes)"
+                RV.MUL(Reg.t4, Reg.t4, Reg.a0), "Multiply start index by 4"
+                RV.ADD(Reg.t5, Reg.t5, Reg.t4), "Add start index to array struct address"
+                RV.SW(Reg.t5, Imm12(0), Reg.t6), "Initialize array data pointer field"
+                // move the address of the array struct to the target register
                 RV.MV(Reg.r(env.Target), Reg.t6), "Move array struct address to target"
              ])
 
