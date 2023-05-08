@@ -668,8 +668,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             /// selecting the 'index' element. We write the computation result
             /// (which should be an array memory address) in the target register.
             let selTargetCode = Asm(RV.COMMENT("Array element assignment begin")) ++ (doCodegen env target).AddText([
+                RV.LW(Reg.r(env.Target + 4u), Imm12(4), Reg.r(env.Target)), "Copying array length to target register + 4"
                 RV.LW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Copying array address to target register"
-                RV.LW(Reg.r(env.Target + 4u), Imm12(-4), Reg.r(env.Target)), "Copying array length to target register + 4"
                 ])
 
             /// Assembly code for computing the 'index' of the array element
@@ -767,7 +767,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         // t0 have the address of the array struct
         // Initialize the length field of the array struct
         let lengthCode = Asm(RV.MV(Reg.t6, Reg.r(env.Target + 1u)), "Move array struct adrress to t6").AddText([
-            RV.SW(Reg.r(env.Target), Imm12(4), Reg.t6), "Initialize array length field"
+            RV.SW(Reg.r(env.Target + 3u), Imm12(4), Reg.t6), "Initialize array length field"
             RV.MV(Reg.t4, Reg.r(env.Target)), "Move length to t4"
         ])
 

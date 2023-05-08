@@ -66,8 +66,8 @@ less_end:
     beqz s1, while_loop_end  # Jump if 'while' loop condition is false
     # Array element assignment begin
     mv s1, t1  # Load variable 'arr'
+    lw s5, 4(s1)  # Copying array length to target register + 4
     lw s1, 0(s1)  # Copying array address to target register
-    lw s5, -4(s1)  # Copying array length to target register + 4
     # Index begin
     mv s2, t2  # Load variable 'i'
     blt s2, s5, index_ok  # Check if index less then length
@@ -175,8 +175,8 @@ less_end_6:
     beqz s3, while_loop_end_4  # Jump if 'while' loop condition is false
     # Array element assignment begin
     mv s3, s1  # Load variable 'sliced'
+    lw s7, 4(s3)  # Copying array length to target register + 4
     lw s3, 0(s3)  # Copying array address to target register
-    lw s7, -4(s3)  # Copying array length to target register + 4
     # Index begin
     mv s4, s2  # Load variable 'j'
     blt s4, s7, index_ok_7  # Check if index less then length
