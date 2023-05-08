@@ -775,10 +775,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         let targetCode = (doCodegen {env with Target = env.Target - 1u} target)
 
         // t1 contains end and start index, t0 contains array struct address
+        let arrayReg = Reg.r(env.Target - 1u)
 
         let checkStartIndexLabel = Util.genSymbol $"start_index_ok"
         let checkStartIndex = (doCodegen env start).AddText([
-                    RV.LW(Reg.r(env.Target + 2u), Imm12(4), Reg.t0), "Load length to t5"
+                    RV.LW(Reg.r(env.Target + 2u), Imm12(4), arrayReg), "Load length to t5"
                     RV.BLE(Reg.r(env.Target), Reg.r(env.Target + 2u), checkStartIndexLabel), "Check if start_index < length_of_original_array"
                     RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
                     RV.LI(Reg.a0, assertExitCode), "load exit code"
@@ -789,7 +790,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         // check that end index is less then length of original array
         let checkEndIndexLabel = Util.genSymbol $"end_index_ok"
         let checkEndIndex = (doCodegen env ending).AddText([
-                    RV.LW(Reg.r(env.Target + 2u), Imm12(4), Reg.t0), "Load length to t5"
+                    RV.LW(Reg.r(env.Target + 2u), Imm12(4), arrayReg), "Load length to t5"
                     RV.BLE(Reg.r(env.Target), Reg.r(env.Target + 2u), checkEndIndexLabel), "Check if end_index < length_of_original_array"
                     RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
                     RV.LI(Reg.a0, assertExitCode), "load exit code"
