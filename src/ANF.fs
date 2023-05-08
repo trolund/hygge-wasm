@@ -457,7 +457,7 @@ let rec internal applyCopyPropagation (anfDefs : ANFDefs<'E,'T>) : ANFDefs<'E,'T
 /// Transform the given AST node into an optimized Administrative Normal Form.
 let transformOpt (ast: Node<'E,'T>): Node<'E,'T> =
     let anfDefs = toANFDefs ast
-    let anfDefsOpt = applyCopyPropagation (List.rev (snd anfDefs))
+    let anfDefsOpt = List.rev (applyCopyPropagation (List.rev (snd anfDefs)))
     toANF (fst anfDefs, anfDefsOpt)
 
 /// Transform the given AST node into Administrative Normal Form.
