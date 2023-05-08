@@ -449,8 +449,8 @@ let rec internal applyCopyPropagation (anfDefs : ANFDefs<'E,'T>) : ANFDefs<'E,'T
     | def :: defs -> 
         match def.Init.Expr with
         | Var(vname) ->
-            if (not def.IsMutable) || (def.IsMutable && not (List.contains def.Var (List.map (fun (def:ANFDef<'E,'T>) -> def.Var) defs)))
-            then applyCopyPropagation (List.map (fun (def:ANFDef<'E,'T>) -> ANFDef(def.Var, def.IsMutable, substVar def.Init def.Var vname)) defs)
+            if (not def.IsMutable) || (def.IsMutable && not (List.contains def.Var (List.map (fun (anfDef:ANFDef<'E,'T>) -> anfDef.Var) defs)))
+            then applyCopyPropagation (List.map (fun (anfDef:ANFDef<'E,'T>) -> ANFDef(anfDef.Var, anfDef.IsMutable, substVar anfDef.Init def.Var vname)) defs)
             else def :: applyCopyPropagation defs
         | _ -> def :: applyCopyPropagation defs
 
