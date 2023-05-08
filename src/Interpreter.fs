@@ -486,70 +486,70 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
         | None -> None
     
     // Assign to array slice
-    | Assign({Expr = ArraySlice(selTarget, start, ending)} as target,
-             expr) when not (isValue selTarget)->
-        match (reduce env selTarget) with
-        | Some(env', selTarget') ->
-            let target' = {target with Expr = ArraySlice(selTarget', start, ending)}
-            Some(env', {node with Expr = Assign(target', expr)})
-        | None -> None
-    | Assign({Expr = ArraySlice(_, _, _)} as target, expr) when not (isValue expr) ->
-        match (reduce env expr) with
-        | Some(env', expr') ->
-            Some(env', {node with Expr = Assign(target, expr')})
-        | None -> None
-    | Assign({Expr = ArraySlice({Expr = Pointer(addr)}, start, ending)}, value) when not (isValue start) ->
-        match (reduce env start) with
-        | Some(env', start') ->
-            let target' = {node with Expr = ArraySlice({node with Expr = Pointer(addr)}, start', ending)}
-            Some(env', {node with Expr = Assign(target', value)})
-        | None -> None
-    | Assign({Expr = ArraySlice({Expr = Pointer(addr)}, start, ending)}, value) when not (isValue ending) ->
-        match (reduce env ending) with
-        | Some(env', ending') ->
-            let target' = {node with Expr = ArraySlice({node with Expr = Pointer(addr)}, start, ending')}
-            Some(env', {node with Expr = Assign(target', value)})
-        | None -> None
-    | Assign({Expr = ArraySlice({Expr = Pointer(addr)}, start, ending)}, value) -> 
-        match (env.PtrInfo.TryFind addr) with
-        | Some(elements) ->
+    // | Assign({Expr = ArraySlice(selTarget, start, ending)} as target,
+    //          expr) when not (isValue selTarget)->
+    //     match (reduce env selTarget) with
+    //     | Some(env', selTarget') ->
+    //         let target' = {target with Expr = ArraySlice(selTarget', start, ending)}
+    //         Some(env', {node with Expr = Assign(target', expr)})
+    //     | None -> None
+    // | Assign({Expr = ArraySlice(_, _, _)} as target, expr) when not (isValue expr) ->
+    //     match (reduce env expr) with
+    //     | Some(env', expr') ->
+    //         Some(env', {node with Expr = Assign(target, expr')})
+    //     | None -> None
+    // | Assign({Expr = ArraySlice({Expr = Pointer(addr)}, start, ending)}, value) when not (isValue start) ->
+    //     match (reduce env start) with
+    //     | Some(env', start') ->
+    //         let target' = {node with Expr = ArraySlice({node with Expr = Pointer(addr)}, start', ending)}
+    //         Some(env', {node with Expr = Assign(target', value)})
+    //     | None -> None
+    // | Assign({Expr = ArraySlice({Expr = Pointer(addr)}, start, ending)}, value) when not (isValue ending) ->
+    //     match (reduce env ending) with
+    //     | Some(env', ending') ->
+    //         let target' = {node with Expr = ArraySlice({node with Expr = Pointer(addr)}, start, ending')}
+    //         Some(env', {node with Expr = Assign(target', value)})
+    //     | None -> None
+    // | Assign({Expr = ArraySlice({Expr = Pointer(addr)}, start, ending)}, value) -> 
+    //     match (env.PtrInfo.TryFind addr) with
+    //     | Some(elements) ->
 
-            let getLen = // Get length of array
-                match (List.tryFindIndex (fun f -> f = "length") elements) with
-                | Some(offset) ->
-                    match env.Heap[addr + (uint offset)].Expr with
-                    | IntVal(i) -> i
-                    | _ -> 0
-                | None -> 0
+    //         let getLen = // Get length of array
+    //             match (List.tryFindIndex (fun f -> f = "length") elements) with
+    //             | Some(offset) ->
+    //                 match env.Heap[addr + (uint offset)].Expr with
+    //                 | IntVal(i) -> i
+    //                 | _ -> 0
+    //             | None -> 0
 
-            let dataPointer = // Get length of array
-                match (List.tryFindIndex (fun f -> f = "data") elements) with
-                | Some(offset) ->
-                    match env.Heap[addr + (uint offset)].Expr with
-                    | Pointer(addr) -> Some(addr)
-                    | _ -> None
-                | None -> None
+    //         let dataPointer = // Get length of array
+    //             match (List.tryFindIndex (fun f -> f = "data") elements) with
+    //             | Some(offset) ->
+    //                 match env.Heap[addr + (uint offset)].Expr with
+    //                 | Pointer(addr) -> Some(addr)
+    //                 | _ -> None
+    //             | None -> None
 
-            let outOfBounds =
-                match start.Expr, ending.Expr with
-                | IntVal(start), IntVal(ending) ->
-                    start < 0 || start >= getLen || ending < 0 || ending >= getLen
-                | _ -> true 
+    //         let outOfBounds =
+    //             match start.Expr, ending.Expr with
+    //             | IntVal(start), IntVal(ending) ->
+    //                 start < 0 || start >= getLen || ending < 0 || ending >= getLen
+    //             | _ -> true 
 
-            match start.Expr, ending.Expr with
-            | IntVal(start'), IntVal(ending') ->
-                match dataPointer with
-                | Some(dataPointer') ->
-                    if outOfBounds then // write of out of bounds
-                        Log.debug $"Array index %i{start'} or index %i{ending'} out of bounds in array of length %i{getLen}"
-                        None // Out of bounds
-                    else
-                        /// Updated env with selected array slice overwritten by 'value'
-                        let env' = {env with Heap = env.Heap.Add(dataPointer' + (uint start'), value)}
-                        Some(env', value)
-                | None -> None
-            | _ -> None
-        | None -> None
+    //         match start.Expr, ending.Expr with
+    //         | IntVal(start'), IntVal(ending') ->
+    //             match dataPointer with
+    //             | Some(dataPointer') ->
+    //                 if outOfBounds then // write of out of bounds
+    //                     Log.debug $"Array index %i{start'} or index %i{ending'} out of bounds in array of length %i{getLen}"
+    //                     None // Out of bounds
+    //                 else
+    //                     /// Updated env with selected array slice overwritten by 'value'
+    //                     let env' = {env with Heap = env.Heap.Add(dataPointer' + (uint start'), value)}
+    //                     Some(env', value)
+    //             | None -> None
+    //         | _ -> None
+    //     | None -> None
 
     | Assign(target, expr) when not (isValue expr) ->
         match (reduce env expr) with
