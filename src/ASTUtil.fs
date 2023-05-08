@@ -306,6 +306,30 @@ let rec capturedVars (node: Node<'E,'T>): Set<string> =
         /// Captured variables in all match continuations
         let cvConts = List.fold folder Set[] cases
         Set.union (capturedVars expr) cvConts
+    | Sub(lhs, rhs) 
+    | Div(lhs, rhs) 
+    | Rem(lhs, rhs) 
+    | Xor(lhs, rhs) 
+    | ShortAnd(lhs, rhs) 
+    | ShortOr(lhs, rhs) 
+    | Min(lhs, rhs) 
+    | Max(lhs, rhs) -> 
+        Set.union (capturedVars lhs) (capturedVars rhs)
+    | Sqrt(arg) -> (capturedVars arg)
+    | LetRec(name, tpe, init, scope) -> 
+        Set.union (capturedVars init) (Set.remove name (capturedVars scope))
+    | DoWhile(body, condition) -> 
+        Set.union (capturedVars body) (capturedVars condition)
+    | For(init, cond, update, body) ->
+        Set.union (capturedVars init) (Set.union (capturedVars cond) (Set.union (capturedVars update) (capturedVars body)))
+    | Array(length, data) -> 
+        Set.union (capturedVars length) (capturedVars data)
+    | ArrayElement(target, index) -> 
+        Set.union (capturedVars target) (capturedVars index)
+    | ArrayLength(target) -> 
+        capturedVars target
+    | ArraySlice(target, start, ending) -> 
+        Set.union (capturedVars target) (Set.union (capturedVars start) (capturedVars ending))
 
 /// Compute the union of the captured variables in a list of AST nodes.
 and internal capturedVarsInList (nodes: List<Node<'E,'T>>): Set<string> =
