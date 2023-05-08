@@ -39,6 +39,9 @@ type ParserOptions = {
 
     [<Option('a', "anf", HelpText="Transform the AST into Administrative Normal Form (ANF) after parsing")>]
     ANF: bool;
+
+    [<Option('O', "optimize", HelpText="Optimization level (default: 0, i.e. no optimizations, partial evaluation: 1, copy propagation: 2, peephole: 3, all: 4 or more)")>]
+    Optimize: uint
 }
 
 
@@ -73,6 +76,9 @@ type InterpreterOptions = {
 
     [<Option('a', "anf", HelpText="Transform the AST into Administrative Normal Form (ANF) before interpreting")>]
     ANF: bool;
+
+    [<Option('O', "optimize", HelpText="Optimization level (default: 0, i.e. no optimizations, partial evaluation: 1, copy propagation: 2, peephole: 3, all: 4 or more)")>]
+    Optimize: uint
 }
 
 
@@ -97,7 +103,7 @@ type CompilerOptions = {
     [<Option('r', "registers", HelpText="Number of registers to use for ANF-based code generation (min 3, max 18; default: 18)")>]
     Registers: uint;
 
-    [<Option('O', "optimize", HelpText="Optimization level (default: 0, i.e. no optimizations)")>]
+    [<Option('O', "optimize", HelpText="Optimization level (default: 0, i.e. no optimizations, partial evaluation: 1, copy propagation: 2, peephole: 3, all: 4 or more)")>]
     Optimize: uint
 }
 
@@ -120,7 +126,7 @@ type RARSLaunchOptions = {
     [<Option('r', "registers", HelpText="Number of registers to use for ANF-based code generation (min 3, max 18; default: 18)")>]
     Registers: uint;
 
-    [<Option('O', "optimize", HelpText="Optimization level (default: 0, i.e. no optimizations)")>]
+    [<Option('O', "optimize", HelpText="Optimization level (default: 0, i.e. no optimizations, partial evaluation: 1, copy propagation: 2, peephole: 3, all: 4 or more)")>]
     Optimize: uint
 }
 
