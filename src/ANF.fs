@@ -454,6 +454,40 @@ let rec internal applyCopyPropagation (anfDefs : ANFDefs<'E,'T>) : ANFDefs<'E,'T
             else def :: applyCopyPropagation defs
         | _ -> def :: applyCopyPropagation defs
 
+/// Check if a given expression is pure
+let isPure (expr : Expr<'E,'T>) : bool = 
+    match expr with
+    | Sub(_, _)
+    | Add(_, _)
+    | Mult(_, _)
+    | Div(_, _)
+    | And(_, _)
+    | Or(_, _)
+    | Eq(_, _)
+    | Less(_, _)
+    | Min(_, _)
+    | Max(_, _)
+    | Not(_)
+    | Assertion(_) -> true
+    | _ -> false
+
+let cseMap = Map.empty<Expr<'E,'T>, string>
+
+/// Apply common subexpression elimination to the given list of ANF definitions
+let rec internal applyCSE (anfDefs : ANFDefs<'E,'T>) : ANFDefs<'E,'T> = 
+    match anfDefs with
+    | [] -> []
+    | def :: defs -> 
+        if isPure def.Init.Expr
+        then
+            match cseMap |> Map.tryFind def.Init.Expr with
+            | Some vname -> 
+                ANFDef(def.Var, def.IsMutable, {def.Init with Expr = Var(vname)}) :: applyCSE defs
+            | None -> 
+                cseMap |> Map.add def.Init.Expr def.Var
+                def :: applyCSE defs
+        else def :: applyCSE defs
+
 /// Transform the given AST node into an optimized Administrative Normal Form.
 let transformOpt (ast: Node<'E,'T>): Node<'E,'T> =
     let anfDefs = toANFDefs ast
