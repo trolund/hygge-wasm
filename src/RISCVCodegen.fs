@@ -736,15 +736,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
 
         let len = Asm(RV.COMMENT("Array slice begin")) ++ startIndex ++ checkStartIndex ++ endIndex.AddText([
             // compute the length of the slice
-            RV.SUB(Reg.r(env.Target), Reg.r(env.Target + 1u), Reg.r(env.Target)), "Subtracting start index from end index"
+            RV.SUB(Reg.r(env.Target + 3u), Reg.r(env.Target + 1u), Reg.r(env.Target)), "Subtracting start index from end index"
         ])
 
         let length_ok = Util.genSymbol $"length_ok"
 
         // check that length is bigger then 1
         let checkLength = Asm([
-                    RV.LI(Reg.r(env.Target + 1u), 0), ""
-                    RV.BLT(Reg.r(env.Target + 1u), Reg.r(env.Target), length_ok), "Check if length is less then 1"
+                    RV.LI(Reg.r(env.Target + 4u), 0), ""
+                    RV.BLT(Reg.r(env.Target + 4u), Reg.r(env.Target + 3u), length_ok), "Check if length is less then 1"
                     RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
                     RV.LI(Reg.a0, assertExitCode), "Load exit code"
                     RV.ECALL, "Call exit"
@@ -772,7 +772,32 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         ])
 
         // Store the array data pointer in the data field of the array struct
-        let dataInitCode = (doCodegen {env with Target = env.Target - 1u} target) ++ (doCodegen env start).AddText([
+        let targetCode = (doCodegen {env with Target = env.Target - 1u} target)
+
+        // t1 contains end and start index, t0 contains array struct address
+
+        let checkStartIndexLabel = Util.genSymbol $"start_index_ok"
+        let checkStartIndex = (doCodegen env start).AddText([
+                    RV.LW(Reg.r(env.Target + 2u), Imm12(4), Reg.t0), "Load length to t5"
+                    RV.BLE(Reg.r(env.Target), Reg.r(env.Target + 2u), checkStartIndexLabel), "Check if start_index < length_of_original_array"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkStartIndexLabel), "start index is ok"
+                ])
+
+        // check that end index is less then length of original array
+        let checkEndIndexLabel = Util.genSymbol $"end_index_ok"
+        let checkEndIndex = (doCodegen env ending).AddText([
+                    RV.LW(Reg.r(env.Target + 2u), Imm12(4), Reg.t0), "Load length to t5"
+                    RV.BLE(Reg.r(env.Target), Reg.r(env.Target + 2u), checkEndIndexLabel), "Check if end_index < length_of_original_array"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkEndIndexLabel), "end index is ok"
+                ])        
+        
+        let dataInitCode = Asm([
                 // Initialize array data pointer field with the address of the array data with the start offset * 4 added
                 RV.LI(Reg.a0, 4), "(in bytes)"
                 RV.MUL(Reg.t4, Reg.t4, Reg.a0), "Multiply start index by 4"
@@ -783,7 +808,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
              ])
 
         // Combine all the generated code
-        checkSize ++ structAllocCode ++ lengthCode ++ dataInitCode
+        checkSize ++ structAllocCode ++ lengthCode ++ targetCode ++ checkStartIndex ++ checkEndIndex ++ dataInitCode
 
     | While(cond, body) ->
         /// Label to mark the beginning of the 'while' loop

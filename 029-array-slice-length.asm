@@ -84,15 +84,15 @@ length_ok_0:  # length is ok
     mv t4, t1  # Move length to t4
     mv t0, t0  # Load variable 'arr'
     li t1, 2
-    lw t5, 4(t0)  # Load length to t5
-    blt t2, t1, start_index_ok_1  # Check if start_index < length_of_original_array
+    lw s1, 4(t0)  # Load length to t5
+    blt t1, s1, start_index_ok_1  # Check if start_index < length_of_original_array
     li a7, 93  # RARS syscall: Exit2
     li a0, 42  # load exit code
     ecall  # Call exit
 start_index_ok_1:  # start index is ok
     li t1, 4
-    lw t5, 4(t0)  # Load length to t5
-    blt t2, t1, end_index_ok  # Check if end_index < length_of_original_array
+    lw s1, 4(t0)  # Load length to t5
+    blt t1, s1, end_index_ok  # Check if end_index < length_of_original_array
     li a7, 93  # RARS syscall: Exit2
     li a0, 42  # load exit code
     ecall  # Call exit
