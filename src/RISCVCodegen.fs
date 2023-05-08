@@ -740,7 +740,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     RV.LABEL(length_ok), "length is ok"
                 ])
 
-        let checkSize = len ++ checkLength
+        let checkSize = len ++ checkLength 
 
         // Allocate space for the array struct on the heap
         let structAllocCode =

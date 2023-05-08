@@ -1,0 +1,29 @@
+let x: int = 10;
+let arr: array {int} = array(x, 0);
+
+let mutable i: int = 0;
+while (i < arrayLength(arr)) do {
+    arrayElem(arr, i) <- i;
+    i <- i + 1
+};
+
+let sliced: array {int} = arraySlice(arr, 4, 10);
+
+let mutable j: int = 0;
+
+while (j < arrayLength(sliced)) do {
+    arrayElem(sliced, j) <- j + 1000;
+    j <- j + 1
+};
+
+j <- 0;
+
+while (j < 4) do {
+    assert(arrayElem(arr, j) = j);
+    j <- j + 1
+};
+
+assert(arrayElem(arr, 4) = 1000);
+assert(arrayElem(arr, 5) = 1001);
+assert(arrayElem(arr, 6) = 1002);
+assert(arrayElem(arr, 7) = 1003)

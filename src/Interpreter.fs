@@ -795,7 +795,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                     if start' < 0 || start' >= getLen then // read of out of bounds
                         Log.debug $"Array start index %i{start'} out of bounds in array of length %i{getLen}"
                         None // Out of bounds
-                    else if end' < 0 || end' >= getLen then // read of out of bounds
+                    else if end' < 0 || end' > getLen then // read of out of bounds
                         Log.debug $"Array end index %i{end'} out of bounds in array of length %i{getLen}"
                         None // Out of bounds
                     else
