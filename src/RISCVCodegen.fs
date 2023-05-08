@@ -718,7 +718,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         | _ ->
             failwith ($"BUG: assignment to invalid target:%s{Util.nl}"
                       + $"%s{PrettyPrinter.prettyPrint lhs}")
-    // TODO Array slice 
+                      
     | ArraySlice(target, start, ending) -> 
         let startIndex = (doCodegen env start)
         let endIndex = (doCodegen {env with Target = env.Target + 1u} ending)
