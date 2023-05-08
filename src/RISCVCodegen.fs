@@ -723,7 +723,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         let startIndex = (doCodegen env start)
         let endIndex = (doCodegen {env with Target = env.Target + 1u} ending)
 
-        let len = Asm(RV.COMMENT("Array slice begin")) ++ startIndex ++ endIndex.AddText([
+        let start_index_ok = Util.genSymbol $"start_index_ok"
+        // check that start index is bigger then 0
+        let checkStartIndex = Asm([
+                    RV.LI(Reg.a7, 0), "Set a7 to 0"
+                    RV.BGE(Reg.r(env.Target), Reg.a7, start_index_ok), "Check if start index >= 0"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(start_index_ok), "start index is ok"
+                ])
+
+        let len = Asm(RV.COMMENT("Array slice begin")) ++ startIndex ++ checkStartIndex ++ endIndex.AddText([
             // compute the length of the slice
             RV.SUB(Reg.r(env.Target), Reg.r(env.Target + 1u), Reg.r(env.Target)), "Subtracting start index from end index"
         ])
