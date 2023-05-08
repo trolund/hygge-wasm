@@ -147,12 +147,12 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | Array(length, data) -> 
         {node with Expr = Array((subst length var sub), (subst data var sub))} 
     | ArrayElement(arr, index) -> 
-        {node with Expr = ArrayElement((subst arr var sub), index)}
+        {node with Expr = ArrayElement((subst arr var sub), (subst index var sub))}
     | ArrayLength(arr) -> 
         {node with Expr = ArrayLength((subst arr var sub))}
 
     | ArraySlice(arr, start, ending) -> 
-        {node with Expr = ArraySlice((subst arr var sub), start, ending)}
+        {node with Expr = ArraySlice((subst arr var sub), (subst start var sub), (subst ending var sub))}
 
     | UnionCons(label, expr) ->
         {node with Expr = UnionCons(label, (subst expr var sub))}
