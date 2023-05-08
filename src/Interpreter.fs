@@ -537,15 +537,15 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 | _ -> true 
 
             match start.Expr, ending.Expr with
-            | IntVal(start), IntVal(ending) ->
+            | IntVal(start'), IntVal(ending') ->
                 match dataPointer with
                 | Some(dataPointer') ->
                     if outOfBounds then // write of out of bounds
-                        Log.debug $"Array index %i{start} or index %i{ending} out of bounds in array of length %i{getLen}"
+                        Log.debug $"Array index %i{start'} or index %i{ending'} out of bounds in array of length %i{getLen}"
                         None // Out of bounds
                     else
                         /// Updated env with selected array slice overwritten by 'value'
-                        let env' = {env with Heap = env.Heap.Add(dataPointer' + (uint start), value)}
+                        let env' = {env with Heap = env.Heap.Add(dataPointer' + (uint start'), value)}
                         Some(env', value)
                 | None -> None
             | _ -> None
