@@ -1,0 +1,56 @@
+let x: int = 1000;
+let arr: array {int} = array(x, 0);
+
+let mutable i: int = 0;
+while (i < arrayLength(arr)) do {
+    arrayElem(arr, i) <- i;
+    i <- i + 1
+};
+
+// sliced is half the 'arr' array
+let sliced: array {int} = arraySlice(arr, x / 2, x);
+
+assert(arrayLength(sliced) = x / 2);
+
+let mutable j: int = 0;
+
+// modify the 'sliced' part of the array
+while (j < arrayLength(sliced)) do {
+    arrayElem(sliced, j) <- j + 1000;
+    j <- j + 1
+};
+
+// reset j
+j <- 0;
+
+while (j < (x / 2)) do {
+    assert(arrayElem(arr, j) = j);
+    j <- j + 1
+};
+
+// Check half the array is modified with 'sliced' ref
+while (j < x) do {
+    assert(arrayElem(arr, j) = (j - x / 2) + 1000);
+    j <- j + 1
+};
+
+// sliced is a quarter of the 'arr' array
+let sliced2: array {int} = arraySlice(sliced, x / 2 / 2, x / 2);
+
+j <- 0;
+
+// modify the 'sliced2' part of the array
+while (j < arrayLength(sliced2)) do {
+    arrayElem(sliced2, j) <- j + 42;
+    j <- j + 1
+};
+
+j <- 0;
+
+// assert values
+while (j < arrayLength(sliced2)) do {
+    assert(arrayElem(sliced2, j) = j + 42);
+    j <- j + 1
+};
+
+assert(arrayLength(sliced2) = x / 4)

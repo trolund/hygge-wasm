@@ -38,6 +38,25 @@ let internal testCodegen (file: string) (expected: int) =
                                         + $"got %d{exit} (%s{explainExit})")
 
 
+/// Compile a source file after transforming it in ANF, and run the resulting
+/// assembly code on RARS, checking whether its return code matches the expected
+/// one.
+let internal testANFCodegen (file: string) (expected: int) =
+    match (Util.parseFile file) with
+    | Error(e) -> failwith $"Parsing failed: %s{e}"
+    | Ok(ast) ->
+        match (Typechecker.typecheck ast) with
+        | Error(es) -> failwith $"Typing failed: %s{formatErrors es}"
+        | Ok(tast) ->
+            let anf = ANF.transform tast
+            let asm = ANFRISCVCodegen.codegen anf 18u
+            let explainExpected = RARS.explainExitCode expected
+            let exit = RARS.launch (asm.ToString()) false
+            let explainExit = RARS.explainExitCode exit
+            Expect.equal exit expected ($"RARS should have exited with code %d{expected} (%s{explainExpected}), "
+                                        + $"got %d{exit} (%s{explainExit})")
+
+
 [<Tests>]
 let tests = testList "tests" [
     testList "lexer" [
@@ -109,6 +128,31 @@ let tests = testList "tests" [
             )
         )
     ]
+    testList "interpreter-anf" [
+        testList "pass" (
+            getFilesInTestDir ["interpreter-anf"; "pass"] |> List.map ( fun file ->
+                testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
+                    match (Util.parseFile file) with
+                    | Error(e) -> failwith $"Parsing failed: %s{e}"
+                    | Ok(ast) ->
+                        let anf = ANF.transform ast
+                        let last = Interpreter.reduceFully anf (Some (fun _ -> "")) (Some ignore)
+                        Expect.isFalse (Interpreter.isStuck last) "Interpreter reached a stuck expression"
+            )
+        )
+        testList "fail" (
+            getFilesInTestDir ["interpreter-anf"; "fail"] |> List.map ( fun file ->
+                testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
+                    match (Util.parseFile file) with
+                    | Error(e) -> failwith $"Parsing failed: %s{e}"
+                    | Ok(ast) ->
+                        let anf = ANF.transform ast
+                        let last = Interpreter.reduceFully anf (Some (fun _ -> "")) (Some ignore)
+                        Expect.isTrue (Interpreter.isStuck last)
+                                      "Interpreter should have reached a stuck expression"
+            )
+        )
+    ]
     testList "codegen" [
         testList "pass" (
             getFilesInTestDir ["codegen"; "pass"] |> List.map ( fun file ->
@@ -120,6 +164,20 @@ let tests = testList "tests" [
             getFilesInTestDir ["codegen"; "fail"] |> List.map ( fun file ->
                 testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
                     testCodegen file RISCVCodegen.assertExitCode
+            )
+        )
+    ]
+    testList "codegen-anf" [
+        testList "pass" (
+            getFilesInTestDir ["codegen-anf"; "pass"] |> List.map ( fun file ->
+                testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
+                    testANFCodegen file 0
+            )
+        )
+        testList "fail" (
+            getFilesInTestDir ["codegen-anf"; "fail"] |> List.map ( fun file ->
+                testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
+                    testANFCodegen file RISCVCodegen.assertExitCode
             )
         )
     ]

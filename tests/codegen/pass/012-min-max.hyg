@@ -3,4 +3,6 @@ assert(min(12, 10) = 10);
 assert(max(1, 10) = 10);
 assert(min(0, 100) = 0);
 assert(min(0.0f, 100.1f) = 0.0f);
-assert(max(0.0f, 100.1f) = 100.1f)
+assert(max(0.0f, 100.1f) = 100.1f);
+assert(max(2, 2) = 2);
+assert(min(4, 4) = 4)

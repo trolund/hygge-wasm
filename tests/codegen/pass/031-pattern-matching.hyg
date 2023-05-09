@@ -1,0 +1,14 @@
+// An optional integer value.
+type OptionalInt = union {
+    Some: int;
+    None: unit
+};
+
+fun checkOption(o: OptionalInt): int =
+    match o with {
+        Some{x} -> x;
+        None{_} -> 0
+    };
+
+assert(checkOption(Some{42}) = 42);
+assert(checkOption(None{()}) = 0)

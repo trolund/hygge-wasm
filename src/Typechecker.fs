@@ -23,6 +23,8 @@ type TypingEnv = {
     TypeVars: Map<string, Type>
     /// Mutable variables in the current scope.
     Mutables: Set<string>
+
+    AtTopLevel: bool
 } with
     /// Return a compact and readable representation of the typing environment.
     override this.ToString(): string =
@@ -110,8 +112,29 @@ let rec internal resolvePretype (env: TypingEnv) (pt: AST.PretypeNode): Result<T
                 /// Type of each struct field
                 let fieldTypes = List.map getOkValue fieldTypes
                 Ok(TStruct(List.zip fieldNames fieldTypes))
-
-
+    | Pretype.TUnion(cases) ->
+        /// Union type labels and pretypes
+        let (caseLabels, casePretypes) = List.unzip cases
+        /// List of duplicate label names
+        let dups = Util.duplicates caseLabels
+        if not dups.IsEmpty then
+            Error([(pt.Pos, $"duplicate label names in union type: %s{Util.formatSeq dups}")])
+        else
+            /// List of case types (possibly with errors)
+            let caseTypes = List.map (fun a -> resolvePretype env a) casePretypes
+            /// Errors occurred while resolving 'caseTypes'
+            let errors = collectErrors caseTypes
+            if not errors.IsEmpty then Error(errors)
+            else
+                /// Type of each union case
+                let caseTypes = List.map getOkValue caseTypes
+                Ok(TUnion(List.zip caseLabels caseTypes))
+    | Pretype.TArray(elements) -> 
+            let arrayType = resolvePretype env elements
+            match arrayType with
+            | Ok(t) -> Ok(TArray(t))
+            | Error(es) -> Error(es)
+            
 /// Resolve a type variable using the given typing environment: optionally
 /// return the Type corresponding to variable 'name', or None if 'name' is not
 /// defined in the given environment.
@@ -152,6 +175,18 @@ let rec isSubtypeOf (env: TypingEnv) (t1: Type) (t2: Type): bool =
     | (t1, TVar(name)) ->
         // Expand the type variable; crash immediately if 'name' is not in 'env'
         isSubtypeOf env t1 (env.TypeVars.[name])
+    | (TFun(args1, ret1), TFun(args2, ret2)) ->
+        // The return type of the "smaller" function must be a subtype of the return type of the "bigger" function
+        if (not (isSubtypeOf env ret1 ret2)) then false
+        // Both function types expect the same number of arguments
+        elif args1.Length <> args2.Length then false
+
+        // Each argument of the "bigger" function
+        // is a subtype of
+        // the argument found at the same position in the "smaller" function
+        else 
+            let env2 = { env with AtTopLevel = false}
+            List.forall2 (fun t1 t2 -> isSubtypeOf env2 t2 t1) args1 args2 
     | (TStruct(fields1), TStruct(fields2)) ->
         // A subtype struct must have at least the same fields of the supertype
         if fields1.Length < fields2.Length then false
@@ -166,6 +201,19 @@ let rec isSubtypeOf (env: TypingEnv) (t1: Type) (t2: Type): bool =
             else
                 List.forall2 (fun t1 t2 -> isSubtypeOf env t1 t2)
                              fieldTypes1 fieldTypes2
+    | (TUnion(cases1), TUnion(cases2)) ->
+        /// Labels of the subtype union
+        let (labels1, _) = List.unzip cases1
+        /// Labels of the supertype union
+        let (labels2, _) = List.unzip cases2
+        // A subtype union must have a subset of the labels of the supertype
+        if not (Set.isSubset (Set(labels1)) (Set(labels2))) then false
+        else
+            // A label that appears in both the subtype and supertype unions
+            // must have a subtyped argument in the subtype union
+            let map1 = Map.ofList cases1
+            let map2 = Map.ofList cases2
+            List.forall (fun l -> isSubtypeOf env map1.[l] map2.[l]) labels1
     | (_, _) -> false
 
 
@@ -396,10 +444,17 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             Error(terrs)
 
     | Let(name, tpe, init, scope) ->
-        letTyper node.Pos false env name tpe init scope
+        letTyper node.Pos false false env name tpe init scope
 
     | LetMut(name, tpe, init, scope) ->
-        letTyper node.Pos true env name tpe init scope
+        letTyper node.Pos false true env name tpe init scope
+
+    | LetRec(name, tpe, init, scope) ->
+        match (resolvePretype env tpe) with
+        | Ok(t) ->
+            let T' = {env with Vars = env.Vars.Add(name, t); Mutables = env.Mutables}
+            letTyper node.Pos true false T' name tpe init scope
+        | Error(errorValue) -> Error(errorValue)
 
     | Assign(target, expr) ->
         match ((typer env target), (typer env expr)) with
@@ -413,6 +468,9 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
                     Error([(node.Pos,
                             $"assignment to non-mutable variable %s{name}")])
             | FieldSelect(_, _) ->
+                Ok { Pos = node.Pos; Env = env; Type = ttarget.Type;
+                     Expr = Assign(ttarget, texpr) }
+            | ArrayElement(_, _) ->
                 Ok { Pos = node.Pos; Env = env; Type = ttarget.Type;
                      Expr = Assign(ttarget, texpr) }
             | _ -> Error([(node.Pos, "invalid assignment target")])
@@ -452,6 +510,23 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         | Error(es), Ok(_) -> Error(es)
         | Error(esCond), Error(esBody) -> Error(esCond @ esBody)
 
+    | For(init, cond, update, body) ->
+        match (typer env cond) with
+        | Ok(tcond) when (isSubtypeOf env tcond.Type TBool) ->
+            let typeInit = (typer env init)
+            let typeUpdate = typer env update
+            let typeBody = typer env body
+            let typingResults = [typeInit; typeUpdate; typeBody]
+            match (typeInit, typeUpdate, typeBody) with
+            | (Ok(tinit), Ok(tupdate), Ok(tbody)) ->
+                Ok { Pos = node.Pos; Env = env; Type = TUnit; Expr = For(tinit, tcond, tupdate, tbody) }
+            | (_, _, _) ->
+                Error(collectErrors typingResults)
+        | Ok(tcond) ->
+            Error([(tcond.Pos, $"'for' condition: expected type %O{TBool}, "
+                              + $"found %O{tcond.Type}")])
+        | Error(es) -> Error(es)
+
     | Assertion(arg) -> 
         match (typer env arg) with
         | Ok(targ) when (isSubtypeOf env targ.Type TBool) ->
@@ -479,7 +554,11 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
                 | Some(_) ->
                     Error([(node.Pos, $"type '%s{name}' is already defined")])
                 | None ->
-                    match (resolvePretype env def) with
+                    /// Extended typing environment where the type variable
+                    /// being defined maps to 'unit' (although any other type
+                    /// would work).  This allows for recursive type definitions
+                    let env2 = {env with TypeVars = env.TypeVars.Add(name, TUnit)}
+                    match (resolvePretype env2 def) with
                     | Ok(resDef) ->
                         /// Environment to type-check the 'scope' of the type
                         /// variable.  We add the new type variable to this
@@ -612,6 +691,132 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
 
     | Pointer(_) ->
         Error([(node.Pos, "pointers cannot be type-checked (by design!)")])
+    | Array(length, data) -> // array constructor
+        match (typer env length) with
+        | Ok(tlength) ->
+            if not (isSubtypeOf tlength.Env tlength.Type TInt) then // check int subtype 
+                Error([(node.Pos, $"array length must be of type int, found %O{tlength.Type}")])
+            else
+                match (typer env data) with
+                | Ok(tdata) ->
+                    Ok { Pos = node.Pos; Env = env; Type = TArray(tdata.Type);
+                            Expr = Array(tlength, tdata) }
+                | Error(es) -> Error(es)
+        | Error(errorValue) -> Error(errorValue)
+    | ArrayElement(arr, index) -> // array element access
+        match (typer env arr) with
+        | Ok(tarr) ->
+            match (expandType env tarr.Type) with
+            | TArray(t) ->
+                match (typer env index) with
+                | Ok(tindex) ->
+                    if not (isSubtypeOf tindex.Env tindex.Type TInt) then
+                        Error([(node.Pos, $"array index must be of type int, found %O{tindex.Type}")])
+                    else
+                        Ok { Pos = node.Pos; Env = env; Type = t;
+                            Expr = ArrayElement(tarr, tindex) }
+                | Error(es) -> Error(es)
+            | _ -> Error([(node.Pos, $"cannot access array element on expression of type %O{tarr.Type}")])
+        | Error(es) -> Error(es)
+    | ArrayLength(arr) -> 
+        match (typer env arr) with
+        | Ok(tarr) ->
+            match (expandType env tarr.Type) with
+            | TArray(_) ->
+                Ok { Pos = node.Pos; Env = env; Type = TInt;
+                     Expr = ArrayLength(tarr) }
+            | _ -> Error([(node.Pos, $"cannot access array length on expression of type %O{tarr.Type}")])
+        | Error(es) -> Error(es)
+
+    | ArraySlice(arr, start, ending) -> // array slice
+        match (typer env arr) with
+        | Ok(tarr) ->
+            match (expandType env tarr.Type) with
+            | TArray(t) ->
+                // check that start and end are of type int
+                match (typer env start) with
+                | Ok(tstart) ->
+                    if not (isSubtypeOf tstart.Env tstart.Type TInt) then
+                        Error([(node.Pos, $"array slice start must be of type int, found %O{tstart.Type}")])
+                    else
+                        match (typer env ending) with
+                        | Ok(tend) ->
+                            if not (isSubtypeOf tend.Env tend.Type TInt) then
+                                Error([(node.Pos, $"array slice end must be of type int, found %O{tend.Type}")])
+                            else
+                                Ok { Pos = node.Pos; Env = env; Type = TArray(t);
+                                    Expr = ArraySlice(tarr, tstart, tend) }
+                        | Error(es) -> Error(es)
+                | Error(es) -> Error(es)
+            | _ -> Error([(node.Pos, $"cannot access array element on expression of type %O{tarr.Type}")])
+        | Error(es) -> Error(es)
+
+    | UnionCons(label, expr) ->
+        match (typer env expr) with
+        | Ok(texpr) ->
+            // We type the union instance with the most precise labelled union
+            // type that contains it
+            Ok { Pos = node.Pos; Env = env; Type = TUnion([label, texpr.Type]);
+                 Expr = UnionCons(label, texpr) }
+        | Error(es) -> Error(es)
+
+    | Match(expr, cases) ->
+        /// Duplicate labels in the pattern matching cases
+        let dups = Util.duplicates ((List.map (fun (label,_,_) -> label)) cases)
+        if not dups.IsEmpty then
+            Error([(expr.Pos, $"duplicate case labels in pattern matching: %s{Util.formatSeq dups}")])
+        else
+            match (typer env expr) with
+            | Ok(texpr) ->
+                match (expandType env texpr.Type) with
+                | TUnion(unionCases) ->
+                    let (labels, variables, cont) = List.unzip3 cases
+                    /// The function 'caseTyper' is mapped over all
+                    /// 'unionCases': it looks for the matched label in
+                    /// 'labels', and type-checks the continuation by
+                    /// introducing the matched variable and type in the
+                    /// environment.
+                    let caseTyper (label, t): TypingResult =
+                        match (List.tryFindIndex (fun l -> l = label) labels) with
+                        | Some(i) ->
+                            /// Updated environment for type-checking the union
+                            /// case continuation
+                            let env2 = {env with Vars = env.Vars.Add(variables[i], t)}
+                            typer env2 cont[i]
+                        | None -> Error([(expr.Pos, $"Match case missing the <%s{label}> case.")])
+                    /// Typed continuations (possibly with errors)
+                    let tconts = List.map caseTyper unionCases
+                    /// Typing errors in continuations
+                    let errors = collectErrors tconts
+                    if errors.IsEmpty then
+                        /// Typed continuations, without errors
+                        let typedConts = List.map getOkValue tconts
+                        /// Desired type for all union cases (taken from the
+                        /// first union case)
+                        let matchType = typedConts.[0].Type
+                        /// Has the given AST node a "bad" type that is not a
+                        /// subtype of 'matchType'?
+                        let hasBadType (c: TypedAST) =
+                            not (isSubtypeOf env c.Type matchType)
+                        /// List of match continuation types that are not compatible
+                        /// with 'matchType'
+                        let badTypes = List.filter hasBadType typedConts.[1..]
+                        if badTypes.IsEmpty then
+                            /// Match case labels and variables
+                            let (caseLabels, caseVars, _) = List.unzip3 cases
+                            /// Typed match cases
+                            let tcases = List.zip3 caseLabels caseVars typedConts
+                            Ok { Pos = node.Pos; Env = env; Type = matchType;
+                                 Expr = Match(texpr, tcases)}
+                        else
+                            let errFmt (c: TypedAST) =
+                                (c.Pos, $"pattern match result type mismatch: "
+                                        + $"expected %O{matchType}, found %O{c.Type}")
+                            Error(List.map errFmt badTypes)
+                    else Error(errors)
+                | _ ->
+                    Error([(expr.Pos, $"cannot match on expression of type %O{texpr.Type}")])
+            | Error(es) -> Error(es)
 
 /// Compute the typing of a binary numerical operation, by computing and
 /// combining the typings of the 'lhs' and 'rhs'.  The argument 'descr' (used in
@@ -703,7 +908,7 @@ and internal printArgTyper descr pos (env: TypingEnv) (arg: UntypedAST): Result<
 /// expression, the typing 'env'ironment, the 'name' of the declared variable,
 /// its pretype ('tpe'), the 'init'ialisation AST node, and the 'scope' of the
 /// 'let...' binder.
-and internal letTyper pos (isMutable: bool) (env: TypingEnv)
+and internal letTyper pos (isRec: bool) (isMutable: bool) (env: TypingEnv)
                       (name: string) (tpe: PretypeNode)
                       (init: UntypedAST) (scope: UntypedAST): TypingResult =
     match (resolvePretype env tpe) with
@@ -719,11 +924,14 @@ and internal letTyper pos (isMutable: bool) (env: TypingEnv)
                                        else env.Mutables.Remove(name)
         /// Environment for type-checking the 'let...' scope
         let env2 = {env with Vars = envVars2
-                             Mutables = envMutVars2}
+                             Mutables = envMutVars2
+                             }
         /// Result of type-checking the 'let...' scope
         let tscope = typer env2 scope
         /// Environment for type-checking the 'let...' initialisation
-        let initEnv = env // Equal to 'env'... for now ;-)
+        
+        let env3 = {env with AtTopLevel = false}
+        let initEnv = env3 // Equal to 'env'... for now ;-)
         match (typer initEnv init) with
         | Ok(tinit) ->
             /// Errors (if any) due to 'let...' initialisation type mismatch
@@ -735,7 +943,10 @@ and internal letTyper pos (isMutable: bool) (env: TypingEnv)
             match tscope with
             | Ok(tscope) ->
                 if (List.isEmpty terrs) then
-                    if isMutable then
+                    if isRec || initEnv.AtTopLevel then 
+                        Ok { Pos = pos; Env = env; Type = tscope.Type;
+                             Expr = LetRec(name, tpe, tinit, tscope) }
+                    else if isMutable then
                         Ok { Pos = pos; Env = env; Type = tscope.Type;
                              Expr = LetMut(name, tpe, tinit, tscope) }
                     else Ok { Pos = pos; Env = env; Type = tscope.Type;
@@ -748,8 +959,7 @@ and internal letTyper pos (isMutable: bool) (env: TypingEnv)
             | Error(esb) -> Error(esd @ esb)
     | Error(es) -> Error(es)
 
-
 /// Perform type checking of the given untyped AST.  Return a well-typed AST in
 /// case of success, or a sequence of error messages in case of failure.
 let typecheck (node: UntypedAST): TypingResult =
-    typer {Vars = Map[]; TypeVars = Map[]; Mutables = Set[]} node
+    typer {Vars = Map[]; TypeVars = Map[]; Mutables = Set[]; AtTopLevel = true} node

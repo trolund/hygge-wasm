@@ -51,7 +51,10 @@ and Pretype =
             * ret: PretypeNode
     /// A structure pretype, with pretypes for each field.
     | TStruct of fields: List<string * PretypeNode>
-
+    /// Discriminated union type.  Each case consists of a name and a pretype.
+    | TUnion of cases: List<string * PretypeNode>
+    /// A Array pretype, with pretype of elements in the array.
+    | TArray of elements: PretypeNode
 
 /// Node of the Abstract Syntax Tree of a Hygge expression.  The meaning of the
 /// two type arguments is the following: 'E specifies what typing environment
@@ -176,10 +179,6 @@ and Expr<'E,'T> =
     | Max of lhs: Node<'E,'T>
            * rhs: Node<'E,'T>
 
-    /// do while 
-    | DoWhile of body: Node<'E,'T>
-               * condition: Node<'E,'T>
-
     /// Conditional expression (if ... then ... else ...).
     | If of condition: Node<'E,'T>
           * ifTrue: Node<'E,'T>
@@ -208,6 +207,14 @@ and Expr<'E,'T> =
               * init: Node<'E,'T>
               * scope: Node<'E,'T>
 
+    /// Let-binder, used to introduce recursive functions with the given 'name' and type
+    /// ('tpe') in a 'scope'.  The variable is initialised with the result of
+    /// the expression in 'init'.
+    | LetRec of name: string
+           * tpe: PretypeNode
+           * init: Node<'E,'T>
+           * scope: Node<'E,'T>
+
     /// Assignment of a value (computed from 'expr') to a mutable target (e.g. a
     /// variable).
     | Assign of target: Node<'E,'T>
@@ -216,6 +223,16 @@ and Expr<'E,'T> =
     /// 'While' loop: as long as 'cond' is true, repeat the 'body'.
     | While of cond: Node<'E,'T>
              * body: Node<'E,'T>
+
+    /// 'Do-while' loop: execute the 'body'. As long as 'cond' is true, repeat the 'body'
+    | DoWhile of body: Node<'E,'T>
+               * condition: Node<'E,'T>
+
+    /// 'For' loop: execute 'init'. As long as 'cond' is true, repeat the 'body' and 'update'
+    | For of init: Node<'E,'T>
+           * cond: Node<'E,'T>
+           * update: Node<'E,'T>
+           * body: Node<'E,'T>
 
     /// Assertion: fail at runtime if the argument does not evaluate to true.
     | Assertion of arg: Node<'E,'T>
@@ -241,13 +258,43 @@ and Expr<'E,'T> =
 
     /// Access a field of a target expression (e.g. a structure).
     | FieldSelect of target: Node<'E,'T>
-                   * field: string
+                    * field: string
+
+    /// Instance of an array
+    /// Array conttructor
+    | Array of length: Node<'E,'T>
+               * data: Node<'E,'T>
+
+    /// Access an element in the array
+    | ArrayElement of target: Node<'E,'T>
+                     * index: Node<'E,'T>
+                   
+    /// Get length of the array
+    | ArrayLength of target: Node<'E,'T>
+
+    /// Slice an array
+    | ArraySlice of target: Node<'E,'T>
+                     * start: Node<'E,'T>
+                     * ending: Node<'E,'T>
 
     /// Pointer to a location in the heap, with its address.  This is a runtime
     /// value that is only used by the Hygge interpreter as an intermediate
     /// result; it has no syntax in the parser, so it cannot be written in Hygge
     /// programs.
     | Pointer of addr: uint
+
+    /// Constructor of a discriminated union type, with a label and an
+    /// expression.
+    | UnionCons of label: string
+                 * expr: Node<'E,'T>
+
+    /// Pattern matching construct: check whether the given expression matches
+    /// one the specified cases of a discriminated union type.  Each case
+    /// contains the case label, a variable that is bound with the matched case
+    /// value, and a continuation expression (that can use that variable to
+    /// access the match case value)
+    | Match of expr: Node<'E,'T>
+             * cases: List<string * string * Node<'E,'T>>
 
 
 /// A type alias for an untyped AST, where there is no typing environment nor

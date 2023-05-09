@@ -1,0 +1,4 @@
+let arr: array {int} = array(0, 1);
+let len: int = arrayLength(arr);
+
+assert(len = 4)

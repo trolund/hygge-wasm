@@ -99,7 +99,17 @@ rule tokenize = parse
 | "while"      { Parser.WHILE }
 | "do"         { Parser.DO }
 | "fun"        { Parser.FUN }
+| "for"        { Parser.FOR }
+| "rec"        { Parser.REC }
 | "struct"     { Parser.STRUCT }
+| "tuple"      { Parser.TUPLE }
+| "union"      { Parser.UNION }
+| "match"      { Parser.MATCH }
+| "with"       { Parser.WITH }
+| "array"      { Parser.ARRAY }
+| "arrayLength" { Parser.ARRAYL }
+| "arrayElem"   { Parser.ARRAYE }
+| "arraySlice"  { Parser.ARRAYS }
 
 // Generic identifier
 | ident        { Parser.IDENT(LexBuffer<_>.LexemeString lexbuf) }

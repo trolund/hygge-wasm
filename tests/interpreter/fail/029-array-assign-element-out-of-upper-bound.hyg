@@ -1,0 +1,3 @@
+let arr: array {int} = array(2, 1);
+arrayElem(arr, 2) <- arrayElem(arr, 0);
+print("should not print!")

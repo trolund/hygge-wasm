@@ -1,0 +1,21 @@
+type List = union {
+    Elem: struct {value: int; next: List};
+    Nil: unit
+};
+let l: List = Elem{struct{value = 1;
+                          next = Elem{struct{value = 2;
+                                             next = Nil{()}}}}};
+assert(
+    match l with {
+        Elem{e1} -> e1.value = 1 and (
+                    match e1.next with {
+                        Elem{e2} -> e2.value = 2 and (
+                                    match e2.next with {
+                                        Elem{_} -> false; 
+                                        Nil{_} -> true
+                                    });
+                        Nil{_} -> false
+                    });
+        Nil{_} -> false
+    }
+)

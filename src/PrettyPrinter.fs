@@ -65,6 +65,12 @@ let rec internal formatType (t: Type.Type): Tree =
         let fieldsChildren =
             List.map (fun (f, t) -> ($"field %s{f}", formatType t)) fields
         Node("struct", fieldsChildren)
+    | Type.TUnion(cases) ->
+        /// Formatted case labels with their respective type
+        let casesChildren =
+            List.map (fun (f, t) -> ($"label %s{f}", formatType t)) cases
+        Node("union", casesChildren)
+    | Type.TArray(tpe) -> Node("array", [("element", formatType tpe)])
 
 
 /// Traverse a Hygge typing environment and return its hierarchical
@@ -182,12 +188,23 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
         mkTree $"Let mutable %s{name}" node [("Ascription", formatPretypeNode tpe)
                                              ("init", formatASTRec init)
                                              ("scope", formatASTRec scope)]
+
+    | LetRec(name, tpe, init, scope) ->
+        mkTree $"Let rec %s{name}" node [("Ascription", formatPretypeNode tpe)
+                                         ("init", formatASTRec init)
+                                         ("scope", formatASTRec scope)]
+
     | Assign(target, expr) ->
         mkTree $"Assign" node [("target", formatASTRec target)
                                ("expr", formatASTRec expr)]
     | While(cond, body) ->
         mkTree $"While" node [("cond", formatASTRec cond)
                               ("body", formatASTRec body)]
+    | For(init, cond, update, body) ->
+        mkTree $"For" node [("init", formatASTRec init)
+                            ("cond", formatASTRec cond)
+                            ("update", formatASTRec update)
+                            ("body", formatASTRec body)]
     | Assertion(arg) ->
         mkTree "Assertion" node [("arg", formatASTRec arg)]
     | Type(name, def, scope) ->
@@ -215,6 +232,25 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
         mkTree $"FieldSelect %s{field}" node [("expr", formatASTRec target)]
     | Pointer(addr) ->
         mkTree $"Pointer 0x%x{addr}" node []
+    | UnionCons(label, expr) ->
+        mkTree $"UnionCons %s{label}" node [("expr", formatASTRec expr)]
+    | Match(expr, cases) ->
+        let casesChildren =
+            List.map (fun (l, v, cont) -> ($"case %s{l}{{%s{v}}}",
+                                           formatASTRec cont)) cases
+        mkTree "Match" node (("expr", formatASTRec expr) :: casesChildren)
+    | Array(length, data) -> 
+                 mkTree $"Array" node [("length", formatASTRec length)
+                                       ("data", formatASTRec data)]
+    | ArrayElement(arr, index) -> 
+            mkTree $"ArrayElement" node [("arr", formatASTRec arr)
+                                         ("index", formatASTRec index)]
+    | ArrayLength(arr) -> 
+            mkTree $"ArrayLength" node [("arr", formatASTRec arr)]
+    | ArraySlice(arr, start, ending) -> 
+            mkTree $"ArraySlice" node [("arr", formatASTRec arr)
+                                       ("start", formatASTRec start)
+                                       ("end", formatASTRec ending)]
 
 /// Return a description of an AST node, and possibly some subtrees (that are
 /// added to the overall tree structure).
@@ -261,6 +297,14 @@ and internal formatPretypeNode (node: PretypeNode): Tree =
             List.map (fun (name, t) -> ((formatPretypeDescr t $"field %s{name}"),
                                         formatPretypeNode t)) fields
         Node((formatPretypeDescr node "Struct pretype"), fieldsChildren)
+    | Pretype.TUnion(cases) ->
+        /// Formatted pretypes of each union case with their respective label
+        let casesChildren =
+            List.map (fun (name, t) -> ((formatPretypeDescr t $"label %s{name}"),
+                                        formatPretypeNode t)) cases
+        Node((formatPretypeDescr node "Union pretype"), casesChildren)
+    | Pretype.TArray(elements) -> 
+                Node((formatPretypeDescr node "Array pretype"), [("element type", formatPretypeNode elements)])
 
 /// Format the description of a pretype AST node (without printing its
 /// children).

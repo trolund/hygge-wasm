@@ -1,0 +1,2 @@
+let a: array {int} = array(42, 42);
+a

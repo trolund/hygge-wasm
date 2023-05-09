@@ -1,0 +1,3 @@
+let mutable i: int = 0;
+for (();  true; if 2 then 3 else 4)
+    print(i)
