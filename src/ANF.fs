@@ -470,10 +470,17 @@ let isPure (expr : Expr<'E,'T>) : bool =
     | Assertion(_) -> true
     | _ -> false
 
+let rec prettyPrint (expr : Expr<'E,'T>) : string =
+    match expr with
+    | Var(vname) -> vname
+    | Add(lhs, rhs) -> "Add " + prettyPrint(lhs.Expr) + ", " + prettyPrint(rhs.Expr)
+    | Mult(lhs, rhs) -> "Mult " + prettyPrint(lhs.Expr) + ", " + prettyPrint(rhs.Expr)
+    | _ -> ""
+
 let areEqual (node1 : Node<'E,'T>) (node2 : Node<'E,'T>) : bool =
-    let type1 = node1.Expr.GetType()
-    let type2 = node2.Expr.GetType()
-    type1 = type2
+    let prettyPrint1 = prettyPrint node1.Expr
+    let prettyPrint2 = prettyPrint node2.Expr
+    prettyPrint1 = prettyPrint2
 
 /// Apply common subexpression elimination to the given list of ANF definitions
 let rec internal applyCSE (anfDefs : ANFDefs<'E,'T>) : ANFDefs<'E,'T> = 
