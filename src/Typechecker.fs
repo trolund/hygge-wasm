@@ -23,6 +23,8 @@ type TypingEnv = {
     TypeVars: Map<string, Type>
     /// Mutable variables in the current scope.
     Mutables: Set<string>
+
+    AtTopLevel: bool
 } with
     /// Return a compact and readable representation of the typing environment.
     override this.ToString(): string =
@@ -178,11 +180,13 @@ let rec isSubtypeOf (env: TypingEnv) (t1: Type) (t2: Type): bool =
         if (not (isSubtypeOf env ret1 ret2)) then false
         // Both function types expect the same number of arguments
         elif args1.Length <> args2.Length then false
+
         // Each argument of the "bigger" function
         // is a subtype of
         // the argument found at the same position in the "smaller" function
         else 
-            List.forall2 (fun t1 t2 -> isSubtypeOf env t2 t1) args1 args2 
+            let env2 = { env with AtTopLevel = false}
+            List.forall2 (fun t1 t2 -> isSubtypeOf env2 t2 t1) args1 args2 
     | (TStruct(fields1), TStruct(fields2)) ->
         // A subtype struct must have at least the same fields of the supertype
         if fields1.Length < fields2.Length then false
@@ -885,11 +889,14 @@ and internal letTyper pos (isRec: bool) (isMutable: bool) (env: TypingEnv)
                                        else env.Mutables.Remove(name)
         /// Environment for type-checking the 'let...' scope
         let env2 = {env with Vars = envVars2
-                             Mutables = envMutVars2}
+                             Mutables = envMutVars2
+                             }
         /// Result of type-checking the 'let...' scope
         let tscope = typer env2 scope
         /// Environment for type-checking the 'let...' initialisation
-        let initEnv = env // Equal to 'env'... for now ;-)
+        
+        let env3 = {env with AtTopLevel = false}
+        let initEnv = env3 // Equal to 'env'... for now ;-)
         match (typer initEnv init) with
         | Ok(tinit) ->
             /// Errors (if any) due to 'let...' initialisation type mismatch
@@ -901,7 +908,7 @@ and internal letTyper pos (isRec: bool) (isMutable: bool) (env: TypingEnv)
             match tscope with
             | Ok(tscope) ->
                 if (List.isEmpty terrs) then
-                    if isRec then 
+                    if isRec || initEnv.AtTopLevel then 
                         Ok { Pos = pos; Env = env; Type = tscope.Type;
                              Expr = LetRec(name, tpe, tinit, tscope) }
                     else if isMutable then
@@ -920,4 +927,4 @@ and internal letTyper pos (isRec: bool) (isMutable: bool) (env: TypingEnv)
 /// Perform type checking of the given untyped AST.  Return a well-typed AST in
 /// case of success, or a sequence of error messages in case of failure.
 let typecheck (node: UntypedAST): TypingResult =
-    typer {Vars = Map[]; TypeVars = Map[]; Mutables = Set[]} node
+    typer {Vars = Map[]; TypeVars = Map[]; Mutables = Set[]; AtTopLevel = true} node
