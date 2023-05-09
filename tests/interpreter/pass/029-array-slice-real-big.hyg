@@ -45,4 +45,12 @@ while (j < arrayLength(sliced2)) do {
     j <- j + 1
 };
 
+j <- 0;
+
+// assert values
+while (j < arrayLength(sliced2)) do {
+    assert(arrayElem(sliced2, j) = j + 42);
+    j <- j + 1
+};
+
 assert(arrayLength(sliced2) = x / 4)
