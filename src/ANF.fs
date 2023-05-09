@@ -8,7 +8,6 @@ module ANF
 
 open AST
 
-
 /// ANF definition: a variable name with a boolean mutability boolean flag, and
 /// the AST node (expected to be in ANF) that initialises the variable.
 type internal ANFDef<'E,'T>(var: string, isMutable: bool, init: Node<'E,'T>) =
@@ -471,6 +470,11 @@ let isPure (expr : Expr<'E,'T>) : bool =
     | Assertion(_) -> true
     | _ -> false
 
+let areEqual (node1 : Node<'E,'T>) (node2 : Node<'E,'T>) : bool =
+    let type1 = node1.Expr.GetType()
+    let type2 = node2.Expr.GetType()
+    type1 = type2
+
 /// Apply common subexpression elimination to the given list of ANF definitions
 let rec internal applyCSE (anfDefs : ANFDefs<'E,'T>) : ANFDefs<'E,'T> = 
     match anfDefs with
@@ -481,14 +485,14 @@ let rec internal applyCSE (anfDefs : ANFDefs<'E,'T>) : ANFDefs<'E,'T> =
             let mutable defsCopy = defs
             let mutable ok = 1
             while (ok <> 0) do
-                let res = defs |> List.tryFind (fun anfDef -> def.Init = anfDef.Init)
+                let res = defsCopy |> List.tryFind (fun anfDef -> areEqual def.Init anfDef.Init)
                 match res with
                 | Some resDef ->
-                    let indexTo = (defs |> List.tryFindIndex (fun anfDef -> def.Init = anfDef.Init)).Value
-                    let defsSlice = defs[1..indexTo]
+                    let indexTo = (defsCopy |> List.tryFindIndex (fun anfDef -> areEqual def.Init anfDef.Init)).Value
+                    let defsSlice = defs[0..indexTo]
                     if (not def.IsMutable) || (def.IsMutable && not (List.contains def.Var (List.map (fun (anfDef:ANFDef<'E,'T>) -> anfDef.Var) defsSlice)))
                     then
-                        defsCopy <- defs |> List.removeAt indexTo
+                        defsCopy <- defsCopy |> List.removeAt indexTo
                         defsCopy <- defsCopy |> List.insertAt indexTo (ANFDef(resDef.Var, resDef.IsMutable, {resDef.Init with Expr = Var(def.Var)}))
                 | None ->
                     ok <- 0
