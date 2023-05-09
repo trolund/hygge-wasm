@@ -471,27 +471,34 @@ let isPure (expr : Expr<'E,'T>) : bool =
     | Assertion(_) -> true
     | _ -> false
 
-let cseMap = Map.empty<Expr<'E,'T>, string>
-
 /// Apply common subexpression elimination to the given list of ANF definitions
 let rec internal applyCSE (anfDefs : ANFDefs<'E,'T>) : ANFDefs<'E,'T> = 
     match anfDefs with
     | [] -> []
-    | def :: defs -> 
+    | def :: defs ->
         if isPure def.Init.Expr
         then
-            match cseMap |> Map.tryFind def.Init.Expr with
-            | Some vname -> 
-                ANFDef(def.Var, def.IsMutable, {def.Init with Expr = Var(vname)}) :: applyCSE defs
-            | None -> 
-                cseMap |> Map.add def.Init.Expr def.Var
-                def :: applyCSE defs
+            let mutable defsCopy = defs
+            let mutable ok = 1
+            while (ok <> 0) do
+                let res = defs |> List.tryFind (fun anfDef -> def.Init = anfDef.Init)
+                match res with
+                | Some resDef ->
+                    let indexTo = (defs |> List.tryFindIndex (fun anfDef -> def.Init = anfDef.Init)).Value
+                    let defsSlice = defs[1..indexTo]
+                    if (not def.IsMutable) || (def.IsMutable && not (List.contains def.Var (List.map (fun (anfDef:ANFDef<'E,'T>) -> anfDef.Var) defsSlice)))
+                    then
+                        defsCopy <- defs |> List.removeAt indexTo
+                        defsCopy <- defsCopy |> List.insertAt indexTo (ANFDef(resDef.Var, resDef.IsMutable, {resDef.Init with Expr = Var(def.Var)}))
+                | None ->
+                    ok <- 0
+            def :: applyCSE defsCopy
         else def :: applyCSE defs
 
 /// Transform the given AST node into an optimized Administrative Normal Form.
 let transformOpt (ast: Node<'E,'T>): Node<'E,'T> =
     let anfDefs = toANFDefs ast
-    let anfDefsOpt = List.rev (applyCopyPropagation (List.rev (snd anfDefs)))
+    let anfDefsOpt = List.rev (applyCSE (applyCopyPropagation (List.rev (snd anfDefs))))
     toANF (fst anfDefs, anfDefsOpt)
 
 /// Transform the given AST node into Administrative Normal Form.
