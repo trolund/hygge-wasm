@@ -66,6 +66,9 @@ rule tokenize = parse
 | "not"        { Parser.NOT }
 | "="          { Parser.EQ }
 | "<"          { Parser.LT }
+| "<="          { Parser.LTE }
+| ">="          { Parser.GTE}
+| ">"          { Parser.GT}
 | "<-"         { Parser.LARROW }
 | "->"         { Parser.RARROW }
 | "++"         { Parser.PLUSPLUS}

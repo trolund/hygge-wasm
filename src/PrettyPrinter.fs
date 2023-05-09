@@ -159,6 +159,12 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
     | Less(lhs, rhs) ->
         mkTree "Less" node [("lhs", formatASTRec lhs)
                             ("rhs", formatASTRec rhs)]
+    | LessOrEq(lhs, rhs) ->
+        mkTree "LessOrEq" node [("lhs", formatASTRec lhs);("rhs", formatASTRec rhs)]
+    | Greater(lhs, rhs) ->
+        mkTree "Greater" node [("lhs", formatASTRec lhs);("rhs", formatASTRec rhs)]
+    | GreaterOrEq(lhs, rhs) ->
+        mkTree "GreaterOrEq" node [("lhs", formatASTRec lhs);("rhs", formatASTRec rhs)]
     | ReadInt -> mkTree "ReadInt" node []
     | ReadFloat -> mkTree "ReadFloat" node []
     | Sqrt(arg) ->

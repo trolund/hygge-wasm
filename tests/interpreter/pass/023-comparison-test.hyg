@@ -1,0 +1,6 @@
+assert(if (2 = 2) then true else false);
+assert(if (2 < 3) then true else false);
+assert(if (2 <= 3) then true else false);
+assert(if (3 <= 3) then true else false);
+assert(if (3 > 2) then true else false);
+assert(if (3 >= 3) then true else false)
