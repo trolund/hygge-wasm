@@ -546,7 +546,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         let env =
             match isTopLevel with
             | true ->
-                let storage = env.VarStorage.Add(name, Storage.Label("label_var_x"))
+                let storage = env.VarStorage.Add(name, Storage.Label("label_var_%s{name}"))
                 {env with VarStorage =storage}
             | false ->
                 env
@@ -641,8 +641,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             | Some(Storage.Frame(offset)) ->
                 rhsCode.AddText(RV.LW(Reg.r(env.Target), Imm12(offset), Reg.fp),
                                 $"Assignment to variable %s{name}")
-            | Some(Storage.Label(_)) as st ->
-                failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
+            | Some(Storage.Label(label)) ->
+                rhsCode.AddText(RV.LA(Reg.r(env.Target), label),
+                                $"Assignment to variable %s{name}")
+            // | Some(Storage.Label(_)) as st ->
+            //     failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
             | None -> failwith $"BUG: variable without storage: %s{name}"
         | FieldSelect(target, field) ->
             /// Assembly code for computing the 'target' object of which we are
