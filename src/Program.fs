@@ -35,7 +35,11 @@ let internal parse (opt: CmdLine.ParserOptions): int =
         if (opt.ANF) then
             Log.debug $"Parsed AST:%s{Util.nl}%s{PrettyPrinter.prettyPrint ast}"
             Log.debug $"Transforming AST into ANF"
-            let anf = ANF.transform ast
+            let anf = if (opt.Optimize = 2u || opt.Optimize >= 4u)
+                        then
+                            Log.debug "Applying optimisation to ANF form" 
+                            ANF.transformOpt ast
+                        else ANF.transform ast
             printf $"%s{PrettyPrinter.prettyPrint anf}"
         else
             printf $"%s{PrettyPrinter.prettyPrint ast}"
@@ -92,7 +96,11 @@ let rec internal interpret (opt: CmdLine.InterpreterOptions): int =
             if (opt.ANF) then
                 Log.debug $"Parsed AST:%s{Util.nl}%s{PrettyPrinter.prettyPrint ast}"
                 Log.debug $"Transforming AST into ANF"
-                let anf = ANF.transform ast
+                let anf = if (opt.Optimize = 2u || opt.Optimize >= 4u)
+                            then 
+                                Log.debug "Applying optimisation to ANF form"
+                                ANF.transformOpt ast
+                            else ANF.transform ast
                 doInterpret anf (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
             else
                 doInterpret ast (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
@@ -108,7 +116,11 @@ let rec internal interpret (opt: CmdLine.InterpreterOptions): int =
                 if (opt.ANF) then
                     Log.debug $"Parsed and typed AST:%s{Util.nl}%s{PrettyPrinter.prettyPrint tast}"
                     Log.debug $"Transforming AST into ANF"
-                    let anf = ANF.transform tast
+                    let anf = if (opt.Optimize = 2u || opt.Optimize >= 4u)
+                                then 
+                                    Log.debug "Applying optimisation to ANF form"
+                                    ANF.transformOpt tast
+                                else ANF.transform tast
                     doInterpret anf (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
                 else
                     doInterpret tast (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
@@ -135,7 +147,11 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
             let asm =
                 if (opt.ANF) then
                     Log.debug $"Transforming AST into ANF"
-                    let anf = ANF.transform tast
+                    let anf = if (opt.Optimize = 2u || opt.Optimize >= 4u)
+                                then 
+                                    Log.debug "Applying optimisation to ANF form"
+                                    ANF.transformOpt tast
+                                else ANF.transform tast
                     let registers =
                         if (opt.Registers >= 3u) && (opt.Registers <= 18u) then
                             opt.Registers
@@ -147,7 +163,7 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
                 else
                     RISCVCodegen.codegen tast
             /// Assembly code after optimization (if enabled)
-            let asm2 = if (opt.Optimize >= 1u)
+            let asm2 = if (opt.Optimize >= 3u)
                            then Peephole.optimize asm
                            else asm
             match opt.OutFile with
@@ -184,7 +200,11 @@ let internal launchRARS (opt: CmdLine.RARSLaunchOptions): int =
             let asm =
                 if (opt.ANF) then
                     Log.debug $"Transforming AST into ANF"
-                    let anf = ANF.transform tast
+                    let anf = if (opt.Optimize = 2u || opt.Optimize >= 4u)
+                                then 
+                                    Log.debug "Applying optimisation to ANF form"
+                                    ANF.transformOpt tast
+                                else ANF.transform tast
                     let registers =
                         if (opt.Registers >= 3u) && (opt.Registers <= 18u) then
                             opt.Registers
@@ -196,7 +216,7 @@ let internal launchRARS (opt: CmdLine.RARSLaunchOptions): int =
                 else
                     RISCVCodegen.codegen tast
             /// Assembly code after optimization (if enabled)
-            let asm2 = if (opt.Optimize >= 1u)
+            let asm2 = if (opt.Optimize >= 3u)
                            then Peephole.optimize asm
                            else asm
             let exitCode = RARS.launch (asm2.ToString()) true

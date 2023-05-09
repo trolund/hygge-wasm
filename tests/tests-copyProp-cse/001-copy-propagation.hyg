@@ -1,0 +1,6 @@
+let a: int = readInt();
+let b: int = readInt();
+let c: int = a;
+let d: int = b;
+let res: int = (a + b) * (a + b) * (c + d);
+println(res)

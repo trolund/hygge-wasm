@@ -442,6 +442,64 @@ let rec internal toANFDefs (node: Node<'E,'T>): Node<'E,'T> * ANFDefs<'E,'T> =
         ({node with Expr = Var(anfDef.Var)}, anfDef :: matchExprDefs)
         | x -> failwith (sprintf "BUG: unhandled node in ANF conversion: %A" node)
 
+/// Apply copy propagation to the given list of ANF definitions
+let rec internal applyCopyPropagation (anfDefs : ANFDefs<'E,'T>) : ANFDefs<'E,'T> = 
+    match anfDefs with
+    | [] -> []
+    | def :: defs -> 
+        match def.Init.Expr with
+        | Var(vname) ->
+            if (not def.IsMutable) || (def.IsMutable && not (List.contains def.Var (List.map (fun (anfDef:ANFDef<'E,'T>) -> anfDef.Var) defs)))
+            then applyCopyPropagation (List.map (fun (anfDef:ANFDef<'E,'T>) -> ANFDef(anfDef.Var, anfDef.IsMutable, substVar anfDef.Init def.Var vname)) defs)
+            else def :: applyCopyPropagation defs
+        | _ -> def :: applyCopyPropagation defs
+
+/// Check if a given expression is pure
+let isPure (expr : Expr<'E,'T>) : bool = 
+    match expr with
+    | Sub(_, _)
+    | Add(_, _)
+    | Mult(_, _)
+    | Div(_, _)
+    | And(_, _)
+    | Or(_, _)
+    | Eq(_, _)
+    | Less(_, _)
+    | Min(_, _)
+    | Max(_, _)
+    | Not(_)
+    | Assertion(_) -> true
+    | _ -> false
+
+/// Apply common subexpression elimination to the given list of ANF definitions
+let rec internal applyCSE (anfDefs : ANFDefs<'E,'T>) : ANFDefs<'E,'T> = 
+    match anfDefs with
+    | [] -> []
+    | def :: defs ->
+        if isPure def.Init.Expr
+        then
+            let mutable defsCopy = defs
+            let mutable ok = 1
+            while (ok <> 0) do
+                let res = defs |> List.tryFind (fun anfDef -> def.Init = anfDef.Init)
+                match res with
+                | Some resDef ->
+                    let indexTo = (defs |> List.tryFindIndex (fun anfDef -> def.Init = anfDef.Init)).Value
+                    let defsSlice = defs[1..indexTo]
+                    if (not def.IsMutable) || (def.IsMutable && not (List.contains def.Var (List.map (fun (anfDef:ANFDef<'E,'T>) -> anfDef.Var) defsSlice)))
+                    then
+                        defsCopy <- defs |> List.removeAt indexTo
+                        defsCopy <- defsCopy |> List.insertAt indexTo (ANFDef(resDef.Var, resDef.IsMutable, {resDef.Init with Expr = Var(def.Var)}))
+                | None ->
+                    ok <- 0
+            def :: applyCSE defsCopy
+        else def :: applyCSE defs
+
+/// Transform the given AST node into an optimized Administrative Normal Form.
+let transformOpt (ast: Node<'E,'T>): Node<'E,'T> =
+    let anfDefs = toANFDefs ast
+    let anfDefsOpt = List.rev (applyCSE (applyCopyPropagation (List.rev (snd anfDefs))))
+    toANF (fst anfDefs, anfDefsOpt)
 
 /// Transform the given AST node into Administrative Normal Form.
 let transform (ast: Node<'E,'T>): Node<'E,'T> =
