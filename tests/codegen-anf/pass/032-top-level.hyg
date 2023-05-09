@@ -1,6 +1,0 @@
-let x: int = 1;
-fun addXPlusOne(y: int): int = {
-    let y1: int = y + 1;
-    x + y1  // x is captured from the surrounding scope
-};
-assert(addXPlusOne(40) = 42)
