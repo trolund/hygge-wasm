@@ -137,6 +137,17 @@ and Expr<'E,'T> =
     /// Logical not
     | Not of arg: Node<'E,'T>
 
+    ///C-Style Operators
+    
+    | CSIncr of arg: Node<'E, 'T>
+
+    | CSDcr of arg: Node<'E, 'T>
+
+    | AddAsg of lhs: Node<'E, 'T>
+              * rhs: Node<'E, 'T>
+
+    | MinAsg of lhs: Node<'E, 'T>
+              * rhs: Node<'E, 'T>
     /// Comparison: is the lhs equal to the rhs?
     | Eq of lhs: Node<'E,'T>
           * rhs: Node<'E,'T>

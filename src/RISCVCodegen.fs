@@ -225,11 +225,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             ++ (doCodegen env rhs)
                 .AddText(RV.LABEL(labelEnd), "")
 
-    | Not(arg) ->
+    | Not(arg) 
+    | CSIncr(arg)
+    | CSDcr(arg) ->
         /// Generated code for the argument expression (note that we don't need
         /// to increase its target register)
         let asm = doCodegen env arg
         asm.AddText(RV.SEQZ(Reg.r(env.Target), Reg.r(env.Target)))
+    
 
     | Eq(lhs, rhs)
     | Less(lhs, rhs) as expr ->
@@ -626,7 +629,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
     | LetRec(name, tpe, init, scope) -> 
         doCodegen env {node with Expr = Let(name, tpe, init, scope)}
 
-    | Assign(lhs, rhs) ->
+    | Assign(lhs, rhs) 
+    | AddAsg(lhs, rhs)
+    | MinAsg(lhs, rhs) ->
+
         match lhs.Expr with
         | Var(name) ->
             /// Code for the 'rhs', leaving its result in the target register

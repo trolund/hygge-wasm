@@ -223,6 +223,51 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 Some(env', {node with Expr = Not(arg2)})
             | None -> None
 
+    | CSIncr(arg) ->
+        match arg.Expr with 
+        | IntVal(v) ->
+            Some(env, {node with Expr = IntVal(v+1)})
+        | FloatVal(v) ->
+            Some(env, {node with Expr = FloatVal(v+1.0f)})
+        | _ ->
+            match (reduce env arg) with
+            | Some(env', arg2) ->
+                Some(env', {node with Expr = CSIncr(arg2)})
+            | None -> None
+    | CSDcr(arg) ->
+        match arg.Expr with 
+        | IntVal(v) ->
+            Some(env, {node with Expr = IntVal(v-1)})
+        | FloatVal(v) ->
+            Some(env, {node with Expr = FloatVal(v-1.0f)})
+        | _ ->
+            match (reduce env arg) with
+            | Some(env', arg2) ->
+                Some(env', {node with Expr = CSDcr(arg2)})
+            | None -> None
+    | AddAsg(lhs, rhs) ->
+        match (lhs.Expr, rhs.Expr) with 
+        | (IntVal(v1), IntVal(v2)) -> 
+            Some(env, {node with Expr = IntVal(v1+v2)})
+        | (FloatVal(v1), FloatVal(v2)) -> 
+            Some(env, {node with Expr = FloatVal(v1+v2)})
+        | (_, _) ->
+            match (reduceLhsRhs env lhs rhs) with 
+            | Some(env', lhs', rhs') ->
+                Some(env', {node with Expr = AddAsg(lhs', rhs')})
+            | None -> None
+    | MinAsg(lhs, rhs) ->
+        match (lhs.Expr, rhs.Expr) with 
+        | (IntVal(v1), IntVal(v2)) -> 
+            Some(env, {node with Expr = IntVal(v1-v2)})
+        | (FloatVal(v1), FloatVal(v2)) -> 
+            Some(env, {node with Expr = FloatVal(v1-v2)})
+        | (_, _) ->
+            match (reduceLhsRhs env lhs rhs) with 
+            | Some(env', lhs', rhs') ->
+                Some(env', {node with Expr = MinAsg(lhs', rhs')})
+            | None -> None
+    
     | Eq(lhs, rhs) ->
         match (lhs.Expr, rhs.Expr) with
         | (IntVal(v1), IntVal(v2)) ->

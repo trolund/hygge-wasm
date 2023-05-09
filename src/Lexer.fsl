@@ -68,7 +68,10 @@ rule tokenize = parse
 | "<"          { Parser.LT }
 | "<-"         { Parser.LARROW }
 | "->"         { Parser.RARROW }
-
+| "++"         { Parser.PLUSPLUS}
+| "--"         { Parser.MINUSMINUS}
+| "+="         { Parser.ADD_ASSIGN}
+| "-="         { Parser.MIN_ASSIGN}
 // Parentheses and brackets
 | "("          { Parser.LPAR }
 | ")"          { Parser.RPAR }
