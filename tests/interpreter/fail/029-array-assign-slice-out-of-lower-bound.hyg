@@ -1,4 +1,5 @@
 let arr: array {int} = array(2, 1);
+// Assign a sliced array
 let mutable index: int = 2 - 3;
-arrayElem(arr, index) <- arrayElem(arr, 0);
+let sliced: array {int} = arraySlice(arr, index, 3);
 print("should not print!")

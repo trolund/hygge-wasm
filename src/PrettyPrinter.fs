@@ -143,12 +143,28 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
                                ("rhs", formatASTRec rhs)]
     | Not(arg) ->
         mkTree "Not" node [("arg", formatASTRec arg)]
+    | CSIncr(arg) -> 
+        mkTree "CsIncr" node [("arg", formatASTRec arg)]
+    | CSDcr(arg) -> 
+        mkTree "CsDcr" node [("arg", formatASTRec arg)]
+    | AddAsg(lhs, rhs) ->
+        mkTree "AddAsg" node [("lhs", formatASTRec lhs)
+                              ("rhs", formatASTRec rhs)]
+    | MinAsg(lhs, rhs) ->
+        mkTree "MinAsg" node [("lhs", formatASTRec lhs)
+                              ("rhs", formatASTRec rhs)]
     | Eq(lhs, rhs) ->
         mkTree "Eq" node [("lhs", formatASTRec lhs)
                           ("rhs", formatASTRec rhs)]
     | Less(lhs, rhs) ->
         mkTree "Less" node [("lhs", formatASTRec lhs)
                             ("rhs", formatASTRec rhs)]
+    | LessOrEq(lhs, rhs) ->
+        mkTree "LessOrEq" node [("lhs", formatASTRec lhs);("rhs", formatASTRec rhs)]
+    | Greater(lhs, rhs) ->
+        mkTree "Greater" node [("lhs", formatASTRec lhs);("rhs", formatASTRec rhs)]
+    | GreaterOrEq(lhs, rhs) ->
+        mkTree "GreaterOrEq" node [("lhs", formatASTRec lhs);("rhs", formatASTRec rhs)]
     | ReadInt -> mkTree "ReadInt" node []
     | ReadFloat -> mkTree "ReadFloat" node []
     | Sqrt(arg) ->
@@ -237,6 +253,10 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
                                          ("index", formatASTRec index)]
     | ArrayLength(arr) -> 
             mkTree $"ArrayLength" node [("arr", formatASTRec arr)]
+    | ArraySlice(arr, start, ending) -> 
+            mkTree $"ArraySlice" node [("arr", formatASTRec arr)
+                                       ("start", formatASTRec start)
+                                       ("end", formatASTRec ending)]
 
 /// Return a description of an AST node, and possibly some subtrees (that are
 /// added to the overall tree structure).

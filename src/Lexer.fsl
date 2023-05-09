@@ -66,9 +66,15 @@ rule tokenize = parse
 | "not"        { Parser.NOT }
 | "="          { Parser.EQ }
 | "<"          { Parser.LT }
+| "<="          { Parser.LTE }
+| ">="          { Parser.GTE}
+| ">"          { Parser.GT}
 | "<-"         { Parser.LARROW }
 | "->"         { Parser.RARROW }
-
+| "++"         { Parser.PLUSPLUS}
+| "--"         { Parser.MINUSMINUS}
+| "+="         { Parser.ADD_ASSIGN}
+| "-="         { Parser.MIN_ASSIGN}
 // Parentheses and brackets
 | "("          { Parser.LPAR }
 | ")"          { Parser.RPAR }
@@ -105,7 +111,8 @@ rule tokenize = parse
 | "with"       { Parser.WITH }
 | "array"      { Parser.ARRAY }
 | "arrayLength" { Parser.ARRAYL }
-| "arrayElem"  { Parser.ARRAYE }
+| "arrayElem"   { Parser.ARRAYE }
+| "arraySlice"  { Parser.ARRAYS }
 
 // Generic identifier
 | ident        { Parser.IDENT(LexBuffer<_>.LexemeString lexbuf) }

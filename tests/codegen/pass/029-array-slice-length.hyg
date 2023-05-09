@@ -1,0 +1,5 @@
+let arr: array {int} = array(5, 42);
+
+let sliced: array {int} = arraySlice(arr, 2, 4);
+
+assert(arrayLength(sliced) = 2)

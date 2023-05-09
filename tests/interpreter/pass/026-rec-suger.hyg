@@ -1,0 +1,10 @@
+fun g(z: int): int = {
+    if (z < 50) then {
+        g(z + 1)
+    } 
+    else {
+        z
+    }
+};
+
+assert(g(10) = 50)

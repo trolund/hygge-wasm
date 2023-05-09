@@ -1,0 +1,3 @@
+let arr: array {int} = array(2 + 2, 40 + 2);
+// should not change type!
+(arraySlice(arr, 0, 3)): array {float}

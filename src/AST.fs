@@ -137,6 +137,17 @@ and Expr<'E,'T> =
     /// Logical not
     | Not of arg: Node<'E,'T>
 
+    ///C-Style Operators
+    
+    | CSIncr of arg: Node<'E, 'T>
+
+    | CSDcr of arg: Node<'E, 'T>
+
+    | AddAsg of lhs: Node<'E, 'T>
+              * rhs: Node<'E, 'T>
+
+    | MinAsg of lhs: Node<'E, 'T>
+              * rhs: Node<'E, 'T>
     /// Comparison: is the lhs equal to the rhs?
     | Eq of lhs: Node<'E,'T>
           * rhs: Node<'E,'T>
@@ -145,6 +156,16 @@ and Expr<'E,'T> =
     | Less of lhs: Node<'E,'T>
             * rhs: Node<'E,'T>
 
+    /// Comparison: is the lhs less or equal than the rhs?
+    | LessOrEq of lhs: Node<'E,'T>
+            * rhs: Node<'E,'T>
+
+    /// Comparison: is the lhs greater than the rhs?
+    | Greater of lhs: Node<'E,'T>
+            * rhs: Node<'E,'T>
+  /// Comparison: is the lhs greater or equal than the rhs?
+    | GreaterOrEq of lhs: Node<'E,'T>
+            * rhs: Node<'E,'T>
     /// Read an integer value from the console.
     | ReadInt
 
@@ -260,6 +281,11 @@ and Expr<'E,'T> =
                    
     /// Get length of the array
     | ArrayLength of target: Node<'E,'T>
+
+    /// Slice an array
+    | ArraySlice of target: Node<'E,'T>
+                     * start: Node<'E,'T>
+                     * ending: Node<'E,'T>
 
     /// Pointer to a location in the heap, with its address.  This is a runtime
     /// value that is only used by the Hygge interpreter as an intermediate

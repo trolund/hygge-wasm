@@ -38,6 +38,8 @@ type internal CodegenEnv = {
     FPTarget: uint
     /// Storage information about known variables.
     VarStorage: Map<string, Storage>
+
+    AtTopLevel: bool
 }
 
 
@@ -223,14 +225,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             ++ (doCodegen env rhs)
                 .AddText(RV.LABEL(labelEnd), "")
 
-    | Not(arg) ->
+    | Not(arg) 
+    | CSIncr(arg)
+    | CSDcr(arg) ->
         /// Generated code for the argument expression (note that we don't need
         /// to increase its target register)
         let asm = doCodegen env arg
         asm.AddText(RV.SEQZ(Reg.r(env.Target), Reg.r(env.Target)))
+    
 
     | Eq(lhs, rhs)
-    | Less(lhs, rhs) as expr ->
+    | Less(lhs, rhs)
+    | Less(lhs, rhs)
+    | Greater(lhs, rhs)
+    | GreaterOrEq(lhs, rhs) as expr->
         // Code generation for equality and less-than relations is very similar:
         // we compile the lhs and rhs giving them different target registers,
         // and then apply the relevant assembly operation(s) on their results.
@@ -260,6 +268,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             let labelName = match expr with
                             | Eq(_,_) -> "eq"
                             | Less(_,_) -> "less"
+                            | LessOrEq(_,_) -> ""
+                            | Greater(_,_) -> "greater"
+                            | GreaterOrEq(_,_) -> "greaterOrEq"
                             | x -> failwith $"BUG: unexpected operation %O{x}"
             /// Label to jump to when the comparison is true
             let trueLabel = Util.genSymbol $"%O{labelName}_true"
@@ -273,6 +284,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     Asm(RV.BEQ(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
                 | Less(_,_) ->
                     Asm(RV.BLT(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
+                | LessOrEq(_,_) ->
+                    Asm(RV.BEQ(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
+                | Greater(_,_) ->
+                    Asm(RV.BGT(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
+                | GreaterOrEq(_,_) -> 
+                    Asm(RV.BEQ(Reg.r(env.Target), Reg.r(rtarget), trueLabel))
                 | x -> failwith $"BUG: unexpected operation %O{x}"
 
             // Put everything together
@@ -296,6 +313,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     Asm(RV.FEQ_S(Reg.r(env.Target), FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
                 | Less(_,_) ->
                     Asm(RV.FLT_S(Reg.r(env.Target), FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
+                | LessOrEq(_,_) ->
+                    Asm(RV.FEQ_S(Reg.r(env.Target), FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
+                | Greater(_,_) ->
+                    Asm(RV.FLE_S(Reg.r(env.Target), FPReg.r(env.FPTarget), FPReg.r(rfptarget)))
+                | GreaterOrEq(_,_) -> 
+                    Asm(RV.FEQ_S(Reg.r(env.Target), FPReg.r(env.FPTarget),  FPReg.r(rfptarget)))
                 | x -> failwith $"BUG: unexpected operation %O{x}"
             // Put everything together
             (lAsm ++ rAsm ++ opAsm)
@@ -538,7 +561,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         /// 'let...' initialisation code, which leaves its result in the
         /// 'target' register (which we overwrite at the end of the 'scope'
         /// execution)
-        let initCode = doCodegen env init
+        
+        let initCode = doCodegen env  init
+        let isTopLevel = env.AtTopLevel
+        let env =
+            match isTopLevel with
+            | true ->
+                let storage = env.VarStorage.Add(name, Storage.Label("label_var_%s{name}"))
+                {env with VarStorage =storage}
+            | false ->
+                env
         match init.Type with
         | t when (isSubtypeOf init.Env t TUnit) ->
             // The 'init' produces a unit value, i.e. nothing: we can keep using
@@ -549,11 +581,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             /// Target register for compiling the 'let' scope
             let scopeTarget = env.FPTarget + 1u
             /// Variable storage for compiling the 'let' scope
+           
+
             let scopeVarStorage =
                 env.VarStorage.Add(name, Storage.FPReg(FPReg.r(env.FPTarget)))
             /// Environment for compiling the 'let' scope
             let scopeEnv = { env with FPTarget = scopeTarget
-                                      VarStorage = scopeVarStorage }
+                                      VarStorage = scopeVarStorage
+                                      AtTopLevel = false }
             initCode
                 ++ (doCodegen scopeEnv scope)
                     .AddText(RV.FMV_S(FPReg.r(env.FPTarget),
@@ -567,7 +602,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                 env.VarStorage.Add(name, Storage.Reg(Reg.r(env.Target)))
             /// Environment for compiling the 'let' scope
             let scopeEnv = { env with Target = scopeTarget
-                                      VarStorage = scopeVarStorage }
+                                      VarStorage = scopeVarStorage
+                                      AtTopLevel = false }
             initCode
                 ++ (doCodegen scopeEnv scope)
                     .AddText(RV.MV(Reg.r(env.Target), Reg.r(scopeTarget)),
@@ -611,7 +647,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
     | LetRec(name, tpe, init, scope) -> 
         doCodegen env {node with Expr = Let(name, tpe, init, scope)}
 
-    | Assign(lhs, rhs) ->
+    | Assign(lhs, rhs) 
+    | AddAsg(lhs, rhs)
+    | MinAsg(lhs, rhs) ->
+
         match lhs.Expr with
         | Var(name) ->
             /// Code for the 'rhs', leaving its result in the target register
@@ -626,8 +665,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             | Some(Storage.Frame(offset)) ->
                 rhsCode.AddText(RV.LW(Reg.r(env.Target), Imm12(offset), Reg.fp),
                                 $"Assignment to variable %s{name}")
-            | Some(Storage.Label(_)) as st ->
-                failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
+            | Some(Storage.Label(label)) ->
+                rhsCode.AddText(RV.LA(Reg.r(env.Target), label),
+                                $"Assignment to variable %s{name}")
+            // | Some(Storage.Label(_)) as st ->
+            //     failwith $"BUG: variable %s{name} has unexpected storage %O{st}"
             | None -> failwith $"BUG: variable without storage: %s{name}"
         | FieldSelect(target, field) ->
             /// Assembly code for computing the 'target' object of which we are
@@ -668,8 +710,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             /// selecting the 'index' element. We write the computation result
             /// (which should be an array memory address) in the target register.
             let selTargetCode = Asm(RV.COMMENT("Array element assignment begin")) ++ (doCodegen env target).AddText([
+                RV.LW(Reg.r(env.Target + 4u), Imm12(4), Reg.r(env.Target)), "Copying array length to target register + 4"
                 RV.LW(Reg.r(env.Target), Imm12(0), Reg.r(env.Target)), "Copying array address to target register"
-                RV.LW(Reg.r(env.Target + 4u), Imm12(-4), Reg.r(env.Target)), "Copying array length to target register + 4"
                 ])
 
             /// Assembly code for computing the 'index' of the array element
@@ -718,6 +760,98 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         | _ ->
             failwith ($"BUG: assignment to invalid target:%s{Util.nl}"
                       + $"%s{PrettyPrinter.prettyPrint lhs}")
+                      
+    | ArraySlice(target, start, ending) -> 
+        let startIndex = (doCodegen env start)
+        let endIndex = (doCodegen {env with Target = env.Target + 1u} ending)
+
+        let start_index_ok = Util.genSymbol $"start_index_ok"
+        // check that start index is bigger then 0
+        let checkStartIndex = Asm([
+                    RV.LI(Reg.a7, 0), "Set a7 to 0"
+                    RV.BGE(Reg.r(env.Target), Reg.a7, start_index_ok), "Check if start index >= 0"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(start_index_ok), "start index is ok"
+                ])
+
+        let len = Asm(RV.COMMENT("Array slice begin")) ++ startIndex ++ checkStartIndex ++ endIndex.AddText([
+            // compute the length of the slice
+            RV.SUB(Reg.r(env.Target + 3u), Reg.r(env.Target + 1u), Reg.r(env.Target)), "Subtracting start index from end index"
+        ])
+
+        let length_ok = Util.genSymbol $"length_ok"
+
+        // check that length is bigger then 1
+        let checkLength = Asm([
+                    RV.LI(Reg.r(env.Target + 4u), 0), ""
+                    RV.BLT(Reg.r(env.Target + 4u), Reg.r(env.Target + 3u), length_ok), "Check if length is less then 1"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "Load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(length_ok), "length is ok"
+                ])
+
+        let checkSize = len ++ checkLength 
+
+        // Allocate space for the array struct on the heap
+        let structAllocCode =
+            (beforeSysCall [Reg.a0] [])
+                .AddText([
+                    (RV.LI(Reg.a0, 2 * 4), "Amount of memory to allocate for the array struct {data, length} (in bytes)")
+                    (RV.LI(Reg.a7, 9), "RARS syscall: Sbrk")
+                    (RV.ECALL, "")
+                    (RV.MV(Reg.r(env.Target + 1u), Reg.a0), "Move syscall result (struct mem address) to target + 1u")
+                ])
+                ++ (afterSysCall [Reg.a0] [])
+
+        // t0 have the address of the array struct
+        // Initialize the length field of the array struct
+        let lengthCode = Asm(RV.MV(Reg.t6, Reg.r(env.Target + 1u)), "Move array struct adrress to t6").AddText([
+            RV.SW(Reg.r(env.Target + 3u), Imm12(4), Reg.t6), "Initialize array length field"
+            RV.MV(Reg.t4, Reg.r(env.Target)), "Move length to t4"
+        ])
+
+        // Store the array data pointer in the data field of the array struct
+        let targetCode = (doCodegen {env with Target = env.Target - 1u} target)
+
+        // t1 contains end and start index, t0 contains array struct address
+        let arrayReg = Reg.r(env.Target - 1u)
+
+        let checkStartIndexLabel = Util.genSymbol $"start_index_ok"
+        let checkStartIndex = (doCodegen env start).AddText([
+                    RV.LW(Reg.r(env.Target + 2u), Imm12(4), arrayReg), "Load length to t5"
+                    RV.BLE(Reg.r(env.Target), Reg.r(env.Target + 2u), checkStartIndexLabel), "Check if start_index < length_of_original_array"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkStartIndexLabel), "start index is ok"
+                ])
+
+        // check that end index is less then length of original array
+        let checkEndIndexLabel = Util.genSymbol $"end_index_ok"
+        let checkEndIndex = (doCodegen env ending).AddText([
+                    RV.LW(Reg.r(env.Target + 2u), Imm12(4), arrayReg), "Load length to t5"
+                    RV.BLE(Reg.r(env.Target), Reg.r(env.Target + 2u), checkEndIndexLabel), "Check if end_index < length_of_original_array"
+                    RV.LI(Reg.a7, 93), "RARS syscall: Exit2"
+                    RV.LI(Reg.a0, assertExitCode), "load exit code"
+                    RV.ECALL, "Call exit"
+                    RV.LABEL(checkEndIndexLabel), "end index is ok"
+                ])        
+        
+        let dataInitCode = Asm([
+                // Initialize array data pointer field with the address of the array data with the start offset * 4 added
+                RV.LI(Reg.a0, 4), "(in bytes)"
+                RV.MUL(Reg.t4, Reg.t4, Reg.a0), "Multiply start index by 4"
+                RV.ADD(Reg.t5, Reg.t5, Reg.t4), "Add start index to array struct address"
+                RV.SW(Reg.t5, Imm12(0), Reg.t6), "Initialize array data pointer field"
+                // move the address of the array struct to the target register
+                RV.MV(Reg.r(env.Target), Reg.t6), "Move array struct address to target"
+             ])
+
+        // Combine all the generated code
+        checkSize ++ structAllocCode ++ lengthCode ++ targetCode ++ checkStartIndex ++ checkEndIndex ++ dataInitCode
 
     | While(cond, body) ->
         /// Label to mark the beginning of the 'while' loop
@@ -929,7 +1063,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         /// address of the first element of the array.
         let arrayAccessCode = (doCodegen env target).AddText([
                 RV.LW(Reg.r(env.Target + 1u), Imm12(0), Reg.r(env.Target)), "Load array data pointer"
-                RV.LW(Reg.r(env.Target + 4u), Imm12(-4), Reg.r(env.Target + 1u)), "Copying array length to target register + 4"
+                RV.LW(Reg.r(env.Target + 4u), Imm12(4), Reg.r(env.Target)), "Copying array length to target register + 4"
             ])
 
         let indexCode = (doCodegen env index)
@@ -1232,7 +1366,7 @@ and internal compileFunction (args: List<string * Type>)
     /// ends, we need to move that result into the function return value
     /// register 'a0' or 'fa0'.
     let bodyCode =
-        let env = {Target = 0u; FPTarget = 0u; VarStorage = varStorage2}
+        let env = {Target = 0u; FPTarget = 0u; VarStorage = varStorage2; AtTopLevel = true;}
         doCodegen env body
     /// Code to move the body result into the function return value register
     let returnCode =
@@ -1263,7 +1397,7 @@ and internal compileFunction (args: List<string * Type>)
 let codegen (node: TypedAST): RISCV.Asm =
     /// Initial codegen environment, targeting generic registers 0 and without
     /// any variable in the storage map
-    let env = {Target = 0u; FPTarget = 0u; VarStorage =  Map[]}
+    let env = {Target = 0u; FPTarget = 0u; VarStorage =  Map[]; AtTopLevel = true;}
     Asm(RV.MV(Reg.fp, Reg.sp), "Initialize frame pointer")
     ++ (doCodegen env node)
         .AddText([

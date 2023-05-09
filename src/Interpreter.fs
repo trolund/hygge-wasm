@@ -223,6 +223,51 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 Some(env', {node with Expr = Not(arg2)})
             | None -> None
 
+    | CSIncr(arg) ->
+        match arg.Expr with 
+        | IntVal(v) ->
+            Some(env, {node with Expr = IntVal(v+1)})
+        | FloatVal(v) ->
+            Some(env, {node with Expr = FloatVal(v+1.0f)})
+        | _ ->
+            match (reduce env arg) with
+            | Some(env', arg2) ->
+                Some(env', {node with Expr = CSIncr(arg2)})
+            | None -> None
+    | CSDcr(arg) ->
+        match arg.Expr with 
+        | IntVal(v) ->
+            Some(env, {node with Expr = IntVal(v-1)})
+        | FloatVal(v) ->
+            Some(env, {node with Expr = FloatVal(v-1.0f)})
+        | _ ->
+            match (reduce env arg) with
+            | Some(env', arg2) ->
+                Some(env', {node with Expr = CSDcr(arg2)})
+            | None -> None
+    | AddAsg(lhs, rhs) ->
+        match (lhs.Expr, rhs.Expr) with 
+        | (IntVal(v1), IntVal(v2)) -> 
+            Some(env, {node with Expr = IntVal(v1+v2)})
+        | (FloatVal(v1), FloatVal(v2)) -> 
+            Some(env, {node with Expr = FloatVal(v1+v2)})
+        | (_, _) ->
+            match (reduceLhsRhs env lhs rhs) with 
+            | Some(env', lhs', rhs') ->
+                Some(env', {node with Expr = AddAsg(lhs', rhs')})
+            | None -> None
+    | MinAsg(lhs, rhs) ->
+        match (lhs.Expr, rhs.Expr) with 
+        | (IntVal(v1), IntVal(v2)) -> 
+            Some(env, {node with Expr = IntVal(v1-v2)})
+        | (FloatVal(v1), FloatVal(v2)) -> 
+            Some(env, {node with Expr = FloatVal(v1-v2)})
+        | (_, _) ->
+            match (reduceLhsRhs env lhs rhs) with 
+            | Some(env', lhs', rhs') ->
+                Some(env', {node with Expr = MinAsg(lhs', rhs')})
+            | None -> None
+    
     | Eq(lhs, rhs) ->
         match (lhs.Expr, rhs.Expr) with
         | (IntVal(v1), IntVal(v2)) ->
@@ -246,7 +291,42 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             | Some(env', lhs', rhs') ->
                 Some(env', {node with Expr = Less(lhs', rhs')})
             | None -> None
+    
+    | LessOrEq(lhs, rhs) ->
+        match (lhs.Expr, rhs.Expr) with
+        | (IntVal(v1), IntVal(v2)) ->
+            Some(env, {node with Expr = BoolVal(v1 <= v2)})
+        | (FloatVal(v1), FloatVal(v2)) ->
+            Some(env, {node with Expr = BoolVal(v1 <= v2)})
+        | (_, _) ->
+            match (reduceLhsRhs env lhs rhs) with
+            | Some(env', lhs', rhs') ->
+                Some(env', {node with Expr = LessOrEq(lhs', rhs')})
+            | None -> None
+    
+    | Greater(lhs, rhs) ->
+        match (lhs.Expr, rhs.Expr) with
+        | (IntVal(v1), IntVal(v2)) ->
+            Some(env, {node with Expr = BoolVal(v1 > v2)})
+        | (FloatVal(v1), FloatVal(v2)) ->
+            Some(env, {node with Expr = BoolVal(v1 > v2)})
+        | (_, _) ->
+            match (reduceLhsRhs env lhs rhs) with
+            | Some(env', lhs', rhs') ->
+                Some(env', {node with Expr = Greater(lhs', rhs')})
+            | None -> None
 
+    | GreaterOrEq(lhs, rhs) ->
+        match (lhs.Expr, rhs.Expr) with
+        | (IntVal(v1), IntVal(v2)) ->
+            Some(env, {node with Expr = BoolVal(v1 >= v2)})
+        | (FloatVal(v1), FloatVal(v2)) ->
+            Some(env, {node with Expr = BoolVal(v1 >= v2)})
+        | (_, _) ->
+            match (reduceLhsRhs env lhs rhs) with
+            | Some(env', lhs', rhs') ->
+                Some(env', {node with Expr = GreaterOrEq(lhs', rhs')})
+            | None -> None
     | ReadInt ->
         match env.Reader with
         | None -> None
@@ -706,6 +786,66 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             Some(env', {node with Expr = ArrayLength(target')})
         | None -> None
     | ArrayLength(_) -> None
+
+    // ArraySlice
+    | ArraySlice({Expr = Pointer(addr)}, start, ending) when ((isValue start) && (isValue ending)) ->
+        match start.Expr, ending.Expr with
+        | IntVal(start'), IntVal(end') ->
+            let length = end' - start'
+            if length < 1 then None // array length must be at least size 1
+            else
+            
+            match (env.PtrInfo.TryFind addr) with
+            | Some(elements) -> // Get length of array
+
+                    let getLen = // Get length of array
+                        match (List.tryFindIndex (fun f -> f = "length") elements) with
+                        | Some(offset) ->
+                            match env.Heap[addr + (uint offset)].Expr with
+                            | IntVal(i) -> i
+                            | _ -> 0
+                        | None -> 0
+
+                    if start' < 0 || start' >= getLen then // read of out of bounds
+                        Log.debug $"Array start index %i{start'} out of bounds in array of length %i{getLen}"
+                        None // Out of bounds
+                    else if end' < 0 || end' > getLen then // read of out of bounds
+                        Log.debug $"Array end index %i{end'} out of bounds in array of length %i{getLen}"
+                        None // Out of bounds
+                    else
+
+                    match (List.tryFindIndex (fun f -> f = "data") elements) with
+                    | Some(offset) ->
+                        match env.Heap[addr + (uint offset)].Expr with
+                        | Pointer(addr') -> 
+                            // apply offset to pointer
+                            let baseAddr = addr' + (uint start')
+                            // allocate space for the struct and fill it with the length and the updated pointer to the sliced array
+                            let pointerStruct = Struct(["data", {node with Expr = Pointer(baseAddr)}; "length", {node with Expr = IntVal(length)}])
+                            // return the new heap and the pointer to the struct
+                            Some(env, {node with Expr = pointerStruct})
+                        | _ -> None
+                    | None -> None
+
+            | None -> None
+        | _ -> None
+    
+    | ArraySlice(target, start, ending) when not (isValue target)-> 
+        match (reduce env target) with
+        | Some(env', target') ->
+            Some(env', {node with Expr = ArraySlice(target', start, ending)})
+        | None -> None
+    | ArraySlice(target, start, ending) when not (isValue start)  -> 
+        match (reduce env start) with
+        | Some(env', start') ->
+            Some(env', {node with Expr = ArraySlice(target, start', ending)})
+        | None -> None
+    | ArraySlice(target, start, ending) when not (isValue ending)  -> 
+        match (reduce env ending) with
+        | Some(env', ending') ->
+            Some(env', {node with Expr = ArraySlice(target, start, ending')})
+        | None -> None
+    | ArraySlice(_, _, _) -> None
 
 /// Attempt to reduce the given lhs, and then (if the lhs is a value) the rhs,
 /// using the given runtime environment.  Return None if either (a) the lhs

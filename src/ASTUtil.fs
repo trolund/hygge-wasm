@@ -54,11 +54,24 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
         {node with Expr = ShortOr((subst lhs var sub), (subst rhs var sub))}
     | Not(arg) ->
         {node with Expr = Not(subst arg var sub)}
-
+    | CSIncr(arg) ->
+        {node with Expr = CSIncr(subst arg var sub)}
+    | CSDcr(arg) ->
+        {node with Expr = CSIncr(subst arg var sub)}
+    | AddAsg(lhs, rhs) ->
+        {node with Expr = AddAsg((subst lhs var sub), (subst rhs var sub))}
+    | MinAsg(lhs, rhs) ->
+        {node with Expr = AddAsg((subst lhs var sub), (subst rhs var sub))}        
     | Eq(lhs, rhs) ->
         {node with Expr = Eq((subst lhs var sub), (subst rhs var sub))}
     | Less(lhs, rhs) ->
         {node with Expr = Less((subst lhs var sub), (subst rhs var sub))}
+    | LessOrEq(lhs, rhs) ->
+        {node with Expr = Less((subst lhs var sub), (subst rhs var sub))}
+    | Greater(lhs, rhs ) ->
+        {node with Expr = Greater((subst lhs var sub), (subst rhs var sub))}
+    | GreaterOrEq(lhs, rhs ) ->
+        {node with Expr = GreaterOrEq((subst lhs var sub), (subst rhs var sub))}
 
     | ReadInt
     | ReadFloat -> node // The substitution has no effect
@@ -147,9 +160,12 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | Array(length, data) -> 
         {node with Expr = Array((subst length var sub), (subst data var sub))} 
     | ArrayElement(arr, index) -> 
-        {node with Expr = ArrayElement((subst arr var sub), index)}
+        {node with Expr = ArrayElement((subst arr var sub), (subst index var sub))}
     | ArrayLength(arr) -> 
         {node with Expr = ArrayLength((subst arr var sub))}
+
+    | ArraySlice(arr, start, ending) -> 
+        {node with Expr = ArraySlice((subst arr var sub), (subst start var sub), (subst ending var sub))}
 
     | UnionCons(label, expr) ->
         {node with Expr = UnionCons(label, (subst expr var sub))}
@@ -303,6 +319,30 @@ let rec capturedVars (node: Node<'E,'T>): Set<string> =
         /// Captured variables in all match continuations
         let cvConts = List.fold folder Set[] cases
         Set.union (capturedVars expr) cvConts
+    | Sub(lhs, rhs) 
+    | Div(lhs, rhs) 
+    | Rem(lhs, rhs) 
+    | Xor(lhs, rhs) 
+    | ShortAnd(lhs, rhs) 
+    | ShortOr(lhs, rhs) 
+    | Min(lhs, rhs) 
+    | Max(lhs, rhs) -> 
+        Set.union (capturedVars lhs) (capturedVars rhs)
+    | Sqrt(arg) -> (capturedVars arg)
+    | LetRec(name, tpe, init, scope) -> 
+        Set.union (capturedVars init) (Set.remove name (capturedVars scope))
+    | DoWhile(body, condition) -> 
+        Set.union (capturedVars body) (capturedVars condition)
+    | For(init, cond, update, body) ->
+        Set.union (capturedVars init) (Set.union (capturedVars cond) (Set.union (capturedVars update) (capturedVars body)))
+    | Array(length, data) -> 
+        Set.union (capturedVars length) (capturedVars data)
+    | ArrayElement(target, index) -> 
+        Set.union (capturedVars target) (capturedVars index)
+    | ArrayLength(target) -> 
+        capturedVars target
+    | ArraySlice(target, start, ending) -> 
+        Set.union (capturedVars target) (Set.union (capturedVars start) (capturedVars ending))
 
 /// Compute the union of the captured variables in a list of AST nodes.
 and internal capturedVarsInList (nodes: List<Node<'E,'T>>): Set<string> =

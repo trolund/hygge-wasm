@@ -1,0 +1,8 @@
+let mutable x: int = 3;
+++x;
+x++;
+x--;
+--x;
+x+=3;
+x-=3;
+assert(x = 3)

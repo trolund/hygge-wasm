@@ -23,6 +23,8 @@ type TypingEnv = {
     TypeVars: Map<string, Type>
     /// Mutable variables in the current scope.
     Mutables: Set<string>
+
+    AtTopLevel: bool
 } with
     /// Return a compact and readable representation of the typing environment.
     override this.ToString(): string =
@@ -178,11 +180,13 @@ let rec isSubtypeOf (env: TypingEnv) (t1: Type) (t2: Type): bool =
         if (not (isSubtypeOf env ret1 ret2)) then false
         // Both function types expect the same number of arguments
         elif args1.Length <> args2.Length then false
+
         // Each argument of the "bigger" function
         // is a subtype of
         // the argument found at the same position in the "smaller" function
         else 
-            List.forall2 (fun t1 t2 -> isSubtypeOf env t2 t1) args1 args2 
+            let env2 = { env with AtTopLevel = false}
+            List.forall2 (fun t1 t2 -> isSubtypeOf env2 t2 t1) args1 args2 
     | (TStruct(fields1), TStruct(fields2)) ->
         // A subtype struct must have at least the same fields of the supertype
         if fields1.Length < fields2.Length then false
@@ -228,6 +232,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         Ok { Pos = node.Pos; Env = env; Type = TFloat; Expr = FloatVal(v) }
     | StringVal(v) ->
         Ok { Pos = node.Pos; Env = env; Type = TString; Expr = StringVal(v) }
+    
 
     | Var(name) ->
         match (env.Vars.TryFind name) with
@@ -319,6 +324,40 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             Error([(node.Pos, $"logical 'not': expected argument of type %O{TBool}, "
                               + $"found %O{arg.Type}")])
         | Error(es) -> Error(es)
+    
+    | CSIncr(arg) ->
+        match (typer env arg) with
+        | Ok(targ) when (isSubtypeOf env targ.Type TInt) ->
+            Ok { Pos = node.Pos; Env = env; Type = TInt; Expr = CSIncr(targ) }
+        | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
+            Ok { Pos = node.Pos; Env = env; Type = TFloat; Expr = CSIncr(targ) }
+        | Ok(arg) ->
+            Error([(node.Pos, $"c-style increment: expected argument of type %O{TInt}, "
+                              + $"found %O{arg.Type}")])
+        | Error(es) -> Error(es)
+
+    | CSDcr(arg) ->
+        match (typer env arg) with
+        | Ok(targ) when (isSubtypeOf env targ.Type TInt) ->
+            Ok { Pos = node.Pos; Env = env; Type = TInt; Expr = CSDcr(targ) }
+        | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
+            Ok { Pos = node.Pos; Env = env; Type = TFloat; Expr = CSDcr(targ) }
+        | Ok(arg) ->
+            Error([(node.Pos, $"c-style decrement: expected argument of type %O{TInt}, "
+                              + $"found %O{arg.Type}")])
+        | Error(es) -> Error(es)
+    
+    | AddAsg(lhs, rhs) -> 
+        match (binaryNumericalOpTyper "assign addition" node.Pos env lhs rhs) with 
+        | Ok (tpe, tlhs, trhs) -> 
+            Ok {Pos = node.Pos; Env = env; Type = tpe; Expr = AddAsg(tlhs, trhs)}
+        | Error(es) -> Error(es)
+    
+    | MinAsg(lhs, rhs) -> 
+        match (binaryNumericalOpTyper "assign minus" node.Pos env lhs rhs) with 
+        | Ok (tpe, tlhs, trhs) -> 
+            Ok {Pos = node.Pos; Env = env; Type = tpe; Expr = MinAsg(tlhs, trhs)}
+        | Error(es) -> Error(es)
 
     | Eq(lhs, rhs) ->
         match (numericalRelationTyper "equal to" node.Pos env lhs rhs) with
@@ -331,7 +370,24 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
         | Ok(tlhs, trhs) ->
             Ok { Pos = node.Pos; Env = env; Type = TBool; Expr = Less(tlhs, trhs) }
         | Error(es) -> Error(es)
+    
+    | LessOrEq(lhs, rhs) ->
+        match (numericalRelationTyper "less or eqaul" node.Pos env lhs rhs) with
+        | Ok(tlhs, trhs) ->
+            Ok { Pos = node.Pos; Env = env; Type = TBool; Expr = LessOrEq(tlhs, trhs) }
+        | Error(es) -> Error(es)
+    
+    | Greater(lhs, rhs) ->
+        match (numericalRelationTyper "greater than" node.Pos env lhs rhs) with
+        | Ok(tlhs, trhs) ->
+            Ok { Pos = node.Pos; Env = env; Type = TBool; Expr = Greater(tlhs, trhs) }
+        | Error(es) -> Error(es)
 
+    | GreaterOrEq(lhs, rhs) ->
+        match (numericalRelationTyper "greater or equal" node.Pos env lhs rhs) with
+        | Ok(tlhs, trhs) ->
+            Ok { Pos = node.Pos; Env = env; Type = TBool; Expr = GreaterOrEq(tlhs, trhs) }
+        | Error(es) -> Error(es)
     | ReadInt ->
         Ok {Pos = node.Pos; Env = env; Type = TInt; Expr = ReadInt}
 
@@ -689,6 +745,29 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST): TypingResult =
             | _ -> Error([(node.Pos, $"cannot access array length on expression of type %O{tarr.Type}")])
         | Error(es) -> Error(es)
 
+    | ArraySlice(arr, start, ending) -> // array slice
+        match (typer env arr) with
+        | Ok(tarr) ->
+            match (expandType env tarr.Type) with
+            | TArray(t) ->
+                // check that start and end are of type int
+                match (typer env start) with
+                | Ok(tstart) ->
+                    if not (isSubtypeOf tstart.Env tstart.Type TInt) then
+                        Error([(node.Pos, $"array slice start must be of type int, found %O{tstart.Type}")])
+                    else
+                        match (typer env ending) with
+                        | Ok(tend) ->
+                            if not (isSubtypeOf tend.Env tend.Type TInt) then
+                                Error([(node.Pos, $"array slice end must be of type int, found %O{tend.Type}")])
+                            else
+                                Ok { Pos = node.Pos; Env = env; Type = TArray(t);
+                                    Expr = ArraySlice(tarr, tstart, tend) }
+                        | Error(es) -> Error(es)
+                | Error(es) -> Error(es)
+            | _ -> Error([(node.Pos, $"cannot access array element on expression of type %O{tarr.Type}")])
+        | Error(es) -> Error(es)
+
     | UnionCons(label, expr) ->
         match (typer env expr) with
         | Ok(texpr) ->
@@ -862,11 +941,14 @@ and internal letTyper pos (isRec: bool) (isMutable: bool) (env: TypingEnv)
                                        else env.Mutables.Remove(name)
         /// Environment for type-checking the 'let...' scope
         let env2 = {env with Vars = envVars2
-                             Mutables = envMutVars2}
+                             Mutables = envMutVars2
+                             }
         /// Result of type-checking the 'let...' scope
         let tscope = typer env2 scope
         /// Environment for type-checking the 'let...' initialisation
-        let initEnv = env // Equal to 'env'... for now ;-)
+        
+        let env3 = {env with AtTopLevel = false}
+        let initEnv = env3 // Equal to 'env'... for now ;-)
         match (typer initEnv init) with
         | Ok(tinit) ->
             /// Errors (if any) due to 'let...' initialisation type mismatch
@@ -878,7 +960,7 @@ and internal letTyper pos (isRec: bool) (isMutable: bool) (env: TypingEnv)
             match tscope with
             | Ok(tscope) ->
                 if (List.isEmpty terrs) then
-                    if isRec then 
+                    if isRec || initEnv.AtTopLevel then 
                         Ok { Pos = pos; Env = env; Type = tscope.Type;
                              Expr = LetRec(name, tpe, tinit, tscope) }
                     else if isMutable then
@@ -897,4 +979,4 @@ and internal letTyper pos (isRec: bool) (isMutable: bool) (env: TypingEnv)
 /// Perform type checking of the given untyped AST.  Return a well-typed AST in
 /// case of success, or a sequence of error messages in case of failure.
 let typecheck (node: UntypedAST): TypingResult =
-    typer {Vars = Map[]; TypeVars = Map[]; Mutables = Set[]} node
+    typer {Vars = Map[]; TypeVars = Map[]; Mutables = Set[]; AtTopLevel = true} node

@@ -1,0 +1,3 @@
+let x: int = 40;
+let f: () -> int = fun() -> 1 + x;
+assert(f() = 41)
