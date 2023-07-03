@@ -51,7 +51,11 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.5.0" />
     <PackageReference Include="YoloDev.Expecto.TestSdk" Version="0.13.3" />
     <Compile Include="src/Test.fs" />
+    <Compile Include="src\WasmTime.fs" />
     <!-- Main entry point -->
     <Compile Include="src/Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WasmTimeDriver\WasmTimeDriver.csproj" />
   </ItemGroup>
 </Project>
