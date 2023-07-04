@@ -7,6 +7,7 @@
 /// from the hyggec compiler.
 module WASMTime
 
+open System
 open WasmTimeDriver
 
 /// Error code to signal a RARS assembly error
@@ -45,7 +46,9 @@ let launch (asm: string) (warnOnAssertFailure: bool): int =
           Log.debug $"Saved assembly code in: %s{asmFile}"
     
           let vm = WasmVM()
+          Console.WriteLine("asm: " + asmFile)
           let res = vm.RunFile(asmFile, "_start") |> Async.AwaitTask
+          Console.WriteLine(res)
           0
           
         with e ->

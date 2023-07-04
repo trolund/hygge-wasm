@@ -7,6 +7,7 @@
 module Main
 
 open System
+open WasmTimeDriver
 
 /// Tokenize the given file with the given options, and print the result on the
 /// terminal. Return 0 in case of success, non-zero otherwise.
@@ -229,6 +230,9 @@ let internal launchRARS (opt: CmdLine.RARSLaunchOptions): int =
 /// options. Return 0 in case of success, and non-zero in case of error.
 let internal launchWasmTime (opt: CmdLine.WasmTimeLaunchOptions): int =
    Console.WriteLine(opt.File)
+   let vm = WasmVM()
+   let res = vm.RunFile(opt.File, "_start")
+             |> Async.AwaitTask
    0
     
     
