@@ -57,5 +57,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\WasmTimeDriver\WasmTimeDriver.csproj" />
+    <ProjectReference Include="WasmTimeDriver\WasmTimeDriver.csproj" />
   </ItemGroup>
 </Project>

@@ -232,6 +232,7 @@ let internal launchWasmTime (opt: CmdLine.WasmTimeLaunchOptions): int =
    Console.WriteLine(opt.File)
    let vm = WasmVM()
    let res = vm.RunFile(opt.File, "_start")
+   Console.WriteLine($"return value {res.ToString()}")
    0
     
     
@@ -248,3 +249,4 @@ let main (args: string[]): int =
     | CmdLine.ParseResult.RARSLaunch(opts) -> launchRARS opts
     | CmdLine.ParseResult.WasmLaunch(opts) -> launchWasmTime opts
     | CmdLine.ParseResult.Test(opts) -> Test.run opts
+
