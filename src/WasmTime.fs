@@ -34,15 +34,23 @@ let explainExitCode (exit: int): string =
 /// then log a warning if the RARS exit code denotes an assertion failure.
 /// Return the RARS exit code: 0 on success, non-zero in case of error.
 let launch (asm: string) (warnOnAssertFailure: bool): int =
-    let tmpDir = Util.mkTempDir "hyggec-"
-    Log.debug $"Created temporary directory: %s{tmpDir}"
-    let asmFile = System.IO.Path.Combine [| tmpDir; "code.asm" |]
-    let vm = new WasmVM()
+    try 
+        let tmpDir = Util.mkTempDir "hyggec-"
+        Log.debug $"Created temporary directory: %s{tmpDir}"
+        let asmFile = System.IO.Path.Combine [| tmpDir; "code.asm" |]
+        
+        try
+
+          System.IO.File.WriteAllText(asmFile, asm)
+          Log.debug $"Saved assembly code in: %s{asmFile}"
     
-    let res = vm.RunFile(asmFile, "_start") |> Async.AwaitTask
-    0
-
-    
-
-
+          let vm = WasmVM()
+          let res = vm.RunFile(asmFile, "_start") |> Async.AwaitTask
+          0
           
+        with e ->
+            Log.error $"Error writing file %s{asmFile}: %s{e.Message}"
+            1 // Non-zero exit code
+    with e ->
+        Log.error $"Error creating temporary directory: %s{e.Message}"
+        1 // Non-zero exit code

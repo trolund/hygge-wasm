@@ -6,6 +6,8 @@
 /// Entry point of the Hygge compiler program, including the main function.
 module Main
 
+open System
+
 /// Tokenize the given file with the given options, and print the result on the
 /// terminal. Return 0 in case of success, non-zero otherwise.
 let internal tokenize (opt: CmdLine.TokenizerOptions): int =
@@ -223,6 +225,13 @@ let internal launchRARS (opt: CmdLine.RARSLaunchOptions): int =
             exitCode
 
 
+/// Compile and launch WasmTime with the compilation result, using the given
+/// options. Return 0 in case of success, and non-zero in case of error.
+let internal launchWasmTime (opt: CmdLine.WasmTimeLaunchOptions): int =
+   Console.WriteLine(opt.File)
+   0
+    
+    
 /// The compiler entry point.  Must return zero on success, non-zero on error.
 [<EntryPoint>]
 let main (args: string[]): int =
@@ -234,4 +243,5 @@ let main (args: string[]): int =
     | CmdLine.ParseResult.Interpret(opts) -> interpret opts
     | CmdLine.ParseResult.Compile(opts) -> compile opts
     | CmdLine.ParseResult.RARSLaunch(opts) -> launchRARS opts
+    | CmdLine.ParseResult.WasmLaunch(opts) -> launchWasmTime opts
     | CmdLine.ParseResult.Test(opts) -> Test.run opts

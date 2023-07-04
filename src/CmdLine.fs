@@ -130,6 +130,28 @@ type RARSLaunchOptions = {
     Optimize: uint
 }
 
+/// Command line options for launching RARS with the generated RISC-V assembly.
+[<Verb("wasm", HelpText="Compile the given input source file and run the generated Wasm assembly code with WasmTime.")>]
+type WasmTimeLaunchOptions = {
+    [<Value(0, Required=true, MetaName="input file", HelpText="Source code file to be compiled or a .wasm file to run it.")>]
+    File: string;
+
+    [<Option('l', "log-level", HelpText="Set the log level. Valid values: debug, info, warning, error. (Default: warning)")>]
+    LogLevel: Log.LogLevel;
+
+    [<Option('v', "verbose", HelpText="Enable verbose output. (Same effect of using option '--log-level debug')")>]
+    Verbose: bool;
+
+    [<Option('a', "anf", HelpText="Transform the AST into Administrative Normal Form (ANF) before compiling")>]
+    ANF: bool;
+
+    [<Option('r', "registers", HelpText="Number of registers to use for ANF-based code generation (min 3, max 18; default: 18)")>]
+    Registers: uint;
+
+    [<Option('O', "optimize", HelpText="Optimization level (default: 0, i.e. no optimizations, partial evaluation: 1, copy propagation: 2, peephole: 3, all: 4 or more)")>]
+    Optimize: uint
+}
+
 
 /// Command line options for testing.
 [<Verb("test", HelpText="Run the test suite.")>]
@@ -151,6 +173,7 @@ type ParseResult =
     | Typecheck of TypecheckerOptions
     | Compile of CompilerOptions
     | RARSLaunch of RARSLaunchOptions
+    | WasmLaunch of WasmTimeLaunchOptions
     | Interpret of InterpreterOptions
     | Test of TestOptions
 
@@ -164,6 +187,7 @@ let parse (args: string[]): ParseResult =
                                                         CompilerOptions,
                                                         InterpreterOptions,
                                                         RARSLaunchOptions,
+                                                        WasmTimeLaunchOptions,
                                                         TestOptions>(args);
 
     match res with
@@ -177,6 +201,7 @@ let parse (args: string[]): ParseResult =
         | :? CompilerOptions as opt -> ParseResult.Compile(opt)
         | :? InterpreterOptions as opt -> ParseResult.Interpret(opt)
         | :? RARSLaunchOptions as opt -> ParseResult.RARSLaunch(opt)
+        | :? WasmTimeLaunchOptions as opt -> ParseResult.WasmLaunch(opt)
         | :? TestOptions as opt -> ParseResult.Test(opt)
         | x -> failwith $"BUG: unexpected command line parsed value: %O{x}"
     | x -> failwith $"BUG: unexpected command line parsing result: %O{x}"
