@@ -232,7 +232,6 @@ let internal launchWasmTime (opt: CmdLine.WasmTimeLaunchOptions): int =
    Console.WriteLine(opt.File)
    let vm = WasmVM()
    let res = vm.RunFile(opt.File, "_start")
-             |> Async.AwaitTask
    0
     
     

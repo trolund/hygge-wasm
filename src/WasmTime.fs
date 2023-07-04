@@ -47,8 +47,7 @@ let launch (asm: string) (warnOnAssertFailure: bool): int =
     
           let vm = WasmVM()
           Console.WriteLine("asm: " + asmFile)
-          let res = vm.RunFile(asmFile, "_start") |> Async.AwaitTask
-          Console.WriteLine(res)
+          let res = vm.RunFile(asmFile, "_start")
           0
           
         with e ->
