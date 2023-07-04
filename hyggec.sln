@@ -7,6 +7,11 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "hyggec", "hyggec.fsproj", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WasmTimeDriver", "WasmTimeDriver\WasmTimeDriver.csproj", "{B6CC3BAE-9BC4-42D3-BB19-E147D6352AAC}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{80130B82-A81C-4C15-9107-7C592843B30F}"
+	ProjectSection(SolutionItems) = preProject
+		doc\Input_Output.md = doc\Input_Output.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
