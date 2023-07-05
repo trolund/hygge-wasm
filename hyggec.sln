@@ -10,6 +10,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{80130B82-A81C-4C15-9107-7C592843B30F}"
 	ProjectSection(SolutionItems) = preProject
 		doc\Input_Output.md = doc\Input_Output.md
+		doc\test_system.md = doc\test_system.md
 	EndProjectSection
 EndProject
 Global

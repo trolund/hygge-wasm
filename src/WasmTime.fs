@@ -1,10 +1,10 @@
 // hyggec - The didactic compiler for the Hygge programming language.
 // Copyright (C) 2023 Technical University of Denmark
-// Author: Alceste Scalas <alcsc@dtu.dk>
+// Author: Troels Lund <s161791@dtu.dk>
 // Released under the MIT license (see LICENSE.md for details)
 
-/// Utility functions to launch RARS (RISC-V Assembler and Runtime Simulator)
-/// from the hyggec compiler.
+
+/// Utility functions to launch WasmTime 
 module WASMTime
 
 open System
@@ -41,15 +41,13 @@ let launch (asm: string) (warnOnAssertFailure: bool): int =
         let asmFile = System.IO.Path.Combine [| tmpDir; "code.asm" |]
         
         try
-
           System.IO.File.WriteAllText(asmFile, asm)
           Log.debug $"Saved assembly code in: %s{asmFile}"
-    
+
           let vm = WasmVM()
-          Console.WriteLine("asm: " + asmFile)
+          Console.WriteLine("asm: " + asmFile);
           let res = vm.RunFile(asmFile, "_start")
           0
-          
         with e ->
             Log.error $"Error writing file %s{asmFile}: %s{e.Message}"
             1 // Non-zero exit code

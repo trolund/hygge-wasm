@@ -231,7 +231,7 @@ let internal launchRARS (opt: CmdLine.RARSLaunchOptions): int =
 let internal launchWasmTime (opt: CmdLine.WasmTimeLaunchOptions): int =
    Console.WriteLine(opt.File)
    let vm = WasmVM()
-   let res = vm.RunFile(opt.File, "_start")
+   let res = vm.RunFileTimes(opt.File, "_start", 400)
    Console.WriteLine($"return value {res.ToString()}")
    0
     

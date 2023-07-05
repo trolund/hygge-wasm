@@ -2,7 +2,7 @@
 
 All interaction between host and client is implemented in the function _SetupLinker_ in the class _WasmVM_.
 
-Wasm code:
+Wasm code (io.wat):
 ```wat
 (module
   (import "env" "read" (func $read (result externref)))

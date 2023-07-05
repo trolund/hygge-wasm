@@ -1,4 +1,8 @@
-﻿using Wasmtime;
+﻿using System.Collections;
+using System.Reflection.Metadata.Ecma335;
+using System.Text;
+using Microsoft.VisualBasic;
+using Wasmtime;
 
 namespace WasmTimeDriver
 {
@@ -45,19 +49,49 @@ namespace WasmTimeDriver
                     return null;
                 })
             );
-            
+
             // print to the console
-            _linker.Define(
+            /*_linker.Define(
                 "env",
                 "write",
-                Function.FromCallback(_store, (string? s) => Console.WriteLine(s))
-            );
+                Function.FromCallback(_store, (int x) =>
+                {
+                    Console.WriteLine(x);
+                })
+            );*/
             
-            _linker.Define(
+            
+            /*_linker.Define(
                 "env",
                 "print",
                 Function.FromCallback(_store, (string? s) => Console.WriteLine(s))
+            );*/
+
+            _linker.Define(
+                "env",
+                "write",
+                Function.FromCallback(_store, (int s) =>
+                {
+                    Console.WriteLine(s);
+                })
             );
+        }
+        
+        public object?[] RunFileTimes(string path, int n)
+        {
+            return RunFileTimes(path, "_start", n);
+        }
+
+        public object?[] RunFileTimes(string path, string target, int n)
+        {
+            ArrayList list = new ArrayList();
+            
+            for (int i = 0; i < n; i++)
+            {
+                list.Add(RunFile(path, target));
+            }
+
+            return list.ToArray();
         }
 
         public object? RunFile(string path)
@@ -69,8 +103,12 @@ namespace WasmTimeDriver
         {
             try
             {
+                // load module 
                 using var module = Module.FromTextFile(_engine, path);
-                return RunTarget(target, _linker.Instantiate(_store, module));
+                // when the instance will the VM run.
+                var instance = _linker.Instantiate(_store, module);
+                // run specific target.
+                return RunTarget(target, instance);
             }
             catch (Exception e)
             {
@@ -97,7 +135,7 @@ namespace WasmTimeDriver
 
             if (function is null)
             {
-                throw new Exception($"error: {target} export is missing");
+                Console.WriteLine($"warn: {target} export is missing");
             }
 
             // run the code

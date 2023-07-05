@@ -54,9 +54,9 @@
     <Compile Include="src\WasmTime.fs" />
     <!-- Main entry point -->
     <Compile Include="src/Program.fs" />
+    <Compile Include="src\Wasm.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WasmTimeDriver\WasmTimeDriver.csproj" />
     <ProjectReference Include="WasmTimeDriver\WasmTimeDriver.csproj" />
   </ItemGroup>
 </Project>
