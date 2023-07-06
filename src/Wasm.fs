@@ -388,12 +388,15 @@ and ModuleInstance =
         for type_ in this.types do // print all types
             result <- result + sprintf "  (type %s)\n" (type_.ToString())
 
-        // for import_ in this.imports do // print all imports
-        //     result <- result + sprintf "  (import \"%s\" \"%s\" %s)\n" (fst import_) (snd import_) (match snd3 import_ with
-        //                                                                     | FunctionType type_ -> sprintf "(func %s)" (type_.ToString())
-        //                                                                     | TableType table -> sprintf "(table %s)" (table.ToString())
-        //                                                                     | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
-        //                                                                     | GlobalType global_ -> sprintf "(global %s)" (global_.ToString()))
+        for import: Import in this.imports do // print all imports
+        
+            let modu, func_name, func_signature = import
+
+            result <- result + sprintf "  (import \"%s\" \"%s\" %s)\n" modu func_name (match func_signature with
+                                                                                            | FunctionType type_ -> sprintf "(func %s)" (type_.ToString())
+                                                                                            | TableType table -> sprintf "(table %s)" (table.ToString())
+                                                                                            | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
+                                                                                            | GlobalType global_ -> sprintf "(global %s)" (global_.ToString()))
 
         for global_ in this.globals do
             result <- result + sprintf "  (global %s)\n" (global_.ToString())
@@ -417,8 +420,10 @@ and ModuleInstance =
         for function_ in this.functions do
             result <- result + sprintf "  (func %s)\n" (function_.ToString())
 
-        // for start in this.start do
-        //     result <- result + sprintf "  (start %s)\n" (start.ToString())
+        // print start
+        match this.start with
+        | Some start -> result <- result + sprintf "  (start %d)\n" start
+        | None -> ()
 
         result <- result + ")" // close module tag
         result
