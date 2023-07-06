@@ -380,6 +380,48 @@ and ModuleInstance =
       globalInstances : GlobalInstance list
       functionInstances : FunctionInstance list
       locals : ValueType list}
+    
+    override this.ToString() =
+        let mutable result = ""
+        result <- result + "(module\n" // open module tag
+
+        for type_ in this.types do // print all types
+            result <- result + sprintf "  (type %s)\n" (type_.ToString())
+
+        // for import_ in this.imports do // print all imports
+        //     result <- result + sprintf "  (import \"%s\" \"%s\" %s)\n" (fst import_) (snd import_) (match snd3 import_ with
+        //                                                                     | FunctionType type_ -> sprintf "(func %s)" (type_.ToString())
+        //                                                                     | TableType table -> sprintf "(table %s)" (table.ToString())
+        //                                                                     | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
+        //                                                                     | GlobalType global_ -> sprintf "(global %s)" (global_.ToString()))
+
+        for global_ in this.globals do
+            result <- result + sprintf "  (global %s)\n" (global_.ToString())
+
+        for export in this.exports do
+            result <- result + sprintf "  (export \"%s\" %s)\n" (fst export) (match snd export with
+                                                                              | FunctionType type_ -> sprintf "(func %s)" (type_.ToString())
+                                                                              | TableType table -> sprintf "(table %s)" (table.ToString())
+                                                                              | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
+                                                                              | GlobalType global_ -> sprintf "(global %s)" (global_.ToString()))
+        for element in this.elements do
+            result <- result + sprintf "  (elem %s)\n" (element.ToString())
+        for data in this.data do
+            result <- result + sprintf "  (data %s)\n" (data.ToString())
+        for code in this.codes do
+            result <- result + sprintf "  (func %s)\n" (code.ToString())
+        for table in this.tables do
+            result <- result + sprintf "  (table %s)\n" (table.ToString())
+        for memory in this.memories do
+            result <- result + sprintf "  (memory %s)\n" (memory.ToString())
+        for function_ in this.functions do
+            result <- result + sprintf "  (func %s)\n" (function_.ToString())
+
+        // for start in this.start do
+        //     result <- result + sprintf "  (start %s)\n" (start.ToString())
+
+        result <- result + ")" // close module tag
+        result
 
 and FunctionInstance =
     { moduleInstance : ModuleInstance
