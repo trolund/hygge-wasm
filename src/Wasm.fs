@@ -316,3 +316,163 @@ and NumericInstruction =
             | F64Copysign -> "f64.copysign"
 
 type Module = Instruction list 
+
+and Type = ValueType list * ValueType list
+
+and Import = string * string * ExternalType
+
+and ExternalType =
+    | FunctionType of Type
+    | TableType of Table
+    | MemoryType of Memory
+    | GlobalType of Global
+
+and Table = ValueType * Limits
+
+and Memory = Limits
+
+and Global = ValueType * Mutability
+
+and Mutability =
+    | Mutable
+    | Immutable
+
+and Limits =
+    | Unbounded of int
+    | Bounded of int * int
+
+and Export = string * ExternalType
+
+and Element = int * Instruction list
+
+and Data = int * string
+
+and Function = ValueType list * ValueType list * Instruction list
+
+and TableSegment = int * int list
+
+and MemorySegment = int * string
+
+and GlobalSegment = int * Instruction list
+
+and Start = int
+
+and ElementSegment = int * int list
+
+and DataSegment = int * string
+
+and Code = int * int list * Instruction list
+
+and ModuleInstance = 
+    { types : Type list
+      functions : Function list 
+      tables : Table list
+      memories : Memory list
+      globals : Global list
+      exports : Export list
+      start : Start option
+      elements : Element list
+      data : Data list
+      codes : Code list 
+      imports : Import list
+      tableInstances : TableInstance list
+      memoryInstances : MemoryInstance list
+      globalInstances : GlobalInstance list
+      functionInstances : FunctionInstance list
+      locals : ValueType list}
+
+and FunctionInstance =
+    { moduleInstance : ModuleInstance
+      typeIndex : int
+      locals : ValueType list
+      body : Instruction list }
+
+and TableInstance =
+    { table : Table
+      elements : Element list }
+
+and MemoryInstance =
+    { memory : Memory
+      data : Data list }
+
+and GlobalInstance =
+    { _global : Global
+      value : Instruction list }
+
+and Value =
+    | I32 of int32
+    | I64 of int64
+    | F32 of float32
+    | F64 of float
+
+and Stack =
+    | I32Stack of int32 list
+    | I64Stack of int64 list
+    | F32Stack of float32 list
+    | F64Stack of float list
+
+and Frame =
+    { locals : ValueType list
+      moduleInstance : ModuleInstance
+      stack : Stack }
+
+and Store =
+    { functions : FunctionInstance list
+      tables : TableInstance list
+      memories : MemoryInstance list
+      globals : GlobalInstance list }
+
+and Configuration =
+    { store : Store
+      frames : Frame list }
+
+and Result =
+    | ValueResult of Value
+    | TrapResult
+
+and InstructionResult =
+    | InstructionResult of Instruction list
+    | TrapInstructionResult
+
+and ConfigurationResult =
+    | ConfigurationResult of Configuration
+    | TrapConfigurationResult
+
+and ModuleResult =
+    | ModuleResult of ModuleInstance
+    | TrapModuleResult
+
+and FunctionResult =
+    | FunctionResult of FunctionInstance
+    | TrapFunctionResult
+
+and TableResult =
+    | TableResult of TableInstance
+    | TrapTableResult
+
+and MemoryResult =
+    | MemoryResult of MemoryInstance
+    | TrapMemoryResult
+
+and GlobalResult =
+    | GlobalResult of GlobalInstance
+    | TrapGlobalResult
+
+and ValueResult =
+    | ValueResult of Value
+    | TrapValueResult
+
+and StackResult =
+    | StackResult of Stack
+    | TrapStackResult
+
+and FrameResult =
+    | FrameResult of Frame
+    | TrapFrameResult
+
+and StoreResult =
+    | StoreResult of Store
+    | TrapStoreResult
+
+
+    
