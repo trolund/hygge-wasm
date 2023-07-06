@@ -16,7 +16,10 @@ namespace WasmTimeDriver
 
         public WasmVM()
         {
-            _engine = new Engine();
+            var config = new Config()
+                .WithDebugInfo(true)
+                .WithOptimizationLevel(0);
+            _engine = new Engine(config);
             _linker = new Linker(_engine);
             _store = new Store(_engine);
 

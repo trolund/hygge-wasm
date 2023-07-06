@@ -229,9 +229,11 @@ let internal launchRARS (opt: CmdLine.RARSLaunchOptions): int =
 /// Compile and launch WasmTime with the compilation result, using the given
 /// options. Return 0 in case of success, and non-zero in case of error.
 let internal launchWasmTime (opt: CmdLine.WasmTimeLaunchOptions): int =
-   Console.WriteLine(opt.File)
+   
    let vm = WasmVM()
-   let res = vm.RunFileTimes(opt.File, "_start", 400)
+   // let res = vm.RunFileTimes(opt.File, "_start", 400)
+   Console.WriteLine("Running file: " + opt.File)
+   let res = vm.RunFile(opt.File)
    Console.WriteLine($"return value {res.ToString()}")
    0
     

@@ -5,6 +5,7 @@
 
 module hyggec.Wasm
 
+
 type ValueType =
     | I32
     | I64
@@ -226,6 +227,42 @@ and NumericInstruction =
             | I32LeU -> "i32.le_u"
             | I32GeS -> "i32.ge_s"
             | I32GeU -> "i32.ge_u"
+            | I32Add -> "i32.add"
+            | I32And -> "i32.and"
+            | I32Clz -> "i32.clz"
+            | I32Ctz -> "i32.ctz"
+            | I32DivS -> "i32.div_s"
+            | I32DivU -> "i32.div_u"
+            | I32Mul -> "i32.mul"
+            | I32Or -> "i32.or"
+            | I32Popcnt -> "i32.popcnt"
+            | I32RemS -> "i32.rem_s"
+            | I32RemU -> "i32.rem_u"
+            | I32Rotl -> "i32.rotl"
+            | I32Rotr -> "i32.rotr"
+            | I32Shl -> "i32.shl"
+            | I32ShrS -> "i32.shr_s"
+            | I32ShrU -> "i32.shr_u"
+            | I32Sub -> "i32.sub"
+            | I32Xor -> "i32.xor"
+            | I64Add -> "i64.add"
+            | I64And -> "i64.and"
+            | I64Clz -> "i64.clz"
+            | I64Ctz -> "i64.ctz"
+            | I64DivS -> "i64.div_s"
+            | I64DivU -> "i64.div_u"
+            | I64Mul -> "i64.mul"
+            | I64Or -> "i64.or"
+            | I64Popcnt -> "i64.popcnt"
+            | I64RemS -> "i64.rem_s"
+            | I64RemU -> "i64.rem_u"
+            | I64Rotl -> "i64.rotl"
+            | I64Rotr -> "i64.rotr"
+            | I64Shl -> "i64.shl"
+            | I64ShrS -> "i64.shr_s"
+            | I64ShrU -> "i64.shr_u"
+            | I64Sub -> "i64.sub"
+            | I64Xor -> "i64.xor"
             | I64Eqz -> "i64.eqz"
             | I64Eq -> "i64.eq"
             | I64Ne -> "i64.ne"
@@ -278,5 +315,4 @@ and NumericInstruction =
             | F64Max -> "f64.max"
             | F64Copysign -> "f64.copysign"
 
-
-type Module = Instruction list
+type Module = Instruction list 
