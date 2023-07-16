@@ -8,6 +8,7 @@ module Main
 
 open System
 open WasmTimeDriver
+open hyggec
 
 /// Tokenize the given file with the given options, and print the result on the
 /// terminal. Return 0 in case of success, non-zero otherwise.
@@ -235,6 +236,7 @@ let internal launchWasmTime (opt: CmdLine.WasmTimeLaunchOptions): int =
    Console.WriteLine("Running file: " + opt.File)
    let res = vm.RunFile(opt.File)
    Console.WriteLine($"return value {res.ToString()}")
+   
    0
     
     

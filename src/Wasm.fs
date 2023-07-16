@@ -326,6 +326,7 @@ and ExternalType =
     | TableType of Table
     | MemoryType of Memory
     | GlobalType of Global
+    | None
 
 and Table = ValueType * Limits
 
@@ -396,7 +397,10 @@ and ModuleInstance =
                                                                                             | FunctionType type_ -> sprintf "(func %s)" (type_.ToString())
                                                                                             | TableType table -> sprintf "(table %s)" (table.ToString())
                                                                                             | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
-                                                                                            | GlobalType global_ -> sprintf "(global %s)" (global_.ToString()))
+                                                                                            | GlobalType global_ -> sprintf "(global %s)" (global_.ToString())
+                                                                                            | None -> sprintf ""
+                                                                                            )
+                                                                                            
 
         for global_ in this.globals do
             result <- result + sprintf "  (global %s)\n" (global_.ToString())

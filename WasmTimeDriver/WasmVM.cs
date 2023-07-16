@@ -102,16 +102,36 @@ namespace WasmTimeDriver
             return RunFile(path, "_start");
         }
 
+        public object? ExecModule(Module m, string target)
+        {
+            // when the instance will the VM run.
+            var instance = _linker.Instantiate(_store, m);
+            // run specific target.
+            return RunTarget(target, instance);
+        }
+        
+        public object? Run(string wat, string target)
+        {
+            try
+            {
+                // load module 
+                using var module = Module.FromText(_engine, target, wat);
+                return ExecModule(module, target);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return null;
+            }
+        }
+
         public object? RunFile(string path, string target)
         {
             try
             {
                 // load module 
                 using var module = Module.FromTextFile(_engine, path);
-                // when the instance will the VM run.
-                var instance = _linker.Instantiate(_store, module);
-                // run specific target.
-                return RunTarget(target, instance);
+                return ExecModule(module, target);
             }
             catch (Exception e)
             {
