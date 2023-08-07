@@ -78,6 +78,24 @@ namespace WasmTimeDriver
                     Console.WriteLine(s);
                 })
             );
+
+                        _linker.Define(
+                "env",
+                "writeInt",
+                Function.FromCallback(_store, (int s) =>
+                {
+                    Console.WriteLine(s);
+                })
+            );
+
+            _linker.Define(
+                "env",
+                "writeTwoInts",
+                Function.FromCallback(_store, (int a, int b) =>
+                {
+                    Console.WriteLine(@"{0} {1}", a, b);
+                })
+            );
         }
         
         public object?[] RunFileTimes(string path, int n)
@@ -125,7 +143,7 @@ namespace WasmTimeDriver
             }
         }
 
-        public object? RunFile(string path, string target)
+        public object? RunFile(string path, string? target)
         {
             try
             {
