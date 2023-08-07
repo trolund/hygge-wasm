@@ -21,3 +21,9 @@ Seen here: https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Contro
 ```wat
 (start 1) ;; run the first function automatically
 ```
+
+# Running wasm module with WasmTime driver
+
+    ./hyggec wasm <WAT file path>
+
+    ./hyggec wasm examples/wasm/io.wat 

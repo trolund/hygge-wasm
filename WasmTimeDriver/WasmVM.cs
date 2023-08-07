@@ -73,7 +73,7 @@ namespace WasmTimeDriver
             _linker.Define(
                 "env",
                 "write",
-                Function.FromCallback(_store, (int s) =>
+                Function.FromCallback(_store, (string s) =>
                 {
                     Console.WriteLine(s);
                 })

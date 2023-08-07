@@ -425,9 +425,9 @@ and ModuleInstance =
             result <- result + sprintf "  (func %s)\n" (function_.ToString())
 
         // print start
-        match this.start with
-        | Some start -> result <- result + sprintf "  (start %d)\n" start
-        | None -> ()
+        // match this.start with
+        // | Some start -> result <- result + sprintf "  (start %d)\n" start
+        // | None -> ""
 
         result <- result + ")" // close module tag
         result
