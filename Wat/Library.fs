@@ -6,13 +6,15 @@ module Wasm =
         instruction.ToString()
     let generate_wat_code instructions =
 
-        // function that acummulates the wat code from a list of instructions
         let rec generate_wat_code_aux instructions watCode =
             match instructions with
             | [] -> watCode
             | instruction :: instructions -> generate_wat_code_aux instructions (watCode + (wat_of_instruction instruction) + "\n")
 
         generate_wat_code_aux instructions ""
+
+    let generate_module_code module_ =
+        "(module\n" + (generate_wat_code module_) + ")"             
 
     type ValueType =
         | I32
