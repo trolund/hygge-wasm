@@ -119,7 +119,28 @@ namespace WasmTimeDriver
         {
             return RunFile(path, "_start");
         }
+        
+        public object? RunFile(string path, string? target)
+        {
+            try
+            {
+                // load module 
+                using var module = Module.FromTextFile(_engine, path);
 
+                if (target is null)
+                {
+                    return 0;
+                }
+                
+                return ExecModule(module, target);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return null;
+            }
+        }
+        
         public object? ExecModule(Module m, string target)
         {
             // when the instance will the VM run.
@@ -134,21 +155,6 @@ namespace WasmTimeDriver
             {
                 // load module 
                 using var module = Module.FromText(_engine, target, wat);
-                return ExecModule(module, target);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                return null;
-            }
-        }
-
-        public object? RunFile(string path, string? target)
-        {
-            try
-            {
-                // load module 
-                using var module = Module.FromTextFile(_engine, path);
                 return ExecModule(module, target);
             }
             catch (Exception e)

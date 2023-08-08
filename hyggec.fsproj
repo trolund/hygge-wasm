@@ -51,8 +51,8 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.5.0" />
     <PackageReference Include="YoloDev.Expecto.TestSdk" Version="0.13.3" />
     <Compile Include="src/Test.fs" />
-    <Compile Include="src\WasmTime.fs" />
-    <Compile Include="src\Wasm.fs" />
+    <Compile Include="src/WasmTime.fs" />
+    <Compile Include="src/Wasm.fs" />
     <!-- Main entry point -->
     <Compile Include="src/Program.fs" />
   </ItemGroup>
