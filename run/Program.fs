@@ -5,7 +5,10 @@ open Wasm
 [<EntryPoint>]
 let main argv = 
 
-    let exampleModule : Module =
+    let _module = ModuleInstance.create_module_instance
+
+    
+    let exampleModule : Instructions =
         [
             Control (Block ("label", [
                 Numeric (I32Const 42)
@@ -14,6 +17,10 @@ let main argv =
                 Control Return
             ]))
         ]
+    
+    let f: Function = ([], [], exampleModule)
+
+    let _module' = _module.add_function f
 
     let watCode = generate_module_code exampleModule
     printfn "%s" watCode

@@ -14,7 +14,7 @@ module Wasm =
         generate_wat_code_aux instructions ""
 
     let generate_module_code module_ =
-        "(module\n" + (generate_wat_code module_) + ")"             
+        "(module\n" + (generate_wat_code module_) + ")"            
 
     type ValueType =
         | I32
@@ -28,7 +28,7 @@ module Wasm =
                 | I64 -> "i64"
                 | F32 -> "f32"
                 | F64 -> "f64"
-
+    
     type Instruction =
         | Control of ControlInstruction
         | Parametric of ParametricInstruction
@@ -351,7 +351,7 @@ module Wasm =
                 | F64Max -> "f64.max"
                 | F64Copysign -> "f64.copysign"
 
-    type Module = Instruction list 
+    type Instructions = Instruction list
 
     and Type = ValueType list * ValueType list
 
@@ -384,7 +384,14 @@ module Wasm =
 
     and Data = int * string
 
+    // ( func <signature> <locals> <body> )
+    // The signature declares what the function takes (parameters) and returns (return values).
+    // The locals are like vars in JavaScript, but with explicit types declared.
+    // The body is just a linear list of low-level instructions.
     and Function = ValueType list * ValueType list * Instruction list
+
+    // function parameters and return values.
+    and FunctionSignature = ValueType list * ValueType list
 
     and TableSegment = int * int list
 
@@ -392,7 +399,9 @@ module Wasm =
 
     and GlobalSegment = int * Instruction list
 
-    and Start = int
+    and Start = 
+        | Start of int
+        | None
 
     and ElementSegment = int * int list
 
@@ -407,7 +416,7 @@ module Wasm =
           memories : Memory list
           globals : Global list
           exports : Export list
-          start : Start option
+          start : Start
           elements : Element list
           data : Data list
           codes : Code list 
@@ -416,7 +425,90 @@ module Wasm =
           memoryInstances : MemoryInstance list
           globalInstances : GlobalInstance list
           functionInstances : FunctionInstance list
-          locals : ValueType list}
+          locals : ValueType list }
+
+        // create empty module instance
+        static member create_module_instance =
+            { types = []
+              functions = []
+              tables = []
+              memories = []
+              globals = []
+              exports = []
+              start = None
+              elements = []
+              data = []
+              codes = []
+              imports = []
+              tableInstances = []
+              memoryInstances = []
+              globalInstances = []
+              functionInstances = []
+              locals = [] }
+
+        // add function
+        member this.add_function function_ =
+            { this with functions = function_ :: this.functions }
+        
+        // add table
+        member this.add_table table =
+            { this with tables = table :: this.tables }
+        
+        // add memory
+        member this.add_memory memory =
+            { this with memories = memory :: this.memories }
+        
+        // add global
+        member this.add_global global_ =
+            { this with globals = global_ :: this.globals }
+        
+        // add export
+        member this.add_export export =
+            { this with exports = export :: this.exports }
+        
+        // add element
+        member this.add_element element =
+            { this with elements = element :: this.elements }
+        
+        // add data
+        member this.add_data data =
+            { this with data = data :: this.data }
+        
+        // add code
+        member this.add_code code =
+            { this with codes = code :: this.codes }
+
+        // add import
+        member this.add_import import =
+            { this with imports = import :: this.imports }
+        
+        // add table instance
+        member this.add_table_instance tableInstance =
+            { this with tableInstances = tableInstance :: this.tableInstances }
+
+        // add memory instance
+        member this.add_memory_instance memoryInstance =
+            { this with memoryInstances = memoryInstance :: this.memoryInstances }
+
+        // add global instance
+        member this.add_global_instance globalInstance =
+            { this with globalInstances = globalInstance :: this.globalInstances }
+
+        // a function instance is a function with a module instance
+        member this.add_function_instance functionInstance =
+            { this with functionInstances = functionInstance :: this.functionInstances }
+
+        // add local
+        member this.add_local local =
+            { this with locals = local :: this.locals }
+
+        // add type
+        member this.add_type type_ =
+            { this with types = type_ :: this.types }
+        
+        // add start
+        member this.add_start start =
+            { this with start = start }
         
         override this.ToString() =
             let mutable result = ""
@@ -434,7 +526,7 @@ module Wasm =
                                                                                                 | TableType table -> sprintf "(table %s)" (table.ToString())
                                                                                                 | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
                                                                                                 | GlobalType global_ -> sprintf "(global %s)" (global_.ToString())
-                                                                                                | None -> sprintf ""
+                                                                                                
                                                                                                 )
                                                                                                 
 
@@ -473,6 +565,9 @@ module Wasm =
           typeIndex : int
           locals : ValueType list
           body : Instruction list }
+
+        override this.ToString() =
+            sprintf "(type %d)\n%s" this.typeIndex (generate_wat_code this.body)
 
     and TableInstance =
         { table : Table
