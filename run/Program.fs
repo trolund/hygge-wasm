@@ -16,17 +16,18 @@ let main argv =
                 Numeric (I32Add)
                 Control Return
         ]
-    
-    let f: Function =  ([], [ValueType.I32]), [], body
 
-    let new_module = _module.add_function(f)
+    let funcName = "start"
+    
+    let f: Function = Some(funcName), ([], [ValueType.I32]), [], body
+
+    let new_module = _module.add_function(f).add_export(funcName, FunctionType(funcName))
 
     // let watCode = generate_module_code exampleModule
     let watCode = generate_module_code_ new_module
     printfn "%s" watCode
-    
-    let vm = WasmVM()
 
-    let res = vm.RunFile(opt.File)
-    
+    let vm = WasmVM()
+    let result = vm.RunWat(funcName, watCode)
+    printfn "%A" result
     0 // return an integer exit code

@@ -9,7 +9,7 @@ module Wasm =
         let rec generate_wat_code_aux instructions watCode =
             match instructions with
             | [] -> watCode
-            | instruction :: instructions -> generate_wat_code_aux instructions (watCode + (wat_of_instruction instruction) + "\n")
+            | instruction :: instructions -> generate_wat_code_aux instructions (watCode + (instruction.ToString()) + "\n")
 
         generate_wat_code_aux instructions ""
 
@@ -358,7 +358,7 @@ module Wasm =
     and Import = string * string * ExternalType
 
     and ExternalType =
-        | FunctionType of Type
+        | FunctionType of string
         | TableType of Table
         | MemoryType of Memory
         | GlobalType of Global
@@ -377,18 +377,18 @@ module Wasm =
     and Limits =
         | Unbounded of int
         | Bounded of int * int
-
+    
     and Export = string * ExternalType
 
     and Element = int * Instruction list
 
     and Data = int * string
 
-    // ( func <signature> <locals> <body> )
+    // ( func name <signature> <locals> <body> )
     // The signature declares what the function takes (parameters) and returns (return values).
     // The locals are like vars in JavaScript, but with explicit types declared.
     // The body is just a linear list of low-level instructions.
-    and Function = FunctionSignature * Variable list * Instruction list
+    and Function = string option * FunctionSignature * Variable list * Instruction list
 
     // function parameters and return values.
     // The signature declares what the function takes (parameters) and returns (return values)
@@ -518,12 +518,6 @@ module Wasm =
             for global_ in this.globals do
                 result <- result + sprintf "  (global %s)\n" (global_.ToString())
 
-            for export in this.exports do
-                result <- result + sprintf "  (export \"%s\" %s)\n" (fst export) (match snd export with
-                                                                                  | FunctionType type_ -> sprintf "(func %s)" (type_.ToString())
-                                                                                  | TableType table -> sprintf "(table %s)" (table.ToString())
-                                                                                  | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
-                                                                                  | GlobalType global_ -> sprintf "(global %s)" (global_.ToString()))
             for element in this.elements do
                 result <- result + sprintf "  (elem %s)\n" (element.ToString())
             for data in this.data do
@@ -534,14 +528,39 @@ module Wasm =
                 result <- result + sprintf "  (table %s)\n" (table.ToString())
             for memory in this.memories do
                 result <- result + sprintf "  (memory %s)\n" (memory.ToString())
-            for (signature, locals, body) in this.functions do
-                result <- result + sprintf "  (func %s %s\n %s)\n)" "" "" (generate_wat_code body)
+
+
+            let generate_signature (signature: FunctionSignature) =
+                let parameters, returnValues = signature
+                let parametersString = String.concat " " (List.map (fun x -> (sprintf "(param %s)" (x.ToString()))) parameters)
+                let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
+                sprintf "%s %s" parametersString returnValuesString
+            
+            let generate_local (locals: Variable list) =
+                String.concat " " (List.map (fun x -> (sprintf "(local %s %s)" ((fst x).ToString()) ((snd x).ToString()))) locals)
+
+            let genrate_name (name: string option) =
+                match name with
+                | Some name ->
+                    sprintf "$%s" name
+                | _ -> ""                    
+
+            for (name, signature, locals, body) in this.functions do
+                result <- result + sprintf "  (func %s %s %s\n %s)\n" (genrate_name name) (generate_signature signature) (generate_local locals) (generate_wat_code body)
+
+            // create exports
+            for export in this.exports do
+                result <- result + sprintf "  (export \"%s\" %s)\n" (fst export) (match snd export with
+                                                                                  | FunctionType type_ -> sprintf "(func $%s)" (type_.ToString())
+                                                                                  | TableType table -> sprintf "(table %s)" (table.ToString())
+                                                                                  | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
+                                                                                  | GlobalType global_ -> sprintf "(global %s)" (global_.ToString())
+                                                                                  | _ -> "")
 
             // print start
-            
-            // match this.start with
-            // | Some start -> result <- result + sprintf "  (start %d)\n" start
-            // | None -> ""
+            match this.start with
+            | Start index -> result <- result + sprintf "  (start %d)\n" index
+            | None -> ()
 
             result <- result + ")" // close module tag
             result
