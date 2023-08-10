@@ -2,8 +2,6 @@
 
 module Wasm =
 
-    let wat_of_instruction instruction =
-        instruction.ToString()
     let generate_wat_code instructions =
 
         let rec generate_wat_code_aux instructions watCode =
@@ -12,9 +10,6 @@ module Wasm =
             | instruction :: instructions -> generate_wat_code_aux instructions (watCode + (instruction.ToString()) + "\n")
 
         generate_wat_code_aux instructions ""
-
-    let generate_module_code module_ =
-        "(module\n" + (generate_wat_code module_) + ")"     
 
     type ValueType =
         | I32
@@ -412,7 +407,7 @@ module Wasm =
 
     and Code = int * int list * Instruction list
 
-    and ModuleInstance = 
+    and Module = 
         { types : Type list
           functions : Function list 
           tables : Table list
@@ -510,8 +505,7 @@ module Wasm =
                                                                                                 | FunctionType type_ -> sprintf "(func %s)" (type_.ToString())
                                                                                                 | TableType table -> sprintf "(table %s)" (table.ToString())
                                                                                                 | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
-                                                                                                | GlobalType global_ -> sprintf "(global %s)" (global_.ToString())
-                                                                                                
+                                                                                                | _ -> ""
                                                                                                 )
                                                                                                 
 
@@ -566,7 +560,7 @@ module Wasm =
             result
 
     and FunctionInstance =
-        { moduleInstance : ModuleInstance
+        { moduleInstance : Module
           typeIndex : int
           locals : ValueType list
           body : Instruction list }

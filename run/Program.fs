@@ -3,12 +3,17 @@
 open Wasm
 open WasmTimeDriver
 
+let runCode target watCode = 
+    let vm = WasmVM()
+    let result = vm.RunWat(target, watCode)
+    printfn "%A" result
+
 [<EntryPoint>]
 let main argv = 
 
-    let _module = ModuleInstance.create_module_instance
-
     // create a main function with the types 
+    let funcName = "start"
+
     let body : Instructions =
         [
                 Numeric (I32Const 42)
@@ -17,17 +22,15 @@ let main argv =
                 Control Return
         ]
 
-    let funcName = "start"
-    
-    let f: Function = Some(funcName), ([], [ValueType.I32]), [], body
+    let f: Function = Some(funcName), ([], [I32]), [], body
 
-    let new_module = _module.add_function(f).add_export(funcName, FunctionType(funcName))
+    let _module = Module.create_module_instance
+                                            .add_function(f)
+                                            .add_export(funcName, FunctionType(funcName))
 
     // let watCode = generate_module_code exampleModule
-    let watCode = generate_module_code_ new_module
+    let watCode = generate_module_code_ _module
     printfn "%s" watCode
 
-    let vm = WasmVM()
-    let result = vm.RunWat(funcName, watCode)
-    printfn "%A" result
+    runCode funcName watCode
     0 // return an integer exit code
