@@ -523,7 +523,7 @@ module Wasm =
             for memory in this.memories do
                 result <- result + sprintf "  (memory %s)\n" (memory.ToString())
 
-
+            // create functions
             let generate_signature (signature: FunctionSignature) =
                 let parameters, returnValues = signature
                 let parametersString = String.concat " " (List.map (fun x -> (sprintf "(param %s)" (x.ToString()))) parameters)
