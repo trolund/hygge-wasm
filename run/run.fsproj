@@ -18,6 +18,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\WasmTimeDriver\WasmTimeDriver.csproj" />
       <ProjectReference Include="..\Wat\Wat.fsproj" />
     </ItemGroup>
 

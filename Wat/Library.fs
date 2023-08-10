@@ -14,7 +14,7 @@ module Wasm =
         generate_wat_code_aux instructions ""
 
     let generate_module_code module_ =
-        "(module\n" + (generate_wat_code module_) + ")"            
+        "(module\n" + (generate_wat_code module_) + ")"     
 
     type ValueType =
         | I32
@@ -388,10 +388,13 @@ module Wasm =
     // The signature declares what the function takes (parameters) and returns (return values).
     // The locals are like vars in JavaScript, but with explicit types declared.
     // The body is just a linear list of low-level instructions.
-    and Function = ValueType list * ValueType list * Instruction list
+    and Function = FunctionSignature * Variable list * Instruction list
 
     // function parameters and return values.
+    // The signature declares what the function takes (parameters) and returns (return values)
     and FunctionSignature = ValueType list * ValueType list
+
+    and Variable = ValueType * Mutability
 
     and TableSegment = int * int list
 
@@ -421,9 +424,6 @@ module Wasm =
           data : Data list
           codes : Code list 
           imports : Import list
-          tableInstances : TableInstance list
-          memoryInstances : MemoryInstance list
-          globalInstances : GlobalInstance list
           functionInstances : FunctionInstance list
           locals : ValueType list }
 
@@ -440,9 +440,6 @@ module Wasm =
               data = []
               codes = []
               imports = []
-              tableInstances = []
-              memoryInstances = []
-              globalInstances = []
               functionInstances = []
               locals = [] }
 
@@ -482,18 +479,6 @@ module Wasm =
         member this.add_import import =
             { this with imports = import :: this.imports }
         
-        // add table instance
-        member this.add_table_instance tableInstance =
-            { this with tableInstances = tableInstance :: this.tableInstances }
-
-        // add memory instance
-        member this.add_memory_instance memoryInstance =
-            { this with memoryInstances = memoryInstance :: this.memoryInstances }
-
-        // add global instance
-        member this.add_global_instance globalInstance =
-            { this with globalInstances = globalInstance :: this.globalInstances }
-
         // a function instance is a function with a module instance
         member this.add_function_instance functionInstance =
             { this with functionInstances = functionInstance :: this.functionInstances }
@@ -549,10 +534,11 @@ module Wasm =
                 result <- result + sprintf "  (table %s)\n" (table.ToString())
             for memory in this.memories do
                 result <- result + sprintf "  (memory %s)\n" (memory.ToString())
-            for function_ in this.functions do
-                result <- result + sprintf "  (func %s)\n" (function_.ToString())
+            for (signature, locals, body) in this.functions do
+                result <- result + sprintf "  (func %s %s\n %s)\n)" "" "" (generate_wat_code body)
 
             // print start
+            
             // match this.start with
             // | Some start -> result <- result + sprintf "  (start %d)\n" start
             // | None -> ""
@@ -569,91 +555,7 @@ module Wasm =
         override this.ToString() =
             sprintf "(type %d)\n%s" this.typeIndex (generate_wat_code this.body)
 
-    and TableInstance =
-        { table : Table
-          elements : Element list }
-
-    and MemoryInstance =
-        { memory : Memory
-          data : Data list }
-
-    and GlobalInstance =
-        { _global : Global
-          value : Instruction list }
-
-    and Value =
-        | I32 of int32
-        | I64 of int64
-        | F32 of float32
-        | F64 of float
-
-    and Stack =
-        | I32Stack of int32 list
-        | I64Stack of int64 list
-        | F32Stack of float32 list
-        | F64Stack of float list
-
-    and Frame =
-        { locals : ValueType list
-          moduleInstance : ModuleInstance
-          stack : Stack }
-
-    and Store =
-        { functions : FunctionInstance list
-          tables : TableInstance list
-          memories : MemoryInstance list
-          globals : GlobalInstance list }
-
-    and Configuration =
-        { store : Store
-          frames : Frame list }
-
-    and Result =
-        | ValueResult of Value
-        | TrapResult
-
-    and InstructionResult =
-        | InstructionResult of Instruction list
-        | TrapInstructionResult
-
-    and ConfigurationResult =
-        | ConfigurationResult of Configuration
-        | TrapConfigurationResult
-
-    and ModuleResult =
-        | ModuleResult of ModuleInstance
-        | TrapModuleResult
-
-    and FunctionResult =
-        | FunctionResult of FunctionInstance
-        | TrapFunctionResult
-
-    and TableResult =
-        | TableResult of TableInstance
-        | TrapTableResult
-
-    and MemoryResult =
-        | MemoryResult of MemoryInstance
-        | TrapMemoryResult
-
-    and GlobalResult =
-        | GlobalResult of GlobalInstance
-        | TrapGlobalResult
-
-    and ValueResult =
-        | ValueResult of Value
-        | TrapValueResult
-
-    and StackResult =
-        | StackResult of Stack
-        | TrapStackResult
-
-    and FrameResult =
-        | FrameResult of Frame
-        | TrapFrameResult
-
-    and StoreResult =
-        | StoreResult of Store
-        | TrapStoreResult
-
-
+   
+        // function that takes a module and returns a string
+    let generate_module_code_ m =
+        m.ToString();

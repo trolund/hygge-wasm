@@ -120,6 +120,26 @@ namespace WasmTimeDriver
             return RunFile(path, "_start");
         }
         
+        public object? RunWatString(string target, string wat)
+        {
+            return RunWat(target, wat);
+        }
+        
+        public object? RunWat(string target, string wat)
+        {
+            try
+            {
+                // load module 
+                using var module = Module.FromText(_engine,"test", wat);
+                return ExecModule(module, target);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return null;
+            }
+        }
+        
         public object? RunFile(string path, string? target)
         {
             try
