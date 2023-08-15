@@ -1,6 +1,6 @@
 ﻿namespace Wat
 
-module Wasm =
+module WFG =
 
     let generate_wat_code instructions =
 
@@ -10,6 +10,10 @@ module Wasm =
             | instruction :: instructions -> generate_wat_code_aux instructions (watCode + (instruction.ToString()) + "\n")
 
         generate_wat_code_aux instructions ""
+
+    // write a new generate_wat_code that takes indenttion into account
+
+
 
     type ValueType =
         | I32
@@ -346,6 +350,24 @@ module Wasm =
                 | F64Max -> "f64.max"
                 | F64Copysign -> "f64.copysign"
 
+    let generate_wat_code_ident instructions ident =
+        let generate_indent i = List.replicate i " " |> String.concat "" in
+
+        // function that return 1 if the instruction is a block instruction
+        let is_block_instruction (instruction: Instruction) =
+            match instruction with
+            | Control _ -> 1
+            | _ -> 0
+
+        let rec generate_wat_code_aux instructions watCode indentation =
+            match instructions with
+            | [] -> watCode
+            | instruction :: instructions ->
+                let watCode = watCode + generate_indent indentation + instruction.ToString() + "\n" in
+                generate_wat_code_aux instructions watCode (indentation + (is_block_instruction instruction))
+
+        generate_wat_code_aux instructions "" ident
+
     type Instructions = Instruction list
 
     and Type = ValueType list * ValueType list
@@ -569,6 +591,151 @@ module Wasm =
             sprintf "(type %d)\n%s" this.typeIndex (generate_wat_code this.body)
 
    
-        // function that takes a module and returns a string
-    let generate_module_code_ m =
+    // function that takes a module and returns a string
+    let generate_module_code m =
         m.ToString();
+
+    type Commented<'a> = 'a * string option
+
+    let commentToString (x: Commented<'a>) =
+        match x with
+        | (x, Some comment) -> sprintf "%s ;; %s" (x.ToString()) comment
+        | (x, _) -> x.ToString()
+
+
+
+    type SExpression<'a> = 'a
+
+    [<RequireQualifiedAccess>]
+    type Wasm private (types: list<Type>, functions: list<Function>, tables: list<Table>, memories: list<Memory>, globals: list<Global>, exports: list<Export>, imports: list<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>) =
+            member private this.types = types
+            member private this.functions = functions 
+            member private this.tables = tables
+            member private this.memories = memories
+            member private this.globals = globals
+            member private this.exports = exports
+            member private this.imports = imports
+            member private this.start = start
+            member private this.elements = elements
+            member private this.data = data
+            // member private this.codes = Code
+            member private this.locals = locals
+
+            new() = Wasm([], [], [], [], [], [], [], None, [], [], [])
+
+            // contrcutor that combines two wasm modules
+            new (wasm1: Wasm, wasm2: Wasm) =
+                Wasm(wasm1.types @ wasm2.types, wasm1.functions @ wasm2.functions, wasm1.tables @ wasm2.tables, wasm1.memories @ wasm2.memories, wasm1.globals @ wasm2.globals, wasm1.exports @ wasm2.exports, wasm1.imports @ wasm2.imports, wasm1.start, wasm1.elements @ wasm2.elements, wasm1.data @ wasm2.data, wasm1.locals @ wasm2.locals)
+
+            // add function
+            member this.AddFunction function_ =
+                Wasm(this.types, function_ :: this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+
+            // add table
+            member this.AddTable table =
+                Wasm(this.types, this.functions, table :: this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+
+            // add memory
+            member this.AddMemory memory =
+                Wasm(this.types, this.functions, this.tables, memory :: this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+
+            // add global
+            member this.AddGlobal global_ =
+                Wasm(this.types, this.functions, this.tables, this.memories, global_ :: this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+
+            // add export
+            member this.AddExport export =
+                Wasm(this.types, this.functions, this.tables, this.memories, this.globals, export :: this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+            
+            // add import
+            member this.AddImport import_ =
+                Wasm(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, import_ :: this.imports, this.start, this.elements, this.data, this.locals)
+            
+            // add start
+            member this.AddStart start =
+                Wasm(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, Start start, this.elements, this.data, this.locals)
+
+            // add element
+            member this.AddElement element =
+                Wasm(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, element :: this.elements, this.data, this.locals)
+
+            // add data
+            member this.AddData data =
+                Wasm(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, data :: this.data, this.locals)
+
+            // add local
+            member this.AddLocal local =
+                Wasm(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, local :: this.locals)
+
+            // combine two wasm modules
+            member this.Combine (wasm: Wasm) =
+                Wasm(this.types @ wasm.types, this.functions @ wasm.functions, this.tables @ wasm.tables, this.memories @ wasm.memories, this.globals @ wasm.globals, this.exports @ wasm.exports, this.imports @ wasm.imports, this.start, this.elements @ wasm.elements, this.data @ wasm.data, this.locals @ wasm.locals)    
+
+            static member (+) (wasm1: Wasm, wasm2: Wasm): Wasm = wasm1.Combine wasm2
+            
+            override this.ToString() =
+                let mutable result = ""
+                result <- result + "(module\n" // open module tag
+
+                for type_ in this.types do // print all types
+                    result <- result + sprintf "  (type %s)\n" (type_.ToString())
+
+                for import: Import in this.imports do // print all imports
+                
+                    let modu, func_name, func_signature = import
+
+                    result <- result + sprintf "  (import \"%s\" \"%s\" %s)\n" modu func_name (match func_signature with
+                                                                                                    | FunctionType type_ -> sprintf "(func %s)" (type_.ToString())
+                                                                                                    | TableType table -> sprintf "(table %s)" (table.ToString())
+                                                                                                    | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
+                                                                                                    | _ -> ""
+                                                                                                    )
+                                                                                                    
+
+                for global_ in this.globals do
+                    result <- result + sprintf "  (global %s)\n" (global_.ToString())
+
+                for element in this.elements do
+                    result <- result + sprintf "  (elem %s)\n" (element.ToString())
+                for data in this.data do
+                    result <- result + sprintf "  (data %s)\n" (data.ToString())
+                for table in this.tables do
+                    result <- result + sprintf "  (table %s)\n" (table.ToString())
+                for memory in this.memories do
+                    result <- result + sprintf "  (memory %s)\n" (memory.ToString())
+
+                // create functions
+                let generate_signature (signature: FunctionSignature) =
+                    let parameters, returnValues = signature
+                    let parametersString = String.concat " " (List.map (fun x -> (sprintf "(param %s)" (x.ToString()))) parameters)
+                    let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
+                    sprintf "%s %s" parametersString returnValuesString
+                
+                let generate_local (locals: Variable list) =
+                    String.concat " " (List.map (fun x -> (sprintf "(local %s %s)" ((fst x).ToString()) ((snd x).ToString()))) locals)
+
+                let genrate_name (name: string option) =
+                    match name with
+                    | Some name ->
+                        sprintf "$%s" name
+                    | _ -> ""                    
+
+                for (name, signature, locals, body) in this.functions do
+                    result <- result + sprintf "  (func %s %s %s\n %s)\n" (genrate_name name) (generate_signature signature) (generate_local locals) (generate_wat_code_ident body 3)
+
+                // create exports
+                for export in this.exports do
+                    result <- result + sprintf "  (export \"%s\" %s)\n" (fst export) (match snd export with
+                                                                                    | FunctionType type_ -> sprintf "(func $%s)" (type_.ToString())
+                                                                                    | TableType table -> sprintf "(table %s)" (table.ToString())
+                                                                                    | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
+                                                                                    | GlobalType global_ -> sprintf "(global %s)" (global_.ToString())
+                                                                                    | _ -> "")
+
+                // print start
+                match this.start with
+                | Start index -> result <- result + sprintf "  (start %d)\n" index
+                | None -> ()
+
+                result <- result + ")" // close module tag
+                result

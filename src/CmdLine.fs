@@ -10,7 +10,9 @@ module CmdLine
 
 open CommandLine // See https://github.com/commandlineparser/commandline
 
-
+type CompilationTarget = 
+    | WASM = 0
+    | RISCV = 1
 
 /// Command line options for tokenization.
 [<Verb("tokenize", HelpText="Tokenize the given input source file.")>]
@@ -106,6 +108,9 @@ type CompilerOptions = {
 
     [<Option('O', "optimize", HelpText="Optimization level (default: 0, i.e. no optimizations, partial evaluation: 1, copy propagation: 2, peephole: 3, all: 4 or more)")>]
     Optimize: uint
+
+    [<Option('T', "Compilation Target", HelpText="Wasm = 0, RISC-V = 1; defualt: 0")>]
+    target: CompilationTarget
 }
 
 

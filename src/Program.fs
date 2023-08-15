@@ -129,25 +129,23 @@ let rec internal interpret (opt: CmdLine.InterpreterOptions): int =
                 else
                     doInterpret tast (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
 
+let writeOutFile fileName asm =
+            try
+                System.IO.File.WriteAllText(fileName, asm)
+                0 // Success!
+            with e ->
+                Log.error $"Error writing file %s{fileName}: %s{e.Message}"
+                1 // Non-zero exit code
 
-/// Run the Hygge compiler with the given options, and return the exit code
-/// (zero in case of success, non-zero in case of error).
-let internal compile (opt: CmdLine.CompilerOptions): int =
-    Log.setLogLevel opt.LogLevel
-    if opt.Verbose then Log.setLogLevel Log.LogLevel.debug
-    Log.debug $"Parsed command line options:%s{Util.nl}%O{opt}"
-    match (Util.parseFile opt.File) with
-    | Error(msg) ->
-        Log.error $"%s{msg}"; 1 // Non-zero exit code
-    | Ok(ast) ->
-        Log.info "Lexing and parsing succeeded."
-        match (Typechecker.typecheck ast) with
-        | Error(typErrs) ->
-            for posErr in typErrs do
-                Log.error (Util.formatMsg posErr)
-            1 // Non-zero exit code
-        | Ok(tast) ->
-            Log.info "Type checking succeeded."
+let handelOutputFile (outFile: string option, asm) = 
+    match outFile with
+    | Some(f) ->
+        writeOutFile f asm
+    | None ->
+        printf $"%O{asm}"
+        0 // Success!
+
+let compileRISCV (opt: CmdLine.CompilerOptions) tast = 
             let asm =
                 if (opt.ANF) then
                     Log.debug $"Transforming AST into ANF"
@@ -170,17 +168,37 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
             let asm2 = if (opt.Optimize >= 3u)
                            then Peephole.optimize asm
                            else asm
-            match opt.OutFile with
-            | Some(f) ->
-                try
-                    System.IO.File.WriteAllText(f, asm2.ToString())
-                    0 // Success!
-                with e ->
-                    Log.error $"Error writing file %s{f}: %s{e.Message}"
-                    1 // Non-zero exit code
-            | None ->
-                printf $"%O{asm2}"
-                0 // Success!
+            // reutrn the asm
+            asm2
+
+/// Run the Hygge compiler with the given options, and return the exit code
+/// (zero in case of success, non-zero in case of error).
+let internal compile (opt: CmdLine.CompilerOptions): int =
+    Log.setLogLevel opt.LogLevel
+    if opt.Verbose then Log.setLogLevel Log.LogLevel.debug
+    Log.debug $"Parsed command line options:%s{Util.nl}%O{opt}"
+    match (Util.parseFile opt.File) with
+    | Error(msg) ->
+        Log.error $"%s{msg}"; 1 // Non-zero exit code
+    | Ok(ast) ->
+        Log.info "Lexing and parsing succeeded."
+        match (Typechecker.typecheck ast) with
+        | Error(typErrs) ->
+            for posErr in typErrs do
+                Log.error (Util.formatMsg posErr)
+            1 // Non-zero exit code
+        | Ok(tast) ->
+            Log.info "Type checking succeeded."
+            let asm = match opt.target with
+                            | CmdLine.CompilationTarget.RISCV ->
+                                // Compile the AST to RISC-V assembly
+                                compileRISCV opt tast
+                            //| CmdLine.CompilationTarget.WASM ->
+                                // WASMCodegen.codegen tast
+                
+            // Write the output file (or print to stdout if no output file is given)
+            handelOutputFile (opt.OutFile, asm.ToString())
+
 
 
 /// Compile and launch RARS with the compilation result, using the given

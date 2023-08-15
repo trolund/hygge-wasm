@@ -20,6 +20,7 @@ namespace WasmTimeDriver
                 .WithDebugInfo(true)
                 .WithOptimizationLevel(0);
             _engine = new Engine(config);
+            
             _linker = new Linker(_engine);
             _store = new Store(_engine);
 
@@ -130,7 +131,7 @@ namespace WasmTimeDriver
             try
             {
                 // load module 
-                using var module = Module.FromText(_engine,"test", wat);
+                using var module = Module.FromText(_engine, "test", wat);
                 return ExecModule(module, target);
             }
             catch (Exception e)
