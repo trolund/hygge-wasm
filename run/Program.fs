@@ -14,7 +14,7 @@ let first =
 
     let body : Instructions =
         [
-                Numeric (I32Const 42)
+                Numeric (I32Const 41)
                 Numeric (I32Const 42)
                 Numeric (I32Add)
                 Control Return
@@ -39,7 +39,7 @@ let sec =
 
     let body : Instructions =
         [
-                Numeric (I32Const 42)
+                Numeric (I32Const 41)
                 Numeric (I32Const 42)
                 Numeric (I32Add)
                 Control Return
@@ -48,12 +48,13 @@ let sec =
     let f: Function = Some(funcName), ([], [I32]), [], body
     let f2: Function = Some(funcName + "2"), ([], [I32]), [], body
 
-    let _module = Wasm().AddFunction(f).AddExport(funcName, FunctionType(funcName)) + 
-                        Wasm().AddFunction(f2).AddExport(funcName + "2", FunctionType(funcName + "2"))
+    let _module = Modu().AddFunction(f, "function 1").AddExport(funcName, FunctionType(funcName)) + 
+                        Modu().AddFunction(f2).AddExport(funcName + "2", FunctionType(funcName + "2"))
                                  
     // generate the wat code
     let watCode = generate_module_code _module
     printfn "%s" watCode
+    write_wasm_file watCode "test.wat"
 
     // run the wat code with wasmtime 
     runCode funcName watCode

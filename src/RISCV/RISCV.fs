@@ -527,7 +527,7 @@ type Asm private (data: list<DataStmt>, text: list<TextStmt>, postText: list<Tex
 
     /// Create a new RISC-V assembly code fragment with the given instruction
     /// and comment in the Text segment.
-    new(op: RV, comment: string) = Asm([(op, comment)])
+    new(op: RV, comment: string) = Asm ([(op, comment)])
 
     /// Create a new RISC-V assembly code fragment by concatenating the data and
     /// text segments of the given fragments.  NOTE: the Data and Text segments
