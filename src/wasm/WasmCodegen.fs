@@ -16,3 +16,21 @@ open Wat.WFG
         | Add (a, b) -> m + doCodegen m a + doCodegen m b + Module([I32Add])
 
 
+    // add implicit main function
+    let implicit (node: TypedAST): Module =
+        
+        let funcName = "main"
+
+        let body : List<Instr> =
+            [
+                    I32Const 41
+                    I32Const 42
+                    I32Add
+                    Return
+            ]
+
+        let f: Function = Some(funcName), ([], [I32]), [], body
+
+        let _module = Module().AddFunction(f, "function 1").AddExport(funcName, FunctionType(funcName))
+
+        doCodegen _module node

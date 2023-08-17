@@ -192,12 +192,13 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
             let asm = match opt.target with
                             | CmdLine.CompilationTarget.RISCV ->
                                 // Compile the AST to RISC-V assembly
-                                compileRISCV opt tast
-                            //| CmdLine.CompilationTarget.WASM ->
-                                // WASMCodegen.codegen tast
+                                (compileRISCV opt tast).ToString()
+                            | CmdLine.CompilationTarget.WASM ->
+                                // Compile the AST to WASM assembly
+                                (WASMCodegen.implicit tast).ToString()
                 
             // Write the output file (or print to stdout if no output file is given)
-            handelOutputFile (opt.OutFile, asm.ToString())
+            handelOutputFile (opt.OutFile, asm)
 
 
 
