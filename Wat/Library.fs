@@ -176,6 +176,43 @@ module WFG =
         | LocalTee of int
         | GlobalGet of int
         | GlobalSet of int
+        // Table Instr
+        | TableGet of int
+        | TableSet of int
+        | TableInit of int * int * int
+        | ElemDrop of int
+        | TableCopy of int * int
+        | TableGrow of int
+        | TableSize of int
+        // Call Instr
+        | Call of int
+        | CallIndirect of int * int
+        // Conversion Instr
+        | I32WrapI64
+        | I32TruncF32S
+        | I32TruncF32U
+        | I32TruncF64S
+        | I32TruncF64U
+        | I64ExtendI32S
+        | I64ExtendI32U
+        | I64TruncF32S
+        | I64TruncF32U
+        | I64TruncF64S
+        | I64TruncF64U
+        | F32ConvertI32S
+        | F32ConvertI32U
+        | F32ConvertI64S
+        | F32ConvertI64U
+        | F32DemoteF64
+        | F64ConvertI32S
+        | F64ConvertI32U
+        | F64ConvertI64S
+        | F64ConvertI64U
+        | F64PromoteF32
+        | I32ReinterpretF32
+        | I64ReinterpretF64
+        | F32ReinterpretI32
+        | F64ReinterpretI64
 
         
         override this.ToString() =
@@ -314,34 +351,38 @@ module WFG =
                 | GlobalSet index -> sprintf "set_global %d" index
                 | Unreachable -> "unreachable"
                 | Nop -> "nop"
-                | Block (label, Instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code Instrs) 
-                | Loop (valueTypes, Instrs) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code Instrs)
-                | If (valueTypes1, valueTypes2, Instrs1, Instrs2) -> sprintf "if %s %s\n%s\nelse\n%s\nend" (generate_wat_code valueTypes1) (generate_wat_code valueTypes2) (generate_wat_code Instrs1) (generate_wat_code Instrs2)
+                | Block (label, instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code instrs) 
+                | Loop (valueTypes, instrs) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code instrs)
+                | If (valueTypes1, valueTypes2, instrs1, instrs2) -> sprintf "if %s %s\n%s\nelse\n%s\nend" (generate_wat_code valueTypes1) (generate_wat_code valueTypes2) (generate_wat_code instrs1) (generate_wat_code instrs2)
                 | Br index -> sprintf "br %d" index
                 | BrIf index -> sprintf "br_if %d" index
                 | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
                 | Return -> "return"
-    let generate_wat_code_ident Instrs ident =
-        let len = List.length Instrs
+                | Call index -> sprintf "call %d" index
+                | CallIndirect (index, x) -> sprintf "call_indirect %d" index // TODO: add x?? 
+                | Drop -> "drop"
+                | Select -> "select"
+    let generate_wat_code_ident instrs ident =
+        let len = List.length instrs
         
         let generate_indent i = List.replicate i " " |> String.concat "" in
 
         // function that return 1 if the Instr is a block Instr
-        let is_block_Instr (Instr: Instr) =
-            match Instr with
+        let is_block_Instr (instr: Instr) =
+            match instr with
             | Block _ -> 1
             | Loop _ -> 1
             | If _ -> 1
             | _ -> 0
 
-        let rec generate_wat_code_aux Instrs watCode indent =
-            match Instrs with
+        let rec generate_wat_code_aux instrs watCode indent =
+            match instrs with
             | [] -> watCode
-            | Instr :: tail ->
-                let watCode = watCode + generate_indent indent + Instr.ToString() + "\n" in
+            | head :: tail ->
+                let watCode = watCode + generate_indent indent + head.ToString() + "\n" in
                 generate_wat_code_aux tail watCode indent
 
-        generate_wat_code_aux Instrs "" ident
+        generate_wat_code_aux instrs "" ident
 
 
     type Instrs = Instr list
@@ -554,11 +595,11 @@ module WFG =
                 // create exports
                 for export in this.exports do
                     result <- result + sprintf "  (export \"%s\" %s)\n" (fst export) (match snd export with
-                                                                                    | FunctionType type_ -> sprintf "(func $%s)" (type_.ToString())
-                                                                                    | TableType table -> sprintf "(table %s)" (table.ToString())
-                                                                                    | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
-                                                                                    | GlobalType global_ -> sprintf "(global %s)" (global_.ToString())
-                                                                                    | _ -> "")
+                                                                                        | FunctionType type_ -> sprintf "(func $%s)" (type_.ToString())
+                                                                                        | TableType table -> sprintf "(table %s)" (table.ToString())
+                                                                                        | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
+                                                                                        | GlobalType global_ -> sprintf "(global %s)" (global_.ToString())
+                                                                                        | _ -> "")
 
                 // print start
                 match this.start with
