@@ -37,12 +37,12 @@ let sec =
         // create a main function with the types 
     let funcName = "start"
 
-    let body : List<Instruction> =
+    let body : List<Instr> =
         [
-                Numeric (I32Const 41)
-                Numeric (I32Const 42)
-                Numeric (I32Add)
-                Control Return
+                I32Const 41
+                I32Const 42
+                I32Add
+                Return
         ]
 
 

@@ -1,22 +1,17 @@
 ﻿namespace Wat
 
-open System
-
 module WFG =
+
     open System.Text
 
-    let generate_wat_code instructions =
+    let generate_wat_code instrs =
 
-        let rec generate_wat_code_aux instructions watCode =
-            match instructions with
+        let rec generate_wat_code_aux instrs watCode =
+            match instrs with
             | [] -> watCode
-            | instruction :: instructions -> generate_wat_code_aux instructions (watCode + (instruction.ToString()) + "\n")
+            | instr :: tailInstrs -> generate_wat_code_aux tailInstrs (watCode + (instr.ToString()) + "\n")
 
-        generate_wat_code_aux instructions ""
-
-    // write a new generate_wat_code that takes indenttion into account
-
-
+        generate_wat_code_aux instrs ""
 
     type ValueType =
         | I32
@@ -31,65 +26,19 @@ module WFG =
                 | F32 -> "f32"
                 | F64 -> "f64"
     
-    type Instruction =
-        | Control of ControlInstruction
-        | Parametric of ParametricInstruction
-        | Variable of VariableInstruction
-        | Memory of MemoryInstruction
-        | Numeric of NumericInstruction
-
-        override this.ToString() =
-            match this with
-                | Control control -> control.ToString()
-                | Parametric parametric -> parametric.ToString()
-                | Variable variable -> variable.ToString()
-                | Memory memory -> memory.ToString()
-                | Numeric numeric -> numeric.ToString()
-
-    and ControlInstruction =
+   // type that compile all types of Instrs
+    type Instr = 
+        // Control Instrs
         | Unreachable
         | Nop
-        | Block of string * Instruction list
-        | Loop of ValueType list * Instruction list
-        | If of ValueType list * ValueType list * Instruction list * Instruction list
+        | Block of string * Instr list
+        | Loop of ValueType list * Instr list
+        | If of ValueType list * ValueType list * Instr list * Instr list
         | Br of int
         | BrIf of int
         | BrTable of int list * int
         | Return
-
-        override this.ToString() =
-            match this with
-                | Unreachable -> "unreachable"
-                | Nop -> "nop"
-                | Block (label, instructions) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code instructions) 
-                | Loop (valueTypes, instructions) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code instructions)
-                | If (valueTypes1, valueTypes2, instructions1, instructions2) -> sprintf "if %s %s\n%s\nelse\n%s\nend" (generate_wat_code valueTypes1) (generate_wat_code valueTypes2) (generate_wat_code instructions1) (generate_wat_code instructions2)
-                | Br index -> sprintf "br %d" index
-                | BrIf index -> sprintf "br_if %d" index
-                | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
-                | Return -> "return"
-        
-    and  ParametricInstruction =
-        | Drop
-        | Select
-
-    and VariableInstruction =
-        | LocalGet of int
-        | LocalSet of int
-        | LocalTee of int
-        | GlobalGet of int
-        | GlobalSet of int
-        
-        override this.ToString() =
-            match this with
-                | LocalGet index -> sprintf "get_local %d" index
-                | LocalSet index -> sprintf "set_local %d" index
-                | LocalTee index -> sprintf "tee_local %d" index
-                | GlobalGet index -> sprintf "get_global %d" index
-                | GlobalSet index -> sprintf "set_global %d" index
-
-
-    and MemoryInstruction =
+        // Memory Instrs
         | I32Load of int * int
         | I64Load of int * int
         | F32Load of int * int
@@ -115,36 +64,7 @@ module WFG =
         | I64Store32 of int * int
         | MemorySize
         | MemoryGrow
-        
-        override this.ToString() =
-            match this with
-            | I32Load (align, offset) -> sprintf "i32.load align=%d offset=%d" align offset
-            | I64Load (align, offset) -> sprintf "i64.load align=%d offset=%d" align offset
-            | F32Load (align, offset) -> sprintf "f32.load align=%d offset=%d" align offset
-            | F64Load (align, offset) -> sprintf "f64.load align=%d offset=%d" align offset
-            | I32Load8S (align, offset) -> sprintf "i32.load8_s align=%d offset=%d" align offset
-            | I32Load8U (align, offset) -> sprintf "i32.load8_u align=%d offset=%d" align offset
-            | I32Load16S (align, offset) -> sprintf "i32.load16_s align=%d offset=%d" align offset
-            | I32Load16U (align, offset) -> sprintf "i32.load16_u align=%d offset=%d" align offset
-            | I64Load8S (align, offset) -> sprintf "i64.load8_s align=%d offset=%d" align offset
-            | I64Load8U (align, offset) -> sprintf "i64.load8_u align=%d offset=%d" align offset
-            | I64Load16S (align, offset) -> sprintf "i64.load16_s align=%d offset=%d" align offset
-            | I64Load16U (align, offset) -> sprintf "i64.load16_u align=%d offset=%d" align offset
-            | I64Load32S (align, offset) -> sprintf "i64.load32_s align=%d offset=%d" align offset
-            | I64Load32U (align, offset) -> sprintf "i64.load32_u align=%d offset=%d" align offset
-            | I32Store (align, offset) -> sprintf "i32.store align=%d offset=%d" align offset
-            | I64Store (align, offset) -> sprintf "i64.store align=%d offset=%d" align offset
-            | F32Store (align, offset) -> sprintf "f32.store align=%d offset=%d" align offset
-            | F64Store (align, offset) -> sprintf "f64.store align=%d offset=%d" align offset
-            | I32Store8 (align, offset) -> sprintf "i32.store8 align=%d offset=%d" align offset
-            | I32Store16 (align, offset) -> sprintf "i32.store16 align=%d offset=%d" align offset
-            | I64Store8 (align, offset) -> sprintf "i64.store8 align=%d offset=%d" align offset
-            | I64Store16 (align, offset) -> sprintf "i64.store16 align=%d offset=%d" align offset
-            | I64Store32 (align, offset) -> sprintf "i64.store32 align=%d offset=%d" align offset
-            | MemorySize -> "memory.size"
-            | MemoryGrow -> "memory.grow"
-
-    and NumericInstruction =
+        // Numeric Instrs
         | I32Const of int32
         | I64Const of int64
         | F32Const of float32
@@ -247,6 +167,16 @@ module WFG =
         | F64Min
         | F64Max
         | F64Copysign
+        // Parametric Instr
+        | Drop
+        | Select
+        // Variable Instr
+        | LocalGet of int
+        | LocalSet of int
+        | LocalTee of int
+        | GlobalGet of int
+        | GlobalSet of int
+
         
         override this.ToString() =
             match this with
@@ -352,33 +282,69 @@ module WFG =
                 | F64Min -> "f64.min"
                 | F64Max -> "f64.max"
                 | F64Copysign -> "f64.copysign"
-
-    let generate_wat_code_ident instructions ident =
-        let len = List.length instructions
+                | I32Load (align, offset) -> sprintf "i32.load align=%d offset=%d" align offset
+                | I64Load (align, offset) -> sprintf "i64.load align=%d offset=%d" align offset
+                | F32Load (align, offset) -> sprintf "f32.load align=%d offset=%d" align offset
+                | F64Load (align, offset) -> sprintf "f64.load align=%d offset=%d" align offset
+                | I32Load8S (align, offset) -> sprintf "i32.load8_s align=%d offset=%d" align offset
+                | I32Load8U (align, offset) -> sprintf "i32.load8_u align=%d offset=%d" align offset
+                | I32Load16S (align, offset) -> sprintf "i32.load16_s align=%d offset=%d" align offset
+                | I32Load16U (align, offset) -> sprintf "i32.load16_u align=%d offset=%d" align offset
+                | I64Load8S (align, offset) -> sprintf "i64.load8_s align=%d offset=%d" align offset
+                | I64Load8U (align, offset) -> sprintf "i64.load8_u align=%d offset=%d" align offset
+                | I64Load16S (align, offset) -> sprintf "i64.load16_s align=%d offset=%d" align offset
+                | I64Load16U (align, offset) -> sprintf "i64.load16_u align=%d offset=%d" align offset
+                | I64Load32S (align, offset) -> sprintf "i64.load32_s align=%d offset=%d" align offset
+                | I64Load32U (align, offset) -> sprintf "i64.load32_u align=%d offset=%d" align offset
+                | I32Store (align, offset) -> sprintf "i32.store align=%d offset=%d" align offset
+                | I64Store (align, offset) -> sprintf "i64.store align=%d offset=%d" align offset
+                | F32Store (align, offset) -> sprintf "f32.store align=%d offset=%d" align offset
+                | F64Store (align, offset) -> sprintf "f64.store align=%d offset=%d" align offset
+                | I32Store8 (align, offset) -> sprintf "i32.store8 align=%d offset=%d" align offset
+                | I32Store16 (align, offset) -> sprintf "i32.store16 align=%d offset=%d" align offset
+                | I64Store8 (align, offset) -> sprintf "i64.store8 align=%d offset=%d" align offset
+                | I64Store16 (align, offset) -> sprintf "i64.store16 align=%d offset=%d" align offset
+                | I64Store32 (align, offset) -> sprintf "i64.store32 align=%d offset=%d" align offset
+                | MemorySize -> "memory.size"
+                | MemoryGrow -> "memory.grow"
+                | LocalGet index -> sprintf "get_local %d" index
+                | LocalSet index -> sprintf "set_local %d" index
+                | LocalTee index -> sprintf "tee_local %d" index
+                | GlobalGet index -> sprintf "get_global %d" index
+                | GlobalSet index -> sprintf "set_global %d" index
+                | Unreachable -> "unreachable"
+                | Nop -> "nop"
+                | Block (label, Instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code Instrs) 
+                | Loop (valueTypes, Instrs) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code Instrs)
+                | If (valueTypes1, valueTypes2, Instrs1, Instrs2) -> sprintf "if %s %s\n%s\nelse\n%s\nend" (generate_wat_code valueTypes1) (generate_wat_code valueTypes2) (generate_wat_code Instrs1) (generate_wat_code Instrs2)
+                | Br index -> sprintf "br %d" index
+                | BrIf index -> sprintf "br_if %d" index
+                | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
+                | Return -> "return"
+    let generate_wat_code_ident Instrs ident =
+        let len = List.length Instrs
         
         let generate_indent i = List.replicate i " " |> String.concat "" in
 
-        // function that return 1 if the instruction is a block instruction
-        let is_block_instruction (instruction: Instruction) =
-            match instruction with
-            | Control x -> match x with
-                                                | Block _ -> 1
-                                                | Loop _ -> 1
-                                                | If _ -> 1
-                                                | _ -> 0
+        // function that return 1 if the Instr is a block Instr
+        let is_block_Instr (Instr: Instr) =
+            match Instr with
+            | Block _ -> 1
+            | Loop _ -> 1
+            | If _ -> 1
             | _ -> 0
 
-        let rec generate_wat_code_aux instructions watCode indent =
-            match instructions with
+        let rec generate_wat_code_aux Instrs watCode indent =
+            match Instrs with
             | [] -> watCode
-            | instruction :: tail ->
-                let watCode = watCode + generate_indent indent + instruction.ToString() + "\n" in
+            | Instr :: tail ->
+                let watCode = watCode + generate_indent indent + Instr.ToString() + "\n" in
                 generate_wat_code_aux tail watCode indent
 
-        generate_wat_code_aux instructions "" ident
+        generate_wat_code_aux Instrs "" ident
 
 
-    type Instructions = Instruction list
+    type Instrs = Instr list
 
     and Type = ValueType list * ValueType list
 
@@ -407,15 +373,15 @@ module WFG =
     
     and Export = string * ExternalType
 
-    and Element = int * Instruction list
+    and Element = int * Instr list
 
     and Data = int * string
 
     // ( func name <signature> <locals> <body> )
     // The signature declares what the function takes (parameters) and returns (return values).
     // The locals are like vars in JavaScript, but with explicit types declared.
-    // The body is just a linear list of low-level instructions.
-    and Function = string option * FunctionSignature * Variable list * Instruction list
+    // The body is just a linear list of low-level Instrs.
+    and Function = string option * FunctionSignature * Variable list * Instr list
 
     // function parameters and return values.
     // The signature declares what the function takes (parameters) and returns (return values)
@@ -427,7 +393,7 @@ module WFG =
 
     and MemorySegment = int * string
 
-    and GlobalSegment = int * Instruction list
+    and GlobalSegment = int * Instr list
 
     and Start = int option
 
@@ -435,169 +401,8 @@ module WFG =
 
     and DataSegment = int * string
 
-    and Code = int * int list * Instruction list
+    and Code = int * int list * Instr list
 
-    and Module = 
-        { types : Type list
-          functions : Function list 
-          tables : Table list
-          memories : Memory list
-          globals : Global list
-          exports : Export list
-          start : Start
-          elements : Element list
-          data : Data list
-          codes : Code list 
-          imports : Import list
-          functionInstances : FunctionInstance list
-          locals : ValueType list }
-
-        // create empty module instance
-        static member create_module_instance =
-            { types = []
-              functions = []
-              tables = []
-              memories = []
-              globals = []
-              exports = []
-              start = None
-              elements = []
-              data = []
-              codes = []
-              imports = []
-              functionInstances = []
-              locals = [] }
-
-        // add function
-        member this.add_function function_ =
-            { this with functions = function_ :: this.functions }
-        
-        // add table
-        member this.add_table table =
-            { this with tables = table :: this.tables }
-        
-        // add memory
-        member this.add_memory memory =
-            { this with memories = memory :: this.memories }
-        
-        // add global
-        member this.add_global global_ =
-            { this with globals = global_ :: this.globals }
-        
-        // add export
-        member this.add_export export =
-            { this with exports = export :: this.exports }
-        
-        // add element
-        member this.add_element element =
-            { this with elements = element :: this.elements }
-        
-        // add data
-        member this.add_data data =
-            { this with data = data :: this.data }
-        
-        // add code
-        member this.add_code code =
-            { this with codes = code :: this.codes }
-
-        // add import
-        member this.add_import import =
-            { this with imports = import :: this.imports }
-        
-        // a function instance is a function with a module instance
-        member this.add_function_instance functionInstance =
-            { this with functionInstances = functionInstance :: this.functionInstances }
-
-        // add local
-        member this.add_local local =
-            { this with locals = local :: this.locals }
-
-        // add type
-        member this.add_type type_ =
-            { this with types = type_ :: this.types }
-        
-        // add start
-        member this.add_start start =
-            { this with start = start }
-        
-        override this.ToString() =
-            let mutable result = ""
-            result <- result + "(module\n" // open module tag
-
-            for type_ in this.types do // print all types
-                result <- result + sprintf "  (type %s)\n" (type_.ToString())
-
-            for import: Import in this.imports do // print all imports
-            
-                let modu, func_name, func_signature = import
-
-                result <- result + sprintf "  (import \"%s\" \"%s\" %s)\n" modu func_name (match func_signature with
-                                                                                                | FunctionType type_ -> sprintf "(func %s)" (type_.ToString())
-                                                                                                | TableType table -> sprintf "(table %s)" (table.ToString())
-                                                                                                | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
-                                                                                                | _ -> ""
-                                                                                                )
-                                                                                                
-
-            for global_ in this.globals do
-                result <- result + sprintf "  (global %s)\n" (global_.ToString())
-
-            for element in this.elements do
-                result <- result + sprintf "  (elem %s)\n" (element.ToString())
-            for data in this.data do
-                result <- result + sprintf "  (data %s)\n" (data.ToString())
-            for code in this.codes do
-                result <- result + sprintf "  (func %s)\n" (code.ToString())
-            for table in this.tables do
-                result <- result + sprintf "  (table %s)\n" (table.ToString())
-            for memory in this.memories do
-                result <- result + sprintf "  (memory %s)\n" (memory.ToString())
-
-            // create functions
-            let generate_signature (signature: FunctionSignature) =
-                let parameters, returnValues = signature
-                let parametersString = String.concat " " (List.map (fun x -> (sprintf "(param %s)" (x.ToString()))) parameters)
-                let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
-                sprintf "%s %s" parametersString returnValuesString
-            
-            let generate_local (locals: Variable list) =
-                String.concat " " (List.map (fun x -> (sprintf "(local %s %s)" ((fst x).ToString()) ((snd x).ToString()))) locals)
-
-            let genrate_name (name: string option) =
-                match name with
-                | Some name ->
-                    sprintf "$%s" name
-                | _ -> ""                    
-
-            for (name, signature, locals, body) in this.functions do
-                result <- result + sprintf "  (func %s %s %s\n %s)\n" (genrate_name name) (generate_signature signature) (generate_local locals) (generate_wat_code body)
-
-            // create exports
-            for export in this.exports do
-                result <- result + sprintf "  (export \"%s\" %s)\n" (fst export) (match snd export with
-                                                                                  | FunctionType type_ -> sprintf "(func $%s)" (type_.ToString())
-                                                                                  | TableType table -> sprintf "(table %s)" (table.ToString())
-                                                                                  | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
-                                                                                  | GlobalType global_ -> sprintf "(global %s)" (global_.ToString())
-                                                                                  | _ -> "")
-
-            // print start
-            match this.start with
-            | Some index -> result <- result + sprintf "  (start %d)\n" index
-            | None -> ()
-
-            result <- result + ")" // close module tag
-            result
-
-    and FunctionInstance =
-        { moduleInstance : Module
-          typeIndex : int
-          locals : ValueType list
-          body : Instruction list }
-
-        override this.ToString() =
-            sprintf "(type %d)\n%s" this.typeIndex (generate_wat_code this.body)
-   
     // function that takes a module and returns a string
     let generate_module_code m =
         m.ToString();
@@ -622,8 +427,8 @@ module WFG =
     type SExpression<'a> = 'a
 
     type Wasm = 
-        | Instr of Instruction
-        | InstrCommented of Commented<Instruction>
+        | Instr of Instr
+        | InstrCommented of Commented<Instr>
 
     [<RequireQualifiedAccess>]
     type Modu private (types: list<Type>, functions: list<Commented<Function>>, tables: list<Table>, memories: list<Memory>, globals: list<Global>, exports: list<Export>, imports: list<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>) =
