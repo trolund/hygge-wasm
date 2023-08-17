@@ -53,10 +53,12 @@
     <Compile Include="src/Test.fs" />
     <Compile Include="src/WasmTime.fs" />
     <Compile Include="src/wasm/Wasm.fs" />
+    <Compile Include="src/wasm/WasmCodegen.fs" />
     <!-- Main entry point -->
     <Compile Include="src/Program.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="WasmTimeDriver\WasmTimeDriver.csproj" />
+    <ProjectReference Include="Wat\Wat.fsproj" />
   </ItemGroup>
 </Project>

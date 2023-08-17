@@ -213,6 +213,8 @@ module WFG =
         | I64ReinterpretF64
         | F32ReinterpretI32
         | F64ReinterpretI64
+        // comment
+        | Comment of string
 
         
         override this.ToString() =
@@ -363,7 +365,6 @@ module WFG =
                 | Drop -> "drop"
                 | Select -> "select"
     let generate_wat_code_ident instrs ident =
-        let len = List.length instrs
         
         let generate_indent i = List.replicate i " " |> String.concat "" in
 
@@ -468,7 +469,7 @@ module WFG =
         | InstrCommented of Commented<Instr>
 
     [<RequireQualifiedAccess>]
-    type Module private (types: list<Type>, functions: list<Commented<Function>>, tables: list<Table>, memories: list<Memory>, globals: list<Global>, exports: list<Export>, imports: list<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>) =
+    type Module private (types: list<Type>, functions: list<Commented<Function>>, tables: list<Table>, memories: list<Memory>, globals: list<Global>, exports: list<Export>, imports: list<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>, tempCode: list<Instr>) =
             member private this.types = types
             member private this.functions = functions 
             member private this.tables = tables
@@ -481,57 +482,65 @@ module WFG =
             member private this.data = data
             // member private this.codes = Code
             member private this.locals = locals
+            member this.tempCode = []
 
-            new() = Module([], [], [], [], [], [], [], None, [], [], [])
+            // constructor that creates an empty wasm module with tempCode
+            new (tempCode: list<Instr>) = Module([], [], [], [], [], [], [], None, [], [], [], tempCode)
+
+            // constructor that creates an empty wasm module with a start function
+            new (start: Start) = Module([], [], [], [], [], [], [], start, [], [], [], [])
+
+            // constructor that creates an empty wasm module
+            new() = Module([], [], [], [], [], [], [], None, [], [], [], [])
 
             // contrcutor that combines two wasm modules
             new (wasm1: Module, wasm2: Module) =
-                Module(wasm1.types @ wasm2.types, wasm1.functions @ wasm2.functions, wasm1.tables @ wasm2.tables, wasm1.memories @ wasm2.memories, wasm1.globals @ wasm2.globals, wasm1.exports @ wasm2.exports, wasm1.imports @ wasm2.imports, wasm1.start, wasm1.elements @ wasm2.elements, wasm1.data @ wasm2.data, wasm1.locals @ wasm2.locals)
+                Module(wasm1.types @ wasm2.types, wasm1.functions @ wasm2.functions, wasm1.tables @ wasm2.tables, wasm1.memories @ wasm2.memories, wasm1.globals @ wasm2.globals, wasm1.exports @ wasm2.exports, wasm1.imports @ wasm2.imports, wasm1.start, wasm1.elements @ wasm2.elements, wasm1.data @ wasm2.data, wasm1.locals @ wasm2.locals, wasm1.tempCode @ wasm2.tempCode)
 
             // add function
             member this.AddFunction (function_: Function, ?comment: string) =
                 let funcs = Commented(function_, comment) :: this.functions
-                Module(this.types, funcs, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, funcs, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
 
             // add table
             member this.AddTable table =
-                Module(this.types, this.functions, table :: this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, table :: this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
 
             // add memory
             member this.AddMemory memory =
-                Module(this.types, this.functions, this.tables, memory :: this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, memory :: this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
 
             // add global
             member this.AddGlobal global_ =
-                Module(this.types, this.functions, this.tables, this.memories, global_ :: this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, global_ :: this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
 
             // add export
             member this.AddExport export =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, export :: this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, export :: this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
             
             // add import
             member this.AddImport import_ =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, import_ :: this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, import_ :: this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
             
             // add start
             member this.AddStart start =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, Some start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, Some start, this.elements, this.data, this.locals, this.tempCode)
 
             // add element
             member this.AddElement element =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, element :: this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, element :: this.elements, this.data, this.locals, this.tempCode)
 
             // add data
             member this.AddData data =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, data :: this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, data :: this.data, this.locals, this.tempCode)
 
             // add local
             member this.AddLocal local =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, local :: this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, local :: this.locals, this.tempCode)
 
             // combine two wasm modules
             member this.Combine (wasm: Module) =
-                Module(this.types @ wasm.types, this.functions @ wasm.functions, this.tables @ wasm.tables, this.memories @ wasm.memories, this.globals @ wasm.globals, this.exports @ wasm.exports, this.imports @ wasm.imports, this.start, this.elements @ wasm.elements, this.data @ wasm.data, this.locals @ wasm.locals)    
+                Module(this.types @ wasm.types, this.functions @ wasm.functions, this.tables @ wasm.tables, this.memories @ wasm.memories, this.globals @ wasm.globals, this.exports @ wasm.exports, this.imports @ wasm.imports, this.start, this.elements @ wasm.elements, this.data @ wasm.data, this.locals @ wasm.locals, this.tempCode @ wasm.tempCode)  
 
             static member (+) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 
