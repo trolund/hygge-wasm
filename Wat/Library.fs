@@ -468,7 +468,7 @@ module WFG =
         | InstrCommented of Commented<Instr>
 
     [<RequireQualifiedAccess>]
-    type Modu private (types: list<Type>, functions: list<Commented<Function>>, tables: list<Table>, memories: list<Memory>, globals: list<Global>, exports: list<Export>, imports: list<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>) =
+    type Module private (types: list<Type>, functions: list<Commented<Function>>, tables: list<Table>, memories: list<Memory>, globals: list<Global>, exports: list<Export>, imports: list<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>) =
             member private this.types = types
             member private this.functions = functions 
             member private this.tables = tables
@@ -482,60 +482,60 @@ module WFG =
             // member private this.codes = Code
             member private this.locals = locals
 
-            new() = Modu([], [], [], [], [], [], [], None, [], [], [])
+            new() = Module([], [], [], [], [], [], [], None, [], [], [])
 
             // contrcutor that combines two wasm modules
-            new (wasm1: Modu, wasm2: Modu) =
-                Modu(wasm1.types @ wasm2.types, wasm1.functions @ wasm2.functions, wasm1.tables @ wasm2.tables, wasm1.memories @ wasm2.memories, wasm1.globals @ wasm2.globals, wasm1.exports @ wasm2.exports, wasm1.imports @ wasm2.imports, wasm1.start, wasm1.elements @ wasm2.elements, wasm1.data @ wasm2.data, wasm1.locals @ wasm2.locals)
+            new (wasm1: Module, wasm2: Module) =
+                Module(wasm1.types @ wasm2.types, wasm1.functions @ wasm2.functions, wasm1.tables @ wasm2.tables, wasm1.memories @ wasm2.memories, wasm1.globals @ wasm2.globals, wasm1.exports @ wasm2.exports, wasm1.imports @ wasm2.imports, wasm1.start, wasm1.elements @ wasm2.elements, wasm1.data @ wasm2.data, wasm1.locals @ wasm2.locals)
 
             // add function
             member this.AddFunction (function_: Function, ?comment: string) =
                 let funcs = Commented(function_, comment) :: this.functions
-                Modu(this.types, funcs, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, funcs, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
 
             // add table
             member this.AddTable table =
-                Modu(this.types, this.functions, table :: this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, table :: this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
 
             // add memory
             member this.AddMemory memory =
-                Modu(this.types, this.functions, this.tables, memory :: this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, memory :: this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
 
             // add global
             member this.AddGlobal global_ =
-                Modu(this.types, this.functions, this.tables, this.memories, global_ :: this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, global_ :: this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals)
 
             // add export
             member this.AddExport export =
-                Modu(this.types, this.functions, this.tables, this.memories, this.globals, export :: this.exports, this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, export :: this.exports, this.imports, this.start, this.elements, this.data, this.locals)
             
             // add import
             member this.AddImport import_ =
-                Modu(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, import_ :: this.imports, this.start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, import_ :: this.imports, this.start, this.elements, this.data, this.locals)
             
             // add start
             member this.AddStart start =
-                Modu(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, Some start, this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, Some start, this.elements, this.data, this.locals)
 
             // add element
             member this.AddElement element =
-                Modu(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, element :: this.elements, this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, element :: this.elements, this.data, this.locals)
 
             // add data
             member this.AddData data =
-                Modu(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, data :: this.data, this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, data :: this.data, this.locals)
 
             // add local
             member this.AddLocal local =
-                Modu(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, local :: this.locals)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, local :: this.locals)
 
             // combine two wasm modules
-            member this.Combine (wasm: Modu) =
-                Modu(this.types @ wasm.types, this.functions @ wasm.functions, this.tables @ wasm.tables, this.memories @ wasm.memories, this.globals @ wasm.globals, this.exports @ wasm.exports, this.imports @ wasm.imports, this.start, this.elements @ wasm.elements, this.data @ wasm.data, this.locals @ wasm.locals)    
+            member this.Combine (wasm: Module) =
+                Module(this.types @ wasm.types, this.functions @ wasm.functions, this.tables @ wasm.tables, this.memories @ wasm.memories, this.globals @ wasm.globals, this.exports @ wasm.exports, this.imports @ wasm.imports, this.start, this.elements @ wasm.elements, this.data @ wasm.data, this.locals @ wasm.locals)    
 
-            static member (+) (wasm1: Modu, wasm2: Modu): Modu = wasm1.Combine wasm2
+            static member (+) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 
-            static member (++) (wasm1: Modu, wasm2: Modu): Modu = wasm1.Combine wasm2
+            static member (++) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
                 
             override this.ToString() =
                 let mutable result = ""

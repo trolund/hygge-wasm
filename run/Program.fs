@@ -48,7 +48,7 @@ let sec =
 
     let f: Function = Some(funcName), ([], [I32]), [], body
 
-    let _module = Modu().AddFunction(f, "function 1").AddExport(funcName, FunctionType(funcName))
+    let _module = Module().AddFunction(f, "function 1").AddExport(funcName, FunctionType(funcName))
                                  
     // generate the wat code
     let watCode = _module.ToString()
