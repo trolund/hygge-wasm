@@ -51,7 +51,7 @@ let sec =
     let _module = Modu().AddFunction(f, "function 1").AddExport(funcName, FunctionType(funcName))
                                  
     // generate the wat code
-    let watCode = generate_module_code _module
+    let watCode = _module.ToString()
     printfn "%s" watCode
     write_wasm_file watCode "test.wat"
 

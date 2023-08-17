@@ -444,10 +444,6 @@ module WFG =
 
     and Code = int * int list * Instr list
 
-    // function that takes a module and returns a string
-    let generate_module_code m =
-        m.ToString();
-
     type Commented<'a> = 'a * string option
 
     let commentToString (x: Commented<'a>) =
