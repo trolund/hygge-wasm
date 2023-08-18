@@ -19,6 +19,7 @@ module WFG =
         | F32
         | F64
         | Externref
+        | Funcref
         
         override this.ToString() =
             match this with
@@ -27,6 +28,17 @@ module WFG =
                 | F32 -> "f32"
                 | F64 -> "f64"
                 | Externref -> "externref"
+                | Funcref -> "funcref"
+
+    and BlockType =
+        | Type of ValueType
+        | TypeIndex of int
+        | Empty
+
+        override this.ToString() =
+            match this with
+                | Type t -> t.ToString()
+                | Empty -> "empty"
     
    // type that compile all types of Instrs
     type Instr = 
@@ -36,6 +48,7 @@ module WFG =
         | Block of string * Instr list
         | Loop of ValueType list * Instr list
         | If of ValueType list * ValueType list * Instr list * Instr list
+        | Else of ValueType list * ValueType list * Instr list * Instr list
         | Br of int
         | BrIf of int
         | BrTable of int list * int
