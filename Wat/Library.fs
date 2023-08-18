@@ -615,7 +615,7 @@ module WFG =
 
                 for funcKey in this.functions.Keys do
                     let (name, signature, locals, body), comment = this.functions.[funcKey]
-                    result <- result + sprintf "  (func %s %s %s\n%s  )\n" (genrate_name name) (generate_signature signature comment) (generate_local locals) (generate_wat_code_ident body 3) 
+                    result <- result + sprintf "  (func %s %s %s\n%s  )\n" (genrate_name name) (generate_signature signature comment) (generate_local locals) (generate_wat_code_ident body 4) 
                     
                 // create exports
                 for export in this.exports do
