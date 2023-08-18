@@ -2,6 +2,7 @@
 
 open WFG
 open WasmTimeDriver
+open WasmUtil
 
 let runCode target watCode = 
     let vm = WasmVM()
@@ -19,15 +20,16 @@ let sec =
                 I32Add
                 Return
         ]
+    let signature = ([], [I32])
+    let f: Function = Some(funcName), signature, [], body
 
-    let f: Function = Some(funcName), ([], [I32]), [], body
-
-    let _module = Module().AddFunction(f, "function 1").AddExport(funcName, FunctionType(funcName))
+    let _module = Module().AddFunction(f, "function 1")
+                                    .AddExport(funcName, FunctionType(funcName, None))
                                  
     // generate the wat code
     let watCode = _module.ToString()
     printfn "%s" watCode
-    write_wasm_file watCode "test.wat"
+    writeWasmFile watCode "test.wat"
 
     // run the wat code with wasmtime 
     runCode funcName watCode

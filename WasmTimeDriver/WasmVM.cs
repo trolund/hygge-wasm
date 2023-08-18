@@ -75,16 +75,18 @@ namespace WasmTimeDriver
                 "env",
                 "write",
                 Function.FromCallback(_store, (string s) =>
-                {
+               {
+                    
                     Console.WriteLine(s);
                 })
             );
 
-                        _linker.Define(
+            _linker.Define(
                 "env",
                 "writeInt",
                 Function.FromCallback(_store, (int s) =>
                 {
+                    var memory = _store.ToString();
                     Console.WriteLine(s);
                 })
             );
@@ -97,6 +99,19 @@ namespace WasmTimeDriver
                     Console.WriteLine(@"{0} {1}", a, b);
                 })
             );
+
+            _linker.Define(
+                "env",
+                "writeS",
+                Function.FromCallback(_store, (Caller caller, int address, int length) =>
+                {
+                    // memory == export name
+                    var message = caller.GetMemory("memory").ReadString(address, length);
+                    Console.WriteLine(message);
+                })
+            );
+
+
         }
         
         public object?[] RunFileTimes(string path, int n)

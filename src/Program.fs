@@ -196,9 +196,19 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
                             | CmdLine.CompilationTarget.WASM ->
                                 // Compile the AST to WASM assembly
                                 (WASMCodegen.implicit tast).ToString()
+                                
                 
             // Write the output file (or print to stdout if no output file is given)
-            handelOutputFile (opt.OutFile, asm)
+            handelOutputFile (opt.OutFile, asm) |> ignore
+
+            // TODO remove this
+            Log.debug $"WASM code: %s{asm}"
+            Log.debug $"Running WASM VM"
+            let vm = WasmVM()
+            let res = vm.RunWatString("main", asm)
+            Log.debug $"WASM VM result: %O{res}"
+
+            0
 
 
 
@@ -251,9 +261,8 @@ let internal launchRARS (opt: CmdLine.RARSLaunchOptions): int =
 let internal launchWasmTime (opt: CmdLine.WasmTimeLaunchOptions): int =
    
    let vm = WasmVM()
-   // let res = vm.RunFileTimes(opt.File, "_start", 400)
    Console.WriteLine("Running file: " + opt.File)
-   let res = vm.RunFile(opt.File)
+   let res = vm.RunFile(opt.File, "main")
    Console.WriteLine($"return value {res.ToString()}")
    
    0

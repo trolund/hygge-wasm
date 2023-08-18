@@ -18,6 +18,7 @@ module WFG =
         | I64
         | F32
         | F64
+        | Externref
         
         override this.ToString() =
             match this with
@@ -25,6 +26,7 @@ module WFG =
                 | I64 -> "i64"
                 | F32 -> "f32"
                 | F64 -> "f64"
+                | Externref -> "externref"
     
    // type that compile all types of Instrs
     type Instr = 
@@ -185,7 +187,7 @@ module WFG =
         | TableGrow of int
         | TableSize of int
         // Call Instr
-        | Call of int
+        | Call of string
         | CallIndirect of int * int
         // Conversion Instr
         | I32WrapI64
@@ -360,7 +362,7 @@ module WFG =
                 | BrIf index -> sprintf "br_if %d" index
                 | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
                 | Return -> "return"
-                | Call index -> sprintf "call %d" index
+                | Call name -> sprintf "call $%s" name
                 | CallIndirect (index, x) -> sprintf "call_indirect %d" index // TODO: add x?? 
                 | Drop -> "drop"
                 | Select -> "select"
@@ -390,18 +392,20 @@ module WFG =
 
     and Type = ValueType list * ValueType list
 
+    // module, name, type
     and Import = string * string * ExternalType
 
     and ExternalType =
-        | FunctionType of string
+        | FunctionType of string * FunctionSignature option
         | TableType of Table
         | MemoryType of Memory
         | GlobalType of Global
         | EmptyType
 
     and Table = ValueType * Limits
-
-    and Memory = Limits
+    
+    // (memory (export $name) limits)
+    and Memory = string * Limits
 
     and Global = ValueType * Mutability
 
@@ -412,12 +416,18 @@ module WFG =
     and Limits =
         | Unbounded of int
         | Bounded of int * int
+
+        // to string
+        override this.ToString() =
+            match this with
+            | Unbounded min -> sprintf "%d" min
+            | Bounded (min, max) -> sprintf "%d %d" min max
     
     and Export = string * ExternalType
 
     and Element = int * Instr list
 
-    and Data = int * string
+    and Data = Instr * string
 
     // ( func name <signature> <locals> <body> )
     // The signature declares what the function takes (parameters) and returns (return values).
@@ -482,7 +492,7 @@ module WFG =
             member private this.data = data
             // member private this.codes = Code
             member private this.locals = locals
-            member this.tempCode = []
+            member private this.tempCode = []
 
             // constructor that creates an empty wasm module with tempCode
             new (tempCode: list<Instr>) = Module([], [], [], [], [], [], [], None, [], [], [], tempCode)
@@ -496,6 +506,29 @@ module WFG =
             // contrcutor that combines two wasm modules
             new (wasm1: Module, wasm2: Module) =
                 Module(wasm1.types @ wasm2.types, wasm1.functions @ wasm2.functions, wasm1.tables @ wasm2.tables, wasm1.memories @ wasm2.memories, wasm1.globals @ wasm2.globals, wasm1.exports @ wasm2.exports, wasm1.imports @ wasm2.imports, wasm1.start, wasm1.elements @ wasm2.elements, wasm1.data @ wasm2.data, wasm1.locals @ wasm2.locals, wasm1.tempCode @ wasm2.tempCode)
+            
+            // sum all unbounded memories
+            member this.GetAllocatedPages() = 
+                let memories = this.memories |> List.filter (fun (name, limits) -> match limits with | Unbounded _ -> true | _ -> false)
+                let memories = memories |> List.map (fun (name, limits) -> match limits with | Unbounded min -> min | _ -> 0)
+                memories |> List.sum
+
+            // get tempCode
+            member this.GetTempCode() = this.tempCode
+
+            // add tempCode
+            member this.AddTempCode (instrs: list<Instr>) =
+                let tempCode = this.tempCode @ instrs
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode)
+
+            // append to last function in module
+            member this.AppendToLastFunction instrs =
+                let lastFunction = this.functions |> List.last
+                let ((name, signature, locals, body), comment) = lastFunction
+                let body = body @ instrs
+                let lastFunction: Commented<Function> = ((name, signature, locals, body), comment)
+                let functions = this.functions |> List.rev |> List.tail |> List.rev |> List.append [lastFunction]
+                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
 
             // add function
             member this.AddFunction (function_: Function, ?comment: string) =
@@ -509,7 +542,6 @@ module WFG =
             // add memory
             member this.AddMemory memory =
                 Module(this.types, this.functions, this.tables, memory :: this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
-
             // add global
             member this.AddGlobal global_ =
                 Module(this.types, this.functions, this.tables, this.memories, global_ :: this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
@@ -548,34 +580,6 @@ module WFG =
                 
             override this.ToString() =
                 let mutable result = ""
-                result <- result + "(module\n" // open module tag
-
-                for type_ in this.types do // print all types
-                    result <- result + sprintf "  (type %s)\n" (type_.ToString())
-
-                for import: Import in this.imports do // print all imports
-                
-                    let modu, func_name, func_signature = import
-
-                    result <- result + sprintf "  (import \"%s\" \"%s\" %s)\n" modu func_name (match func_signature with
-                                                                                                    | FunctionType type_ -> sprintf "(func %s)" (type_.ToString())
-                                                                                                    | TableType table -> sprintf "(table %s)" (table.ToString())
-                                                                                                    | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
-                                                                                                    | _ -> ""
-                                                                                                    )
-                                                                                                    
-
-                for global_ in this.globals do
-                    result <- result + sprintf "  (global %s)\n" (global_.ToString())
-
-                for element in this.elements do
-                    result <- result + sprintf "  (elem %s)\n" (element.ToString())
-                for data in this.data do
-                    result <- result + sprintf "  (data %s)\n" (data.ToString())
-                for table in this.tables do
-                    result <- result + sprintf "  (table %s)\n" (table.ToString())
-                for memory in this.memories do
-                    result <- result + sprintf "  (memory %s)\n" (memory.ToString())
 
                 // create functions
                 let generate_signature (signature: FunctionSignature) comment =
@@ -591,16 +595,48 @@ module WFG =
                     match name with
                     | Some name ->
                         sprintf "$%s" name
-                    | _ -> ""                    
+                    | _ -> ""        
+
+                result <- result + "(module\n" // open module tag
+
+                for type_ in this.types do // print all types
+                    result <- result + sprintf "  (type %s)\n" (type_.ToString())
+
+                for import: Import in this.imports do // print all imports
+                
+                    let modu, func_name, func_signature = import
+
+                    result <- result + sprintf "  (import \"%s\" \"%s\" %s)\n" modu func_name (match func_signature with
+                                                                                                    | FunctionType (name, signature) -> 
+                                                                                                                match signature with
+                                                                                                                | Some signature -> sprintf "(func $%s %s)" name (generate_signature signature None)
+                                                                                                                | _ -> sprintf "(func $%s)" name
+                                                                                                    | TableType table -> sprintf "(table %s)" (table.ToString())
+                                                                                                    | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
+                                                                                                    | _ -> ""
+                                                                                                    )
+                                                                                                    
+
+                for global_ in this.globals do
+                    result <- result + sprintf "  (global %s)\n" (global_.ToString())
+
+                for element in this.elements do
+                    result <- result + sprintf "  (elem %s)\n" (element.ToString())
+                for (instr, data) in this.data do
+                    result <- result + sprintf "  (data (%s) \"%s\")\n" (instr.ToString()) (data.ToString())
+                for table in this.tables do
+                    result <- result + sprintf "  (table %s)\n" (table.ToString())
+                for (name, Limits) in this.memories do
+                    result <- result + sprintf "  (memory (export \"%s\") %s)\n" name (Limits.ToString())            
 
                 for (name, signature, locals, body), comment in this.functions do
-                    result <- result + sprintf "  (func %s %s %s\n%s)\n" (genrate_name name) (generate_signature signature comment) (generate_local locals) (generate_wat_code_ident body 3) 
+                    result <- result + sprintf "  (func %s %s %s\n%s  )\n" (genrate_name name) (generate_signature signature comment) (generate_local locals) (generate_wat_code_ident body 3) 
                     
 
                 // create exports
                 for export in this.exports do
                     result <- result + sprintf "  (export \"%s\" %s)\n" (fst export) (match snd export with
-                                                                                        | FunctionType type_ -> sprintf "(func $%s)" (type_.ToString())
+                                                                                        | FunctionType (name, _) -> sprintf "(func $%s)" (name)
                                                                                         | TableType table -> sprintf "(table %s)" (table.ToString())
                                                                                         | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
                                                                                         | GlobalType global_ -> sprintf "(global %s)" (global_.ToString())
@@ -613,10 +649,3 @@ module WFG =
 
                 result <- result + ")" // close module tag
                 result
-
-// write wasm module to file
-    let write_wasm_file (wasm: string) (path: string) =
-        let file = System.IO.File.Create(path)
-        let bytes = wasm |> Encoding.UTF8.GetBytes
-        file.Write(bytes, 0, bytes.Length)
-        file.Close()
