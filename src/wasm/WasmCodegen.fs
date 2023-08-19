@@ -5,19 +5,53 @@ open Type
 open Typechecker
 open Wat.WFG
 
-    (* A global variable has an absolute address, a local one has an offset: *)
-    type Var = 
-        | GloVar of int (* absolute address in stack           *)
-        | LocVar of int (* address relative to bottom of frame *)
+    // adress and size
+type Var = 
+    | GloVar of int * int
+    | LocVar of int * int
 
-    (* The variable environment keeps track of global and local variables, and 
-       keeps track of next available offset for local variables *)
-    type varEnv = Map<string, Var * ValueType> * int
+type internal MemoryAllocator() =
+    let mutable allocationPosition = 0
+    let pageSize = 64 * 1024  // 64KB
+
+    // list of allocated memory
+    let mutable allocatedMemory: List<int * int> = []
+
+    // get head of allocated memory list
+    member this.GetAllocatedSize() =
+        fst allocatedMemory.Head
+
+    // get number of pages needed to allocate size bytes
+    member this.GetNumPages() =
+        let numPages = allocationPosition / pageSize
+        if allocationPosition % pageSize <> 0 then
+            numPages + 1
+        else
+            numPages
+
+    member this.Allocate(size: int) =
+        if size <= 0 then
+            failwith "Size must be positive"
+
+        // added to allocated memory
+        allocatedMemory <- (allocationPosition, size) :: allocatedMemory
+        
+        let startPosition = allocationPosition
+        allocationPosition <- allocationPosition + size
+        startPosition
+
+    member this.GetAllocationPosition() =
+        allocationPosition
 
     type internal CodegenEnv = {
         funcIndexMap: Map<string, List<Instr>>
         currFunc: string
+        // name, type, allocated address
+        varEnv: Map<string, Var * ValueType>
+        memoryAllocator: MemoryAllocator
     }
+
+
 
     let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
         match node.Expr with    
@@ -62,8 +96,9 @@ open Wat.WFG
             let instrs = [PlainInstr (I32And)]
             m''.AddCode(instrs)
         | StringVal s ->
-            let allocatedModule = m.AddMemory("memory", Bounded(1, 2))  
-            allocatedModule.AddData(PlainInstr (I32Const 0), s)
+            let address = env.memoryAllocator.Allocate(s.Length)
+            let allocatedModule = m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))  
+            allocatedModule.AddData(PlainInstr (I32Const address), s)
         |Eq(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m
@@ -74,7 +109,7 @@ open Wat.WFG
             let m' = doCodegen env e m
             let writeFunctionSignature: ValueType list * 'a list = ([I32; I32], [])
             let m'' = m'.AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
-            m''.AddCode([PlainInstr (I32Const 0); PlainInstr (I32Const 13); PlainInstr (Call "writeS")])
+            m''.AddCode([PlainInstr (I32Const (env.memoryAllocator.GetAllocatedSize())); PlainInstr (I32Const (env.memoryAllocator.GetAllocationPosition())); PlainInstr (Call "writeS")])
         | AST.If(condition, ifTrue, ifFalse) ->
             let m' = doCodegen env condition m
             let m'' = doCodegen env ifTrue m
@@ -98,7 +133,15 @@ open Wat.WFG
                     PlainInstr (Br 1);
                 ]));
             ])
-        | _ -> failwith "not implemented"
+        | Seq(nodes) ->
+        // We collect the code of each sequence node by folding over all nodes
+            // let folder (asm: Asm) (node: TypedAST) =
+            //     asm ++ (doCodegen env node)
+            // List.fold folder (Asm()) nodes
+            let m' = doCodegen env (List.head nodes) m
+            let m'' = doCodegen env (List.head (List.tail nodes)) m'
+            m''
+        | x -> failwith "not implemented"
 
     // add implicit main function
     let implicit (node: TypedAST): Module =
@@ -112,6 +155,8 @@ open Wat.WFG
         let env = {
             currFunc = funcName
             funcIndexMap = Map.empty
+            varEnv = Map.empty
+            memoryAllocator = MemoryAllocator()
         }
 
         // commeted f

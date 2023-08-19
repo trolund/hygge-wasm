@@ -510,14 +510,14 @@ module WFG =
         | _ -> ""
 
     [<RequireQualifiedAccess>]
-    type Module private (types: list<Type>, functions: Map<string, Commented<Function>>, tables: list<Table>, memories: List<Memory>, globals: list<Global>, exports: Set<Export>, imports: list<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>, tempCode: list<Instr>) =
+    type Module private (types: list<Type>, functions: Map<string, Commented<Function>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>, tempCode: list<Instr>) =
             member private this.types: list<Type> = types
             member private this.functions = functions 
             member private this.tables = tables
-            member private this.memories = memories
+            member private this.memories: Set<Memory> = memories
             member private this.globals: list<Global> = globals
             member private this.exports: Set<Export> = exports
-            member private this.imports: list<Import> = imports
+            member private this.imports: Set<Import> = imports
             member private this.start: Start = start
             member private this.elements: list<Element> = elements
             member private this.data: list<Data> = data
@@ -527,7 +527,7 @@ module WFG =
             member private this.tempCode: list<Instr> = tempCode
             
             // empty constructor
-            new () = Module([], Map.empty, [], [], [], Set.empty, [], None, [], [], [], [])
+            new () = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], [], [], [])
             
             // add temp code
             member this.AddCode (instrs: Instr list) =
@@ -554,8 +554,8 @@ module WFG =
 
             // Add an import to the module
             member this.AddImport (i: Import) =
-                let imports = i :: this.imports
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+                let imports = i :: Set.toList this.imports
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, Set(imports), this.start, this.elements, this.data, this.locals, this.tempCode)
 
             // Add a function to the module
             member this.AddFunction (name: string, f: Commented<Function>) =
@@ -573,7 +573,7 @@ module WFG =
 
             // Add a memory to the module
             member this.AddMemory (m: Memory) =
-                Module(this.types, this.functions, this.tables, m :: memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+                Module(this.types, this.functions, this.tables, Set(m :: (Set.toList memories)), this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
 
             // Add a global to the module
             member this.AddGlobal (g: Global) =
@@ -595,16 +595,16 @@ module WFG =
                 let types = this.types @ m.types
                 let functions = Map.fold (fun acc key value -> Map.add key value acc) this.functions m.functions
                 let tables = this.tables @ m.tables
-                let memories = this.memories @ m.memories
+                let memories = Set.toList this.memories @ Set.toList m.memories
                 let globals = this.globals @ m.globals
                 let exports = Set.toList this.exports @ Set.toList m.exports
-                let imports = this.imports @ m.imports
+                let imports = Set.toList this.imports @ Set.toList m.imports
                 let start = this.start
                 let elements = this.elements @ m.elements
                 let data = this.data @ m.data
                 let locals = this.locals @ m.locals
                 let tempCode = this.tempCode @ m.tempCode
-                Module(types, functions, tables, memories, globals, Set(exports), imports, start, elements, data, locals, tempCode)
+                Module(types, functions, tables, Set(memories), globals, Set(exports), Set(imports), start, elements, data, locals, tempCode)
 
             static member (+) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 
