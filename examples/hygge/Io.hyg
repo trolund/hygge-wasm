@@ -1,3 +1,6 @@
 println("Hello, World! - Welcome to the world of WebAssembly!");
 println("Wow 2 strings!");
-println("3 strings? - too easy!")
+println("3 strings? - too easy!");
+println("4 strings? - too easy!");
+println("5 strings? - too easy!");
+println("6 strings? - please stop!")

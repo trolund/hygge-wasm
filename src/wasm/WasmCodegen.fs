@@ -4,6 +4,7 @@ open AST
 open Type
 open Typechecker
 open Wat.WFG
+open System.Text
 
     // adress and size
 type Var = 
@@ -18,8 +19,8 @@ type internal MemoryAllocator() =
     let mutable allocatedMemory: List<int * int> = []
 
     // get head of allocated memory list
-    member this.GetAllocatedSize() =
-        fst allocatedMemory.Head
+    member this.GetAllocated() =
+        (allocatedMemory.Head)
 
     // get number of pages needed to allocate size bytes
     member this.GetNumPages() =
@@ -29,14 +30,16 @@ type internal MemoryAllocator() =
         else
             numPages
 
+    // allocate size bytes
     member this.Allocate(size: int) =
         if size <= 0 then
             failwith "Size must be positive"
 
-        // added to allocated memory
-        allocatedMemory <- (allocationPosition, size) :: allocatedMemory
-        
         let startPosition = allocationPosition
+        
+        // added to allocated memory
+        allocatedMemory <- (startPosition, size) :: allocatedMemory
+        
         allocationPosition <- allocationPosition + size
         startPosition
 
@@ -96,7 +99,7 @@ type internal MemoryAllocator() =
             let instrs = [PlainInstr (I32And)]
             m''.AddCode(instrs)
         | StringVal s ->
-            let address = env.memoryAllocator.Allocate(s.Length)
+            let address = env.memoryAllocator.Allocate(Encoding.BigEndianUnicode.GetByteCount(s))
             let allocatedModule = m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))  
             allocatedModule.AddData(PlainInstr (I32Const address), s)
         |Eq(e1, e2) ->
@@ -109,7 +112,8 @@ type internal MemoryAllocator() =
             let m' = doCodegen env e m
             let writeFunctionSignature: ValueType list * 'a list = ([I32; I32], [])
             let m'' = m'.AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
-            m''.AddCode([PlainInstr (I32Const (env.memoryAllocator.GetAllocatedSize())); PlainInstr (I32Const (env.memoryAllocator.GetAllocationPosition())); PlainInstr (Call "writeS")])
+            let (pos, size) = env.memoryAllocator.GetAllocated()
+            m''.AddCode([PlainInstr (I32Const (pos)); PlainInstr (I32Const (size)); PlainInstr (Call "writeS")])
         | AST.If(condition, ifTrue, ifFalse) ->
             let m' = doCodegen env condition m
             let m'' = doCodegen env ifTrue m
@@ -134,10 +138,7 @@ type internal MemoryAllocator() =
                 ]));
             ])
         | Seq(nodes) ->
-        // We collect the code of each sequence node by folding over all nodes
-            // let folder (asm: Asm) (node: TypedAST) =
-            //     asm ++ (doCodegen env node)
-            // List.fold folder (Asm()) nodes
+            // We collect the code of each sequence node by folding over all nodes
             List.fold (fun m node -> doCodegen env node m) m nodes
         | x -> failwith "not implemented"
 
