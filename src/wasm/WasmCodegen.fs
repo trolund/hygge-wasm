@@ -70,6 +70,7 @@ open Wat.WFG
             let instrs = m'.GetTempCode() @ m''.GetTempCode() @ [PlainInstr (I32Eq)]
             m''.AddCode(instrs)
         | PrintLn e ->
+            // TODO support more types
             let m' = doCodegen env e m
             let writeFunctionSignature: ValueType list * 'a list = ([I32; I32], [])
             let m'' = m'.AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
