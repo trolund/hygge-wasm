@@ -1,5 +1,6 @@
 (module
   (import "env" "writeS" (func $writeS (param i32) (param i32) ))
+  (data (i32.const 66) "3 strings? - too easy!")
   (data (i32.const 52) "Wow 2 strings!")
   (data (i32.const 0) "Hello, World! - Welcome to the world of WebAssembly!")
   (memory (export "memory") 1)
@@ -9,6 +10,9 @@
     call $writeS
     i32.const 52
     i32.const 66
+    call $writeS
+    i32.const 66
+    i32.const 88
     call $writeS
     i32.const 0
     return

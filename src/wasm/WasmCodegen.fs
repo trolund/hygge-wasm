@@ -138,9 +138,7 @@ type internal MemoryAllocator() =
             // let folder (asm: Asm) (node: TypedAST) =
             //     asm ++ (doCodegen env node)
             // List.fold folder (Asm()) nodes
-            let m' = doCodegen env (List.head nodes) m
-            let m'' = doCodegen env (List.head (List.tail nodes)) m'
-            m''
+            List.fold (fun m node -> doCodegen env node m) m nodes
         | x -> failwith "not implemented"
 
     // add implicit main function
