@@ -30,11 +30,6 @@ open Wat.WFG
         | FloatVal f ->
             let instrs = [PlainInstr (F32Const f)]
             m.AddCode(instrs)
-        // | Add(e1, e2) ->
-        //     let m' = doCodegen env e1 m
-        //     let m'' = doCodegen env e2 m'
-        //     let instrs = [PlainInstr (I32Add)]
-        //     m''.AddTempCode(instrs)
         | Add(lhs, rhs)
         | Sub(lhs, rhs)
         | Rem(lhs, rhs)
@@ -87,7 +82,6 @@ open Wat.WFG
             let instrs = m'.GetTempCode() @ [BlockInstr (If (m''.GetTempCode() @ [PlainInstr (Return)], Some(m'''.GetTempCode() @ [PlainInstr (Return)])))]
 
             (m' + m'' + m''').ResetTempCode().AddCode(instrs)
-        
         | Assertion(e) ->
             let m' = doCodegen env e m
             let instrs = m'.GetTempCode() @ [BlockInstr (If ([PlainInstr (Nop)], Some([PlainInstr (I32Const 42); PlainInstr (Return)])))]

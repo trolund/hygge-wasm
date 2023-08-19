@@ -3,7 +3,7 @@
     i32.const 8
     i32.const 2
     i32.div_s
-    i32.const 11
+    i32.const 10
     i32.add
     i32.const 2
     i32.const 2
@@ -13,7 +13,7 @@
     i32.const 8
     i32.const 2
     i32.div_s
-    i32.const 11
+    i32.const 10
     i32.add
     i32.eq
     (if
