@@ -530,7 +530,7 @@ module WFG =
             new () = Module([], Map.empty, [], [], [], Set.empty, [], None, [], [], [], [])
             
             // add temp code
-            member this.AddTempCode (instrs: Instr list) =
+            member this.AddCode (instrs: Instr list) =
                 let tempCode = this.tempCode @ instrs
                 Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode)
 
