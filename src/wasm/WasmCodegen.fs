@@ -30,6 +30,11 @@ open Wat.WFG
         | FloatVal f ->
             let instrs = [PlainInstr (F32Const f)]
             m.AddTempCode(instrs)
+        | Add(e1, e2) ->
+            let m' = doCodegen env e1 m
+            let m'' = doCodegen env e2 m'
+            let instrs = [PlainInstr (I32Add)]
+            m''.AddTempCode(instrs)
         | And(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m'
