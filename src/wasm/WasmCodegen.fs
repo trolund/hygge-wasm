@@ -105,7 +105,7 @@ type internal MemoryAllocator() =
         |Eq(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m
-            let instrs = m'.GetTempCode() @ m''.GetTempCode() @ [I32Eq]
+            let instrs = m'.GetTempCode() @ m''.GetTempCode() @ C [I32Eq]
             m''.AddCode(instrs)
         | PrintLn e ->
             // TODO support more types
@@ -113,18 +113,18 @@ type internal MemoryAllocator() =
             let writeFunctionSignature: ValueType list * 'a list = ([I32; I32], [])
             let m'' = m'.AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
             let (pos, size) = env.memoryAllocator.GetAllocated()
-            m''.AddCode([(I32Const (pos)); (I32Const (size)); (Call "writeS")])
+            m''.AddCode([(I32Const pos, Some("offset in memory")); (I32Const (size), Some("size in bytes")); (Call "writeS", Some("call host function"))])
         | AST.If(condition, ifTrue, ifFalse) ->
             let m' = doCodegen env condition m
             let m'' = doCodegen env ifTrue m
             let m''' = doCodegen env ifFalse m
 
-            let instrs = m'.GetTempCode() @ [(If (m''.GetTempCode() @ [(Return)], Some(m'''.GetTempCode() @ [Return])))]
+            let instrs = m'.GetTempCode() @ C [(If (m''.GetTempCode() @ C [Return], Some(m'''.GetTempCode() @ C [Return])))]
 
             (m' + m'' + m''').ResetTempCode().AddCode(instrs)
         | Assertion(e) ->
             let m' = doCodegen env e m
-            let instrs = m'.GetTempCode() @ [(If ([Nop], Some([I32Const 42; Return])))]
+            let instrs = m'.GetTempCode() @ C [(If (C [Nop], Some(C [I32Const 42; Return])))]
             m'.ResetTempCode().AddCode(instrs)
         | While(condition, body) ->
             m.AddInstrs(env.currFunc, [
@@ -168,6 +168,6 @@ type internal MemoryAllocator() =
         // return 0 if program is successful
         m.AddInstrs(env.currFunc, [Comment "Execution start here:"])
          .AddInstrs(env.currFunc, m.GetTempCode())
-         .AddInstrs(env.currFunc, [I32Const 0; Return])
+         .AddInstrs(env.currFunc, [(I32Const 0, Some("exit code 0")); (Return, Some("return the exit code"))])
 
 

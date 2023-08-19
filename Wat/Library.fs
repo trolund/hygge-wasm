@@ -15,6 +15,9 @@ module WFG =
     
     type Commented<'a> = 'a * string option
 
+    // active pattern decomposing Commented
+    let (|Commented|) (x: 'a * string option) = x
+
     type ValueType =
         | I32
         | I64
@@ -235,12 +238,11 @@ module WFG =
         | Block of string * list<Instr>
         | Loop of ValueType list * list<Instr>
         // then block, else block
-        | If of list<Instr> * list<Instr> option
+        | If of list<Commented<Instr>> * list<Commented<Instr>> option
 
         // comment
         | Comment of string
 
-        
         override this.ToString() =
             match this with
                 | I32Const value -> sprintf "i32.const %i" value
@@ -400,7 +402,7 @@ module WFG =
                 // comments
                 | Comment comment -> sprintf ";; %s" comment
 
-    let generate_wat_code_ident instrs ident =
+    let generate_wat_code_ident (instrs: List<Commented<Instr>>) ident =
         
         let generate_indent i = List.replicate i " " |> String.concat "" in
 
@@ -412,12 +414,21 @@ module WFG =
             | If _ -> 1
             | _ -> 0
 
-        let rec generate_wat_code_aux instrs watCode indent =
+        let rec generate_wat_code_aux (instrs: Commented<Instr> list) watCode indent =
             match instrs with
             | [] -> watCode
             | head :: tail ->
-                let watCode = watCode + generate_indent indent + head.ToString() + "\n" in
-                generate_wat_code_aux tail watCode indent
+                    match head with
+                    | Commented (instr, comment) ->
+                            match comment with
+                            | Some c -> 
+                                let watCode = watCode + generate_indent indent + instr.ToString() + if (c.Length > 0) then (sprintf " ;; %s\n" c) else "\n" in
+                                generate_wat_code_aux tail watCode indent
+                            | None -> 
+                                let watCode = watCode + generate_indent indent + instr.ToString() in
+                                generate_wat_code_aux tail watCode indent
+                        
+                    
 
         generate_wat_code_aux instrs "" ident
 
@@ -467,7 +478,7 @@ module WFG =
     // The signature declares what the function takes (parameters) and returns (return values).
     // The locals are like vars in JavaScript, but with explicit types declared.
     // The body is just a linear list of low-level Instrs.
-    and Function = string option * FunctionSignature * Variable list * Instr list
+    and Function = string option * FunctionSignature * Variable list * Commented<Instr> list
 
     // function parameters and return values.
     // The signature declares what the function takes (parameters) and returns (return values)
@@ -507,7 +518,7 @@ module WFG =
         | _ -> ""
 
     [<RequireQualifiedAccess>]
-    type Module private (types: list<Type>, functions: Map<string, Commented<Function>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>, tempCode: list<Instr>) =
+    type Module private (types: list<Type>, functions: Map<string, Commented<Function>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>, tempCode: list<Commented<Instr>>) =
             member private this.types: list<Type> = types
             member private this.functions = functions 
             member private this.tables = tables
@@ -521,13 +532,20 @@ module WFG =
             // member private this.codes = Code
             member private this.locals: list<ValueType> = locals
 
-            member private this.tempCode: list<Instr> = tempCode
+            member private this.tempCode: list<Commented<Instr>> = tempCode
             
             // empty constructor
             new () = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], [], [], [])
             
             // add temp code
             member this.AddCode (instrs: Instr list) =
+                // map comment to instrs
+                let instrs = instrs |> List.map (fun x -> Commented(x, Some("")))
+                let tempCode = this.tempCode @ instrs
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode)
+
+            // add temp code with comment
+            member this.AddCode (instrs: Commented<Instr> list) =
                 let tempCode = this.tempCode @ instrs
                 Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode)
 
@@ -541,6 +559,16 @@ module WFG =
 
             // Add instructions to function with name
             member this.AddInstrs (name: string, instrs: Instr list) =
+                let (f), s = this.functions.[name]
+                // add instrs to function f
+                // ( func name <signature> <locals> <body> )
+                let (n, signature, locals, body) = f
+
+                let instrs2 = instrs |> List.map (fun x -> Commented(x, Some("")))
+                let functions = this.functions.Add(name, ((n, signature, locals, body @ instrs2), s))
+                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+
+            member this.AddInstrs (name: string, instrs: Commented<Instr> list) = 
                 let (f), s = this.functions.[name]
                 // add instrs to function f
                 // ( func name <signature> <locals> <body> )
@@ -606,6 +634,16 @@ module WFG =
             static member (+) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 
             static member (++) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
+
+            static member ( @ ) (wasm1: Instrs list, wasm2: Commented<Instrs> list) = 
+                let instrs = wasm1 |> List.map (fun x -> Commented(x, Some("")))
+                instrs @ wasm2
+            
+            static member ( @ ) (wasm1: Commented<Instrs> list, wasm2: Instrs list) = 
+                let instrs = wasm2 |> List.map (fun x -> Commented(x, Some("")))
+                wasm1 @ instrs
+
+            static member ( @ ) (wasm1: Commented<Instrs> list, wasm2: Commented<Instrs> list) = wasm1 @ wasm2
 
             override this.ToString() =
                 let mutable result = ""
@@ -679,3 +717,8 @@ module WFG =
                 result <- result + ")" // close module tag
                 result
 
+    let C instrs  = 
+        instrs |> List.map (fun x -> Commented(x, Some("")))
+    
+    let I instrs: Commented<Instr> list  = 
+        instrs |> List.map (fun x -> fst x)
