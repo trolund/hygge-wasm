@@ -41,16 +41,7 @@ module WFG =
                 | Empty -> "empty"
     
    // Instructions are syntactically distinguished into plain (Instr) and structured instructions (BlockInstr).
-    type Instr =
-        | PlainInstr of PlainInstr
-        | BlockInstr of BlockInstr
-
-        override this.ToString() =
-            match this with
-                | PlainInstr i -> i.ToString()
-                | BlockInstr i -> i.ToString()
-
-    and PlainInstr = 
+    and Instr = 
         // Control Instrs
         | Unreachable
         | Nop
@@ -234,6 +225,12 @@ module WFG =
         | I64ReinterpretF64
         | F32ReinterpretI32
         | F64ReinterpretI64
+        // Block Instr
+        | Block of string * list<Instr>
+        | Loop of ValueType list * list<Instr>
+        // then block, else block
+        | If of list<Instr> * list<Instr> option
+
         // comment
         | Comment of string
 
@@ -385,25 +382,15 @@ module WFG =
                 | CallIndirect (index, x) -> sprintf "call_indirect %d" index // TODO: add x?? 
                 | Drop -> "drop"
                 | Select -> "select"
-    // all block instructions of wasm
-    and BlockInstr =
-        | Block of string * list<Instr>
-        | Loop of ValueType list * list<Instr>
-        // then block, else block
-        | If of list<Instr> * list<Instr> option
-
-        // print the block instruction
-        override this.ToString() =
-            match this with
-            | Block (label, instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code instrs) 
-            | Loop (valueTypes, instrs) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code instrs)
-            | If (ifInstrs, elseInstrs) -> 
-                let elseInstrs = 
-                    match elseInstrs with
-                    | Some instrs -> instrs
-                    | None -> []
-                sprintf "(if\n (then\n%s\n) (else\n%s\n)\n)" (generate_wat_code ifInstrs) (generate_wat_code elseInstrs)
-
+                // block instructions
+                | Block (label, instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code instrs) 
+                | Loop (valueTypes, instrs) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code instrs)
+                | If (ifInstrs, elseInstrs) -> 
+                    let elseInstrs = 
+                        match elseInstrs with
+                        | Some instrs -> instrs
+                        | None -> []
+                    sprintf "(if\n (then\n%s\n) (else\n%s\n)\n)" (generate_wat_code ifInstrs) (generate_wat_code elseInstrs)
 
     let generate_wat_code_ident instrs ident =
         
@@ -412,7 +399,9 @@ module WFG =
         // function that return 1 if the Instr is a BlockInstr
         let is_block_Instr (instr: Instr) =
             match instr with
-            | BlockInstr _ -> 1
+            | Block _ -> 1
+            | Loop _ -> 1
+            | If _ -> 1
             | _ -> 0
 
         let rec generate_wat_code_aux instrs watCode indent =

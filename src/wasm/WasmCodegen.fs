@@ -59,13 +59,13 @@ type internal MemoryAllocator() =
     let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
         match node.Expr with    
         | IntVal i -> 
-            let instrs = [PlainInstr (I32Const i)]
+            let instrs = [I32Const i]
             m.AddCode(instrs)
         | BoolVal b ->
-            let instrs = [PlainInstr (I32Const (if b then 1 else 0))]
+            let instrs = [I32Const (if b then 1 else 0)]
             m.AddCode(instrs)
         | FloatVal f ->
-            let instrs = [PlainInstr (F32Const f)]
+            let instrs = [F32Const f]
             m.AddCode(instrs)
         | Add(lhs, rhs)
         | Sub(lhs, rhs)
@@ -92,20 +92,20 @@ type internal MemoryAllocator() =
                                                     | Mult(_, _) -> F32Mul
                                                     | _ -> failwith "not implemented"
 
-            (lhs' + rhs').AddCode([PlainInstr (opCode)])
+            (lhs' + rhs').AddCode([opCode])
         | And(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m'
-            let instrs = [PlainInstr (I32And)]
+            let instrs = [I32And]
             m''.AddCode(instrs)
         | StringVal s ->
             let address = env.memoryAllocator.Allocate(Encoding.BigEndianUnicode.GetByteCount(s))
             let allocatedModule = m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))  
-            allocatedModule.AddData(PlainInstr (I32Const address), s)
+            allocatedModule.AddData(I32Const address, s)
         |Eq(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m
-            let instrs = m'.GetTempCode() @ m''.GetTempCode() @ [PlainInstr (I32Eq)]
+            let instrs = m'.GetTempCode() @ m''.GetTempCode() @ [I32Eq]
             m''.AddCode(instrs)
         | PrintLn e ->
             // TODO support more types
@@ -113,28 +113,28 @@ type internal MemoryAllocator() =
             let writeFunctionSignature: ValueType list * 'a list = ([I32; I32], [])
             let m'' = m'.AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
             let (pos, size) = env.memoryAllocator.GetAllocated()
-            m''.AddCode([PlainInstr (I32Const (pos)); PlainInstr (I32Const (size)); PlainInstr (Call "writeS")])
+            m''.AddCode([(I32Const (pos)); (I32Const (size)); (Call "writeS")])
         | AST.If(condition, ifTrue, ifFalse) ->
             let m' = doCodegen env condition m
             let m'' = doCodegen env ifTrue m
             let m''' = doCodegen env ifFalse m
 
-            let instrs = m'.GetTempCode() @ [BlockInstr (If (m''.GetTempCode() @ [PlainInstr (Return)], Some(m'''.GetTempCode() @ [PlainInstr (Return)])))]
+            let instrs = m'.GetTempCode() @ [(If (m''.GetTempCode() @ [(Return)], Some(m'''.GetTempCode() @ [Return])))]
 
             (m' + m'' + m''').ResetTempCode().AddCode(instrs)
         | Assertion(e) ->
             let m' = doCodegen env e m
-            let instrs = m'.GetTempCode() @ [BlockInstr (If ([PlainInstr (Nop)], Some([PlainInstr (I32Const 42); PlainInstr (Return)])))]
+            let instrs = m'.GetTempCode() @ [(If ([Nop], Some([I32Const 42; Return])))]
             m'.ResetTempCode().AddCode(instrs)
         | While(condition, body) ->
             m.AddInstrs(env.currFunc, [
-                BlockInstr (Loop ([I32], [
-                    PlainInstr (I32Const 1);
-                    PlainInstr (I32Const 1);
-                    PlainInstr (I32Add);
-                    PlainInstr (Drop);
-                    PlainInstr (BrIf 0);
-                    PlainInstr (Br 1);
+                 (Loop ([I32], [
+                     (I32Const 1)
+                     (I32Const 1)
+                     (I32Add)
+                     (Drop)
+                     (BrIf 0)
+                     (Br 1)
                 ]));
             ])
         | Seq(nodes) ->
@@ -166,6 +166,6 @@ type internal MemoryAllocator() =
         let m = doCodegen env node m'
         
         // return 0 if program is successful
-        m.AddInstrs(env.currFunc, m.GetTempCode()).AddInstrs(env.currFunc, [PlainInstr (I32Const 0); PlainInstr (Return)])
+        m.AddInstrs(env.currFunc, m.GetTempCode()).AddInstrs(env.currFunc, [I32Const 0; Return])
 
 
