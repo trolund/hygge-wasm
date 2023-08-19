@@ -12,6 +12,8 @@ module WFG =
             | instr :: tailInstrs -> generate_wat_code_aux tailInstrs (watCode + (instr.ToString()) + "\n")
 
         generate_wat_code_aux instrs ""
+    
+    type Commented<'a> = 'a * string option
 
     type ValueType =
         | I32
@@ -40,8 +42,12 @@ module WFG =
                 | Type t -> t.ToString()
                 | Empty -> "empty"
     
+    // type Instruction =
+    //     | U of Instr
+    //     | C of Commented<Instr> 
+
    // Instructions are syntactically distinguished into plain (Instr) and structured instructions (BlockInstr).
-    and Instr = 
+    type Instr = 
         // Control Instrs
         | Unreachable
         | Nop
@@ -391,6 +397,8 @@ module WFG =
                         | Some instrs -> instrs
                         | None -> []
                     sprintf "(if\n (then\n%s\n) (else\n%s\n)\n)" (generate_wat_code ifInstrs) (generate_wat_code elseInstrs)
+                // comments
+                | Comment comment -> sprintf ";; %s" comment
 
     let generate_wat_code_ident instrs ident =
         
@@ -481,7 +489,7 @@ module WFG =
 
     and Code = int * int list * Instr list
 
-    type Commented<'a> = 'a * string option
+
 
     let commentToString (x: Commented<'a>) =
         match x with
