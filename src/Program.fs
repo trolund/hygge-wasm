@@ -206,8 +206,7 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
             Log.debug $"Running WASM VM"
             let vm = WasmVM()
             let res = vm.RunWatString("main", asm)
-            Log.debug $"WASM VM result: %O{res}"
-
+            Console.WriteLine($"WASM VM result: %O{res}")
             0
 
 
