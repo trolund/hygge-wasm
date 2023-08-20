@@ -159,15 +159,16 @@ type internal MemoryAllocator() =
         }
 
         // commeted f
-        let res: Commented<Function> = f, "Entry point of program (main function)"
+        let res: Commented<Function> = f, "entry point of program (main function)"
 
         let m' = m.AddFunction(funcName, res).AddExport(funcName, FunctionType(funcName, None))
 
         let m = doCodegen env node m'
         
         // return 0 if program is successful
-        m.AddInstrs(env.currFunc, [Comment "Execution start here:"])
+        m.AddInstrs(env.currFunc, [Comment "execution start here:"])
          .AddInstrs(env.currFunc, m.GetTempCode())
+         .AddInstrs(env.currFunc, [Comment "if execution reaches here, the program is successful"])
          .AddInstrs(env.currFunc, [(I32Const 0, "exit code 0"); (Return, "return the exit code")])
 
 

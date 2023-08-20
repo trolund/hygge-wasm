@@ -7,8 +7,8 @@
   (data (i32.const 104) "Wow 2 strings!")
   (data (i32.const 0) "Hello, World! - Welcome to the world of WebAssembly!")
   (memory (export "memory") 1)
-  (func $main  (result i32) ;; Entry point of program (main function) 
-    ;; Execution start here:
+  (func $main  (result i32) ;; entry point of program (main function) 
+    ;; execution start here:
     i32.const 0 ;; offset in memory
     i32.const 104 ;; size in bytes
     call $writeS ;; call host function
@@ -27,6 +27,7 @@
     i32.const 264 ;; offset in memory
     i32.const 50 ;; size in bytes
     call $writeS ;; call host function
+    ;; if execution reaches here, the program is successful
     i32.const 0 ;; exit code 0
     return ;; return the exit code
   )
