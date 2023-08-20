@@ -11,6 +11,20 @@ type Var =
     | GloVar of int * int
     | LocVar of int * int
 
+/// Storage information for variables.
+[<RequireQualifiedAccess; StructuralComparison; StructuralEquality>]
+type internal Storage =
+    // /// The variable is stored in an integerregister.
+    // | Reg of reg: Reg
+    // /// The variable is stored in a floating-point register.
+    // | FPReg of fpreg: FPReg
+    /// The variable is stored in memory, in a location marked with a
+    /// label in the compiled assembly code.
+    | Label of label: string
+    /// This variable is stored on the stack, at the given offset (in bytes)
+    /// from the memory address contained in the frame pointer (fp) register.
+    | Frame of offset: int
+
 type internal MemoryAllocator() =
     let mutable allocationPosition = 0
     let pageSize = 64 * 1024  // 64KB
@@ -41,7 +55,7 @@ type internal MemoryAllocator() =
         allocatedMemory <- (startPosition, size) :: allocatedMemory
         
         allocationPosition <- allocationPosition + size
-        startPosition
+        (startPosition, size)
 
     member this.GetAllocationPosition() =
         allocationPosition
@@ -49,15 +63,16 @@ type internal MemoryAllocator() =
     type internal CodegenEnv = {
         funcIndexMap: Map<string, List<Instr>>
         currFunc: string
-        // name, type, allocated address
-        varEnv: Map<string, Var * ValueType>
+        // // name, type, allocated address
+        // varEnv: Map<string, Var * ValueType>
         memoryAllocator: MemoryAllocator
+        VarStorage: Map<string, Storage>
     }
-
-
 
     let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
         match node.Expr with    
+        | UnitVal ->
+            m
         | IntVal i -> 
             let instrs = [I32Const i]
             m.AddCode(instrs)
@@ -66,6 +81,14 @@ type internal MemoryAllocator() =
             m.AddCode(instrs)
         | FloatVal f ->
             let instrs = [F32Const f]
+            m.AddCode(instrs)
+        | Var v ->
+            // load variable
+            // TODO
+            let instrs = match env.VarStorage.TryFind v with
+                                | Some(Storage.Label(l)) -> [LocalGet 0]
+                                | Some(Storage.Frame(o)) -> [LocalGet o]
+                                | _ -> failwith "not implemented"
             m.AddCode(instrs)
         | Add(lhs, rhs)
         | Sub(lhs, rhs)
@@ -99,21 +122,41 @@ type internal MemoryAllocator() =
             let instrs = [I32And]
             m''.AddCode(instrs)
         | StringVal s ->
-            let address = env.memoryAllocator.Allocate(Encoding.BigEndianUnicode.GetByteCount(s))
-            let allocatedModule = m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))  
+            let (address, size) = env.memoryAllocator.Allocate(Encoding.BigEndianUnicode.GetByteCount(s))
+            let allocatedModule = m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
             allocatedModule.AddData(I32Const address, s)
+                           .AddCode([(I32Const address, "offset in memory"); (I32Const (size), "size in bytes")])
         |Eq(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m
             let instrs = m'.GetTempCode() @ m''.GetTempCode() @ C [I32Eq]
             m''.AddCode(instrs)
         | PrintLn e ->
-            // TODO support more types
+            // TODO support more types 
             let m' = doCodegen env e m
-            let writeFunctionSignature: ValueType list * 'a list = ([I32; I32], [])
-            let m'' = m'.AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
-            let (pos, size) = env.memoryAllocator.GetAllocated()
-            m''.AddCode([(I32Const pos, "offset in memory"); (I32Const (size), "size in bytes"); (Call "writeS", "call host function")])
+            
+            // TODO not correct!!!!
+            match e.Type with
+            | t when (isSubtypeOf node.Env t TInt) ->
+                let printFunctionSignature: ValueType list * 'a list = ([I32], [])
+                let m'' = m'.AddImport("env", "writeI", FunctionType("writeI", Some(printFunctionSignature)))
+                let (pos, size) = env.memoryAllocator.GetAllocated()
+                m''.AddCode([(I32Const pos, "offset in memory"); (I32Const (size), "size in bytes"); (Call "writeI", "call host function")])
+            | t when (isSubtypeOf node.Env t TFloat) ->
+                let printFunctionSignature: ValueType list * 'a list = ([F32], [])
+                let m'' = m'.AddImport("env", "writeF", FunctionType("writeF", Some(printFunctionSignature)))
+                let (pos, size) = env.memoryAllocator.GetAllocated()
+                m''.AddCode([(I32Const pos, "offset in memory"); (I32Const (size), "size in bytes"); (Call "writeF", "call host function")])
+            | t when (isSubtypeOf node.Env t TBool) ->
+                let printFunctionSignature: ValueType list * 'a list = ([I32], [])
+                let m'' = m'.AddImport("env", "writeB", FunctionType("writeB", Some(printFunctionSignature)))
+                let (pos, size) = env.memoryAllocator.GetAllocated()
+                m''.AddCode([(I32Const pos, "offset in memory"); (I32Const (size), "size in bytes"); (Call "writeB", "call host function")])
+            | t when (isSubtypeOf node.Env t TString) ->
+                let writeFunctionSignature: ValueType list * 'a list = ([I32; I32], [])
+                let m'' = m'.AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
+                m''.AddCode([(Call "writeS", "call host function")])
+            | x -> failwith "not implemented"
         | AST.If(condition, ifTrue, ifFalse) ->
             let m' = doCodegen env condition m
             let m'' = doCodegen env ifTrue m
@@ -137,10 +180,44 @@ type internal MemoryAllocator() =
                      (Br 1)
                 ]));
             ])
+        | Let(name, _, init, scope) ->
+            let m' = doCodegen env init m
+
+            let varName = "label_var_%s{name}" 
+            let env' = {env with VarStorage = env.VarStorage.Add(name, Storage.Label(varName))}
+
+            match init.Type with
+            | t when (isSubtypeOf init.Env t TUnit) ->
+                (doCodegen env' scope m')
+            | t when (isSubtypeOf init.Env t TFloat) ->
+                let instrs = m'.GetTempCode() @ C [Local (varName, (F32))]
+                (doCodegen env' scope m').AddCode(instrs)
+            | t when (isSubtypeOf init.Env t TInt) ->
+                let x = m'.GetTempCode().Head 
+                // make x a Instr
+                let instrs = C [Local (varName, (I32)); LocalSet (x)]
+                (doCodegen env' scope m').AddCode(instrs)
         | Seq(nodes) ->
             // We collect the code of each sequence node by folding over all nodes
             List.fold (fun m node -> doCodegen env node m) m nodes
-        | x -> failwith "not implemented"
+        // | Var(name) ->
+        //     let (var, _) = Map.find name env.varEnv
+        //     let instrs = [GetLocal var]
+        //     m.AddInstrs(env.currFunc, instrs)
+        | Ascription(_, node) ->
+        // A type ascription does not produce code --- but the type-annotated
+        // AST node does
+        doCodegen env node m
+
+        // Special case for compiling a function with a given name in the input
+        // source file. We recognise this case by checking whether the 'Let...'
+        // declares 'name' as a Lambda expression with a TFun type
+        // | Let(name, _,
+        //     {Node.Expr = Lambda(args, body);
+        //     Node.Type = TFun(targs, _)}, scope) ->
+        //    Module()
+        | x -> 
+                failwith "not implemented"
 
     // add implicit main function
     let implicit (node: TypedAST): Module =
@@ -154,8 +231,8 @@ type internal MemoryAllocator() =
         let env = {
             currFunc = funcName
             funcIndexMap = Map.empty
-            varEnv = Map.empty
             memoryAllocator = MemoryAllocator()
+            VarStorage = Map.empty
         }
 
         // commeted f

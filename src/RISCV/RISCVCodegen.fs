@@ -568,7 +568,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
             match isTopLevel with
             | true ->
                 let storage = env.VarStorage.Add(name, Storage.Label("label_var_%s{name}"))
-                {env with VarStorage =storage}
+                {env with VarStorage = storage}
             | false ->
                 env
         match init.Type with

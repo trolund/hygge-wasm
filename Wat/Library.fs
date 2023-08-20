@@ -2,8 +2,6 @@
 
 module WFG =
 
-    open System.Text
-
     let generate_wat_code instrs =
 
         let rec generate_wat_code_aux instrs watCode =
@@ -12,6 +10,8 @@ module WFG =
             | instr :: tailInstrs -> generate_wat_code_aux tailInstrs (watCode + (instr.ToString()) + "\n")
 
         generate_wat_code_aux instrs ""
+
+    type Label = string
     
     type Commented<'a> = 'a * string
 
@@ -192,8 +192,9 @@ module WFG =
         | Drop
         | Select
         // Variable Instr
+        | Local of Label * ValueType // https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Variables/Local
         | LocalGet of int
-        | LocalSet of int
+        | LocalSet of Commented<Instr>
         | LocalTee of int
         | GlobalGet of int
         | GlobalSet of int
@@ -372,11 +373,11 @@ module WFG =
                 | I64Store32 (align, offset) -> sprintf "i64.store32 align=%d offset=%d" align offset
                 | MemorySize -> "memory.size"
                 | MemoryGrow -> "memory.grow"
-                | LocalGet index -> sprintf "get_local %d" index
-                | LocalSet index -> sprintf "set_local %d" index
-                | LocalTee index -> sprintf "tee_local %d" index
-                | GlobalGet index -> sprintf "get_global %d" index
-                | GlobalSet index -> sprintf "set_global %d" index
+                | LocalGet index -> sprintf "local.get %d" index
+                | LocalSet instr -> sprintf "local.set (%s)" (instr.ToString())
+                | LocalTee index -> sprintf "local.tee %d" index
+                | GlobalGet index -> sprintf "global.get %d" index
+                | GlobalSet index -> sprintf "global.set %d" index
                 | Unreachable -> "unreachable"
                 | Nop -> "nop"
                 //| Block (label, instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code instrs) 
