@@ -13,7 +13,7 @@ module WFG =
 
         generate_wat_code_aux instrs ""
     
-    type Commented<'a> = 'a * string option
+    type Commented<'a> = 'a * string
 
     // active pattern decomposing Commented
     let (|Commented|) (x: 'a * string option) = x
@@ -418,15 +418,9 @@ module WFG =
             match instrs with
             | [] -> watCode
             | head :: tail ->
-                    match head with
-                    | Commented (instr, comment) ->
-                            match comment with
-                            | Some c -> 
-                                let watCode = watCode + generate_indent indent + instr.ToString() + if (c.Length > 0) then (sprintf " ;; %s\n" c) else "\n" in
-                                generate_wat_code_aux tail watCode indent
-                            | None -> 
-                                let watCode = watCode + generate_indent indent + instr.ToString() in
-                                generate_wat_code_aux tail watCode indent
+                    let (instr, c) = head
+                    let watCode = watCode + generate_indent indent + instr.ToString() + if (c.Length > 0) then (sprintf " ;; %s\n" c) else "\n" in
+                    generate_wat_code_aux tail watCode indent
                         
                     
 
@@ -501,21 +495,9 @@ module WFG =
     and Code = int * int list * Instr list
 
 
-
-    let commentToString (x: Commented<'a>) =
-        match x with
-        | (x, Some comment) -> sprintf "%s ;; %s" (x.ToString()) comment
-        | (x, _) -> x.ToString()
-
-    let commentString (a) (b: string option) = 
-        match b with
-        | Some comment -> sprintf "%s ;; %s" a comment
-        | _ -> a
+    let commentString (a) (b: string) = sprintf "%s ;; %s" a b
     
-    let commentS (b: string option) = 
-        match b with
-        | Some comment -> sprintf " ;; %s" comment
-        | _ -> ""
+    let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""
 
     [<RequireQualifiedAccess>]
     type Module private (types: list<Type>, functions: Map<string, Commented<Function>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>, tempCode: list<Commented<Instr>>) =
@@ -540,7 +522,7 @@ module WFG =
             // add temp code
             member this.AddCode (instrs: Instr list) =
                 // map comment to instrs
-                let instrs = instrs |> List.map (fun x -> Commented(x, Some("")))
+                let instrs = instrs |> List.map (fun x -> Commented(x, ""))
                 let tempCode = this.tempCode @ instrs
                 Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode)
 
@@ -564,7 +546,7 @@ module WFG =
                 // ( func name <signature> <locals> <body> )
                 let (n, signature, locals, body) = f
 
-                let instrs2 = instrs |> List.map (fun x -> Commented(x, Some("")))
+                let instrs2 = instrs |> List.map (fun x -> Commented(x, ""))
                 let functions = this.functions.Add(name, ((n, signature, locals, body @ instrs2), s))
                 Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
 
@@ -636,11 +618,11 @@ module WFG =
             static member (++) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 
             static member ( @ ) (wasm1: Instrs list, wasm2: Commented<Instrs> list) = 
-                let instrs = wasm1 |> List.map (fun x -> Commented(x, Some("")))
+                let instrs = wasm1 |> List.map (fun x -> Commented(x, ""))
                 instrs @ wasm2
             
             static member ( @ ) (wasm1: Commented<Instrs> list, wasm2: Instrs list) = 
-                let instrs = wasm2 |> List.map (fun x -> Commented(x, Some("")))
+                let instrs = wasm2 |> List.map (fun x -> Commented(x, ""))
                 wasm1 @ instrs
 
             static member ( @ ) (wasm1: Commented<Instrs> list, wasm2: Commented<Instrs> list) = wasm1 @ wasm2
@@ -649,7 +631,7 @@ module WFG =
                 let mutable result = ""
 
                 // create functions
-                let generate_signature (signature: FunctionSignature) comment =
+                let generate_signature (signature: FunctionSignature) (comment: string) =
                     let parameters, returnValues = signature
                     let parametersString = String.concat " " (List.map (fun x -> (sprintf "(param %s)" (x.ToString()))) parameters)
                     let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
@@ -676,7 +658,7 @@ module WFG =
                     result <- result + sprintf "  (import \"%s\" \"%s\" %s)\n" modu func_name (match func_signature with
                                                                                                     | FunctionType (name, signature) -> 
                                                                                                                 match signature with
-                                                                                                                | Some signature -> sprintf "(func $%s %s)" name (generate_signature signature None)
+                                                                                                                | Some signature -> sprintf "(func $%s %s)" name (generate_signature signature "")
                                                                                                                 | _ -> sprintf "(func $%s)" name
                                                                                                     | TableType table -> sprintf "(table %s)" (table.ToString())
                                                                                                     | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
@@ -718,7 +700,7 @@ module WFG =
                 result
 
     let C instrs  = 
-        instrs |> List.map (fun x -> Commented(x, Some("")))
+        instrs |> List.map (fun x -> Commented(x, ""))
     
     let I instrs: Commented<Instr> list  = 
         instrs |> List.map (fun x -> fst x)

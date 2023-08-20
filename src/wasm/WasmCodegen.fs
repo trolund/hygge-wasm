@@ -113,7 +113,7 @@ type internal MemoryAllocator() =
             let writeFunctionSignature: ValueType list * 'a list = ([I32; I32], [])
             let m'' = m'.AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
             let (pos, size) = env.memoryAllocator.GetAllocated()
-            m''.AddCode([(I32Const pos, Some("offset in memory")); (I32Const (size), Some("size in bytes")); (Call "writeS", Some("call host function"))])
+            m''.AddCode([(I32Const pos, "offset in memory"); (I32Const (size), "size in bytes"); (Call "writeS", "call host function")])
         | AST.If(condition, ifTrue, ifFalse) ->
             let m' = doCodegen env condition m
             let m'' = doCodegen env ifTrue m
@@ -159,7 +159,7 @@ type internal MemoryAllocator() =
         }
 
         // commeted f
-        let res: Commented<Function> = f, Some("Entry point of program (main function))")
+        let res: Commented<Function> = f, "Entry point of program (main function)"
 
         let m' = m.AddFunction(funcName, res).AddExport(funcName, FunctionType(funcName, None))
 
@@ -168,6 +168,6 @@ type internal MemoryAllocator() =
         // return 0 if program is successful
         m.AddInstrs(env.currFunc, [Comment "Execution start here:"])
          .AddInstrs(env.currFunc, m.GetTempCode())
-         .AddInstrs(env.currFunc, [(I32Const 0, Some("exit code 0")); (Return, Some("return the exit code"))])
+         .AddInstrs(env.currFunc, [(I32Const 0, "exit code 0"); (Return, "return the exit code")])
 
 
