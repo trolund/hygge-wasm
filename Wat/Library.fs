@@ -24,7 +24,7 @@ module WFG =
                 match instr with
                 | (instr, comment) -> generate_wat_code_aux tailInstrs (watCode + (instr.ToString()) + " ;; " + comment + "\n")
 
-        generate_wat_code_aux instrs ""
+        generate_wat_code_aux instrs ""  
 
     type Label =  
         | Named of string
@@ -34,10 +34,6 @@ module WFG =
         match this with
             | Named s -> s
             | Index i -> i.ToString()
-    
-
-
-
 
     type ValueType =
         | I32
@@ -65,6 +61,11 @@ module WFG =
             match this with
                 | Type t -> t.ToString()
                 | Empty -> "empty"
+
+    
+    let resultPrint (x: ValueType list) = 
+        // print all value types as wasm result
+        List.fold (fun acc x -> acc + sprintf " (result %s)" (x.ToString())) "" x
     
     // type Instruction =
     //     | U of Instr
@@ -259,8 +260,8 @@ module WFG =
         // Block Instr
         | Block of string * list<Commented<Instr>>
         | Loop of ValueType list * list<Commented<Instr>>
-        // then block, else block
-        | If of list<Commented<Instr>> * list<Commented<Instr>> option
+        // reuslt type of if, then block, else block
+        | If of ValueType list * list<Commented<Instr>> * list<Commented<Instr>> option
 
         // comment
         | Comment of string
@@ -418,12 +419,12 @@ module WFG =
                 // block instructions
                 | Block (label, instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code instrs) 
                 | Loop (valueTypes, instrs: Commented<Instr> list) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code instrs)
-                | If (ifInstrs, elseInstrs) -> 
+                | If (types, ifInstrs, elseInstrs) -> 
                     let elseInstrs = 
                         match elseInstrs with
                         | Some instrs -> instrs
                         | None -> []
-                    sprintf "(if\n (then\n%s\n) (else\n%s\n)\n)" (generate_wat_code_commented ifInstrs) (generate_wat_code_commented elseInstrs)
+                    sprintf "(if %s\n (then\n%s\n) (else\n%s\n)\n)" (resultPrint types) (generate_wat_code_commented ifInstrs) (generate_wat_code_commented elseInstrs)
                 // comments
                 | Comment comment -> sprintf ";; %s" comment
                 | x -> sprintf "not implemented: %s" (x.ToString())

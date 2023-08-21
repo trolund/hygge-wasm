@@ -136,6 +136,11 @@ type internal MemoryAllocator() =
             let m'' = doCodegen env e2 m
             let instrs = m'.GetTempCode() @ m''.GetTempCode() @ C [I32Eq]
             m.AddCode(instrs)
+        | Less(e1, e2) ->
+            let m' = doCodegen env e1 m
+            let m'' = doCodegen env e2 m
+            let instrs = [I32LtS]
+            (m' + m'').AddCode(instrs)
         | PrintLn e ->
             // TODO support more types 
             let m' = doCodegen env e m
@@ -162,12 +167,26 @@ type internal MemoryAllocator() =
             let m'' = doCodegen env ifTrue m
             let m''' = doCodegen env ifFalse m
 
-            let instrs = m'.GetTempCode() @ C [(If (m''.GetTempCode() @ C [Return], Some(m'''.GetTempCode() @ C [Return])))]
+            // get subtype of ifTrue and ifFalse
+            let t = match ifTrue.Type, ifFalse.Type with
+                    | t, _ when (isSubtypeOf ifTrue.Env t TUnit) -> []
+                    | _, t when (isSubtypeOf ifFalse.Env t TUnit) -> []
+                    | t, _ when (isSubtypeOf ifTrue.Env t TFloat) -> [ValueType.F32]
+                    | _, t when (isSubtypeOf ifFalse.Env t TFloat) -> [ValueType.F32]
+                    | t, _ when (isSubtypeOf ifTrue.Env t TInt) -> [ValueType.I32]
+                    | _, t when (isSubtypeOf ifFalse.Env t TInt) -> [ValueType.I32]
+                    | t, _ when (isSubtypeOf ifTrue.Env t TBool) -> [ValueType.I32]
+                    | _, t when (isSubtypeOf ifFalse.Env t TBool) -> [ValueType.I32]
+                    | t, _ when (isSubtypeOf ifTrue.Env t TString) -> [ValueType.I32; ValueType.I32]
+                    | _, t when (isSubtypeOf ifFalse.Env t TString) -> [ValueType.I32; ValueType.I32]
+                    | _ -> failwith "not implemented"
+
+            let instrs = m'.GetTempCode() @ C [(If (t, m''.GetTempCode(), Some(m'''.GetTempCode())))]
 
             (m' + m'' + m''').ResetTempCode().AddCode(instrs)
         | Assertion(e) ->
             let m' = doCodegen env e m
-            let instrs = m'.GetTempCode() @ C [(If (C [Nop], Some(C [I32Const 42; Return])))]
+            let instrs = m'.GetTempCode() @ C [(If ([], C [Nop], Some(C [I32Const 42; Return])))]
             m'.ResetTempCode().AddCode(instrs)
         | While(condition, body) ->
             m.AddInstrs(env.currFunc,  [
