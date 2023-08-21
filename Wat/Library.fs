@@ -2,6 +2,9 @@
 
 module WFG =
 
+    type Commented<'a> = 
+        'a * string    
+
     let generate_wat_code instrs =
 
         let rec generate_wat_code_aux instrs watCode =
@@ -11,12 +14,30 @@ module WFG =
 
         generate_wat_code_aux instrs ""
 
-    type Label = string
-    
-    type Commented<'a> = 'a * string
+    // generate_wat_code that handle Commented Instr
+    let generate_wat_code_commented instrs =
 
-    // active pattern decomposing Commented
-    let (|Commented|) (x: 'a * string option) = x
+        let rec generate_wat_code_aux instrs watCode =
+            match instrs with
+            | [] -> watCode
+            | instr :: tailInstrs -> 
+                match instr with
+                | (instr, comment) -> generate_wat_code_aux tailInstrs (watCode + (instr.ToString()) + " ;; " + comment + "\n")
+
+        generate_wat_code_aux instrs ""
+
+    type Label =  
+        | Named of string
+        | Index of int
+
+        override this.ToString() =
+        match this with
+            | Named s -> s
+            | Index i -> i.ToString()
+    
+
+
+
 
     type ValueType =
         | I32
@@ -193,8 +214,8 @@ module WFG =
         | Select
         // Variable Instr
         | Local of Label * ValueType // https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Variables/Local
-        | LocalGet of int
-        | LocalSet of Commented<Instr>
+        | LocalGet of Label
+        | LocalSet of Label
         | LocalTee of int
         | GlobalGet of int
         | GlobalSet of int
@@ -236,8 +257,8 @@ module WFG =
         | F32ReinterpretI32
         | F64ReinterpretI64
         // Block Instr
-        | Block of string * list<Instr>
-        | Loop of ValueType list * list<Instr>
+        | Block of string * list<Commented<Instr>>
+        | Loop of ValueType list * list<Commented<Instr>>
         // then block, else block
         | If of list<Commented<Instr>> * list<Commented<Instr>> option
 
@@ -373,8 +394,10 @@ module WFG =
                 | I64Store32 (align, offset) -> sprintf "i64.store32 align=%d offset=%d" align offset
                 | MemorySize -> "memory.size"
                 | MemoryGrow -> "memory.grow"
-                | LocalGet index -> sprintf "local.get %d" index
-                | LocalSet instr -> sprintf "local.set (%s)" (instr.ToString())
+                // declare variable
+                | Local (label, t) -> sprintf "(local %s %s)" (label.ToString()) (t.ToString())
+                | LocalGet l -> sprintf "local.get %s" (l.ToString())
+                | LocalSet l -> sprintf "local.set %s" (l.ToString())
                 | LocalTee index -> sprintf "local.tee %d" index
                 | GlobalGet index -> sprintf "global.get %d" index
                 | GlobalSet index -> sprintf "global.set %d" index
@@ -385,7 +408,8 @@ module WFG =
                 //| If (valueTypes1, valueTypes2, instrs1, instrs2) -> sprintf "if %s %s\n%s\nelse\n%s\nend" (generate_wat_code valueTypes1) (generate_wat_code valueTypes2) (generate_wat_code instrs1) (generate_wat_code instrs2)
                 | Br index -> sprintf "br %d" index
                 | BrIf index -> sprintf "br_if %d" index
-                | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
+                // TODO: br_table
+                // | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
                 | Return -> "return"
                 | Call name -> sprintf "call $%s" name
                 | CallIndirect (index, x) -> sprintf "call_indirect %d" index // TODO: add x?? 
@@ -393,15 +417,16 @@ module WFG =
                 | Select -> "select"
                 // block instructions
                 | Block (label, instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code instrs) 
-                | Loop (valueTypes, instrs) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code instrs)
+                | Loop (valueTypes, instrs: Commented<Instr> list) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code instrs)
                 | If (ifInstrs, elseInstrs) -> 
                     let elseInstrs = 
                         match elseInstrs with
                         | Some instrs -> instrs
                         | None -> []
-                    sprintf "(if\n (then\n%s\n) (else\n%s\n)\n)" (generate_wat_code ifInstrs) (generate_wat_code elseInstrs)
+                    sprintf "(if\n (then\n%s\n) (else\n%s\n)\n)" (generate_wat_code_commented ifInstrs) (generate_wat_code_commented elseInstrs)
                 // comments
                 | Comment comment -> sprintf ";; %s" comment
+                | x -> sprintf "not implemented: %s" (x.ToString())
 
     let generate_wat_code_ident (instrs: List<Commented<Instr>>) ident =
         
@@ -520,6 +545,9 @@ module WFG =
             // empty constructor
             new () = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], [], [], [])
             
+            // module constructor that take temp code
+            new (tempCode: list<Commented<Instr>>) = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], [], [], tempCode)
+
             // add temp code
             member this.AddCode (instrs: Instr list) =
                 // map comment to instrs
@@ -617,6 +645,9 @@ module WFG =
             static member (+) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 
             static member (++) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
+
+            static member (++) (instr: Commented<Instr> list, wasm2: Module): Module = 
+                Module(instr).Combine wasm2
 
             static member ( @ ) (wasm1: Instrs list, wasm2: Commented<Instrs> list) = 
                 let instrs = wasm1 |> List.map (fun x -> Commented(x, ""))

@@ -7,6 +7,7 @@
 module Test
 
 open Expecto // See https://github.com/haf/expecto
+open WasmTimeDriver
 
 
 /// Collect and sort the test files in a test directory.
@@ -21,6 +22,36 @@ let internal formatErrors (es: Typechecker.TypeErrors): string =
     List.fold (fun acc e -> acc + (Util.formatMsg e) + Util.nl) "" es
 
 
+let internal runRARS tast expected = 
+    let asm = RISCVCodegen.codegen tast
+    let explainExpected = RARS.explainExitCode expected
+    let exit = RARS.launch (asm.ToString()) false
+    let explainExit = RARS.explainExitCode exit
+    Expect.equal exit expected ($"RARS should have exited with code %d{expected} (%s{explainExpected}), "
+                                        + $"got %d{exit} (%s{explainExit})")
+
+let internal runWasmTime tast expected = 
+    let anf = ANF.transform tast
+    let asm = (WASMCodegen.implicit tast).ToString()
+    let explainExpected = RARS.explainExitCode expected
+
+    let vm = WasmVM()
+    let exit: int = vm.RunWatString("main", asm.ToString()) :?> int
+    Log.debug (sprintf "WasmTime exit code: %d" exit)
+    let explainExit = RARS.explainExitCode exit
+    Expect.equal exit expected ($"WasmTime should have exited with code %d{expected} (%s{explainExpected}), "
+                                        + $"got %d{exit} (%s{explainExit})")
+
+
+let internal testWasmCodegen (file: string) (expected: int) =
+    match (Util.parseFile file) with
+    | Error(e) -> failwith $"Parsing failed: %s{e}"
+    | Ok(ast) ->
+        match (Typechecker.typecheck ast) with
+        | Error(es) -> failwith $"Typing failed: %s{formatErrors es}"
+        | Ok(tast) ->
+            runWasmTime tast expected
+
 /// Compile a source file and run the resulting assembly code on RARS, checking
 /// whether its return code matches the expected one.
 let internal testCodegen (file: string) (expected: int) =
@@ -30,13 +61,7 @@ let internal testCodegen (file: string) (expected: int) =
         match (Typechecker.typecheck ast) with
         | Error(es) -> failwith $"Typing failed: %s{formatErrors es}"
         | Ok(tast) ->
-            let asm = RISCVCodegen.codegen tast
-            let explainExpected = RARS.explainExitCode expected
-            let exit = RARS.launch (asm.ToString()) false
-            let explainExit = RARS.explainExitCode exit
-            Expect.equal exit expected ($"RARS should have exited with code %d{expected} (%s{explainExpected}), "
-                                        + $"got %d{exit} (%s{explainExit})")
-
+            runRARS tast expected
 
 /// Compile a source file after transforming it in ANF, and run the resulting
 /// assembly code on RARS, checking whether its return code matches the expected
@@ -178,6 +203,21 @@ let tests = testList "tests" [
             getFilesInTestDir ["codegen-anf"; "fail"] |> List.map ( fun file ->
                 testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
                     testANFCodegen file RISCVCodegen.assertExitCode
+            )
+        )
+    ]
+    // Wasm tests are disabled for now
+    testList "wasm codegen" [
+        testList "wasm pass" (
+            getFilesInTestDir ["codegen"; "pass"] |> List.map ( fun file ->
+                testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
+                    testWasmCodegen file 0
+            )
+        )
+        testList "wasm fail" (
+            getFilesInTestDir ["codegen"; "fail"] |> List.map ( fun file ->
+                testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
+                    testWasmCodegen file RISCVCodegen.assertExitCode
             )
         )
     ]

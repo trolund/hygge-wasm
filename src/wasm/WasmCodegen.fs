@@ -74,20 +74,25 @@ type internal MemoryAllocator() =
         | UnitVal ->
             m
         | IntVal i -> 
-            let instrs = [I32Const i]
-            m.AddCode(instrs)
+            m.AddCode([(I32Const i, (sprintf "push %i on stack" (i)))])
         | BoolVal b ->
-            let instrs = [I32Const (if b then 1 else 0)]
-            m.AddCode(instrs)
+            m.AddCode([I32Const (if b then 1 else 0)])
         | FloatVal f ->
-            let instrs = [F32Const f]
-            m.AddCode(instrs)
+            m.AddCode([F32Const f])
+        | StringVal s ->
+            // allocate string in memory
+            let (address, size) = env.memoryAllocator.Allocate(Encoding.BigEndianUnicode.GetByteCount(s))
+            // add memory to module
+            let allocatedModule = m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
+            // add data to module. push address and size (bytes) to the stack
+            allocatedModule.AddData(I32Const address, s)
+                           .AddCode([(I32Const address, "offset in memory"); (I32Const (size), "size in bytes")])
         | Var v ->
             // load variable
             // TODO
             let instrs = match env.VarStorage.TryFind v with
-                                | Some(Storage.Label(l)) -> [LocalGet 0]
-                                | Some(Storage.Frame(o)) -> [LocalGet o]
+                                | Some(Storage.Label(l)) -> [LocalGet (Named(l))]
+                                | Some(Storage.Frame(o)) -> [LocalGet (Index(o))]
                                 | _ -> failwith "not implemented"
             m.AddCode(instrs)
         | Add(lhs, rhs)
@@ -121,11 +126,6 @@ type internal MemoryAllocator() =
             let m'' = doCodegen env e2 m'
             let instrs = [I32And]
             m''.AddCode(instrs)
-        | StringVal s ->
-            let (address, size) = env.memoryAllocator.Allocate(Encoding.BigEndianUnicode.GetByteCount(s))
-            let allocatedModule = m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
-            allocatedModule.AddData(I32Const address, s)
-                           .AddCode([(I32Const address, "offset in memory"); (I32Const (size), "size in bytes")])
         |Eq(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m
@@ -137,26 +137,21 @@ type internal MemoryAllocator() =
             
             // TODO not correct!!!!
             match e.Type with
-            | t when (isSubtypeOf node.Env t TInt) ->
-                let printFunctionSignature: ValueType list * 'a list = ([I32], [])
-                let m'' = m'.AddImport("env", "writeI", FunctionType("writeI", Some(printFunctionSignature)))
-                let (pos, size) = env.memoryAllocator.GetAllocated()
-                m''.AddCode([(I32Const pos, "offset in memory"); (I32Const (size), "size in bytes"); (Call "writeI", "call host function")])
-            | t when (isSubtypeOf node.Env t TFloat) ->
-                let printFunctionSignature: ValueType list * 'a list = ([F32], [])
-                let m'' = m'.AddImport("env", "writeF", FunctionType("writeF", Some(printFunctionSignature)))
-                let (pos, size) = env.memoryAllocator.GetAllocated()
-                m''.AddCode([(I32Const pos, "offset in memory"); (I32Const (size), "size in bytes"); (Call "writeF", "call host function")])
-            | t when (isSubtypeOf node.Env t TBool) ->
-                let printFunctionSignature: ValueType list * 'a list = ([I32], [])
-                let m'' = m'.AddImport("env", "writeB", FunctionType("writeB", Some(printFunctionSignature)))
-                let (pos, size) = env.memoryAllocator.GetAllocated()
-                m''.AddCode([(I32Const pos, "offset in memory"); (I32Const (size), "size in bytes"); (Call "writeB", "call host function")])
+            | t when (isSubtypeOf node.Env t TInt) -> 
+                // import writeInt function
+                let writeFunctionSignature: ValueType list * 'a list = ([I32], [])
+                let m'' = m'.AddImport("env", "writeInt", FunctionType("writeInt", Some(writeFunctionSignature)))
+                // perform host (system) call
+                m''.AddCode([(Call "writeInt", "call host function")])
+            | t when (isSubtypeOf node.Env t TFloat) -> failwith "not implemented"
+            | t when (isSubtypeOf node.Env t TBool) -> failwith "not implemented"
             | t when (isSubtypeOf node.Env t TString) ->
+                // import writeS function
                 let writeFunctionSignature: ValueType list * 'a list = ([I32; I32], [])
                 let m'' = m'.AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
+                // perform host (system) call
                 m''.AddCode([(Call "writeS", "call host function")])
-            | x -> failwith "not implemented"
+            | _ -> failwith "not implemented"
         | AST.If(condition, ifTrue, ifFalse) ->
             let m' = doCodegen env condition m
             let m'' = doCodegen env ifTrue m
@@ -170,8 +165,8 @@ type internal MemoryAllocator() =
             let instrs = m'.GetTempCode() @ C [(If (C [Nop], Some(C [I32Const 42; Return])))]
             m'.ResetTempCode().AddCode(instrs)
         | While(condition, body) ->
-            m.AddInstrs(env.currFunc, [
-                 (Loop ([I32], [
+            m.AddInstrs(env.currFunc,  [
+                 (Loop ([I32], C [
                      (I32Const 1)
                      (I32Const 1)
                      (I32Add)
@@ -183,20 +178,22 @@ type internal MemoryAllocator() =
         | Let(name, _, init, scope) ->
             let m' = doCodegen env init m
 
-            let varName = "label_var_%s{name}" 
+            let varName = "$var_" + name + "_0"
             let env' = {env with VarStorage = env.VarStorage.Add(name, Storage.Label(varName))}
 
             match init.Type with
             | t when (isSubtypeOf init.Env t TUnit) ->
                 (doCodegen env' scope m')
-            | t when (isSubtypeOf init.Env t TFloat) ->
-                let instrs = m'.GetTempCode() @ C [Local (varName, (F32))]
-                (doCodegen env' scope m').AddCode(instrs)
+            | t when (isSubtypeOf init.Env t TFloat) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TInt) ->
-                let x = m'.GetTempCode().Head 
                 // make x a Instr
-                let instrs = C [Local (varName, (I32)); LocalSet (x)]
-                (doCodegen env' scope m').AddCode(instrs)
+                let varLabel = Named (varName)
+                let instrs = [(Local (varLabel, (I32)), sprintf "delcare local var %s" varName)] // declare local var
+                                                     @ m'.GetTempCode() // inizilize code
+                                                     @ [(LocalSet varLabel, "set local var")] // set local var
+                (instrs ++ (doCodegen env' scope m))
+            | t when (isSubtypeOf init.Env t TBool) -> failwith "not implemented"
+            | t when (isSubtypeOf init.Env t TString) -> failwith "not implemented"
         | Seq(nodes) ->
             // We collect the code of each sequence node by folding over all nodes
             List.fold (fun m node -> doCodegen env node m) m nodes

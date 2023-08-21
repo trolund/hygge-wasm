@@ -84,10 +84,10 @@ namespace WasmTimeDriver
             _linker.Define(
                 "env",
                 "writeInt",
-                Function.FromCallback(_store, (int s) =>
+                Function.FromCallback(_store, (int i) =>
                 {
                     var memory = _store.ToString();
-                    Console.WriteLine(s);
+                    Console.WriteLine(i);
                 })
             );
 
