@@ -123,14 +123,19 @@ type internal MemoryAllocator() =
             (lhs' + rhs').AddCode([opCode])
         | And(e1, e2) ->
             let m' = doCodegen env e1 m
-            let m'' = doCodegen env e2 m'
+            let m'' = doCodegen env e2 m
             let instrs = [I32And]
-            m''.AddCode(instrs)
+            (m' + m'').AddCode(instrs)
+        | Or(e1, e2) ->
+            let m' = doCodegen env e1 m
+            let m'' = doCodegen env e2 m
+            let instrs = [I32Or]
+            (m' + m'').AddCode(instrs)
         |Eq(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m
             let instrs = m'.GetTempCode() @ m''.GetTempCode() @ C [I32Eq]
-            m''.AddCode(instrs)
+            m.AddCode(instrs)
         | PrintLn e ->
             // TODO support more types 
             let m' = doCodegen env e m

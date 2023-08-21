@@ -1,12 +1,23 @@
 (module
-  (import "env" "writeInt" (func $writeInt (param i32) ))
   (func $main  (result i32) ;; entry point of program (main function) 
     ;; execution start here:
-    (local $var_z_0 i32) ;; delcare local var $var_z_0
-    i32.const 23 ;; push 23 on stack
-    local.set $var_z_0 ;; set local var
-    local.get $var_z_0
-    call $writeInt ;; call host function
+    i32.const 0
+    i32.const 4 ;; push 4 on stack
+    i32.const 2 ;; push 2 on stack
+    i32.mul
+    i32.const 8 ;; push 8 on stack
+    i32.eq
+    i32.or
+    (if
+ (then
+nop ;; 
+
+) (else
+i32.const 42 ;; 
+return ;; 
+
+)
+)
     ;; if execution reaches here, the program is successful
     i32.const 0 ;; exit code 0
     return ;; return the exit code
