@@ -27,3 +27,8 @@ Seen here: https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Contro
     ./hyggec wasm <WAT file path>
 
     ./hyggec wasm examples/wasm/io.wat 
+
+# Run only wasm tests
+
+    ./hyggec test -f "wasm"  
+    ./hyggec test -f "wasm codegen"
