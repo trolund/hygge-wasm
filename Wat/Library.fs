@@ -32,7 +32,7 @@ module WFG =
 
         override this.ToString() =
         match this with
-            | Named s -> s
+            | Named s -> sprintf "$%s" s
             | Index i -> i.ToString()
 
     type ValueType =

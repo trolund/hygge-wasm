@@ -6,6 +6,9 @@ open Typechecker
 open Wat.WFG
 open System.Text
 
+let errorExitCode = 42
+let successExitCode = 0
+
     // adress and size
 type Var = 
     | GloVar of int * int
@@ -171,14 +174,14 @@ type internal MemoryAllocator() =
             let t = match ifTrue.Type, ifFalse.Type with
                     | t, _ when (isSubtypeOf ifTrue.Env t TUnit) -> []
                     | _, t when (isSubtypeOf ifFalse.Env t TUnit) -> []
-                    | t, _ when (isSubtypeOf ifTrue.Env t TFloat) -> [ValueType.F32]
-                    | _, t when (isSubtypeOf ifFalse.Env t TFloat) -> [ValueType.F32]
-                    | t, _ when (isSubtypeOf ifTrue.Env t TInt) -> [ValueType.I32]
-                    | _, t when (isSubtypeOf ifFalse.Env t TInt) -> [ValueType.I32]
-                    | t, _ when (isSubtypeOf ifTrue.Env t TBool) -> [ValueType.I32]
-                    | _, t when (isSubtypeOf ifFalse.Env t TBool) -> [ValueType.I32]
-                    | t, _ when (isSubtypeOf ifTrue.Env t TString) -> [ValueType.I32; ValueType.I32]
-                    | _, t when (isSubtypeOf ifFalse.Env t TString) -> [ValueType.I32; ValueType.I32]
+                    | t, _ when (isSubtypeOf ifTrue.Env t TFloat) -> [F32]
+                    | _, t when (isSubtypeOf ifFalse.Env t TFloat) -> [F32]
+                    | t, _ when (isSubtypeOf ifTrue.Env t TInt) -> [I32]
+                    | _, t when (isSubtypeOf ifFalse.Env t TInt) -> [I32]
+                    | t, _ when (isSubtypeOf ifTrue.Env t TBool) -> [I32]
+                    | _, t when (isSubtypeOf ifFalse.Env t TBool) -> [I32]
+                    | t, _ when (isSubtypeOf ifTrue.Env t TString) -> [I32; I32]
+                    | _, t when (isSubtypeOf ifFalse.Env t TString) -> [I32; I32]
                     | _ -> failwith "not implemented"
 
             let instrs = m'.GetTempCode() @ C [(If (t, m''.GetTempCode(), Some(m'''.GetTempCode())))]
@@ -186,7 +189,7 @@ type internal MemoryAllocator() =
             (m' + m'' + m''').ResetTempCode().AddCode(instrs)
         | Assertion(e) ->
             let m' = doCodegen env e m
-            let instrs = m'.GetTempCode() @ C [(If ([], C [Nop], Some(C [I32Const 42; Return])))]
+            let instrs = m'.GetTempCode() @ C [(If ([], [(Nop, "do nothing - if all correct")], Some([(I32Const errorExitCode, "error exit code push to stack"); (Return, "return exit code")])))]
             m'.ResetTempCode().AddCode(instrs)
         | While(condition, body) ->
             m.AddInstrs(env.currFunc,  [
@@ -202,20 +205,21 @@ type internal MemoryAllocator() =
         | Let(name, _, init, scope) ->
             let m' = doCodegen env init m
 
-            let varName = "$var_" + name + "_0"
+            let varName = Util.genSymbol "var"
             let env' = {env with VarStorage = env.VarStorage.Add(name, Storage.Label(varName))}
 
             match init.Type with
-            | t when (isSubtypeOf init.Env t TUnit) ->
-                (doCodegen env' scope m')
+            | t when (isSubtypeOf init.Env t TUnit) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TFloat) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TInt) ->
                 // make x a Instr
                 let varLabel = Named (varName)
+                let initCode = m'.GetTempCode()
                 let instrs = [(Local (varLabel, (I32)), sprintf "delcare local var %s" varName)] // declare local var
-                                                     @ m'.GetTempCode() // inizilize code
+                                                     @ initCode // inizilize code
                                                      @ [(LocalSet varLabel, "set local var")] // set local var
-                (instrs ++ (doCodegen env' scope m))
+                let scopeCode = doCodegen env' scope (m.ResetTempCode())
+                (instrs ++ scopeCode)
             | t when (isSubtypeOf init.Env t TBool) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TString) -> failwith "not implemented"
         | Seq(nodes) ->
@@ -267,6 +271,6 @@ type internal MemoryAllocator() =
         m.AddInstrs(env.currFunc, [Comment "execution start here:"])
          .AddInstrs(env.currFunc, m.GetTempCode())
          .AddInstrs(env.currFunc, [Comment "if execution reaches here, the program is successful"])
-         .AddInstrs(env.currFunc, [(I32Const 0, "exit code 0"); (Return, "return the exit code")])
+         .AddInstrs(env.currFunc, [(I32Const successExitCode, "exit code 0"); (Return, "return the exit code")])
 
 

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebAssembly Example</title>
+</head>
+<body>
+  <h1>WebAssembly Example</h1>
+  <p>Open the browser console to see the result.</p>
+
+  <script>
+    fetch('test.wat')
+      .then(response => response.arrayBuffer())
+      .then(buffer => WebAssembly.instantiate(buffer))
+      .then(module => {
+        const instance = module.instance;
+
+        const result = instance.exports.main(5, 3); // Replace 'add' with the actual exported function name
+
+        console.log('Result:', result);
+      })
+      .catch(error => {
+        console.error('Error:', error);
+      });
+  </script>
+</body>
+</html>
