@@ -106,7 +106,6 @@ namespace WasmTimeDriver
                 Function.FromCallback(_store, (Caller caller, int address, int length) =>
                 {
                     // memory == export name
-                    var s = caller.GetMemory("memory").ReadString(address, length / 2);
                     var message = caller.GetMemory("memory").ReadString(address, length / 2);
                     Console.WriteLine(message);
                 })

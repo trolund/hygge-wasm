@@ -1,32 +1,40 @@
 (module
-  (import "env" "writeS" (func $writeS (param i32) (param i32) ))
-  (data (i32.const 264) "6 strings? - please stop!")
-  (data (i32.const 220) "5 strings? - too easy!")
-  (data (i32.const 176) "4 strings? - too easy!")
-  (data (i32.const 132) "3 strings? - too easy!")
-  (data (i32.const 104) "Wow 2 strings!")
-  (data (i32.const 0) "Hello, World! - Welcome to the world of WebAssembly!")
-  (memory (export "memory") 1)
-  (func $main  (result i32) ;; entry point of program (main function) 
+  (import "env" "writeInt" (func $writeInt (param i32)  
+))
+  (func $main  (result i32)  ;; entry point of program (main function)
+    (local $var_3 i32)
+    (local $var_2 i32)
+    (local $var_1 i32)
+    (local $var_0 i32)
+    (local $var i32)
+
     ;; execution start here:
-    i32.const 0 ;; offset in memory
-    i32.const 104 ;; size in bytes
-    call $writeS ;; call host function
-    i32.const 104 ;; offset in memory
-    i32.const 28 ;; size in bytes
-    call $writeS ;; call host function
-    i32.const 132 ;; offset in memory
-    i32.const 44 ;; size in bytes
-    call $writeS ;; call host function
-    i32.const 176 ;; offset in memory
-    i32.const 44 ;; size in bytes
-    call $writeS ;; call host function
-    i32.const 220 ;; offset in memory
-    i32.const 44 ;; size in bytes
-    call $writeS ;; call host function
-    i32.const 264 ;; offset in memory
-    i32.const 50 ;; size in bytes
-    call $writeS ;; call host function
+    i32.const 23 ;; push 23 on stack
+    local.set $var ;; set local var
+    i32.const 23 ;; push 23 on stack
+    local.set $var_0 ;; set local var
+    i32.const 23 ;; push 23 on stack
+    local.set $var_1 ;; set local var
+    i32.const 23 ;; push 23 on stack
+    local.set $var_2 ;; set local var
+    i32.const 23 ;; push 23 on stack
+    local.set $var_3 ;; set local var
+    local.get $var
+    call $writeInt ;; call host function
+    local.get $var_0
+    call $writeInt ;; call host function
+    local.get $var_1
+    call $writeInt ;; call host function
+    local.get $var_2
+    local.get $var
+    call $writeInt ;; call host function
+    local.get $var_0
+    call $writeInt ;; call host function
+    local.get $var_1
+    call $writeInt ;; call host function
+    local.get $var_3
+    i32.add
+    call $writeInt ;; call host function
     ;; if execution reaches here, the program is successful
     i32.const 0 ;; exit code 0
     return ;; return the exit code

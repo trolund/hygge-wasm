@@ -34,6 +34,8 @@ module WFG =
         match this with
             | Named s -> sprintf "$%s" s
             | Index i -> i.ToString()
+    
+    type Identifier = string
 
     type ValueType =
         | I32
@@ -521,13 +523,25 @@ module WFG =
 
     and Code = int * int list * Instr list
 
+    and Local = Identifier * ValueType
+
+    and FunctionInstance =
+        { 
+          // moduleInstance : ModuleInstance
+          typeIndex : int
+          name: Identifier option
+          signature : FunctionSignature
+          locals : Local list
+          body : Commented<Instr> list
+        }
+
 
     let commentString (a) (b: string) = sprintf "%s ;; %s" a b
     
     let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""
 
     [<RequireQualifiedAccess>]
-    type Module private (types: list<Type>, functions: Map<string, Commented<Function>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>, tempCode: list<Commented<Instr>>) =
+    type Module private (types: list<Type>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>, tempCode: list<Commented<Instr>>) =
             member private this.types: list<Type> = types
             member private this.functions = functions 
             member private this.tables = tables
@@ -569,33 +583,50 @@ module WFG =
             member this.ResetTempCode () =
                 Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, [])
 
+            // add locals tp function with name
+            member this.AddLocals (name: string, locals: list<Local>) =
+                let (f), s = this.functions.[name]
+                let newInstance: Commented<FunctionInstance> = ({typeIndex = f.typeIndex
+                                                                 locals = f.locals @ locals
+                                                                 signature = f.signature
+                                                                 body = f.body
+                                                                 name = f.name }, s)
+
+                let functions = this.functions.Add(name, newInstance)
+                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+
             // Add instructions to function with name
             member this.AddInstrs (name: string, instrs: Instr list) =
                 let (f), s = this.functions.[name]
-                // add instrs to function f
-                // ( func name <signature> <locals> <body> )
-                let (n, signature, locals, body) = f
+                // add instrs to function f a function instance
+                let newInstance: Commented<FunctionInstance> = ({typeIndex = f.typeIndex
+                                                                 locals = f.locals
+                                                                 signature = f.signature
+                                                                 body = f.body @ (instrs |> List.map (fun x -> Commented(x, "")))
+                                                                 name = f.name }, s)
 
-                let instrs2 = instrs |> List.map (fun x -> Commented(x, ""))
-                let functions = this.functions.Add(name, ((n, signature, locals, body @ instrs2), s))
+                let functions = this.functions.Add(name, newInstance)
                 Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
-
+                
             member this.AddInstrs (name: string, instrs: Commented<Instr> list) = 
                 let (f), s = this.functions.[name]
-                // add instrs to function f
-                // ( func name <signature> <locals> <body> )
-                let (n, signature, locals, body) = f
+                // add instrs to function f a function instance
+                let newInstance: Commented<FunctionInstance> = ({typeIndex = f.typeIndex
+                                                                 locals = f.locals
+                                                                 signature = f.signature
+                                                                 body = f.body @ instrs 
+                                                                 name = f.name }, s)
 
-                let functions = this.functions.Add(name, ((n, signature, locals, body @ instrs), s))
+                let functions = this.functions.Add(name, newInstance)
                 Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
-
+                
             // Add an import to the module
             member this.AddImport (i: Import) =
                 let imports = i :: Set.toList this.imports
                 Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, Set(imports), this.start, this.elements, this.data, this.locals, this.tempCode)
 
             // Add a function to the module
-            member this.AddFunction (name: string, f: Commented<Function>) =
+            member this.AddFunction (name: string, f: Commented<FunctionInstance>) =
                 Module(this.types, functions.Add(name, f), this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
                 
             // Add a type to the module
@@ -668,10 +699,10 @@ module WFG =
                     let parameters, returnValues = signature
                     let parametersString = String.concat " " (List.map (fun x -> (sprintf "(param %s)" (x.ToString()))) parameters)
                     let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
-                    sprintf "%s %s" parametersString returnValuesString + commentS comment
+                    sprintf "%s %s %s\n" parametersString returnValuesString (commentS comment)
                 
-                let generate_local (locals: Variable list) =
-                    String.concat " " (List.map (fun x -> (sprintf "(local %s %s)" ((fst x).ToString()) ((snd x).ToString()))) locals)
+                let generate_local (locals: Local list) =
+                    String.concat " " (List.map (fun x -> (sprintf "   (local $%s %s)\n" ((fst x).ToString()) ((snd x).ToString()))) locals)
 
                 let genrate_name (name: string option) =
                     match name with
@@ -712,8 +743,8 @@ module WFG =
                     result <- result + sprintf "  (memory (export \"%s\") %s)\n" name (Limits.ToString())            
 
                 for funcKey in this.functions.Keys do
-                    let (name, signature, locals, body), comment = this.functions.[funcKey]
-                    result <- result + sprintf "  (func %s %s %s\n%s  )\n" (genrate_name name) (generate_signature signature comment) (generate_local locals) (generate_wat_code_ident body 4) 
+                    let (f), c = this.functions.[funcKey]
+                    result <- result + sprintf "  (func %s %s %s\n%s  )\n" (genrate_name f.name) (generate_signature f.signature c) (generate_local f.locals) (generate_wat_code_ident f.body 4) 
                     
                 // create exports
                 for export in this.exports do

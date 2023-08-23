@@ -215,11 +215,11 @@ type internal MemoryAllocator() =
                 // make x a Instr
                 let varLabel = Named (varName)
                 let initCode = m'.GetTempCode()
-                let instrs = [(Local (varLabel, (I32)), sprintf "delcare local var %s" varName)] // declare local var
-                                                     @ initCode // inizilize code
-                                                     @ [(LocalSet varLabel, "set local var")] // set local var
+                // let varDef = [(Local (varLabel, (I32)), sprintf "delcare local var %s" varName)] // declare local var
+                let instrs = initCode // inizilize code
+                                                    @ [(LocalSet varLabel, "set local var")] // set local var
                 let scopeCode = doCodegen env' scope (m.ResetTempCode())
-                (instrs ++ scopeCode)
+                (instrs ++ scopeCode).AddLocals(env.currFunc, [(Identifier(varName), I32)])
             | t when (isSubtypeOf init.Env t TBool) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TString) -> failwith "not implemented"
         | Seq(nodes) ->
@@ -250,7 +250,11 @@ type internal MemoryAllocator() =
         let funcName = "main"
         
         let signature = ([], [I32])
-        let f: Function = Some(funcName), signature, [], []
+        let f: Commented<FunctionInstance> = ({typeIndex = 0
+                                               locals = []
+                                               signature = signature
+                                               body = [] 
+                                               name = Some(Identifier(funcName)) }, "entry point of program (main function)")
 
         let m = Module()
         let env = {
@@ -260,10 +264,7 @@ type internal MemoryAllocator() =
             VarStorage = Map.empty
         }
 
-        // commeted f
-        let res: Commented<Function> = f, "entry point of program (main function)"
-
-        let m' = m.AddFunction(funcName, res).AddExport(funcName, FunctionType(funcName, None))
+        let m' = m.AddFunction(funcName, f).AddExport(funcName, FunctionType(funcName, None))
 
         let m = doCodegen env node m'
         

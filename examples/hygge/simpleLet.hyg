@@ -1,2 +1,9 @@
+let x: int = 23;
+let y: int = 23;
 let z: int = 23;
-println(z)
+let a: int = 23;
+let b: int = 23;
+println(x);
+println(y);
+println(z);
+println(a + b)
