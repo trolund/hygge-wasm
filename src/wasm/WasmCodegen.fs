@@ -215,6 +215,27 @@ type internal MemoryAllocator() =
                      (Br 1)
                 ]));
             ])
+        | Let(name, _,
+            {Node.Expr = Lambda(args, body);
+             Node.Type = TFun(targs, _)}, scope) ->
+            /// Assembly label to mark the position of the compiled function body.
+            /// For readability, we make the label similar to the function name
+            let funLabel = Util.genSymbol $"fun_%s{name}"
+
+            /// Names of the lambda term arguments
+            let (argNames, _) = List.unzip args
+            /// List of pairs associating each function argument to its type
+            let argNamesTypes = List.zip argNames targs
+            /// Compiled function body
+            let bodyCode: Module = compileFunction funLabel argNamesTypes body env m
+            
+            /// Storage info where the name of the compiled function points to the
+            /// label 'funLabel'
+            let varStorage2 = env.VarStorage.Add(name, Storage.Label(funLabel))
+
+            let scopeModule: Module = (doCodegen {env with VarStorage = varStorage2} scope m)
+
+            scopeModule + bodyCode
         | Let(name, _, init, scope) ->
             let m' = doCodegen env init m
 
@@ -235,6 +256,23 @@ type internal MemoryAllocator() =
                 (instrs ++ scopeCode).AddLocals(env.currFunc, [(Identifier(varName), I32)])
             | t when (isSubtypeOf init.Env t TBool) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TString) -> failwith "not implemented"
+
+        | Application(f, args) ->
+            // let m' = doCodegen env f m
+            let m'' = List.fold (fun m arg -> doCodegen env arg m) m args
+            let instrs = m''.GetTempCode() @ [(CallIndirect (0, 0), "call function")]
+            m''.ResetTempCode().AddCode(instrs)
+
+        | Lambda(args, body) ->
+            // Label to mark the position of the lambda term body
+            let funLabel = Util.genSymbol "lambda"
+
+            /// Names of the Lambda arguments
+            let (argNames, _) = List.unzip args
+
+            let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
+
+            compileFunction  funLabel argNamesTypes body env m
         | Seq(nodes) ->
             // We collect the code of each sequence node by folding over all nodes
             List.fold (fun m node -> doCodegen env node m) m nodes
@@ -256,6 +294,29 @@ type internal MemoryAllocator() =
         //    Module()
         | x -> 
                 failwith "not implemented"
+    
+    and internal compileFunction (name: string) (args: List<string * Type.Type>) (body: TypedAST) (env: CodegenEnv) (m: Module): Module =
+        // map args to local variables
+        let argTypes = List.map (fun (_, t) -> match t with
+                                                                                    | TInt -> I32
+                                                                                    | TFloat -> F32
+                                                                                    | TBool -> I32
+                                                                                    | TString -> I32
+                                                                                    | TUnit -> failwith "not implemented") args
+
+        let signature: FunctionSignature = (argTypes, [I32])
+
+        // create function instance
+        let f: Commented<FunctionInstance> = ({typeIndex = 0
+                                               locals = []
+                                               signature = signature
+                                               body = [] 
+                                               name = Some(Identifier(name)) }, sprintf "function %s" name)
+
+
+        let m' = m.AddFunction(name, f) // .AddExport(name, FunctionType(name, None))
+
+        m'
 
     // add implicit main function
     let implicit (node: TypedAST): Module =

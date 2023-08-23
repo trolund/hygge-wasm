@@ -1,19 +1,19 @@
 (module
+  (func $fun_f (param i32) (param i32) (result i32)  ;; function fun_f
+    ;; local variables declarations:
+  
+  )
   (func $main  (result i32)  ;; entry point of program (main function)
     ;; local variables declarations:
   
     ;; execution start here:
     i32.const 1 ;; push 1 on stack
     i32.const 2 ;; push 2 on stack
-    i32.rem_s
-    i32.const 1 ;; push 1 on stack
+    call_indirect 0 ;; call function
+    local.set $var ;; set local var
+    local.get $var
+    i32.const 3 ;; push 3 on stack
     i32.eq
-    i32.const 42 ;; push 42 on stack
-    i32.const 5 ;; push 5 on stack
-    i32.rem_s
-    i32.const 2 ;; push 2 on stack
-    i32.eq
-    i32.and
     (if 
      (then
       nop ;; do nothing - if all correct

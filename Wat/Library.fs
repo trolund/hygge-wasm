@@ -453,7 +453,7 @@ module WFG =
 
     type Instrs = Instr list
 
-    and Type = ValueType list * ValueType list
+    and WasmType = ValueType list * ValueType list
 
     // module, name, type
     and Import = string * string * ExternalType
@@ -498,8 +498,8 @@ module WFG =
     // The body is just a linear list of low-level Instrs.
     and Function = string option * FunctionSignature * Variable list * Commented<Instr> list
 
-    // function parameters and return values.
-    // The signature declares what the function takes (parameters) and returns (return values)
+    /// function parameters and return values.
+    /// The signature declares what the function takes (parameters) and returns (return values)
     and FunctionSignature = ValueType list * ValueType list
 
     and Variable = ValueType * Mutability
@@ -536,8 +536,8 @@ module WFG =
     let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""
 
     [<RequireQualifiedAccess>]
-    type Module private (types: list<Type>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>, tempCode: list<Commented<Instr>>) =
-            member private this.types: list<Type> = types
+    type Module private (types: list<WasmType>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>, tempCode: list<Commented<Instr>>) =
+            member private this.types: list<WasmType> = types
             member private this.functions = functions 
             member private this.tables = tables
             member private this.memories: Set<Memory> = memories
@@ -625,7 +625,7 @@ module WFG =
                 Module(this.types, functions.Add(name, f), this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
                 
             // Add a type to the module
-            member this.AddType (t: Type) =
+            member this.AddType (t: WasmType) =
                 let types = t :: this.types
                 Module(types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
 
