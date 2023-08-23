@@ -143,10 +143,15 @@ type internal MemoryAllocator() =
                                 | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) & (isSubtypeOf e1.Env t2 TInt)) -> [I32Eq]
                                 | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) & (isSubtypeOf e1.Env t2 TFloat)) -> [F32Eq]
                                 | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [I32Eq]
-                                | _ -> failwith "not implemented"
+                                | _ -> failwith "type mismatch"
 
             let instrs = m'.GetTempCode() @ m''.GetTempCode() @ C opcode
             m.AddCode(instrs)
+        | Xor(e1, e2) ->
+            let m' = doCodegen env e1 m
+            let m'' = doCodegen env e2 m
+            let instrs = [I32Xor]
+            (m' + m'').AddCode(instrs)
         | Less(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m

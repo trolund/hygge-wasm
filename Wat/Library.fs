@@ -2,6 +2,8 @@
 
 module WFG =
 
+    let indent = 6;
+
     type Commented<'a> = 
         'a * string    
 
@@ -24,7 +26,24 @@ module WFG =
                 match instr with
                 | (instr, comment) -> generate_wat_code_aux tailInstrs (watCode + (instr.ToString()) + " ;; " + comment + "\n")
 
-        generate_wat_code_aux instrs ""  
+        generate_wat_code_aux instrs "" 
+        
+    let generate_wat_code_ident instrs ident =
+        
+        let generate_indent i = List.replicate i " " |> String.concat "" in
+
+        let rec generate_wat_code_aux instrs watCode indent =
+            match instrs with
+            | [] -> watCode
+            | head :: tail ->
+                    let (instr, c: string) = head
+
+                    // based on c to generate comment
+                    let watCode = watCode + generate_indent indent + instr.ToString() + if (c.Length > 0) then (sprintf " ;; %s\n" c) else "\n" in
+
+                    generate_wat_code_aux tail watCode indent
+
+        generate_wat_code_aux instrs "" ident
 
     type Label =  
         | Named of string
@@ -426,34 +445,10 @@ module WFG =
                         match elseInstrs with
                         | Some instrs -> instrs
                         | None -> []
-                    sprintf "(if %s\n (then\n%s\n) (else\n%s\n)\n)" (resultPrint types) (generate_wat_code_commented ifInstrs) (generate_wat_code_commented elseInstrs)
+                    sprintf "(if %s\n     (then\n%s\n     )\n     (else\n%s\n     )\n    )" (resultPrint types) (generate_wat_code_ident ifInstrs indent) (generate_wat_code_ident elseInstrs indent)
                 // comments
                 | Comment comment -> sprintf ";; %s" comment
                 | x -> sprintf "not implemented: %s" (x.ToString())
-
-    let generate_wat_code_ident (instrs: List<Commented<Instr>>) ident =
-        
-        let generate_indent i = List.replicate i " " |> String.concat "" in
-
-        // function that return 1 if the Instr is a BlockInstr
-        let is_block_Instr (instr: Instr) =
-            match instr with
-            | Block _ -> 1
-            | Loop _ -> 1
-            | If _ -> 1
-            | _ -> 0
-
-        let rec generate_wat_code_aux (instrs: Commented<Instr> list) watCode indent =
-            match instrs with
-            | [] -> watCode
-            | head :: tail ->
-                    let (instr, c) = head
-                    let watCode = watCode + generate_indent indent + instr.ToString() + if (c.Length > 0) then (sprintf " ;; %s\n" c) else "\n" in
-                    generate_wat_code_aux tail watCode indent
-                        
-                    
-
-        generate_wat_code_aux instrs "" ident
 
 
     type Instrs = Instr list
@@ -746,7 +741,7 @@ module WFG =
 
                 for funcKey in this.functions.Keys do
                     let (f), c = this.functions.[funcKey]
-                    result <- result + sprintf "  (func %s %s %s\n%s  )\n" (genrate_name f.name) (generate_signature f.signature c) (generate_local f.locals) (generate_wat_code_ident f.body 4) 
+                    result <- result + sprintf "  (func %s %s %s\n%s  )\n" (genrate_name f.name) (generate_signature f.signature c) (generate_local f.locals) (generate_wat_code_ident f.body ((indent/2) + 1)) 
                     
                 // create exports
                 for export in this.exports do
