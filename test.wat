@@ -2,12 +2,13 @@
   (import "env" "writeInt" (func $writeInt (param i32)  
 ))
   (func $main  (result i32)  ;; entry point of program (main function)
+    ;; local variables declarations:
     (local $var_3 i32)
     (local $var_2 i32)
     (local $var_1 i32)
     (local $var_0 i32)
     (local $var i32)
-
+ 
     ;; execution start here:
     i32.const 23 ;; push 23 on stack
     local.set $var ;; set local var

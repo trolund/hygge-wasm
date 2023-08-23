@@ -702,7 +702,9 @@ module WFG =
                     sprintf "%s %s %s\n" parametersString returnValuesString (commentS comment)
                 
                 let generate_local (locals: Local list) =
-                    String.concat " " (List.map (fun x -> (sprintf "   (local $%s %s)\n" ((fst x).ToString()) ((snd x).ToString()))) locals)
+                    let comment = "local variables declarations:"
+                    let def = String.concat " " (List.map (fun x -> (sprintf "   (local $%s %s)\n" ((fst x).ToString()) ((snd x).ToString()))) locals)
+                    sprintf "  %s\n %s " (commentS comment) def
 
                 let genrate_name (name: string option) =
                     match name with
