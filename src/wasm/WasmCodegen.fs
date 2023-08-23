@@ -137,7 +137,15 @@ type internal MemoryAllocator() =
         |Eq(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m
-            let instrs = m'.GetTempCode() @ m''.GetTempCode() @ C [I32Eq]
+
+            // find type of e1 and e2 and check if they are equal
+            let opcode = match e1.Type, e2.Type with
+                                | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) & (isSubtypeOf e1.Env t2 TInt)) -> [I32Eq]
+                                | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) & (isSubtypeOf e1.Env t2 TFloat)) -> [F32Eq]
+                                | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [I32Eq]
+                                | _ -> failwith "not implemented"
+
+            let instrs = m'.GetTempCode() @ m''.GetTempCode() @ C opcode
             m.AddCode(instrs)
         | Less(e1, e2) ->
             let m' = doCodegen env e1 m
@@ -188,7 +196,7 @@ type internal MemoryAllocator() =
 
             (m' + m'' + m''').ResetTempCode().AddCode(instrs)
         | Assertion(e) ->
-            let m' = doCodegen env e m
+            let m' = doCodegen env e (m.ResetTempCode())
             let instrs = m'.GetTempCode() @ C [(If ([], [(Nop, "do nothing - if all correct")], Some([(I32Const errorExitCode, "error exit code push to stack"); (Return, "return exit code")])))]
             m'.ResetTempCode().AddCode(instrs)
         | While(condition, body) ->
