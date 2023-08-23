@@ -1,8 +1,8 @@
 let x: int = 23;
-let y: int = 23;
-let z: int = 23;
-let a: int = 23;
-let b: int = 23;
+let y: int = 24;
+let z: int = 25;
+let a: int = 26;
+let b: int = 27;
 println(x);
 println(y);
 println(z);

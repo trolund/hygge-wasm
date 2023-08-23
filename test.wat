@@ -12,13 +12,13 @@
     ;; execution start here:
     i32.const 23 ;; push 23 on stack
     local.set $var ;; set local var
-    i32.const 23 ;; push 23 on stack
+    i32.const 24 ;; push 24 on stack
     local.set $var_0 ;; set local var
-    i32.const 23 ;; push 23 on stack
+    i32.const 25 ;; push 25 on stack
     local.set $var_1 ;; set local var
-    i32.const 23 ;; push 23 on stack
+    i32.const 26 ;; push 26 on stack
     local.set $var_2 ;; set local var
-    i32.const 23 ;; push 23 on stack
+    i32.const 27 ;; push 27 on stack
     local.set $var_3 ;; set local var
     local.get $var
     call $writeInt ;; call host function
