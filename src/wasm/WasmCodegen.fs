@@ -165,7 +165,7 @@ type internal MemoryAllocator() =
             match e.Type with
             | t when (isSubtypeOf node.Env t TInt) -> 
                 // import writeInt function
-                let writeFunctionSignature: ValueType list * 'a list = ([I32], [])
+                let writeFunctionSignature: FunctionSignature = ([(None, I32)], [])
                 let m'' = m'.AddImport("env", "writeInt", FunctionType("writeInt", Some(writeFunctionSignature)))
                 // perform host (system) call
                 m''.AddCode([(Call "writeInt", "call host function")])
@@ -173,7 +173,7 @@ type internal MemoryAllocator() =
             | t when (isSubtypeOf node.Env t TBool) -> failwith "not implemented"
             | t when (isSubtypeOf node.Env t TString) ->
                 // import writeS function
-                let writeFunctionSignature: ValueType list * 'a list = ([I32; I32], [])
+                let writeFunctionSignature: FunctionSignature = ([(None, I32); (None, I32)], [])
                 let m'' = m'.AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
                 // perform host (system) call
                 m''.AddCode([(Call "writeS", "call host function")])
@@ -253,7 +253,7 @@ type internal MemoryAllocator() =
                 let instrs = initCode // inizilize code
                                                     @ [(LocalSet varLabel, "set local var")] // set local var
                 let scopeCode = doCodegen env' scope (m.ResetTempCode())
-                (instrs ++ scopeCode).AddLocals(env.currFunc, [(Identifier(varName), I32)])
+                (instrs ++ scopeCode).AddLocals(env.currFunc, [(Some(Identifier(varName)), I32)])
             | t when (isSubtypeOf init.Env t TBool) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TString) -> failwith "not implemented"
 
@@ -297,11 +297,11 @@ type internal MemoryAllocator() =
     
     and internal compileFunction (name: string) (args: List<string * Type.Type>) (body: TypedAST) (env: CodegenEnv) (m: Module): Module =
         // map args to local variables
-        let argTypes = List.map (fun (_, t) -> match t with
-                                                                                    | TInt -> I32
-                                                                                    | TFloat -> F32
-                                                                                    | TBool -> I32
-                                                                                    | TString -> I32
+        let argTypes: Local list = List.map (fun (_, t) -> match t with
+                                                                                    | TInt -> (Some(name), I32)
+                                                                                    | TFloat -> (Some(name), F32)
+                                                                                    | TBool -> (Some(name), I32)
+                                                                                    | TString -> (Some(name), I32)
                                                                                     | TUnit -> failwith "not implemented") args
 
         let signature: FunctionSignature = (argTypes, [I32])

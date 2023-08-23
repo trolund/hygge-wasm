@@ -500,7 +500,7 @@ module WFG =
 
     /// function parameters and return values.
     /// The signature declares what the function takes (parameters) and returns (return values)
-    and FunctionSignature = ValueType list * ValueType list
+    and FunctionSignature = Local list * ValueType list
 
     and Variable = ValueType * Mutability
 
@@ -518,7 +518,7 @@ module WFG =
 
     and Code = int * int list * Instr list
 
-    and Local = Identifier * ValueType
+    and Local = Identifier option * ValueType
 
     and FunctionInstance =
         { 
@@ -536,7 +536,7 @@ module WFG =
     let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""
 
     [<RequireQualifiedAccess>]
-    type Module private (types: list<WasmType>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<ValueType>, tempCode: list<Commented<Instr>>) =
+    type Module private (types: list<WasmType>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<Local>, tempCode: list<Commented<Instr>>) =
             member private this.types: list<WasmType> = types
             member private this.functions = functions 
             member private this.tables = tables
@@ -548,7 +548,7 @@ module WFG =
             member private this.elements: list<Element> = elements
             member private this.data: list<Data> = data
             // member private this.codes = Code
-            member private this.locals: list<ValueType> = locals
+            member private this.locals: list<Local> = locals
 
             member private this.tempCode: list<Commented<Instr>> = tempCode
             
@@ -692,14 +692,25 @@ module WFG =
                 // create functions
                 let generate_signature (signature: FunctionSignature) (comment: string) =
                     let parameters, returnValues = signature
-                    let parametersString = String.concat " " (List.map (fun x -> (sprintf "(param %s)" (x.ToString()))) parameters)
+                    let parametersString = String.concat " " (List.map (fun (n, t) -> 
+                        match n with
+                        | Some name -> sprintf "(param $%s %s)" name (t.ToString())
+                        | None -> sprintf "(param %s)" (t.ToString())) parameters)
                     let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
                     sprintf "%s %s %s\n" parametersString returnValuesString (commentS comment)
                 
                 let generate_local (locals: Local list) =
-                    let comment = "local variables declarations:"
-                    let def = String.concat " " (List.map (fun x -> (sprintf "   (local $%s %s)\n" ((fst x).ToString()) ((snd x).ToString()))) locals)
-                    sprintf "  %s\n %s " (commentS comment) def
+                    if locals.Length > 0 then 
+                        let comment = "local variables declarations:"
+                        let def = String.concat " " (List.map (fun x -> 
+
+                            match x with
+                            | (Some name, t) -> sprintf "(local $%s %s)\n" name (t.ToString())
+                            | (None, t) -> sprintf "(local %s)\n" (t.ToString())
+                        ) locals)
+                        
+                        sprintf "  %s\n %s " (commentS comment) def
+                    else ""
 
                 let genrate_name (name: string option) =
                     match name with
