@@ -6,6 +6,8 @@
     i32.add
   )
   (func $main  (result i32)  ;; entry point of program (main function)
+    ;; local variables declarations:
+ (local $var i32)
  
     ;; execution start here:
     i32.const 1 ;; push 1 on stack

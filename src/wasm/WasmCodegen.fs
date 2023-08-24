@@ -253,7 +253,7 @@ type internal MemoryAllocator() =
                 let instrs = initCode // inizilize code
                                                     @ [(LocalSet varLabel, "set local var")] // set local var
                 let scopeCode = doCodegen env' scope (m.ResetTempCode())
-                (instrs ++ scopeCode).AddLocals(env.currFunc, [(Some(Identifier(varName)), I32)])
+                (instrs ++ scopeCode).AddLocals([(Some(Identifier(varName)), I32)])
             | t when (isSubtypeOf init.Env t TBool) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TString) -> failwith "not implemented"
 
@@ -330,7 +330,7 @@ type internal MemoryAllocator() =
         // compile function body
         let m'' = doCodegen {env' with currFunc = name} body m'
 
-        m''.AddInstrs(name, m''.GetTempCode()).ResetTempCode()
+        m''.AddInstrs(name, m''.GetTempCode()).AddLocals(name, m''.GetLocals()).ResetTempCode()
 
     // add implicit main function
     let implicit (node: TypedAST): Module =
@@ -357,8 +357,9 @@ type internal MemoryAllocator() =
         let m = doCodegen env node m'
         
         // return 0 if program is successful
-        m.AddInstrs(env.currFunc, [Comment "execution start here:"])
-         .AddInstrs(env.currFunc, m.GetTempCode())
+        m.AddLocals(env.currFunc, m.GetLocals()) // set locals of function 
+         .AddInstrs(env.currFunc, [Comment "execution start here:"])
+         .AddInstrs(env.currFunc, m.GetTempCode()) // add code of main function
          .AddInstrs(env.currFunc, [Comment "if execution reaches here, the program is successful"])
          .AddInstrs(env.currFunc, [(I32Const successExitCode, "exit code 0"); (Return, "return the exit code")])
 
