@@ -306,6 +306,9 @@ type internal MemoryAllocator() =
 
         let signature: FunctionSignature = (argTypes, [I32])
 
+        // add each arg to var storage
+        let env' = List.fold (fun env (n, t) -> {env with VarStorage = env.VarStorage.Add(n, Storage.Label(n))}) env args
+
         // create function instance
         let f: Commented<FunctionInstance> = ({typeIndex = 0
                                                locals = []
@@ -316,7 +319,10 @@ type internal MemoryAllocator() =
 
         let m' = m.AddFunction(name, f) // .AddExport(name, FunctionType(name, None))
 
-        m'
+        // compile function body
+        let m'' = doCodegen {env' with currFunc = name} body m'
+
+        m''.AddInstrs(name, m''.GetTempCode()).ResetTempCode()
 
     // add implicit main function
     let implicit (node: TypedAST): Module =
