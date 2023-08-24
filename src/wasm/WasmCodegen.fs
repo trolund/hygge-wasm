@@ -291,14 +291,6 @@ type internal MemoryAllocator() =
         // A type ascription does not produce code --- but the type-annotated
         // AST node does
         doCodegen env node m
-
-        // Special case for compiling a function with a given name in the input
-        // source file. We recognise this case by checking whether the 'Let...'
-        // declares 'name' as a Lambda expression with a TFun type
-        // | Let(name, _,
-        //     {Node.Expr = Lambda(args, body);
-        //     Node.Type = TFun(targs, _)}, scope) ->
-        //    Module()
         | x -> 
                 failwith "not implemented"
     
@@ -328,7 +320,7 @@ type internal MemoryAllocator() =
 
         // compile function body
         let m'' = doCodegen {env' with currFunc = name} body m'
-
+        // add code and locals to function
         m''.AddInstrs(name, m''.GetTempCode()).AddLocals(name, m''.GetLocals()).ResetTempCode()
 
     // add implicit main function
