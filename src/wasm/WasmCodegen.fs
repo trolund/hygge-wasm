@@ -260,7 +260,15 @@ type internal MemoryAllocator() =
         | Application(f, args) ->
             // let m' = doCodegen env f m
             let m'' = List.fold (fun m arg -> doCodegen env arg m) m args
-            let instrs = m''.GetTempCode() @ [(CallIndirect (0, 0), "call function")]
+
+            let func_label = match f.Expr with
+                                | Var v -> 
+                                    match env.VarStorage.TryFind v with
+                                    | Some(Storage.Label(l)) -> l
+                                    | _ -> failwith "not implemented"
+                                | _ -> failwith "not implemented"
+
+            let instrs = m''.GetTempCode() @ [(Call func_label, sprintf "call function %s" func_label)]
             m''.ResetTempCode().AddCode(instrs)
 
         | Lambda(args, body) ->
