@@ -239,7 +239,7 @@ type internal MemoryAllocator() =
         | Let(name, _, init, scope) ->
             let m' = doCodegen env init m
 
-            let varName = Util.genSymbol "var"
+            let varName = Util.genSymbol $"var_%s{name}"
             let env' = {env with VarStorage = env.VarStorage.Add(name, Storage.Label(varName))}
 
             match init.Type with
@@ -252,8 +252,11 @@ type internal MemoryAllocator() =
                 // let varDef = [(Local (varLabel, (I32)), sprintf "delcare local var %s" varName)] // declare local var
                 let instrs = initCode // inizilize code
                                                     @ [(LocalSet varLabel, "set local var")] // set local var
-                let scopeCode = doCodegen env' scope (m.ResetTempCode())
-                (instrs ++ scopeCode).AddLocals([(Some(Identifier(varName)), I32)])
+                let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+
+                let combi = (instrs ++ scopeCode)
+
+                combi.AddLocals([(Some(Identifier(varName)), I32)])
             | t when (isSubtypeOf init.Env t TBool) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TString) -> failwith "not implemented"
 
@@ -283,11 +286,8 @@ type internal MemoryAllocator() =
             compileFunction  funLabel argNamesTypes body env m
         | Seq(nodes) ->
             // We collect the code of each sequence node by folding over all nodes
-            List.fold (fun m node -> doCodegen env node m) m nodes
-        // | Var(name) ->
-        //     let (var, _) = Map.find name env.varEnv
-        //     let instrs = [GetLocal var]
-        //     m.AddInstrs(env.currFunc, instrs)
+            let l = List.fold (fun m node -> m ++ doCodegen env node m) m nodes
+            l
         | Ascription(_, node) ->
         // A type ascription does not produce code --- but the type-annotated
         // AST node does

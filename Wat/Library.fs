@@ -536,7 +536,7 @@ module WFG =
     let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""
 
     [<RequireQualifiedAccess>]
-    type Module private (types: list<WasmType>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: list<Local>, tempCode: list<Commented<Instr>>) =
+    type Module private (types: list<WasmType>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: Set<Local>, tempCode: list<Commented<Instr>>) =
             member private this.types: list<WasmType> = types
             member private this.functions = functions 
             member private this.tables = tables
@@ -548,15 +548,15 @@ module WFG =
             member private this.elements: list<Element> = elements
             member private this.data: list<Data> = data
             // member private this.codes = Code
-            member private this.locals: list<Local> = locals
+            member private this.locals: Set<Local> = locals
 
             member private this.tempCode: list<Commented<Instr>> = tempCode
             
             // empty constructor
-            new () = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], [], [], [])
+            new () = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], [], Set.empty, [])
             
             // module constructor that take temp code
-            new (tempCode: list<Commented<Instr>>) = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], [], [], tempCode)
+            new (tempCode: list<Commented<Instr>>) = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], [], Set.empty, tempCode)
 
             // add temp code
             member this.AddCode (instrs: Instr list) =
@@ -580,12 +580,12 @@ module WFG =
 
             // add locals to module
             member this.AddLocals (locals: list<Local>) =
-                let locals = locals @ this.locals
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, locals, this.tempCode)
+                let locals = locals @ Set.toList this.locals
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, Set(locals), this.tempCode)
 
             // get locals from module
             member this.GetLocals () =
-                this.locals
+                Set.toList this.locals
 
             // add locals tp function with name
             member this.AddLocals (name: string, locals: list<Local>) =
@@ -674,9 +674,9 @@ module WFG =
                 let start = this.start
                 let elements = this.elements @ m.elements
                 let data = this.data @ m.data
-                let locals = this.locals @ m.locals
+                let locals = Set.toList this.locals @ Set.toList m.locals
                 let tempCode = this.tempCode @ m.tempCode
-                Module(types, functions, tables, Set(memories), globals, Set(exports), Set(imports), start, elements, data, locals, tempCode)
+                Module(types, functions, tables, Set(memories), globals, Set(exports), Set(imports), start, elements, data, Set(locals), tempCode)
 
             static member (+) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 

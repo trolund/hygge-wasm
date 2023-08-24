@@ -7,14 +7,14 @@
   )
   (func $main  (result i32)  ;; entry point of program (main function)
     ;; local variables declarations:
- (local $var i32)
+ (local $var_result i32)
  
     ;; execution start here:
     i32.const 1 ;; push 1 on stack
     i32.const 2 ;; push 2 on stack
     call $fun_f ;; call function fun_f
-    local.set $var ;; set local var
-    local.get $var
+    local.set $var_result ;; set local var
+    local.get $var_result
     i32.const 3 ;; push 3 on stack
     i32.eq
     (if 
