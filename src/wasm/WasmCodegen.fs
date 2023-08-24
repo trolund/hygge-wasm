@@ -286,8 +286,7 @@ type internal MemoryAllocator() =
             compileFunction  funLabel argNamesTypes body env m
         | Seq(nodes) ->
             // We collect the code of each sequence node by folding over all nodes
-            let l = List.fold (fun m node -> m ++ doCodegen env node m) m nodes
-            l
+            List.fold (fun m node -> m ++ doCodegen env node m) m nodes
         | Ascription(_, node) ->
         // A type ascription does not produce code --- but the type-annotated
         // AST node does
