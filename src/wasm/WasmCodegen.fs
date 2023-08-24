@@ -297,11 +297,11 @@ type internal MemoryAllocator() =
     
     and internal compileFunction (name: string) (args: List<string * Type.Type>) (body: TypedAST) (env: CodegenEnv) (m: Module): Module =
         // map args to local variables
-        let argTypes: Local list = List.map (fun (_, t) -> match t with
-                                                                                    | TInt -> (Some(name), I32)
-                                                                                    | TFloat -> (Some(name), F32)
-                                                                                    | TBool -> (Some(name), I32)
-                                                                                    | TString -> (Some(name), I32)
+        let argTypes: Local list = List.map (fun (n, t) -> match t with
+                                                                                    | TInt -> (Some(n), I32)
+                                                                                    | TFloat -> (Some(n), F32)
+                                                                                    | TBool -> (Some(n), I32)
+                                                                                    | TString -> (Some(n), I32)
                                                                                     | TUnit -> failwith "not implemented") args
 
         let signature: FunctionSignature = (argTypes, [I32])
