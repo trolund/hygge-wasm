@@ -26,7 +26,8 @@ type internal Storage =
     | Label of label: string
     /// This variable is stored on the stack, at the given offset (in bytes)
     /// from the memory address contained in the frame pointer (fp) register.
-    | Frame of offset: int
+    | Offset of offset: int
+    | Tabel of label: string * int
 
 type internal MemoryAllocator() =
     let mutable allocationPosition = 0
@@ -70,6 +71,7 @@ type internal MemoryAllocator() =
         // varEnv: Map<string, Var * ValueType>
         memoryAllocator: MemoryAllocator
         VarStorage: Map<string, Storage>
+        // FuncRef: Map<string, Label>
     }
 
     let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
@@ -95,9 +97,13 @@ type internal MemoryAllocator() =
             // TODO
             let instrs = match env.VarStorage.TryFind v with
                                 | Some(Storage.Label(l)) -> [LocalGet (Named(l))]
-                                | Some(Storage.Frame(o)) -> [LocalGet (Index(o))]
+                                | Some(Storage.Offset(o)) -> [LocalGet (Index(o))]
                                 | _ -> failwith "not implemented"
             m.AddCode(instrs)
+        | Sqrt e ->
+            let m' = doCodegen env e m
+            let instrs = m'.GetTempCode() @ C [F32Sqrt]
+            m'.ResetTempCode().AddCode(instrs)
         | Add(lhs, rhs)
         | Sub(lhs, rhs)
         | Rem(lhs, rhs)
@@ -159,8 +165,15 @@ type internal MemoryAllocator() =
         | Less(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m
-            let instrs = [I32LtS]
-            (m' + m'').AddCode(instrs)
+
+                        // find type of e1 and e2 and check if they are equal
+            let opcode = match e1.Type, e2.Type with
+                                | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) & (isSubtypeOf e1.Env t2 TInt)) -> [I32LtS]
+                                | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) & (isSubtypeOf e1.Env t2 TFloat)) -> [F32Lt]
+                                | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [I32LtS]
+                                | _ -> failwith "type mismatch"
+
+            (m' + m'').AddCode(opcode)
         | PrintLn e ->
             // TODO support more types 
             let m' = doCodegen env e m
@@ -235,14 +248,21 @@ type internal MemoryAllocator() =
             let varName = Util.genSymbol $"var_%s{name}"
             let env' = {env with VarStorage = env.VarStorage.Add(name, Storage.Label(varName))}
 
+            // is init a subtype of TFunc type?
+            let isFuncType = match init.Type with
+                                | TFun(_, _) -> true
+                                | _ -> false
+
+            
             match init.Type with
-            | t when (isSubtypeOf init.Env t TUnit) -> failwith "not implemented"
+            | t when (isSubtypeOf init.Env t TUnit) -> 
+                m' ++ (doCodegen env scope m)
             | t when (isSubtypeOf init.Env t TFloat) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TInt) ->
                 // make x a Instr
                 let varLabel = Named (varName)
                 let initCode = m'.GetTempCode()
-                // let varDef = [(Local (varLabel, (I32)), sprintf "delcare local var %s" varName)] // declare local var
+
                 let instrs = initCode // inizilize code
                                                     @ [(LocalSet varLabel, "set local var")] // set local var
                 let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
@@ -252,6 +272,7 @@ type internal MemoryAllocator() =
                 combi.AddLocals([(Some(Identifier(varName)), I32)])
             | t when (isSubtypeOf init.Env t TBool) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TString) -> failwith "not implemented"
+            | _ -> m' ++ (doCodegen env' scope m)
 
         | Application(f, args) ->
             // let m' = doCodegen env f m
@@ -283,15 +304,6 @@ type internal MemoryAllocator() =
         | While(cond, body) ->
             let cond' = doCodegen env cond m
             let body' = doCodegen env body m
-
-            // get subtype of body
-            let t = match body.Type with
-                    | t when (isSubtypeOf body.Env t TUnit) -> []
-                    | t when (isSubtypeOf body.Env t TFloat) -> [F32]
-                    | t when (isSubtypeOf body.Env t TInt) -> [I32]
-                    | t when (isSubtypeOf body.Env t TBool) -> [I32]
-                    | t when (isSubtypeOf body.Env t TString) -> [I32; I32]
-                    | _ -> failwith "not implemented"
             
             let exitl = Util.genSymbol $"loop_exit"
             let beginl = Util.genSymbol $"loop_begin"
@@ -353,6 +365,8 @@ type internal MemoryAllocator() =
         let m'' = doCodegen {env' with currFunc = name} body m'
         // add code and locals to function
         m''.AddInstrs(name, m''.GetTempCode()).AddLocals(name, m''.GetLocals()).ResetTempCode()
+
+
 
     // add implicit main function
     let implicit (node: TypedAST): Module =

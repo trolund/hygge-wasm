@@ -27,3 +27,4 @@ TestResults
 riscv1.asm
 
 global.json
+.config/dotnet-tools.json

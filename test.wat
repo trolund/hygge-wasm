@@ -1,60 +1,77 @@
 (module
-  (import "env" "writeInt" (func $writeInt (param i32)  
-))
-  (import "env" "writeS" (func $writeS (param i32) (param i32)  
-))
-  (data (i32.const 0) "after:")
-  (memory (export "memory") 1)
   (func $main  (result i32)  ;; entry point of program (main function)
-    ;; local variables declarations:
- (local $var_x i32)
- (local $var_y i32)
  
     ;; execution start here:
-    i32.const 0 ;; push 0 on stack
-    local.set $var_x ;; set local var
-    i32.const 10 ;; push 10 on stack
-    local.set $var_y ;; set local var
-    (block $loop_exit
-      (loop $loop_begin 
-      local.get $var_x
-      local.get $var_y
-      i32.add
-      i32.const 50 ;; push 50 on stack
-      i32.eq
-      i32.eqz
-      i32.eqz
-      br_if $loop_exit
-      local.get $var_x
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_x ;; set local var
-      local.get $var_y
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_y ;; set local var
-      local.get $var_x
-      local.get $var_y
-      i32.add
-      call $writeInt ;; call host function
-      br $loop_begin
+    f32.const 12.000000
+    f32.const 0.100000
+    f32.add
+    f32.sqrt
+    f32.const 3.500000
+    f32.lt
+    (if 
+     (then
+      nop ;; do nothing - if all correct
 
-)
-      nop
+     )
+     (else
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
 
-)
-    i32.const 0 ;; offset in memory
-    i32.const 12 ;; size in bytes
-    call $writeS ;; call host function
-    local.get $var_x
-    local.get $var_y
-    i32.add
-    call $writeInt ;; call host function
-    local.get $var_x
-    local.get $var_y
-    i32.add
-    i32.const 50 ;; push 50 on stack
-    i32.eq
+     )
+    )
+    f32.const 12.000000
+    f32.const 0.200000
+    f32.add
+    f32.sqrt
+    f32.const 3.500000
+    f32.lt
+    (if 
+     (then
+      nop ;; do nothing - if all correct
+
+     )
+     (else
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
+
+     )
+    )
+    f32.const 12.000000
+    f32.const 0.300000
+    f32.add
+    f32.sqrt
+    f32.const 3.550000
+    f32.lt
+    (if 
+     (then
+      nop ;; do nothing - if all correct
+
+     )
+     (else
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
+
+     )
+    )
+    f32.const 2.000000
+    f32.sqrt
+    f32.const 1.500000
+    f32.lt
+    (if 
+     (then
+      nop ;; do nothing - if all correct
+
+     )
+     (else
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
+
+     )
+    )
+    f32.const 1.000000
+    f32.sqrt
+    f32.const 1.000000
+    f32.eq
     (if 
      (then
       nop ;; do nothing - if all correct
