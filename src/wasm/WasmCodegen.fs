@@ -174,6 +174,23 @@ type internal MemoryAllocator() =
                                 | _ -> failwith "type mismatch"
 
             (m' + m'').AddCode(opcode)
+        | Max(e1, e2) 
+        | Min(e1, e2) ->
+
+            let m' = doCodegen env e1 m
+            let m'' = doCodegen env e2 m
+
+            let instrs = match node.Type with
+                                    | t when (isSubtypeOf node.Env t TFloat) -> 
+                                        match node.Expr with
+                                        | Max(_, _) -> C [F32Max]
+                                        | Min(_, _) -> C [F32Min]
+                                    | t when (isSubtypeOf node.Env t TInt) -> 
+                                        match node.Expr with
+                                        | Max(_, _) -> m'.GetTempCode() @ m''.GetTempCode() @ C [I32GtS; Select]
+                                        | Min(_, _) -> m'.GetTempCode() @ m''.GetTempCode() @ C [I32LtS; Select]
+
+            C [Comment "Max/min start"] ++ (m' + m'').AddCode(instrs @ C [Comment "Max/min end"])
         | PrintLn e ->
             // TODO support more types 
             let m' = doCodegen env e m
