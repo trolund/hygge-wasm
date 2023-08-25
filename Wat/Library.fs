@@ -98,8 +98,8 @@ module WFG =
         | Unreachable
         | Nop
         | Else of ValueType list * ValueType list * Instr list * Instr list
-        | Br of int
-        | BrIf of int
+        | Br of Identifier
+        | BrIf of Identifier
         | BrTable of int list * int
         | Return
         // Memory Instrs
@@ -279,8 +279,8 @@ module WFG =
         | F32ReinterpretI32
         | F64ReinterpretI64
         // Block Instr
-        | Block of string * list<Commented<Instr>>
-        | Loop of ValueType list * list<Commented<Instr>>
+        | Block of Identifier * list<Commented<Instr>>
+        | Loop of Identifier * ValueType list * list<Commented<Instr>>
         // reuslt type of if, then block, else block
         | If of ValueType list * list<Commented<Instr>> * list<Commented<Instr>> option
 
@@ -428,8 +428,8 @@ module WFG =
                 //| Block (label, instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code instrs) 
                 //| Loop (valueTypes, instrs) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code instrs)
                 //| If (valueTypes1, valueTypes2, instrs1, instrs2) -> sprintf "if %s %s\n%s\nelse\n%s\nend" (generate_wat_code valueTypes1) (generate_wat_code valueTypes2) (generate_wat_code instrs1) (generate_wat_code instrs2)
-                | Br index -> sprintf "br %d" index
-                | BrIf index -> sprintf "br_if %d" index
+                | Br id -> sprintf "br $%s" id
+                | BrIf id -> sprintf "br_if $%s" id
                 // TODO: br_table
                 // | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
                 | Return -> "return"
@@ -438,8 +438,8 @@ module WFG =
                 | Drop -> "drop"
                 | Select -> "select"
                 // block instructions
-                | Block (label, instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code instrs) 
-                | Loop (valueTypes, instrs: Commented<Instr> list) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code instrs)
+                | Block (label, instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code_ident instrs indent) 
+                | Loop (label, valueTypes, instrs: Commented<Instr> list) -> sprintf "(loop $%s %s\n%s\n)" label (resultPrint valueTypes) (generate_wat_code_ident instrs indent)
                 | If (types, ifInstrs, elseInstrs) -> 
                     let elseInstrs = 
                         match elseInstrs with

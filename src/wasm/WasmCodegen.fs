@@ -134,6 +134,10 @@ type internal MemoryAllocator() =
             let m'' = doCodegen env e2 m
             let instrs = [I32Or]
             (m' + m'').AddCode(instrs)
+        | Not(e) ->
+            let m' = doCodegen env e m
+            let instrs = [I32Eqz]
+            m'.AddCode(instrs)
         |Eq(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m
@@ -204,17 +208,6 @@ type internal MemoryAllocator() =
             let m' = doCodegen env e (m.ResetTempCode())
             let instrs = m'.GetTempCode() @ C [(If ([], [(Nop, "do nothing - if all correct")], Some([(I32Const errorExitCode, "error exit code push to stack"); (Return, "return exit code")])))]
             m'.ResetTempCode().AddCode(instrs)
-        | While(condition, body) ->
-            m.AddInstrs(env.currFunc,  [
-                 (Loop ([I32], C [
-                     (I32Const 1)
-                     (I32Const 1)
-                     (I32Add)
-                     (Drop)
-                     (BrIf 0)
-                     (Br 1)
-                ]));
-            ])
         | Let(name, _,
             {Node.Expr = Lambda(args, body);
              Node.Type = TFun(targs, _)}, scope) ->
@@ -270,7 +263,6 @@ type internal MemoryAllocator() =
                                     | Some(Storage.Label(l)) -> l
                                     | _ -> failwith "not implemented"
                                 | _ -> failwith "not implemented"
-
             let instrs = m''.GetTempCode() @ [(Call func_label, sprintf "call function %s" func_label)]
             m''.ResetTempCode().AddCode(instrs)
 
@@ -287,10 +279,50 @@ type internal MemoryAllocator() =
         | Seq(nodes) ->
             // We collect the code of each sequence node by folding over all nodes
             List.fold (fun m node -> m ++ doCodegen env node m) m nodes
+
+        | While(cond, body) ->
+            // TODO
+            let cond' = doCodegen env cond m
+            let body' = doCodegen env body m
+
+            // get subtype of body
+            let t = match body.Type with
+                    | t when (isSubtypeOf body.Env t TUnit) -> []
+                    | t when (isSubtypeOf body.Env t TFloat) -> [F32]
+                    | t when (isSubtypeOf body.Env t TInt) -> [I32]
+                    | t when (isSubtypeOf body.Env t TBool) -> [I32]
+                    | t when (isSubtypeOf body.Env t TString) -> [I32; I32]
+                    | _ -> failwith "not implemented"
+            
+            let exitl = Util.genSymbol $"loop_exit"
+            let beginl = Util.genSymbol $"loop_begin"
+
+            let loop = C [Loop (beginl, [], cond'.GetTempCode() @ C [BrIf exitl] @ body'.GetTempCode() @ C [Br beginl])]
+
+            let block = C [(Block (exitl, loop @ C [Nop]))]
+
+            (cond'.ResetTempCode() + body'.ResetTempCode()).AddCode(block)
+
+        | Assign(name, value) ->
+            let value' = doCodegen env value m
+
+            match name.Expr with
+            | Var(name) ->
+
+                let varLabel = match env.VarStorage.TryFind name with
+                                    | Some(Storage.Label(l)) -> Named(l)
+                                    | _ -> failwith "not implemented"
+
+                let instrs = value'.GetTempCode() @ [(LocalSet varLabel, "set local var")]
+                value'.ResetTempCode().AddCode(instrs)
+            | _ -> failwith "not implemented"
         | Ascription(_, node) ->
         // A type ascription does not produce code --- but the type-annotated
         // AST node does
-        doCodegen env node m
+            doCodegen env node m
+        | LetMut(name, tpe, init, scope) ->
+        // The code generation is not different from 'let...', so we recycle it
+            doCodegen env {node with Expr = Let(name, tpe, init, scope)} m
         | x -> 
                 failwith "not implemented"
     
