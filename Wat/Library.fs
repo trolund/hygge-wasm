@@ -536,7 +536,7 @@ module WFG =
     let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""
 
     [<RequireQualifiedAccess>]
-    type Module private (types: list<WasmType>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: list<Data>, locals: Set<Local>, tempCode: list<Commented<Instr>>) =
+    type Module private (types: list<WasmType>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: Set<Data>, locals: Set<Local>, tempCode: list<Commented<Instr>>) =
             member private this.types: list<WasmType> = types
             member private this.functions = functions 
             member private this.tables = tables
@@ -546,17 +546,17 @@ module WFG =
             member private this.imports: Set<Import> = imports
             member private this.start: Start = start
             member private this.elements: list<Element> = elements
-            member private this.data: list<Data> = data
+            member private this.data: Set<Data> = data
             // member private this.codes = Code
             member private this.locals: Set<Local> = locals
 
             member private this.tempCode: list<Commented<Instr>> = tempCode
             
             // empty constructor
-            new () = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], [], Set.empty, [])
+            new () = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], Set.empty, Set.empty, [])
             
             // module constructor that take temp code
-            new (tempCode: list<Commented<Instr>>) = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], [], Set.empty, tempCode)
+            new (tempCode: list<Commented<Instr>>) = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], Set.empty, Set.empty, tempCode)
 
             // add temp code
             member this.AddCode (instrs: Instr list) =
@@ -659,8 +659,8 @@ module WFG =
 
             //  Add Data to the module
             member this.AddData (d: Data) =
-                let data = d :: this.data
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, data, this.locals ,this.tempCode)
+                let data = d :: Set.toList this.data
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, Set(data), this.locals ,this.tempCode)
 
             // combine two wasm modules
             member this.Combine (m: Module) =
@@ -673,10 +673,10 @@ module WFG =
                 let imports = Set.toList this.imports @ Set.toList m.imports
                 let start = this.start
                 let elements = this.elements @ m.elements
-                let data = this.data @ m.data
+                let data = Set.toList this.data @ Set.toList m.data
                 let locals = Set.toList this.locals @ Set.toList m.locals
                 let tempCode = this.tempCode @ m.tempCode
-                Module(types, functions, tables, Set(memories), globals, Set(exports), Set(imports), start, elements, data, Set(locals), tempCode)
+                Module(types, functions, tables, Set(memories), globals, Set(exports), Set(imports), start, elements, Set(data), Set(locals), tempCode)
 
             static member (+) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 

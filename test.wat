@@ -1,6 +1,10 @@
 (module
   (import "env" "writeInt" (func $writeInt (param i32)  
 ))
+  (import "env" "writeS" (func $writeS (param i32) (param i32)  
+))
+  (data (i32.const 0) "after:")
+  (memory (export "memory") 1)
   (func $main  (result i32)  ;; entry point of program (main function)
     ;; local variables declarations:
  (local $var_x i32)
@@ -19,92 +23,30 @@
       i32.const 50 ;; push 50 on stack
       i32.eq
       i32.eqz
-      br_if $loop_exit
-      local.get $var_x
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_x ;; set local var
-      local.get $var_x
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_x ;; set local var
-      local.get $var_y
-      local.get $var_x
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_x ;; set local var
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_y ;; set local var
-      br $loop_begin
-
-)
-      nop
-
-)
-    (block $loop_exit
-      (loop $loop_begin 
-      local.get $var_x
-      local.get $var_y
-      i32.add
-      i32.const 50 ;; push 50 on stack
-      i32.eq
       i32.eqz
       br_if $loop_exit
       local.get $var_x
       i32.const 1 ;; push 1 on stack
       i32.add
       local.set $var_x ;; set local var
-      local.get $var_x
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_x ;; set local var
       local.get $var_y
-      local.get $var_x
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_x ;; set local var
       i32.const 1 ;; push 1 on stack
       i32.add
       local.set $var_y ;; set local var
+      local.get $var_x
+      local.get $var_y
+      i32.add
+      call $writeInt ;; call host function
       br $loop_begin
 
 )
       nop
 
 )
+    i32.const 0 ;; offset in memory
+    i32.const 12 ;; size in bytes
+    call $writeS ;; call host function
     local.get $var_x
-    (block $loop_exit
-      (loop $loop_begin 
-      local.get $var_x
-      local.get $var_y
-      i32.add
-      i32.const 50 ;; push 50 on stack
-      i32.eq
-      i32.eqz
-      br_if $loop_exit
-      local.get $var_x
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_x ;; set local var
-      local.get $var_x
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_x ;; set local var
-      local.get $var_y
-      local.get $var_x
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_x ;; set local var
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_y ;; set local var
-      br $loop_begin
-
-)
-      nop
-
-)
     local.get $var_y
     i32.add
     call $writeInt ;; call host function

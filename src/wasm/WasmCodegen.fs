@@ -278,10 +278,9 @@ type internal MemoryAllocator() =
             compileFunction  funLabel argNamesTypes body env m
         | Seq(nodes) ->
             // We collect the code of each sequence node by folding over all nodes
-            List.fold (fun m node -> m ++ doCodegen env node m) m nodes
+            List.fold (fun m node -> (m + doCodegen env node (m.ResetTempCode()))) m nodes
 
         | While(cond, body) ->
-            // TODO
             let cond' = doCodegen env cond m
             let body' = doCodegen env body m
 
@@ -297,7 +296,7 @@ type internal MemoryAllocator() =
             let exitl = Util.genSymbol $"loop_exit"
             let beginl = Util.genSymbol $"loop_begin"
 
-            let loop = C [Loop (beginl, [], cond'.GetTempCode() @ C [BrIf exitl] @ body'.GetTempCode() @ C [Br beginl])]
+            let loop = C [Loop (beginl, [], cond'.GetTempCode() @ C [I32Eqz; BrIf exitl] @ body'.GetTempCode() @ C [Br beginl])]
 
             let block = C [(Block (exitl, loop @ C [Nop]))]
 
