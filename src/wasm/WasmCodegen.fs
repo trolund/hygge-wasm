@@ -238,31 +238,10 @@ type internal MemoryAllocator() =
             let m' = doCodegen env e (m.ResetTempCode())
             let instrs = m'.GetTempCode() @ C [(If ([], [(Nop, "do nothing - if all correct")], Some([(I32Const errorExitCode, "error exit code push to stack"); (Return, "return exit code")])))]
             m'.ResetTempCode().AddCode(instrs)
-        | Let(name, _,
-            {Node.Expr = Lambda(args, body);
-             Node.Type = TFun(targs, _)}, scope) ->
-            /// Assembly label to mark the position of the compiled function body.
-            /// For readability, we make the label similar to the function name
-            let funLabel = Util.genSymbol $"fun_%s{name}"
-
-            /// Names of the lambda term arguments
-            let (argNames, _) = List.unzip args
-            /// List of pairs associating each function argument to its type
-            let argNamesTypes = List.zip argNames targs
-            /// Compiled function body
-            let bodyCode: Module = compileFunction funLabel argNamesTypes body env m
-            
-            /// Storage info where the name of the compiled function points to the
-            /// label 'funLabel'
-            let varStorage2 = env.VarStorage.Add(name, Storage.Label(funLabel))
-
-            let scopeModule: Module = (doCodegen {env with VarStorage = varStorage2} scope m)
-
-            scopeModule + bodyCode
         
         | Application(f, args) ->
-            // let m' = doCodegen env f m
-            let m'' = List.fold (fun m arg -> doCodegen env arg m) m args
+
+            let m'' = List.fold (fun m arg -> m + doCodegen env arg (m.ResetTempCode())) m args
 
             let func_label = match f.Expr with
                                 | Var v -> 
@@ -324,19 +303,38 @@ type internal MemoryAllocator() =
         // AST node does
             doCodegen env node m
 
+        | Let(name, _,
+            {Node.Expr = Lambda(args, body);
+             Node.Type = TFun(targs, _)}, scope) ->
+            /// Assembly label to mark the position of the compiled function body.
+            /// For readability, we make the label similar to the function name
+            let funLabel = Util.genSymbol $"fun_%s{name}"
+
+            /// Names of the lambda term arguments
+            let (argNames, _) = List.unzip args
+            /// List of pairs associating each function argument to its type
+            let argNamesTypes = List.zip argNames targs
+            /// Compiled function body
+            let bodyCode: Module = compileFunction funLabel argNamesTypes body env m
+            
+            /// Storage info where the name of the compiled function points to the
+            /// label 'funLabel'
+            let varStorage2 = env.VarStorage.Add(name, Storage.Label(funLabel))
+
+            let scopeModule: Module = (doCodegen {env with VarStorage = varStorage2} scope m)
+
+            scopeModule + bodyCode
+
         | Let(name, _, init, scope) ->
             let m' = doCodegen env init m
 
             let varName = Util.genSymbol $"var_%s{name}"
             let env' = {env with VarStorage = env.VarStorage.Add(name, Storage.Label(varName))}
 
-            
             match init.Type with
             | t when (isSubtypeOf init.Env t TUnit) -> 
                 m' ++ (doCodegen env scope m)
-            | t when (isSubtypeOf init.Env t TFloat) -> failwith "not implemented"
             | t when (isSubtypeOf init.Env t TInt) ->
-                // make x a Instr
                 let varLabel = Named (varName)
                 let initCode = m'.GetTempCode()
 
@@ -347,8 +345,6 @@ type internal MemoryAllocator() =
                 let combi = (instrs ++ scopeCode)
 
                 combi.AddLocals([(Some(Identifier(varName)), I32)])
-            | t when (isSubtypeOf init.Env t TBool) -> failwith "not implemented"
-            | t when (isSubtypeOf init.Env t TString) -> failwith "not implemented"
             | _ -> m' ++ (doCodegen env' scope m)
 
         | LetMut(name, tpe, init, scope) ->
@@ -358,23 +354,26 @@ type internal MemoryAllocator() =
           {Node.Expr = Lambda(args, body);
            Node.Type = TFun(targs, _)}, scope) ->
             
+            let funLabel = Util.genSymbol $"fun_%s{name}"
 
-            let varName = Util.genSymbol $"var_%s{name}"
-            let env' = {env with VarStorage = env.VarStorage.Add(name, Storage.Label(varName))}
+            /// Storage info where the name of the compiled function points to the
+            /// label 'funLabel'
+            let varStorage2 = env.VarStorage.Add(name, Storage.Label(funLabel))
 
-                // make x a Instr
-            let varLabel = Named (varName)
-            let initCode = m.GetTempCode()
+            /// Names of the lambda term arguments
+            let (argNames, _) = List.unzip args
+            /// List of pairs associating each function argument to its type
+            let argNamesTypes = List.zip argNames targs
+            /// Compiled function body
+            let bodyCode: Module = compileFunction funLabel argNamesTypes body {env with VarStorage = varStorage2} m
+            
+            let scopeModule: Module = (doCodegen {env with VarStorage = varStorage2} scope m)
 
-            let instrs = initCode // inizilize code
-                                                    @ [(LocalSet varLabel, "set local var")] // set local var
-            let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
-
-            let combi = (instrs ++ scopeCode)
-
-            combi
+            scopeModule + bodyCode
         | LetRec(name, tpe, init, scope) -> 
             doCodegen env {node with Expr = Let(name, tpe, init, scope)} m
+        | Pointer(_) ->
+            failwith "BUG: pointers cannot be compiled (by design!)"
         | x -> 
                 failwith "not implemented"
     
