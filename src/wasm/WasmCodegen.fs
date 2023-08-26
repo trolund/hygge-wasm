@@ -68,7 +68,7 @@ type internal MemoryAllocator() =
         funcIndexMap: Map<string, List<Instr>>
         currFunc: string
         // // name, type, allocated address
-        // varEnv: Map<string, Var * ValueType>
+        varEnv: Map<string, Var * ValueType>
         memoryAllocator: MemoryAllocator
         VarStorage: Map<string, Storage>
         // FuncRef: Map<string, Label>
@@ -431,6 +431,7 @@ type internal MemoryAllocator() =
             funcIndexMap = Map.empty
             memoryAllocator = MemoryAllocator()
             VarStorage = Map.empty
+            varEnv = Map.empty
         }
 
         let m' = m.AddFunction(funcName, f).AddExport(funcName, FunctionType(funcName, None))
