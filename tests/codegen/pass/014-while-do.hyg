@@ -3,10 +3,7 @@ let mutable y: int = 10;
 
 while not (x + y = 50) do {
     x <- x + 1;
-    y <- y + 1;
-    println(x + y)
+    y <- y + 1
 };
 
-println("after:");
-println(x + y);
 assert(x + y = 50)

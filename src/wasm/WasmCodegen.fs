@@ -259,38 +259,7 @@ type internal MemoryAllocator() =
             let scopeModule: Module = (doCodegen {env with VarStorage = varStorage2} scope m)
 
             scopeModule + bodyCode
-        | Let(name, _, init, scope) ->
-            let m' = doCodegen env init m
-
-            let varName = Util.genSymbol $"var_%s{name}"
-            let env' = {env with VarStorage = env.VarStorage.Add(name, Storage.Label(varName))}
-
-            // is init a subtype of TFunc type?
-            let isFuncType = match init.Type with
-                                | TFun(_, _) -> true
-                                | _ -> false
-
-            
-            match init.Type with
-            | t when (isSubtypeOf init.Env t TUnit) -> 
-                m' ++ (doCodegen env scope m)
-            | t when (isSubtypeOf init.Env t TFloat) -> failwith "not implemented"
-            | t when (isSubtypeOf init.Env t TInt) ->
-                // make x a Instr
-                let varLabel = Named (varName)
-                let initCode = m'.GetTempCode()
-
-                let instrs = initCode // inizilize code
-                                                    @ [(LocalSet varLabel, "set local var")] // set local var
-                let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
-
-                let combi = (instrs ++ scopeCode)
-
-                combi.AddLocals([(Some(Identifier(varName)), I32)])
-            | t when (isSubtypeOf init.Env t TBool) -> failwith "not implemented"
-            | t when (isSubtypeOf init.Env t TString) -> failwith "not implemented"
-            | _ -> m' ++ (doCodegen env' scope m)
-
+        
         | Application(f, args) ->
             // let m' = doCodegen env f m
             let m'' = List.fold (fun m arg -> doCodegen env arg m) m args
@@ -331,6 +300,12 @@ type internal MemoryAllocator() =
 
             (cond'.ResetTempCode() + body'.ResetTempCode()).AddCode(block)
 
+        | DoWhile(cond, body) ->
+            (doCodegen env body m) ++ (doCodegen env {node with Expr = While(cond, body)} m)
+
+        | For(init, cond, update, body) ->
+            (doCodegen env init m) ++ (doCodegen env {node with Expr = While(cond, {node with Expr = Seq([body; update])})} m)
+
         | Assign(name, value) ->
             let value' = doCodegen env value m
 
@@ -348,8 +323,57 @@ type internal MemoryAllocator() =
         // A type ascription does not produce code --- but the type-annotated
         // AST node does
             doCodegen env node m
+
+        | Let(name, _, init, scope) ->
+            let m' = doCodegen env init m
+
+            let varName = Util.genSymbol $"var_%s{name}"
+            let env' = {env with VarStorage = env.VarStorage.Add(name, Storage.Label(varName))}
+
+            
+            match init.Type with
+            | t when (isSubtypeOf init.Env t TUnit) -> 
+                m' ++ (doCodegen env scope m)
+            | t when (isSubtypeOf init.Env t TFloat) -> failwith "not implemented"
+            | t when (isSubtypeOf init.Env t TInt) ->
+                // make x a Instr
+                let varLabel = Named (varName)
+                let initCode = m'.GetTempCode()
+
+                let instrs = initCode // inizilize code
+                                                    @ [(LocalSet varLabel, "set local var")] // set local var
+                let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+
+                let combi = (instrs ++ scopeCode)
+
+                combi.AddLocals([(Some(Identifier(varName)), I32)])
+            | t when (isSubtypeOf init.Env t TBool) -> failwith "not implemented"
+            | t when (isSubtypeOf init.Env t TString) -> failwith "not implemented"
+            | _ -> m' ++ (doCodegen env' scope m)
+
         | LetMut(name, tpe, init, scope) ->
         // The code generation is not different from 'let...', so we recycle it
+            doCodegen env {node with Expr = Let(name, tpe, init, scope)} m
+        | LetRec(name, _,
+          {Node.Expr = Lambda(args, body);
+           Node.Type = TFun(targs, _)}, scope) ->
+            
+
+            let varName = Util.genSymbol $"var_%s{name}"
+            let env' = {env with VarStorage = env.VarStorage.Add(name, Storage.Label(varName))}
+
+                // make x a Instr
+            let varLabel = Named (varName)
+            let initCode = m.GetTempCode()
+
+            let instrs = initCode // inizilize code
+                                                    @ [(LocalSet varLabel, "set local var")] // set local var
+            let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+
+            let combi = (instrs ++ scopeCode)
+
+            combi
+        | LetRec(name, tpe, init, scope) -> 
             doCodegen env {node with Expr = Let(name, tpe, init, scope)} m
         | x -> 
                 failwith "not implemented"
