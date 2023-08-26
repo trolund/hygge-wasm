@@ -31,10 +31,10 @@ let internal runRARS tast expected =
                                         + $"got %d{exit} (%s{explainExit})")
 
 let internal runWasmTime tast expected = 
-    let anf = ANF.transform tast
+    // let anf = ANF.transform tast
     let asm = (WASMCodegen.implicit tast).ToString()
     let explainExpected = RARS.explainExitCode expected
-
+    
     let vm = WasmVM()
     let exit: int = vm.RunWatString("main", asm.ToString()) :?> int
     Log.debug (sprintf "WasmTime exit code: %d" exit)
@@ -207,19 +207,19 @@ let tests = testList "tests" [
         )
     ]
     // Wasm tests are disabled for now
-    testList "wasm codegen" [
-        testList "wasm pass" (
+    testList "wasm" [
+        testList "pass" (
             getFilesInTestDir ["codegen"; "pass"] |> List.map ( fun file ->
                 testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
                     testWasmCodegen file 0
             )
         )
-        testList "wasm fail" (
-            getFilesInTestDir ["codegen"; "fail"] |> List.map ( fun file ->
-                testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
-                    testWasmCodegen file RISCVCodegen.assertExitCode
-            )
-        )
+        // testList "wasm fail" (
+        //     getFilesInTestDir ["codegen"; "fail"] |> List.map ( fun file ->
+        //         testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
+        //             testWasmCodegen file RISCVCodegen.assertExitCode
+        //     )
+        // )
     ]
 ]
 

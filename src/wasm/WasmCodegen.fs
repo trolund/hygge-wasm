@@ -370,10 +370,15 @@ type internal MemoryAllocator() =
             let scopeModule: Module = (doCodegen {env with VarStorage = varStorage2} scope m)
 
             scopeModule + bodyCode
+
         | LetRec(name, tpe, init, scope) -> 
             doCodegen env {node with Expr = Let(name, tpe, init, scope)} m
         | Pointer(_) ->
             failwith "BUG: pointers cannot be compiled (by design!)"
+        
+        | AST.Type(_, _, scope) ->
+        // A type alias does not produce any code --- but its scope does
+            doCodegen env scope m
         | x -> 
                 failwith "not implemented"
     
