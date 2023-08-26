@@ -214,12 +214,12 @@ let tests = testList "tests" [
                     testWasmCodegen file 0
             )
         )
-        // testList "wasm fail" (
-        //     getFilesInTestDir ["codegen"; "fail"] |> List.map ( fun file ->
-        //         testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
-        //             testWasmCodegen file RISCVCodegen.assertExitCode
-        //     )
-        // )
+        testList "fail" (
+            getFilesInTestDir ["codegen"; "fail"] |> List.map ( fun file ->
+                testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
+                    testWasmCodegen file RISCVCodegen.assertExitCode
+            )
+        )
     ]
 ]
 
