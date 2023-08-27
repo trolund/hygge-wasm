@@ -89,18 +89,20 @@ namespace WasmTimeDriver
                     try
                     {
                         string? s = "";
+                        int res;
                         do
                         {
                             s = Console.ReadLine();
+                            res = Int32.Parse(s);
                         } while (s is null);
-                        return (int) s;
+                        return res;
                     }
                     catch (Exception e)
                     {
                         Console.WriteLine("error:" + e);
                     }
 
-                    return null;
+                    return 0;
                 })
             );
 
@@ -113,18 +115,20 @@ namespace WasmTimeDriver
                     try
                     {
                         string? s = "";
+                        float res;
                         do
                         {
                             s = Console.ReadLine();
+                            res = float.Parse(s);
                         } while (s is null);
-                        return (float) s;
+                        return res;
                     }
                     catch (Exception e)
                     {
                         Console.WriteLine("error:" + e);
                     }
 
-                    return null;
+                    return 0;
                 })
             );
 
