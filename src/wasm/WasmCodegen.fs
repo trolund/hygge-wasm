@@ -384,6 +384,11 @@ type internal MemoryAllocator() =
                 let combi = (instrs ++ scopeCode)
 
                 combi.AddLocals([(Some(Identifier(varName)), F32)])
+            | TFun(_, _) -> 
+                // todo make function pointer
+                failwith "not implemented"
+            | _ -> failwith "not implemented"
+                
 
         | LetMut(name, tpe, init, scope) ->
         // The code generation is not different from 'let...', so we recycle it
