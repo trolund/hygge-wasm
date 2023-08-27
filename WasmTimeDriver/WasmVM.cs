@@ -81,6 +81,53 @@ namespace WasmTimeDriver
                 })
             );
 
+             _linker.Define(
+                "env",
+                "ReadInt",
+                Function.FromCallback(_store, () =>
+                {
+                    try
+                    {
+                        string? s = "";
+                        do
+                        {
+                            s = Console.ReadLine();
+                        } while (s is null);
+                        return (int) s;
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("error:" + e);
+                    }
+
+                    return null;
+                })
+            );
+
+
+             _linker.Define(
+                "env",
+                "ReadFloat",
+                Function.FromCallback(_store, () =>
+                {
+                    try
+                    {
+                        string? s = "";
+                        do
+                        {
+                            s = Console.ReadLine();
+                        } while (s is null);
+                        return (float) s;
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("error:" + e);
+                    }
+
+                    return null;
+                })
+            );
+
             _linker.Define(
                 "env",
                 "writeInt",

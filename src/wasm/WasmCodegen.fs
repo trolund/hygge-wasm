@@ -191,6 +191,19 @@ type internal MemoryAllocator() =
                                         | Min(_, _) -> m'.GetTempCode() @ m''.GetTempCode() @ C [I32LtS; Select]
 
             C [Comment "Max/min start"] ++ (m' + m'').AddCode(instrs @ C [Comment "Max/min end"])
+
+        | ReadInt ->
+            // import readInt function
+            let readFunctionSignature: FunctionSignature = ([], [I32])
+            let m' = m.AddImport("env", "readInt", FunctionType("readInt", Some(readFunctionSignature)))
+            // perform host (system) call
+            m'.AddCode([(Call "readInt", "call host function")])
+        | ReadFloat ->
+            // import readFloat function
+            let readFunctionSignature: FunctionSignature = ([], [F32])
+            let m' = m.AddImport("env", "readFloat", FunctionType("readFloat", Some(readFunctionSignature)))
+            // perform host (system) call
+            m'.AddCode([(Call "readFloat", "call host function")])
         | PrintLn e ->
             // TODO support more types 
             let m' = doCodegen env e m
@@ -296,7 +309,7 @@ type internal MemoryAllocator() =
                 let varLabel = match env.VarStorage.TryFind name with
                                     | Some(Storage.Label(l)) -> Named(l)
                                     | _ -> failwith "not implemented"
-                                    
+
                 // is nested? - is multiple assignment
                 let isNested = match value.Expr with 
                                 | Assign(v, _) ->
