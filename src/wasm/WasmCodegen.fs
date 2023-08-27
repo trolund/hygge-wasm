@@ -288,14 +288,29 @@ type internal MemoryAllocator() =
         | Assign(name, value) ->
             let value' = doCodegen env value m
 
+     
+
             match name.Expr with
             | Var(name) ->
 
                 let varLabel = match env.VarStorage.TryFind name with
                                     | Some(Storage.Label(l)) -> Named(l)
                                     | _ -> failwith "not implemented"
+                                    
+                // is nested? - is multiple assignment
+                let isNested = match value.Expr with 
+                                | Assign(v, _) ->
+                                    let nestedName = match v.Expr with
+                                                        | Var(n) -> 
+                                                            match env.VarStorage.TryFind n with
+                                                            | Some(Storage.Label(l)) -> Named(l)
+                                                            | _ -> failwith "not implemented"
+                                                        | _ -> failwith "not implemented"
+                                    
+                                    [(LocalGet nestedName, "get local var")]
+                                | _ -> []
 
-                let instrs = value'.GetTempCode() @ [(LocalSet varLabel, "set local var")]
+                let instrs = value'.GetTempCode() @ isNested @ [(LocalSet varLabel, "set local var")]
                 value'.ResetTempCode().AddCode(instrs)
             | _ -> failwith "not implemented"
         | Ascription(_, node) ->
@@ -345,7 +360,17 @@ type internal MemoryAllocator() =
                 let combi = (instrs ++ scopeCode)
 
                 combi.AddLocals([(Some(Identifier(varName)), I32)])
-            | _ -> m' ++ (doCodegen env' scope m)
+            | t when (isSubtypeOf init.Env t TFloat) ->
+                let varLabel = Named (varName)
+                let initCode = m'.GetTempCode()
+
+                let instrs = initCode // inizilize code
+                                                    @ [(LocalSet varLabel, "set local var")] // set local var
+                let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+
+                let combi = (instrs ++ scopeCode)
+
+                combi.AddLocals([(Some(Identifier(varName)), F32)])
 
         | LetMut(name, tpe, init, scope) ->
         // The code generation is not different from 'let...', so we recycle it
