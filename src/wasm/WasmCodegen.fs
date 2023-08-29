@@ -144,6 +144,18 @@ type internal MemoryAllocator() =
             let m' = doCodegen env e m
             let instrs = [I32Eqz]
             m'.AddCode(instrs)
+        | Greater(e1, e2) ->
+            let m' = doCodegen env e1 m
+            let m'' = doCodegen env e2 m
+
+            // find type of e1 and e2 and check if they are equal
+            let opcode = match e1.Type, e2.Type with
+                                | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) & (isSubtypeOf e1.Env t2 TInt)) -> [I32GtS]
+                                | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) & (isSubtypeOf e1.Env t2 TFloat)) -> [F32Gt]
+                                | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [I32GtS]
+                                | _ -> failwith "type mismatch"
+
+            (m' + m'').AddCode(opcode)
         |Eq(e1, e2) ->
             let m' = doCodegen env e1 m
             let m'' = doCodegen env e2 m
@@ -386,8 +398,28 @@ type internal MemoryAllocator() =
                 combi.AddLocals([(Some(Identifier(varName)), F32)])
             | TFun(_, _) -> 
                 // todo make function pointer
-                failwith "not implemented"
-            | _ -> failwith "not implemented"
+                let varLabel = Named (varName)
+                let initCode = m'.GetTempCode()
+
+                let instrs = initCode // inizilize code
+                                                    @ [(LocalSet varLabel, "set local var")] // set local var
+                let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+
+                let combi = (instrs ++ scopeCode)
+
+                combi.AddLocals([(Some(Identifier(varName)), I32)])
+            | _ -> 
+                // todo make function pointer
+                let varLabel = Named (varName)
+                let initCode = m'.GetTempCode()
+
+                let instrs = initCode // inizilize code
+                                                    @ [(LocalSet varLabel, "set local var")] // set local var
+                let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+
+                let combi = (instrs ++ scopeCode)
+
+                combi.AddLocals([(Some(Identifier(varName)), I32)])
                 
 
         | LetMut(name, tpe, init, scope) ->
