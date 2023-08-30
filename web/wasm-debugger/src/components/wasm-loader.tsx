@@ -8,7 +8,12 @@ export const WasmLoader = () => {
 
   const setup = () => {
     document.addEventListener('drop', async evt => {
+        evt.preventDefault();
         const files = await fromEvent(evt);
+
+        const fileNames = files.map((f: any) => f.name);
+
+        setFile(fileNames[0]);
         console.log(files);
         });
     }
