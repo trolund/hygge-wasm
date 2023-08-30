@@ -1,87 +1,165 @@
 (module
-  (import "env" "writeInt" (func $writeInt (param i32)  
-))
-  (func $fun_fb (param $i i32) (result i32)  ;; function fun_fb
+  (func $fun_f (param $x i32) (param $y i32) (result i32)  ;; function fun_f
     ;; local variables declarations:
- (local $var_by3 i32)
- (local $var_by5 i32)
+ (local $var_c i32)
+ (local $var_c_0 i32)
  
-    local.get $i
-    i32.const 3 ;; push 3 on stack
-    i32.rem_s
-    i32.const 0 ;; push 0 on stack
-    i32.eq
-    local.set $var_by3 ;; set local var
-    local.get $i
-    i32.const 5 ;; push 5 on stack
-    i32.rem_s
-    i32.const 0 ;; push 0 on stack
-    i32.eq
-    local.set $var_by5 ;; set local var
-    local.get $var_by3
+    local.get $x
+    local.get $y
+    i32.add
+    i32.const 42 ;; push 42 on stack
+    i32.lt_s
     (if  (result i32)
      (then
-      local.get $var_by5
-      (if  (result i32)
-     (then
-      i32.const 10 ;; push 10 on stack
+      local.get $x
+      local.set $var_c ;; set local var
+      local.get $x
+      i32.const 1 ;; push 1 on stack
+      i32.add
+      local.get $y
+      i32.const 1 ;; push 1 on stack
+      i32.add
+      call $fun_f ;; call function fun_f
+      local.get $var_c
+      i32.add
 
      )
      (else
-      i32.const 12 ;; push 12 on stack
+      i32.const 1
+      local.set $var_c_0 ;; set local var
+      i32.const 0
+      local.set $var_c_0 ;; set local var
+      local.get $x
+      local.get $y
+      i32.add
 
      )
     )
-
-     )
-     (else
-      local.get $var_by5
-      (if  (result i32)
+  )
+  (func $fun_g (param $z i32) (result i32)  ;; function fun_g
+ 
+    local.get $z
+    i32.const 50 ;; push 50 on stack
+    i32.lt_s
+    (if  (result i32)
      (then
-      i32.const 13 ;; push 13 on stack
+      local.get $z
+      i32.const 1 ;; push 1 on stack
+      i32.add
+      call $fun_g ;; call function fun_g
 
      )
      (else
-      i32.const 14 ;; push 14 on stack
+      local.get $z
 
      )
     )
+  )
+  (func $fun_k (param $z i32) (param $d i32) (result i32)  ;; function fun_k
+ 
+    local.get $z
+    local.get $d
+    i32.lt_s
+    (if  (result i32)
+     (then
+      local.get $z
+      i32.const 1 ;; push 1 on stack
+      i32.add
+      local.get $d
+      call $fun_k ;; call function fun_k
+
+     )
+     (else
+      local.get $z
 
      )
     )
   )
   (func $main  (result i32)  ;; entry point of program (main function)
     ;; local variables declarations:
- (local $var_by3 i32)
- (local $var_by5 i32)
- (local $var_x i32)
- (local $var_y i32)
+ (local $var_c i32)
+ (local $var_c_0 i32)
  
     ;; execution start here:
     i32.const 0 ;; push 0 on stack
-    local.set $var_x ;; set local var
+    i32.const 0 ;; push 0 on stack
+    call $fun_f ;; call function fun_f
+    i32.const 42 ;; push 42 on stack
+    i32.eq
+    (if 
+     (then
+      nop ;; do nothing - if all correct
+
+     )
+     (else
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
+
+     )
+    )
     i32.const 10 ;; push 10 on stack
-    local.set $var_y ;; set local var
-    (block $loop_exit
-      (loop $loop_begin 
-      local.get $var_x
-      local.get $var_y
-      i32.lt_s
-      i32.eqz
-      br_if $loop_exit
-      local.get $var_x
-      call $fun_fb ;; call function fun_fb
-      call $writeInt ;; call host function
-      local.get $var_x
-      i32.const 1 ;; push 1 on stack
-      i32.add
-      local.set $var_x ;; set local var
-      br $loop_begin
+    call $fun_g ;; call function fun_g
+    i32.const 50 ;; push 50 on stack
+    i32.eq
+    (if 
+     (then
+      nop ;; do nothing - if all correct
 
-)
-      nop
+     )
+     (else
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
 
-)
+     )
+    )
+    i32.const 0 ;; push 0 on stack
+    i32.const 10 ;; push 10 on stack
+    call $fun_k ;; call function fun_k
+    i32.const 10 ;; push 10 on stack
+    i32.eq
+    (if 
+     (then
+      nop ;; do nothing - if all correct
+
+     )
+     (else
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
+
+     )
+    )
+    i32.const 0 ;; push 0 on stack
+    i32.const 1000 ;; push 1000 on stack
+    call $fun_k ;; call function fun_k
+    i32.const 1000 ;; push 1000 on stack
+    i32.eq
+    (if 
+     (then
+      nop ;; do nothing - if all correct
+
+     )
+     (else
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
+
+     )
+    )
+    i32.const 0 ;; push 0 on stack
+    i32.const 123 ;; push 123 on stack
+    call $fun_k ;; call function fun_k
+    i32.const 123 ;; push 123 on stack
+    i32.eq
+    (if 
+     (then
+      nop ;; do nothing - if all correct
+
+     )
+     (else
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
+
+     )
+    )
     ;; if execution reaches here, the program is successful
     i32.const 0 ;; exit code 0
     return ;; return the exit code

@@ -18,7 +18,9 @@ namespace WasmTimeDriver
         {
             var config = new Config()
                 .WithDebugInfo(true)
+                .WithCraneliftDebugVerifier(true)
                 .WithOptimizationLevel(0);
+            
             _engine = new Engine(config);
             
             _linker = new Linker(_engine);
@@ -167,7 +169,7 @@ namespace WasmTimeDriver
         
         public object?[] RunFileTimes(string path, int n)
         {
-            return RunFileTimes(path, "_start", n);
+            return RunFileTimes(path, "main", n);
         }
 
         public object?[] RunFileTimes(string path, string target, int n)
@@ -184,7 +186,7 @@ namespace WasmTimeDriver
 
         public object? RunFile(string path)
         {
-            return RunFile(path, "_start");
+            return RunFile(path, "main");
         }
         
         public object? RunWatString(string target, string wat)
