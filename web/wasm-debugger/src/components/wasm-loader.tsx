@@ -5,6 +5,7 @@ import { FiFileText, FiChevronRight } from "react-icons/fi";
 import { imports } from "../Imports";
 
 export const WasmLoader = () => {
+  
   const [msg, setMsg] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [wasmResult, setWasmResult] = useState(null);
