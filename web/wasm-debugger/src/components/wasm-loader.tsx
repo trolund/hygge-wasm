@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import styles from './wasm-loader.module.css';
 import { useFilePicker } from 'use-file-picker';
 
 export const WasmLoader = () => {
@@ -6,31 +7,42 @@ export const WasmLoader = () => {
   const [wasmResult, setWasmResult] = useState(null);
   const [wasmmInstance, setWasmInstance] = useState(null);
   const [openFileSelector, { filesContent, loading }] = useFilePicker({
-    accept: ['.wat', '.wasm'],
+    accept: ['.wasm'],
     readAs: "ArrayBuffer",
     multiple: false,
     limitFilesConfig: { max: 1 },
     onFilesSelected: (file) => {
+      // get the first and only file
       const wasmFile = file.filesContent[0];
-      
       // get the bytes
       const bytes = wasmFile.content;
-
       // instantiate the wasm module
-      WebAssembly.instantiate(bytes)
-      .then((results: any) => {
-          const instance = results.instance
-          setWasmInstance(instance);          
-          runInstance(instance);        
-          setMsg("File selected: " + file.filesContent[0].name);
-          console.log("File selected: ", file.filesContent[0].name);
-        })
-        .catch((error) => {
-          console.error("Error:", error);
-          setMsg("Error: " + error);
-        });
-    }
+      createModule(bytes);
+    },
+    onFilesRejected: ({ errors }) => {
+      // this callback is called when there were validation errors
+      console.log('File rejected', errors);
+      setMsg("File rejected: " + errors);
+    },
+    onFilesSuccessfulySelected: ({ plainFiles, filesContent }) => {
+      // this callback is called when there were no validation errors
+      console.log('File selected', plainFiles[0].name);
+      setMsg("File selected: " + plainFiles[0].name + " ✅");
+    },
   });
+
+  const createModule = (bytes: any) => {
+    WebAssembly.instantiate(bytes)
+    .then((results: any) => {
+        const instance = results.instance
+        setWasmInstance(instance);          
+        // runInstance(instance);        
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        setMsg("Error: " + error);
+      });
+  }
 
   const runInstance = (instance: any) => {
 
@@ -45,18 +57,31 @@ export const WasmLoader = () => {
 
   }
 
+  const status = (result: number) => {
+    if (result == 0) {
+    return <div>Success✅</div>
+    }
+    else if (result == -1) {
+      return <></>
+    }
+
+    return <div>Failure❌</div>
+    }
+
   return (
     <>
     {loading && <div>Loading...</div>}
     <div>
-      <button onClick={() => openFileSelector()}>Select file</button>
-      <button onClick={() => runInstance(wasmmInstance)}>Run</button>
+      <button className={styles.button} onClick={openFileSelector}>Select file</button>
+      <button className={styles.button} onClick={() => runInstance(wasmmInstance)}>Run</button>
     </div>
     <div>
-      <div><p>{msg}</p></div>
-      <div>Exit code: {wasmResult}</div>
-      {wasmResult == 0 ? <div>Success✅</div> : <div>Failure❌</div> }
+      <div>{msg}</div>
+      {wasmResult && 
+        <div>Exit code: {wasmResult}</div>
+      }
     </div>
+    {status(wasmResult ?? -1)}
     </>
   );
 };
