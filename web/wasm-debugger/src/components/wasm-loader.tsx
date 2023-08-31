@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import styles from './wasm-loader.module.css';
 import { useFilePicker } from 'use-file-picker';
+import { FiFileText, FiChevronRight } from "react-icons/fi";
 
 export const WasmLoader = () => {
   const [msg, setMsg] = useState("");
@@ -12,6 +13,7 @@ export const WasmLoader = () => {
     multiple: false,
     limitFilesConfig: { max: 1 },
     onFilesSelected: (file) => {
+      setWasmResult(null);
       // get the first and only file
       const wasmFile = file.filesContent[0];
       // get the bytes
@@ -54,32 +56,29 @@ export const WasmLoader = () => {
 
     const res = instance.exports.main();
     setWasmResult(res);
-
+    console.log("Result:", res);
   }
 
   const status = (result: number) => {
     if (result == 0) {
-    return <div>Success✅</div>
+    return <div>exit code: {result}, Success✅</div>
     }
     else if (result == -1) {
       return <></>
     }
 
-    return <div>Failure❌</div>
+    return <div>exit code: {result}, Failure❌</div>
     }
 
   return (
     <>
     {loading && <div>Loading...</div>}
     <div>
-      <button className={styles.button} onClick={openFileSelector}>Select file</button>
-      <button className={styles.button} onClick={() => runInstance(wasmmInstance)}>Run</button>
+      <button className={styles.button} onClick={openFileSelector}><FiFileText className={styles.icon} /> Select file</button>
+      <button className={styles.button} onClick={() => runInstance(wasmmInstance)}><FiChevronRight className={styles.icon} /> Run</button>
     </div>
     <div>
       <div>{msg}</div>
-      {wasmResult && 
-        <div>Exit code: {wasmResult}</div>
-      }
     </div>
     {status(wasmResult ?? -1)}
     </>
