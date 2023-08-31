@@ -2,73 +2,62 @@ import { useState, useEffect } from "react";
 import { useFilePicker } from 'use-file-picker';
 
 export const WasmLoader = () => {
+  const [msg, setMsg] = useState("");
   const [wasmResult, setWasmResult] = useState(null);
+  const [wasmmInstance, setWasmInstance] = useState(null);
   const [openFileSelector, { filesContent, loading }] = useFilePicker({
     accept: ['.wat', '.wasm'],
     readAs: "ArrayBuffer",
+    multiple: false,
+    limitFilesConfig: { max: 1 },
+    onFilesSelected: (file) => {
+      const wasmFile = file.filesContent[0];
+      
+      // get the bytes
+      const bytes = wasmFile.content;
+
+      // instantiate the wasm module
+      WebAssembly.instantiate(bytes)
+      .then((results: any) => {
+          const instance = results.instance
+          setWasmInstance(instance);          
+          runInstance(instance);        
+          setMsg("File selected: " + file.filesContent[0].name);
+          console.log("File selected: ", file.filesContent[0].name);
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          setMsg("Error: " + error);
+        });
+    }
   });
 
-  useEffect(() => {
-    if (filesContent.length) {
-        const file = filesContent[0];
+  const runInstance = (instance: any) => {
 
-        console.log(file);
-
-        const bytes = file.content;
-
-        WebAssembly.instantiate(bytes)
-        .then((results: any) => {
-            const instance = results.instance;
-            
-            // Call the "main" function
-            const res = instance.exports.main();
-
-            console.log(res);
-            
-            // You can do something after calling the function
-          })
-          .catch((error) => {
-            console.error("Error:", error);
-          });
+    if (!instance) {
+      console.log("No instance to run");
+      setMsg("No instance to run - start by selecting a .wasm file");
+      return;
     }
-}, [filesContent]);
 
-  if (loading) {
-    return <div>Loading...</div>;
+    const res = instance.exports.main();
+    setWasmResult(res);
+
   }
-
-  const run = async (file: string) => {
-
-
-
-    // WebAssembly.instantiateStreaming(file).then(
-    //     (obj) => {
-    //       // Call an exported function:
-    //       const res = (obj.instance.exports as any).main();
-      
-    //       // or access the buffer contents of an exported memory:
-    //       // const i32 = new Uint32Array(obj.instance.exports.memory.buffer);
-      
-    //       // or access the elements of an exported table:
-    //       //const table = obj.instance.exports.table;
-    //       // console.log(table.get(0)());
-    //     },
-    //   );
-  }
-
 
   return (
+    <>
+    {loading && <div>Loading...</div>}
     <div>
-      <button onClick={() => openFileSelector()}>Select files </button>
-      <br />
-      {/* {filesContent.map((file, index) => (
-        <div>
-          <h2>{file.name}</h2>
-          <div key={index}>{file.content}</div>
-          <br />
-        </div>
-      ))} */}
+      <button onClick={() => openFileSelector()}>Select file</button>
+      <button onClick={() => runInstance(wasmmInstance)}>Run</button>
     </div>
+    <div>
+      <div><p>{msg}</p></div>
+      <div>Exit code: {wasmResult}</div>
+      {wasmResult == 0 ? <div>Success✅</div> : <div>Failure❌</div> }
+    </div>
+    </>
   );
 };
 

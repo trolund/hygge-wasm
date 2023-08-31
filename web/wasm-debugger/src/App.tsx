@@ -11,10 +11,6 @@ function App() {
         <p>Open the Chrome dev tools to debug the selected .wasm file</p>
         <p>Set a break point</p>
         <WasmLoader />
-        <button onClick={() => window.location.reload()}>
-          Start debugging
-        </button>
-
       </header>
     </div>
   );
