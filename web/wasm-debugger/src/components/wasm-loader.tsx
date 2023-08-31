@@ -1,13 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import styles from './wasm-loader.module.css';
 import { useFilePicker } from 'use-file-picker';
 import { FiFileText, FiChevronRight } from "react-icons/fi";
+import { imports } from "../Imports";
 
 export const WasmLoader = () => {
   const [msg, setMsg] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
   const [wasmResult, setWasmResult] = useState(null);
-  const [wasmmInstance, setWasmInstance] = useState(null);
-  const [openFileSelector, { filesContent, loading }] = useFilePicker({
+  const [wasmInstance, setWasmInstance] = useState(null);
+
+  const [openFileSelector, { loading }] = useFilePicker({
     accept: ['.wasm'],
     readAs: "ArrayBuffer",
     multiple: false,
@@ -34,7 +37,7 @@ export const WasmLoader = () => {
   });
 
   const createModule = (bytes: any) => {
-    WebAssembly.instantiate(bytes)
+    WebAssembly.instantiate(bytes, imports)
     .then((results: any) => {
         const instance = results.instance
         setWasmInstance(instance);          
@@ -53,10 +56,13 @@ export const WasmLoader = () => {
       setMsg("No instance to run - start by selecting a .wasm file");
       return;
     }
+    setIsRunning(true);
 
     const res = instance.exports.main();
     setWasmResult(res);
     console.log("Result:", res);
+
+    setIsRunning(false);
   }
 
   const status = (result: number) => {
@@ -73,9 +79,10 @@ export const WasmLoader = () => {
   return (
     <>
     {loading && <div>Loading...</div>}
+    {isRunning && <div>Running...</div>}
     <div>
       <button className={styles.button} onClick={openFileSelector}><FiFileText className={styles.icon} /> Select file</button>
-      <button className={styles.button} onClick={() => runInstance(wasmmInstance)}><FiChevronRight className={styles.icon} /> Run</button>
+      <button className={styles.button} onClick={() => runInstance(wasmInstance)}><FiChevronRight className={styles.icon} /> Run</button>
     </div>
     <div>
       <div>{msg}</div>
