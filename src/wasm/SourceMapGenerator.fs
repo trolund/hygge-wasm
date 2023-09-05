@@ -1,0 +1,2 @@
+module hyggec.wasm.SourceMapGenerator
+
