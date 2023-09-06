@@ -138,12 +138,12 @@ let mutable internal nextSymSuffix: uint = 0u
 /// Generate a unique symbol, e.g. usable as a label or a variable.  The given
 /// 'prefix' is used directly as a symbol if it has not been used before;
 /// otherwise, it is tweaked to become unique, so this function always returns a
-/// different result.
+/// different result. 
 let genSymbol (prefix: string): string =
     lock knownSyms (fun _ ->
         if knownSyms.Add(prefix) then prefix
         else
-            let sym = $"%s{prefix}_%d{nextSymSuffix}"
+            let sym = $"%s{prefix}$%d{nextSymSuffix}"
             nextSymSuffix <- nextSymSuffix + 1u
             knownSyms.Add(sym) |> ignore
             sym

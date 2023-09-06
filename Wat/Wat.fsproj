@@ -6,8 +6,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Library.fs" />
-        <Compile Include="WasmUtils.fs" />
+        <Compile Include="Library.fs"/>
+        <Compile Include="WasmUtils.fs"/>
     </ItemGroup>
 
 </Project>

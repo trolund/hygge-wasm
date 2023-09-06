@@ -1,8 +1,9 @@
-# Input and output system 
+# Input and output system
 
 All interaction between host and client is implemented in the function _SetupLinker_ in the class _WasmVM_.
 
 Wasm code (io.wat):
+
 ```wat
 (module
   (import "env" "read" (func $read (result externref)))
@@ -23,6 +24,7 @@ Wasm code (io.wat):
 ```
 
 Console output:
+
 ```
 io.wat
 2
@@ -30,8 +32,8 @@ io.wat
 return value 42
 ```
 
-
 generated Wasm code 18/8 2023 (io.wat):
+
 ```wat
 (module
   (import "env" "writeS" (func $writeS (param i32) (param i32) ))
@@ -48,7 +50,7 @@ generated Wasm code 18/8 2023 (io.wat):
 )
 ```
 
-From 
+From
 
 ```hyg
 println("Hello, World!")

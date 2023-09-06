@@ -7,19 +7,19 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Program.fs" />
+        <Compile Include="Program.fs"/>
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="..\.dockerignore">
-        <Link>.dockerignore</Link>
-      </Content>
-      <Content Include="Dockerfile" />
+        <Content Include="..\.dockerignore">
+            <Link>.dockerignore</Link>
+        </Content>
+        <Content Include="Dockerfile"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\WasmTimeDriver\WasmTimeDriver.csproj" />
-      <ProjectReference Include="..\Wat\Wat.fsproj" />
+        <ProjectReference Include="..\WasmTimeDriver\WasmTimeDriver.csproj"/>
+        <ProjectReference Include="..\Wat\Wat.fsproj"/>
     </ItemGroup>
 
 </Project>
