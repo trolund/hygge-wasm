@@ -1,4 +1,6 @@
 (module
+(type $fun_makeCounter_type (func  (result i32)))
+(type $lambda_type (func (param i32) (result i32)))
   (func $fun_makeCounter  (result i32)  ;; function fun_makeCounter
     ;; local variables declarations:
  (local $var_x i32)

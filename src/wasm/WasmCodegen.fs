@@ -584,7 +584,7 @@ and internal compileFunction
          sprintf "function %s" name)
 
 
-    let m' = m.AddFunction(name, f)
+    let m' = m.AddFunction(name, f, true)
 
     // .AddExport(name, FunctionType(name, None))
 

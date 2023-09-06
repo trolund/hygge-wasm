@@ -453,7 +453,7 @@ module WFG =
 
     type Instrs = Instr list
 
-    and WasmType = ValueType list * ValueType list
+    and Type = Identifier * FunctionSignature
 
     // module, name, type
     and Import = string * string * ExternalType
@@ -463,6 +463,7 @@ module WFG =
         | TableType of Table
         | MemoryType of Memory
         | GlobalType of Global
+        | ElementType of ValueType  // todo element type and not value type
         | EmptyType
 
     and Table = ValueType * Limits
@@ -536,8 +537,8 @@ module WFG =
     let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""
 
     [<RequireQualifiedAccess>]
-    type Module private (types: list<WasmType>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: Set<Data>, locals: Set<Local>, tempCode: list<Commented<Instr>>) =
-            member private this.types: list<WasmType> = types
+    type Module private (types: Set<Type>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: Set<Data>, locals: Set<Local>, tempCode: list<Commented<Instr>>) =
+            member private this.types: Set<Type> = types
             member private this.functions = functions 
             member private this.tables = tables
             member private this.memories: Set<Memory> = memories
@@ -553,10 +554,10 @@ module WFG =
             member private this.tempCode: list<Commented<Instr>> = tempCode
             
             // empty constructor
-            new () = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], Set.empty, Set.empty, [])
+            new () = Module(Set.empty, Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], Set.empty, Set.empty, [])
             
             // module constructor that take temp code
-            new (tempCode: list<Commented<Instr>>) = Module([], Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], Set.empty, Set.empty, tempCode)
+            new (tempCode: list<Commented<Instr>>) = Module(Set.empty, Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], Set.empty, Set.empty, tempCode)
 
             // add temp code
             member this.AddCode (instrs: Instr list) =
@@ -629,14 +630,32 @@ module WFG =
                 let imports = i :: Set.toList this.imports
                 Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, Set(imports), this.start, this.elements, this.data, this.locals, this.tempCode)
 
+
             // Add a function to the module
             member this.AddFunction (name: string, f: Commented<FunctionInstance>) =
-                Module(this.types, functions.Add(name, f), this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+                this.AddFunction (name, f, false)
+
+            member this.AddFunction (name: string, f: Commented<FunctionInstance>, addTypedef: bool) =
+                // add typedef
+                let types = 
+                    if addTypedef then
+                        let typeIndex = this.types.Count
+                        // get instance 
+                        let instance = fst f
+                        let typedef = instance.signature
+
+                        let typedef = (name, typedef)
+                        Set(typedef :: Set.toList this.types)
+                    else
+                        this.types
+
+                Module(types, functions.Add(name, f), this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)    
+
                 
             // Add a type to the module
-            member this.AddType (t: WasmType) =
-                let types = t :: this.types
-                Module(types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+            member this.AddType (t: Type) =
+                let types = t :: Set.toList this.types
+                Module(Set(types), this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
 
             // Add a table to the module
             member this.AddTable (t: Table) =
@@ -664,7 +683,7 @@ module WFG =
 
             // combine two wasm modules
             member this.Combine (m: Module) =
-                let types = this.types @ m.types
+                let types = Set.toList this.types @ Set.toList m.types
                 let functions = Map.fold (fun acc key value -> Map.add key value acc) this.functions m.functions
                 let tables = this.tables @ m.tables
                 let memories = Set.toList this.memories @ Set.toList m.memories
@@ -676,7 +695,7 @@ module WFG =
                 let data = Set.toList this.data @ Set.toList m.data
                 let locals = Set.toList this.locals @ Set.toList m.locals
                 let tempCode = this.tempCode @ m.tempCode
-                Module(types, functions, tables, Set(memories), globals, Set(exports), Set(imports), start, elements, Set(data), Set(locals), tempCode)
+                Module(Set(types), functions, tables, Set(memories), globals, Set(exports), Set(imports), start, elements, Set(data), Set(locals), tempCode)
 
             static member (+) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 
@@ -729,8 +748,25 @@ module WFG =
 
                 result <- result + "(module\n" // open module tag
 
+                let printType (t: Type) (withName: bool) =
+                    let name, signature = t
+                    let parameters, returnValues = signature
+                    let parametersString = String.concat " " (List.map (fun (n, t) -> 
+                        match n with
+                        | Some name -> 
+                            if withName then
+                                sprintf "(param $%s %s)" name (t.ToString())
+                            else
+                                sprintf "(param %s)" (t.ToString())
+                        | None -> sprintf "(param %s)" (t.ToString())) parameters)
+                    let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
+                    // name with suffix
+                    let name = sprintf "%s_type" name
+                    sprintf "(type $%s (func %s %s))\n" name parametersString returnValuesString 
+
+
                 for type_ in this.types do // print all types
-                    result <- result + sprintf "  (type %s)\n" (type_.ToString())
+                    result <- result + (printType type_ false)
 
                 for import: Import in this.imports do // print all imports
                 
