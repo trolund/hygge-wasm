@@ -3,7 +3,7 @@
 (type $lambda_type (func (param i32) (result i32)))
   (func $fun_makeCounter  (result i32)  ;; function fun_makeCounter
     ;; local variables declarations:
- (local $var_x i32)
+    (local $var_x i32)
  
     i32.const 0 ;; push 0 on stack
     local.set $var_x ;; set local var
@@ -17,9 +17,9 @@
   )
   (func $main  (result i32)  ;; entry point of program (main function)
     ;; local variables declarations:
- (local $var_c1 i32)
- (local $var_c2 i32)
- (local $var_x i32)
+    (local $var_c1 i32)
+    (local $var_c2 i32)
+    (local $var_x i32)
  
     ;; execution start here:
     call $fun_makeCounter ;; call function fun_makeCounter

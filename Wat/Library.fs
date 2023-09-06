@@ -417,7 +417,6 @@ module WFG =
                 | MemorySize -> "memory.size"
                 | MemoryGrow -> "memory.grow"
                 // declare variable
-                | Local (label, t) -> sprintf "(local %s %s)" (label.ToString()) (t.ToString())
                 | LocalGet l -> sprintf "local.get %s" (l.ToString())
                 | LocalSet l -> sprintf "local.set %s" (l.ToString())
                 | LocalTee index -> sprintf "local.tee %d" index
@@ -733,8 +732,8 @@ module WFG =
                         let def = String.concat " " (List.map (fun x -> 
 
                             match x with
-                            | (Some name, t) -> sprintf "(local $%s %s)\n" name (t.ToString())
-                            | (None, t) -> sprintf "(local %s)\n" (t.ToString())
+                            | (Some name, t) -> sprintf "   (local $%s %s)\n" name (t.ToString())
+                            | (None, t) -> sprintf "    (local %s)\n" (t.ToString())
                         ) locals)
                         
                         sprintf "  %s\n %s " (commentS comment) def
