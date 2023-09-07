@@ -28,6 +28,7 @@ type internal Storage =
     /// from the memory address contained in the frame pointer (fp) register.
     | Offset of offset: int
     | Tabel of label: string * int
+    | FuncRef of label: string * int
 
 type internal MemoryAllocator() =
 
@@ -70,9 +71,7 @@ type internal CodegenEnv =
       // // name, type, allocated address
       varEnv: Map<string, Var * ValueType>
       memoryAllocator: MemoryAllocator
-      VarStorage: Map<string, Storage>
-    // FuncRef: Map<string, Label> // function refances in table
-    }
+      VarStorage: Map<string, Storage> } // function refances in table
 
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
@@ -302,6 +301,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | Var v ->
                 match env.VarStorage.TryFind v with
                 | Some(Storage.Label(l)) -> l
+                | Some(Storage.FuncRef(l, _)) -> l
+                // todo make function pointer
                 | _ -> failwith "not implemented"
             | _ -> failwith "not implemented"
 
@@ -320,13 +321,33 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // resolve type of captured variables
         let l' = List.map (fun v -> (v, body.Env.Vars[v])) l
 
-
         /// Names of the Lambda arguments
         let (argNames, _) = List.unzip args
 
         let argNamesTypes = (List.map (fun a -> (a, body.Env.Vars[a])) argNames) @ l'
 
-        compileFunction funLabel argNamesTypes body env m
+        let m' = m.AddFuncRefElement(funLabel)
+
+        // add func ref to env
+        let env' =
+            { env with
+                VarStorage = env.VarStorage.Add(funLabel, Storage.Offset(m'.funcTableSize - 1)) }
+
+        // intrctions that get all locals used in lamda and push them to stack
+        let instrs =
+            List.map
+                (fun (n, t) ->
+                    match t with
+                    | TInt -> LocalGet(Named(n))
+                    | TFloat -> LocalGet(Named(n))
+                    | TBool -> LocalGet(Named(n))
+                    // | TString -> (LocalGet(Named(n)), "get local var")
+                    | TUnit -> failwith "not implemented")
+                argNamesTypes
+
+        let l = (C instrs) @ (C [ Call funLabel ])
+
+        l ++ (compileFunction funLabel argNamesTypes body env' m')
     | Seq(nodes) ->
         // We collect the code of each sequence node by folding over all nodes
         List.fold (fun m node -> (m + doCodegen env node (m.ResetTempCode()))) m nodes
@@ -472,6 +493,24 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         | TFun(_, _) ->
             // todo make function pointer
             let varLabel = Named(varName)
+
+            // get function label
+            let funcLabel =
+                match init.Expr with
+                | Application(f, _) ->
+                    match f.Expr with
+                    | Var(v) ->
+                        match env.VarStorage.TryFind v with
+                        | Some(Storage.Label(l)) -> l
+                        | _ -> failwith "not implemented"
+                    | _ -> failwith "not implemented"
+
+
+            // add var to func ref
+            let env' =
+                { env' with
+                    VarStorage = env.VarStorage.Add(name, Storage.FuncRef(funcLabel, 0)) }
+
             let initCode = m'.GetTempCode()
 
             let instrs =
@@ -516,7 +555,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
-        let varStorage2 = env.VarStorage.Add(name, Storage.Label(funLabel))
+        let funcref = env.VarStorage.Add(name, Storage.Label(funLabel))
 
         /// Names of the lambda term arguments
         let (argNames, _) = List.unzip args
@@ -525,9 +564,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// Compiled function body
         let bodyCode: Module =
-            compileFunction funLabel argNamesTypes body { env with VarStorage = varStorage2 } m
+            compileFunction funLabel argNamesTypes body { env with VarStorage = funcref } m
 
-        let scopeModule: Module = (doCodegen { env with VarStorage = varStorage2 } scope m)
+        let scopeModule: Module = (doCodegen { env with VarStorage = funcref } scope m)
 
         scopeModule + bodyCode
 

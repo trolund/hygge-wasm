@@ -57,10 +57,12 @@ module WFG =
     type Identifier = string
 
     type ValueType =
+        // basic numeric types
         | I32
         | I64
         | F32
         | F64
+        // reference types
         | Externref
         | Funcref
         
@@ -424,9 +426,6 @@ module WFG =
                 | GlobalSet index -> sprintf "global.set %d" index
                 | Unreachable -> "unreachable"
                 | Nop -> "nop"
-                //| Block (label, instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code instrs) 
-                //| Loop (valueTypes, instrs) -> sprintf "(loop %s\n%s\n)" (generate_wat_code valueTypes) (generate_wat_code instrs)
-                //| If (valueTypes1, valueTypes2, instrs1, instrs2) -> sprintf "if %s %s\n%s\nelse\n%s\nend" (generate_wat_code valueTypes1) (generate_wat_code valueTypes2) (generate_wat_code instrs1) (generate_wat_code instrs2)
                 | Br id -> sprintf "br $%s" id
                 | BrIf id -> sprintf "br_if $%s" id
                 // TODO: br_table
@@ -465,7 +464,7 @@ module WFG =
         | ElementType of ValueType  // todo element type and not value type
         | EmptyType
 
-    and Table = ValueType * Limits
+    and Table = Identifier * ValueType * Limits
     
     // (memory (export $name) limits)
     and Memory = string * Limits
@@ -488,7 +487,9 @@ module WFG =
     
     and Export = string * ExternalType
 
-    and Element = int * Instr list
+
+    // offset and type identifier
+    and Element = int * Identifier
 
     and Data = Instr * string
 
@@ -530,13 +531,15 @@ module WFG =
           body : Commented<Instr> list
         }
 
+    and funcTable = Identifier * ValueType * Limits
+
 
     let commentString (a) (b: string) = sprintf "%s ;; %s" a b
     
     let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""
 
     [<RequireQualifiedAccess>]
-    type Module private (types: Set<Type>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: list<Element>, data: Set<Data>, locals: Set<Local>, tempCode: list<Commented<Instr>>) =
+    type Module private (types: Set<Type>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: Set<Element>, data: Set<Data>, locals: Set<Local>, tempCode: list<Commented<Instr>>, funcTableSize: int) =
             member private this.types: Set<Type> = types
             member private this.functions = functions 
             member private this.tables = tables
@@ -545,30 +548,49 @@ module WFG =
             member private this.exports: Set<Export> = exports
             member private this.imports: Set<Import> = imports
             member private this.start: Start = start
-            member private this.elements: list<Element> = elements
+            member private this.elements: Set<Element> = elements
             member private this.data: Set<Data> = data
             // member private this.codes = Code
             member private this.locals: Set<Local> = locals
 
+            member this.funcTableSize: int = funcTableSize
             member private this.tempCode: list<Commented<Instr>> = tempCode
             
             // empty constructor
-            new () = Module(Set.empty, Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], Set.empty, Set.empty, [])
+            new () = 
+                // init function table 
+                //let func_table: Table = ("func_table", AnyFunc, Unbounded 0)
+                Module(Set.empty, Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, Set.empty, Set.empty, Set.empty, [], 0)
             
             // module constructor that take temp code
-            new (tempCode: list<Commented<Instr>>) = Module(Set.empty, Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, [], Set.empty, Set.empty, tempCode)
+            new (tempCode: list<Commented<Instr>>) = 
+                // let func_table: Table = ("func_table", AnyFunc, Unbounded 0)
+                Module(Set.empty, Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, Set.empty, Set.empty, Set.empty, tempCode, 0)
+
+            member this.GetFuncTableSize = 
+                funcTableSize
+
+            /// add func ref element and grow func table 
+            member this.AddFuncRefElement (label: string) =
+                let elements: Element = (this.GetFuncTableSize, label)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, Set(elements :: Set.toList this.elements), this.data, this.locals, this.tempCode, this.funcTableSize + 1)
+
+            // match function name with type index
+            member this.MatchFunctionType (name: string) =
+                let (f), _ = this.functions.[name]
+                (f.typeIndex, sprintf "$%s_type" name)
 
             // add temp code
             member this.AddCode (instrs: Instr list) =
                 // map comment to instrs
                 let instrs = instrs |> List.map (fun x -> Commented(x, ""))
                 let tempCode = this.tempCode @ instrs
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode, 0)
 
             // add temp code with comment
             member this.AddCode (instrs: Commented<Instr> list) =
                 let tempCode = this.tempCode @ instrs
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode, 0)
 
             // get temp code
             member this.GetTempCode () =
@@ -576,12 +598,12 @@ module WFG =
 
             // reset temp code
             member this.ResetTempCode () =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, [])
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, [], 0)
 
             // add locals to module
             member this.AddLocals (locals: list<Local>) =
                 let locals = locals @ Set.toList this.locals
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, Set(locals), this.tempCode)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, Set(locals), this.tempCode, 0)
 
             // get locals from module
             member this.GetLocals () =
@@ -597,7 +619,7 @@ module WFG =
                                                                  name = f.name }, s)
 
                 let functions = this.functions.Add(name, newInstance)
-                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
 
             // Add instructions to function with name
             member this.AddInstrs (name: string, instrs: Instr list) =
@@ -610,7 +632,7 @@ module WFG =
                                                                  name = f.name }, s)
 
                 let functions = this.functions.Add(name, newInstance)
-                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
                 
             member this.AddInstrs (name: string, instrs: Commented<Instr> list) = 
                 let (f), s = this.functions.[name]
@@ -622,12 +644,12 @@ module WFG =
                                                                  name = f.name }, s)
 
                 let functions = this.functions.Add(name, newInstance)
-                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
                 
             // Add an import to the module
             member this.AddImport (i: Import) =
                 let imports = i :: Set.toList this.imports
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, Set(imports), this.start, this.elements, this.data, this.locals, this.tempCode)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, Set(imports), this.start, this.elements, this.data, this.locals, this.tempCode, 0)
 
 
             // Add a function to the module
@@ -636,49 +658,54 @@ module WFG =
 
             member this.AddFunction (name: string, f: Commented<FunctionInstance>, addTypedef: bool) =
                 // add typedef
-                let types = 
+                let (types, f') = 
                     if addTypedef then
                         let typeIndex = this.types.Count
+                        
                         // get instance 
                         let instance = fst f
+                        // add typeindex to instance
+                        let instance = { instance with typeIndex = typeIndex }
+                        // add instance to function
+                        let f' = (instance, snd f)
                         let typedef = instance.signature
 
                         let typedef = (name, typedef)
-                        Set(typedef :: Set.toList this.types)
+                        Set(typedef :: Set.toList this.types), f'
                     else
-                        this.types
+                        this.types, f
 
-                Module(types, functions.Add(name, f), this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)    
+                Module(types, functions.Add(name, f'), this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)    
 
                 
             // Add a type to the module
             member this.AddType (t: Type) =
                 let types = t :: Set.toList this.types
-                Module(Set(types), this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+                Module(Set(types), this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
 
             // Add a table to the module
             member this.AddTable (t: Table) =
                 let tables = t :: this.tables
-                Module(this.types, this.functions, tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+                Module(this.types, this.functions, tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
 
             // Add a memory to the module
             member this.AddMemory (m: Memory) =
-                Module(this.types, this.functions, this.tables, Set(m :: (Set.toList memories)), this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+                Module(this.types, this.functions, this.tables, Set(m :: (Set.toList memories)), this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
 
             // Add a global to the module
             member this.AddGlobal (g: Global) =
                 let globals = g :: this.globals
-                Module(this.types, this.functions, this.tables, this.memories, globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+                Module(this.types, this.functions, this.tables, this.memories, globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
 
             // Add an export to the module
             member this.AddExport (e: Export) =
                 let exports = e :: Set.toList this.exports
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, Set(exports), this.imports, this.start, this.elements, this.data, this.locals, this.tempCode)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, Set(exports), this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
 
             //  Add Data to the module
             member this.AddData (d: Data) =
                 let data = d :: Set.toList this.data
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, Set(data), this.locals ,this.tempCode)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, Set(data), this.locals ,this.tempCode, 0)
 
             // combine two wasm modules
             member this.Combine (m: Module) =
@@ -690,11 +717,11 @@ module WFG =
                 let exports = Set.toList this.exports @ Set.toList m.exports
                 let imports = Set.toList this.imports @ Set.toList m.imports
                 let start = this.start
-                let elements = this.elements @ m.elements
+                let elements = Set.toList this.elements @ Set.toList m.elements
                 let data = Set.toList this.data @ Set.toList m.data
                 let locals = Set.toList this.locals @ Set.toList m.locals
                 let tempCode = this.tempCode @ m.tempCode
-                Module(Set(types), functions, tables, Set(memories), globals, Set(exports), Set(imports), start, elements, Set(data), Set(locals), tempCode)
+                Module(Set(types), functions, tables, Set(memories), globals, Set(exports), Set(imports), start, Set(elements), Set(data), Set(locals), tempCode, this.funcTableSize + m.funcTableSize)
 
             static member (+) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 
@@ -761,7 +788,7 @@ module WFG =
                     let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
                     // name with suffix
                     let name = sprintf "%s_type" name
-                    sprintf "(type $%s (func %s %s))\n" name parametersString returnValuesString 
+                    sprintf "  (type $%s (func %s %s))\n" name parametersString returnValuesString 
 
 
                 for type_ in this.types do // print all types
@@ -780,20 +807,37 @@ module WFG =
                                                                                                     | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
                                                                                                     | _ -> ""
                                                                                                     )
-                                                                                                    
+
+                for (name, Limits)  in this.memories do
+                    result <- result + sprintf "  (memory (export \"%s\") %s)\n" name (Limits.ToString())                          
+
+                for (instr, data) in this.data do
+                    result <- result + sprintf "  (data (%s) \"%s\")\n" (instr.ToString()) (data.ToString())
 
                 for global_ in this.globals do
                     result <- result + sprintf "  (global %s)\n" (global_.ToString())
 
-                for element in this.elements do
-                    result <- result + sprintf "  (elem %s)\n" (element.ToString())
-                for (instr, data) in this.data do
-                    result <- result + sprintf "  (data (%s) \"%s\")\n" (instr.ToString()) (data.ToString())
+                
+                // print tables and elements
+
+                // func table
+                if not elements.IsEmpty then
+                    result <- result + sprintf "  (table $%s %s %s)\n" "func_table" (sprintf "%d" this.elements.Count) (ValueType.Funcref.ToString())
+                
+                // print rest of tables
                 for table in this.tables do
                     result <- result + sprintf "  (table %s)\n" (table.ToString())
-                for (name, Limits)  in this.memories do
-                    result <- result + sprintf "  (memory (export \"%s\") %s)\n" name (Limits.ToString())            
 
+                for element in this.elements do
+                    // unpacked element 
+                    let (index, element) = element
+                    result <- result + sprintf "  (elem (i32.const %i) $%s)\n" index (element.ToString())
+
+
+
+
+
+                // create functions
                 for funcKey in this.functions.Keys do
                     let (f), c = this.functions.[funcKey]
                     result <- result + sprintf "  (func %s %s %s\n%s  )\n" (genrate_name f.name) (generate_signature f.signature c) (generate_local f.locals) (generate_wat_code_ident f.body ((indent/2) + 1)) 
