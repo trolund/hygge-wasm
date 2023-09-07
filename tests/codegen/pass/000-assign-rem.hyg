@@ -1,0 +1,5 @@
+let a: int = 50;
+a %= 3;
+assert(a = 2);
+a %= 2;
+assert(a = 0)

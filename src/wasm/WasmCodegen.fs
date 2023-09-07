@@ -165,6 +165,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         ++ (m'.ResetTempCode().AddCode(instrs @ (C [ Comment "End PostDecr" ])))
 
     | MinAsg(lhs, rhs)
+    | DivAsg(lhs, rhs)
+    | MulAsg(lhs, rhs)
+    | RemAsg(lhs, rhs)
     | AddAsg(lhs, rhs) ->
         let lhs' = doCodegen env lhs m
         let rhs' = doCodegen env rhs m
@@ -175,11 +178,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 match node.Expr with
                 | AddAsg(_, _) -> I32Add
                 | MinAsg(_, _) -> I32Sub
+                | MulAsg(_, _) -> I32Mul
+                | DivAsg(_, _) -> I32DivS
+                | RemAsg(_, _) -> I32RemS
                 | _ -> failwith "not implemented"
             | t when (isSubtypeOf node.Env t TFloat) ->
                 match node.Expr with
                 | AddAsg(_, _) -> F32Add
                 | MinAsg(_, _) -> F32Sub
+                | MulAsg(_, _) -> F32Mul
+                | DivAsg(_, _) -> F32Div
                 | _ -> failwith "not implemented"
 
         let label = lookupLabel env lhs
@@ -314,25 +322,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
-    | Max(e1, e2)
-    | Min(e1, e2) ->
-
-        let m' = doCodegen env e1 m
-        let m'' = doCodegen env e2 m
-
-        let instrs =
-            match node.Type with
-            | t when (isSubtypeOf node.Env t TFloat) ->
-                match node.Expr with
-                | Max(_, _) -> C [ F32Max ]
-                | Min(_, _) -> C [ F32Min ]
-            | t when (isSubtypeOf node.Env t TInt) ->
-                match node.Expr with
-                | Max(_, _) -> m'.GetTempCode() @ m''.GetTempCode() @ C [ I32GtS; Select ]
-                | Min(_, _) -> m'.GetTempCode() @ m''.GetTempCode() @ C [ I32LtS; Select ]
-
-        C [ Comment "Max/min start" ]
-        ++ (m' + m'').AddCode(instrs @ C [ Comment "Max/min end" ])
 
     | ReadInt ->
         // import readInt function

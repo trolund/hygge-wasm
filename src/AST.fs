@@ -139,6 +139,12 @@ and Expr<'E, 'T> =
 
     | MinAsg of lhs: Node<'E, 'T> * rhs: Node<'E, 'T>
 
+    | MulAsg of lhs: Node<'E, 'T> * rhs: Node<'E, 'T>
+
+    | DivAsg of lhs: Node<'E, 'T> * rhs: Node<'E, 'T>
+
+    | RemAsg of lhs: Node<'E, 'T> * rhs: Node<'E, 'T>
+
     | PostIncr of arg: Node<'E, 'T>
     | PreIncr of arg: Node<'E, 'T>
 

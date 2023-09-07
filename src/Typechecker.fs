@@ -567,6 +567,39 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                   Expr = MinAsg(tlhs, trhs) }
         | Error(es) -> Error(es)
 
+    | MulAsg(lhs, rhs) ->
+        match (binaryNumericalOpTyper "assign multiplication" node.Pos env lhs rhs) with
+        | Ok(tpe, tlhs, trhs) ->
+            Ok
+                { Pos = node.Pos
+                  Env = env
+                  Type = tpe
+                  Expr = MulAsg(tlhs, trhs) }
+        | Error(es) -> Error(es)
+
+    | DivAsg(lhs, rhs) ->
+        match (binaryNumericalOpTyper "assign division" node.Pos env lhs rhs) with
+        | Ok(tpe, tlhs, trhs) ->
+            Ok
+                { Pos = node.Pos
+                  Env = env
+                  Type = tpe
+                  Expr = DivAsg(tlhs, trhs) }
+        | Error(es) -> Error(es)
+
+    | RemAsg(lhs, rhs) ->
+        match (binaryNumericalOpTyper "assign remainder division" node.Pos env lhs rhs) with
+        | Ok(tpe, tlhs, trhs) ->
+            match tpe with
+            | TInt -> // Remainder division can only be done between integers
+                Ok
+                    { Pos = node.Pos
+                      Env = env
+                      Type = tpe
+                      Expr = RemAsg(tlhs, trhs) }
+            | t -> Error([ node.Pos, $"remainder division can only be done between integers" + $"found type %O{t}" ])
+        | Error(es) -> Error(es)
+
     | Eq(lhs, rhs) ->
         match (numericalRelationTyper "equal to" node.Pos env lhs rhs) with
         | Ok(tlhs, trhs) ->
