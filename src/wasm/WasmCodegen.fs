@@ -164,6 +164,29 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         C [ Comment "Start PostDecr" ]
         ++ (m'.ResetTempCode().AddCode(instrs @ (C [ Comment "End PostDecr" ])))
 
+    | Max(e1, e2)
+    | Min(e1, e2) ->
+
+        let m' = doCodegen env e1 m
+        let m'' = doCodegen env e2 m
+
+        let instrs =
+            match node.Type with
+            | t when (isSubtypeOf node.Env t TFloat) ->
+                match node.Expr with
+                | Max(_, _) -> C [ F32Max ]
+                | Min(_, _) -> C [ F32Min ]
+                | _ -> failwith "not implemented"
+            | t when (isSubtypeOf node.Env t TInt) ->
+                match node.Expr with
+                | Max(_, _) -> m'.GetTempCode() @ m''.GetTempCode() @ C [ I32GtS; Select ]
+                | Min(_, _) -> m'.GetTempCode() @ m''.GetTempCode() @ C [ I32LtS; Select ]
+                | _ -> failwith "not implemented"
+            | _ -> failwith "failed type of max/min"
+
+        C [ Comment "Max/min start" ]
+        ++ (m' + m'').AddCode(instrs @ C [ Comment "Max/min end" ])
+
     | Sqrt e ->
         let m' = doCodegen env e m
         let instrs = m'.GetTempCode() @ C [ F32Sqrt ]

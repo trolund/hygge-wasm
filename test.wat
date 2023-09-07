@@ -1,22 +1,16 @@
 (module
   (func $main  (result i32)  ;; entry point of program (main function)
-    ;; local variables declarations:
-    (local $var_a i32)
-    (local $var_b i32)
  
     ;; execution start here:
-    i32.const 5 ;; push 5 on stack
-    local.set $var_a ;; set local var
-    ;; Start PreIncr
-    local.get $var_a
-    i32.const 1
-    i32.add
-    local.set $var_a
-    local.get $var_a
-    ;; End PreIncr
-    local.set $var_b ;; set local var
-    local.get $var_a
-    i32.const 6 ;; push 6 on stack
+    ;; Max/min start
+    i32.const 12 ;; push 12 on stack
+    i32.const 10 ;; push 10 on stack
+    i32.const 12 ;; push 12 on stack
+    i32.const 10 ;; push 10 on stack
+    i32.gt_s
+    select
+    ;; Max/min end
+    i32.const 12 ;; push 12 on stack
     i32.eq
     (if 
      (then
@@ -29,8 +23,15 @@
 
      )
     )
-    local.get $var_b
-    i32.const 6 ;; push 6 on stack
+    ;; Max/min start
+    i32.const 120 ;; push 120 on stack
+    i32.const 1 ;; push 1 on stack
+    i32.const 120 ;; push 120 on stack
+    i32.const 1 ;; push 1 on stack
+    i32.gt_s
+    select
+    ;; Max/min end
+    i32.const 120 ;; push 120 on stack
     i32.eq
     (if 
      (then
