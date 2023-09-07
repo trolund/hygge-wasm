@@ -1,0 +1,16 @@
+// i. Equality
+// ii. Less than
+// iii. Less than or equal 
+// iv. Greater then
+// v. Greater than or equal
+
+
+let x: int = 10;
+
+assert(x = 10);
+assert(x < 20);
+assert(x <= 12);
+assert(x <= 10);
+assert(x > 5);
+assert(x >= 10);
+assert(x >= 9)

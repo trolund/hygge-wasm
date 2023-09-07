@@ -323,6 +323,34 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         (m' + m'').AddCode(opcode)
 
+    | LessOrEq(e1, e2) ->
+        let m' = doCodegen env e1 m
+        let m'' = doCodegen env e2 m
+
+        // find type of e1 and e2 and check if they are equal
+        let opcode =
+            match e1.Type, e2.Type with
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) & (isSubtypeOf e1.Env t2 TInt)) -> [ I32LeS ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) & (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Le ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [ I32LeS ]
+            | _ -> failwith "type mismatch"
+
+        (m' + m'').AddCode(opcode)
+
+    | GreaterOrEq(e1, e2) ->
+        let m' = doCodegen env e1 m
+        let m'' = doCodegen env e2 m
+
+        // find type of e1 and e2 and check if they are equal
+        let opcode =
+            match e1.Type, e2.Type with
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) & (isSubtypeOf e1.Env t2 TInt)) -> [ I32GeS ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) & (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Ge ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [ I32GeS ]
+            | _ -> failwith "type mismatch"
+
+        (m' + m'').AddCode(opcode)
+
     | ReadInt ->
         // import readInt function
         let readFunctionSignature: FunctionSignature = ([], [ I32 ])
