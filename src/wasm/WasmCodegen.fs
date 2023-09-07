@@ -164,6 +164,43 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         C [ Comment "Start PostDecr" ]
         ++ (m'.ResetTempCode().AddCode(instrs @ (C [ Comment "End PostDecr" ])))
 
+    | MinAsg(lhs, rhs)
+    | AddAsg(lhs, rhs) ->
+        let lhs' = doCodegen env lhs m
+        let rhs' = doCodegen env rhs m
+
+        let opCode =
+            match node.Type with
+            | t when (isSubtypeOf node.Env t TInt) ->
+                match node.Expr with
+                | AddAsg(_, _) -> I32Add
+                | MinAsg(_, _) -> I32Sub
+                | _ -> failwith "not implemented"
+            | t when (isSubtypeOf node.Env t TFloat) ->
+                match node.Expr with
+                | AddAsg(_, _) -> F32Add
+                | MinAsg(_, _) -> F32Sub
+                | _ -> failwith "not implemented"
+
+        let label = lookupLabel env lhs
+
+        let instrs =
+            match node.Type with
+            | t when (isSubtypeOf node.Env t TInt) ->
+                lhs'.GetTempCode()
+                @ rhs'.GetTempCode()
+                @ C [ opCode; LocalSet(label); LocalGet(label) ]
+            | t when (isSubtypeOf node.Env t TFloat) ->
+                lhs'.GetTempCode()
+                @ rhs'.GetTempCode()
+                @ C [ opCode; LocalSet(label); LocalGet(label) ]
+            | _ -> failwith "not implemented"
+
+        C [ Comment "Start AddAsgn/MinAsgn" ]
+        ++ (lhs' + rhs')
+            .ResetTempCode()
+            .AddCode(instrs @ (C [ Comment "End AddAsgn/MinAsgn" ]))
+
     | Max(e1, e2)
     | Min(e1, e2) ->
 
