@@ -1,3 +1,7 @@
 let a: int = 5;
 a -= 1;
-assert(a = 4)
+assert(a = 4);
+a -= 2;
+assert(a = 2);
+a -= 1;
+assert(a = 1)
