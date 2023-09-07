@@ -220,10 +220,10 @@ multExpr:
 // Unary expression
 unaryExpr:
   | NOT unaryExpr                 { mkNode(parseState, 1, Expr.Not($2)) }
-  | PLUSPLUS unaryExpr            { mkNode(parseState, 1, Expr.CSIncr($2))}
-  | unaryExpr PLUSPLUS            { mkNode(parseState, 1, Expr.CSIncr($1))}
-  | MINUSMINUS unaryExpr            { mkNode(parseState, 1, Expr.CSDcr($2))}
-  | unaryExpr MINUSMINUS            { mkNode(parseState, 1, Expr.CSDcr($1))}
+  | PLUSPLUS unaryExpr            { mkNode(parseState, 1, Expr.PreIncr($2))}
+  | unaryExpr PLUSPLUS            { mkNode(parseState, 1, Expr.PostIncr($1))}
+  | MINUSMINUS unaryExpr            { mkNode(parseState, 1, Expr.PreDcr($2))}
+  | unaryExpr MINUSMINUS            { mkNode(parseState, 1, Expr.PostDcr($1))}
   | READ_INT LIT_UNIT             { mkNode(parseState, 1, Expr.ReadInt) }
   | READ_INT LPAR RPAR            { mkNode(parseState, 1, Expr.ReadInt) }
   | READ_FLOAT LIT_UNIT           { mkNode(parseState, 1, Expr.ReadFloat) }

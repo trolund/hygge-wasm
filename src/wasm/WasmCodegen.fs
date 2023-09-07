@@ -73,6 +73,16 @@ type internal CodegenEnv =
       memoryAllocator: MemoryAllocator
       VarStorage: Map<string, Storage> } // function refances in table
 
+//look up variable in var env
+let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
+    match e.Expr with
+    | Var v ->
+        match env.VarStorage.TryFind v with
+        | Some(Storage.Label(l)) -> Named(l)
+        | Some(Storage.Offset(o)) -> Index(o)
+        | _ -> failwith "not implemented"
+    | _ -> failwith "not implemented"
+
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
     | UnitVal -> m
@@ -100,6 +110,60 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | _ -> failwith "not implemented"
 
         m.AddCode(instrs)
+
+    | PreIncr(e) ->
+        let m' = doCodegen env e m
+
+        let label = lookupLabel env e
+
+        let instrs =
+            match e.Type with
+            | t when (isSubtypeOf e.Env t TInt) ->
+                m'.GetTempCode() @ C [ I32Const 1; I32Add; LocalSet(label); LocalGet(label) ]
+            | _ -> failwith "not implemented"
+
+        C [ Comment "Start PreIncr" ]
+        ++ (m'.ResetTempCode().AddCode(instrs @ (C [ Comment "End PreIncr" ])))
+    | PostIncr(e) ->
+        let m' = doCodegen env e m
+
+        let label = lookupLabel env e
+
+        let instrs =
+            match e.Type with
+            | t when (isSubtypeOf e.Env t TInt) ->
+                m'.GetTempCode() @ C [ LocalGet(label); I32Const 1; I32Add; LocalSet(label) ]
+            | _ -> failwith "not implemented"
+
+        C [ Comment "Start PostIncr" ]
+        ++ (m'.ResetTempCode().AddCode(instrs @ (C [ Comment "End PostIncr" ])))
+    | PreDcr(e) ->
+        let m' = doCodegen env e m
+
+        let label = lookupLabel env e
+
+        let instrs =
+            match e.Type with
+            | t when (isSubtypeOf e.Env t TInt) ->
+                m'.GetTempCode() @ C [ I32Const 1; I32Sub; LocalSet(label); LocalGet(label) ]
+            | _ -> failwith "not implemented"
+
+        C [ Comment "Start PreDecr" ]
+        ++ (m'.ResetTempCode().AddCode(instrs @ (C [ Comment "End PreDecr" ])))
+    | PostDcr(e) ->
+        let m' = doCodegen env e m
+
+        let label = lookupLabel env e
+
+        let instrs =
+            match e.Type with
+            | t when (isSubtypeOf e.Env t TInt) ->
+                m'.GetTempCode() @ C [ LocalGet(label); I32Const 1; I32Sub; LocalSet(label) ]
+            | _ -> failwith "not implemented"
+
+        C [ Comment "Start PostDecr" ]
+        ++ (m'.ResetTempCode().AddCode(instrs @ (C [ Comment "End PostDecr" ])))
+
     | Sqrt e ->
         let m' = doCodegen env e m
         let instrs = m'.GetTempCode() @ C [ F32Sqrt ]

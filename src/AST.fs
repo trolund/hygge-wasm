@@ -129,7 +129,7 @@ and Expr<'E, 'T> =
     /// Logical not
     | Not of arg: Node<'E, 'T>
 
-    ///C-Style Operators
+    ///C-Style Operators TODO: delete
 
     | CSIncr of arg: Node<'E, 'T>
 
@@ -138,6 +138,13 @@ and Expr<'E, 'T> =
     | AddAsg of lhs: Node<'E, 'T> * rhs: Node<'E, 'T>
 
     | MinAsg of lhs: Node<'E, 'T> * rhs: Node<'E, 'T>
+
+    | PostIncr of arg: Node<'E, 'T>
+    | PreIncr of arg: Node<'E, 'T>
+
+    | PostDcr of arg: Node<'E, 'T>
+    | PreDcr of arg: Node<'E, 'T>
+
     /// Comparison: is the lhs equal to the rhs?
     | Eq of lhs: Node<'E, 'T> * rhs: Node<'E, 'T>
 
