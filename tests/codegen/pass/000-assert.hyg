@@ -1,1 +1,5 @@
-assert(true)
+assert(true);
+assert(1 = 1);
+assert(1 < 2);
+assert(false or true);
+assert(true and true)

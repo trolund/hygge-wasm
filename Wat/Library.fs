@@ -94,7 +94,8 @@ module WFG =
     //     | U of Instr
     //     | C of Commented<Instr> 
 
-   // Instructions are syntactically distinguished into plain (Instr) and structured instructions (BlockInstr).
+    /// Instructions are syntactically distinguished into plain (Instr) and structured instructions (BlockInstr).
+    /// <summary>All Wasm instructions used</summary>
     type Instr = 
         // Control Instrs
         | Unreachable
@@ -119,9 +120,11 @@ module WFG =
         | I64Load16U of int * int
         | I64Load32S of int * int
         | I64Load32U of int * int
-        | I32Store of int * int
+        | I32Store_ of int * int
+        | I32Store
         | I64Store of int * int
-        | F32Store of int * int
+        | F32Store_ of int * int
+        | F32Store
         | F64Store of int * int
         | I32Store8 of int * int
         | I32Store16 of int * int
@@ -407,9 +410,11 @@ module WFG =
                 | I64Load16U (align, offset) -> sprintf "i64.load16_u align=%d offset=%d" align offset
                 | I64Load32S (align, offset) -> sprintf "i64.load32_s align=%d offset=%d" align offset
                 | I64Load32U (align, offset) -> sprintf "i64.load32_u align=%d offset=%d" align offset
-                | I32Store (align, offset) -> sprintf "i32.store align=%d offset=%d" align offset
+                | I32Store_ (align, offset) -> sprintf "i32.store align=%d offset=%d" align offset
+                | I32Store -> "i32.store"
                 | I64Store (align, offset) -> sprintf "i64.store align=%d offset=%d" align offset
-                | F32Store (align, offset) -> sprintf "f32.store align=%d offset=%d" align offset
+                | F32Store_ (align, offset) -> sprintf "f32.store align=%d offset=%d" align offset
+                | F32Store -> "f32.store"
                 | F64Store (align, offset) -> sprintf "f64.store align=%d offset=%d" align offset
                 | I32Store8 (align, offset) -> sprintf "i32.store8 align=%d offset=%d" align offset
                 | I32Store16 (align, offset) -> sprintf "i32.store16 align=%d offset=%d" align offset
@@ -469,7 +474,14 @@ module WFG =
     // (memory (export $name) limits)
     and Memory = string * Limits
 
-    and Global = ValueType * Mutability
+    /// Global variables are like module-level variables in JavaScript.
+    /// They are declared with a type and an initial value.
+    /// The type can be either mutable or immutable.
+    /// The initial value is a constant expression.
+    /// The value can be either a constant or an import.
+    /// It can have a name, which is used to export the global variable.
+    /// The name is optional, and can be used to import the global variable.
+    and Global = Identifier * (ValueType * Mutability) * Instr list
 
     and Mutability =
         | Mutable
@@ -539,12 +551,12 @@ module WFG =
     let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""
 
     [<RequireQualifiedAccess>]
-    type Module private (types: Set<Type>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: list<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: Set<Element>, data: Set<Data>, locals: Set<Local>, tempCode: list<Commented<Instr>>, funcTableSize: int) =
+    type Module private (types: Set<Type>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: Set<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: Set<Element>, data: Set<Data>, locals: Set<Local>, tempCode: list<Commented<Instr>>, funcTableSize: int) =
             member private this.types: Set<Type> = types
             member private this.functions = functions 
             member private this.tables = tables
             member private this.memories: Set<Memory> = memories
-            member private this.globals: list<Global> = globals
+            member private this.globals: Set<Global> = globals
             member private this.exports: Set<Export> = exports
             member private this.imports: Set<Import> = imports
             member private this.start: Start = start
@@ -560,12 +572,12 @@ module WFG =
             new () = 
                 // init function table 
                 //let func_table: Table = ("func_table", AnyFunc, Unbounded 0)
-                Module(Set.empty, Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, Set.empty, Set.empty, Set.empty, [], 0)
+                Module(Set.empty, Map.empty, [], Set.empty, Set.empty, Set.empty, Set.empty, None, Set.empty, Set.empty, Set.empty, [], 0)
             
             // module constructor that take temp code
             new (tempCode: list<Commented<Instr>>) = 
                 // let func_table: Table = ("func_table", AnyFunc, Unbounded 0)
-                Module(Set.empty, Map.empty, [], Set.empty, [], Set.empty, Set.empty, None, Set.empty, Set.empty, Set.empty, tempCode, 0)
+                Module(Set.empty, Map.empty, [], Set.empty, Set.empty, Set.empty, Set.empty, None, Set.empty, Set.empty, Set.empty, tempCode, 0)
 
             member this.GetFuncTableSize = 
                 funcTableSize
@@ -692,10 +704,17 @@ module WFG =
             member this.AddMemory (m: Memory) =
                 Module(this.types, this.functions, this.tables, Set(m :: (Set.toList memories)), this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
 
-            // Add a global to the module
+            /// <summary>add global to module</summary>
+            /// <param name="g">global</param>
+            /// <returns>module</returns>
+            /// <example>
+            /// let g = ("g", (I32, Mutable), [I32Const 0l])
+            /// let m = m.AddGlobal g
+            /// </example>
+            /// <remarks>add global to module</remarks>
             member this.AddGlobal (g: Global) =
-                let globals = g :: this.globals
-                Module(this.types, this.functions, this.tables, this.memories, globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
+                let globals = g :: Set.toList this.globals
+                Module(this.types, this.functions, this.tables, this.memories, Set(globals), this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
 
             // Add an export to the module
             member this.AddExport (e: Export) =
@@ -713,7 +732,7 @@ module WFG =
                 let functions = Map.fold (fun acc key value -> Map.add key value acc) this.functions m.functions
                 let tables = this.tables @ m.tables
                 let memories = Set.toList this.memories @ Set.toList m.memories
-                let globals = this.globals @ m.globals
+                let globals = Set.toList this.globals @Set.toList m.globals
                 let exports = Set.toList this.exports @ Set.toList m.exports
                 let imports = Set.toList this.imports @ Set.toList m.imports
                 let start = this.start
@@ -721,7 +740,7 @@ module WFG =
                 let data = Set.toList this.data @ Set.toList m.data
                 let locals = Set.toList this.locals @ Set.toList m.locals
                 let tempCode = this.tempCode @ m.tempCode
-                Module(Set(types), functions, tables, Set(memories), globals, Set(exports), Set(imports), start, Set(elements), Set(data), Set(locals), tempCode, this.funcTableSize + m.funcTableSize)
+                Module(Set(types), functions, tables, Set(memories), Set(globals), Set(exports), Set(imports), start, Set(elements), Set(data), Set(locals), tempCode, this.funcTableSize + m.funcTableSize)
 
             static member (+) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 
@@ -814,8 +833,19 @@ module WFG =
                 for (instr, data) in this.data do
                     result <- result + sprintf "  (data (%s) \"%s\")\n" (instr.ToString()) (data.ToString())
 
+                let printGlobal (global_: Global) =
+                    let name, (valueType, mutability), instrs = global_
+                    let mutability = 
+                        match mutability with
+                        | Mutable -> "mut "
+                        | Immutable -> ""
+                    let valueType = valueType.ToString()
+                    let instrs = instrs |> List.map (fun x -> Commented(x, ""))
+                    let instrs = generate_wat_code_ident instrs 0
+                    sprintf "  (global $%s (%s%s) %s %s)" name mutability valueType (commentS "") instrs
+
                 for global_ in this.globals do
-                    result <- result + sprintf "  (global %s)\n" (global_.ToString())
+                    result <- result + (printGlobal global_)
 
                 
                 // print tables and elements

@@ -30,6 +30,8 @@ type internal Storage =
     | Tabel of label: string * int
     | FuncRef of label: string * int
 
+/// A memory allocator that allocates memory in pages of 64KB.
+/// The allocator keeps track of the current allocation position.
 type internal MemoryAllocator() =
 
     let mutable allocationPosition = 0
@@ -50,7 +52,8 @@ type internal MemoryAllocator() =
         else
             numPages
 
-    // allocate size bytes
+    /// Allocate in linear memory a block of 'size' bytes.
+    /// will return the start position and size of the allocated memory
     member this.Allocate(size: int) =
         if size <= 0 then
             failwith "Size must be positive"
@@ -73,7 +76,7 @@ type internal CodegenEnv =
       memoryAllocator: MemoryAllocator
       VarStorage: Map<string, Storage> } // function refances in table
 
-//look up variable in var env
+/// look up variable in var env
 let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
     match e.Expr with
     | Var v ->
@@ -722,6 +725,88 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | AST.Type(_, _, scope) ->
         // A type alias does not produce any code --- but its scope does
         doCodegen env scope m
+
+    // data strctures
+
+    | Struct(fields) ->
+        let fieldNames = List.map (fun (n, _) -> n) fields
+        let fieldTypes = List.map (fun (_, t) -> t) fields
+
+        let structName = Util.genSymbol $"Sptr"
+
+        // calculate size of struct (each field is 4 bytes)
+        let size = List.length fields * 4
+
+        // allocate memory for struct
+        let (address, _) = env.memoryAllocator.Allocate(size)
+
+        // add memory to module
+        let allocatedModule =
+            m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
+
+        // add global variable, to store pointer to struct
+        let ptr: Global = (structName, (I32, Mutable), [ I32Const address ])
+        let m' = allocatedModule.AddGlobal ptr
+
+        // fold over fields and add them to struct with indexes
+        let folder =
+            fun (acc: Module) (fieldOffset: int, fieldName: string, fieldInit: TypedAST) ->
+
+                let fieldAddress = address + fieldOffset
+
+                // initialize field
+                let initField = doCodegen env fieldInit m'
+
+                // instr based on type of field
+                // store field in memory
+                let instr =
+                    match fieldInit.Type with
+                    | t when (isSubtypeOf fieldInit.Env t TInt) ->
+                        [ (I32Const fieldAddress, "push field address to stack") ]
+                        @ initField.GetTempCode()
+                        @ [ (I32Store, "store field in memory") ]
+                    | t when (isSubtypeOf fieldInit.Env t TFloat) ->
+                        [ (I32Const fieldAddress, "push field address to stack") ]
+                        @ initField.GetTempCode()
+                        @ [ (F32Store, "store field in memory") ]
+                    | t when (isSubtypeOf fieldInit.Env t TBool) ->
+                        [ (I32Const fieldAddress, "push field address to stack") ]
+                        @ initField.GetTempCode()
+                        @ [ (I32Store, "store field in memory") ]
+                    | t when (isSubtypeOf fieldInit.Env t TString) ->
+                        [ (I32Const fieldAddress, "push field address to stack") ]
+                        @ initField.GetTempCode()
+                        @ [ (I32Store, "store field in memory") ]
+                    | _ -> failwith "not implemented"
+
+                // acuminlate code
+                acc ++ initField.ResetTempCode().AddCode(instr)
+
+        let fieldsInitCode =
+            List.fold folder m' (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
+
+        fieldsInitCode
+    | FieldSelect(target, field) ->
+        let selTargetCode = doCodegen env target m
+
+        let fieldAccessCode =
+            match (expandType node.Env target.Type) with
+            | TStruct(fields) ->
+                let (fieldNames, fieldTypes) = List.unzip fields
+                let offset = List.findIndex (fun f -> f = field) fieldNames
+
+                match fieldTypes.[offset] with
+                | t when (isSubtypeOf node.Env t TUnit) -> [] // Nothing to do
+                | t when (isSubtypeOf node.Env t TFloat) ->
+                    // Retrieve value of struct field
+                    [ (I32Const(offset * 4), "push field offset to stack") ]
+                | _ ->
+                    // Retrieve value of struct field
+                    [ (I32Const(offset * 4), "push field offset to stack") ]
+            | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
+
+        // Put everything together: compile the target, access the field
+        selTargetCode.AddCode(fieldAccessCode)
     | x -> failwith "not implemented"
 
 and internal compileFunction
