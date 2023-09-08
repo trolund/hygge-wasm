@@ -538,8 +538,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | Assign(name, value) ->
         let value' = doCodegen env value m
 
-
-
         match name.Expr with
         | Var(name) ->
 
@@ -567,6 +565,44 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 value'.GetTempCode() @ isNested @ [ (LocalSet varLabel, "set local var") ]
 
             value'.ResetTempCode().AddCode(instrs)
+        | FieldSelect(target, field) ->
+            /// Assembly code for computing the 'target' object of which we are
+            /// selecting the 'field'.  We write the computation result (which
+            /// should be a struct memory address) in the target register.
+            let selTargetCode = doCodegen env target m
+            /// Code for the 'rhs', leaving its result in the target+1 register
+            let rhsCode = doCodegen env value m
+
+            match (expandType target.Env target.Type) with
+            | TStruct(fields) ->
+                /// Names of the struct fields
+                let (fieldNames, _) = List.unzip fields
+                /// Offset of the selected struct field from the beginning of
+                /// the struct
+                let offset = List.findIndex (fun f -> f = field) fieldNames
+
+                /// Assembly code that performs the field value assignment
+                let assignCode =
+                    match name.Type with
+                    | t when (isSubtypeOf value.Env t TUnit) -> [] // Nothing to do
+                    | t when (isSubtypeOf value.Env t TFloat) ->
+                        let instrs =
+                            [ (I32Const offset, "offset of field") ]
+                            @ rhsCode.GetTempCode() // value to store
+                            @ [ (I32Const 0, "alignment") ]
+                            @ [ (F32Store, "store int in struct") ]
+
+                        instrs
+                    | _ ->
+                        let instrs =
+                            [ (I32Const offset, "offset of field") ]
+                            @ rhsCode.GetTempCode() // value to store
+                            @ [ (I32Const 0, "alignment") ]
+                            @ [ (I32Store, "store int in struct") ]
+
+                        instrs
+                // Put everything together
+                selTargetCode ++ rhsCode.ResetTempCode().AddCode(assignCode)
         | _ -> failwith "not implemented"
     | Ascription(_, node) ->
         // A type ascription does not produce code --- but the type-annotated
@@ -755,7 +791,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let fieldAddress = address + fieldOffset
 
                 // initialize field
-                let initField = doCodegen env fieldInit m'
+                let initField = doCodegen env fieldInit m
 
                 // instr based on type of field
                 // store field in memory
@@ -783,9 +819,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 acc ++ initField.ResetTempCode().AddCode(instr)
 
         let fieldsInitCode =
-            List.fold folder m' (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
+            List.fold folder m (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
 
-        fieldsInitCode
+        let combined = m' ++ fieldsInitCode
+
+        combined
     | FieldSelect(target, field) ->
         let selTargetCode = doCodegen env target m
 
@@ -799,14 +837,22 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | t when (isSubtypeOf node.Env t TUnit) -> [] // Nothing to do
                 | t when (isSubtypeOf node.Env t TFloat) ->
                     // Retrieve value of struct field
-                    [ (I32Const(offset * 4), "push field offset to stack") ]
+                    selTargetCode.GetTempCode()
+                    @ [ (I32Const(offset * 4), "push field offset to stack") ]
                 | _ ->
                     // Retrieve value of struct field
-                    [ (I32Const(offset * 4), "push field offset to stack") ]
+                    selTargetCode.GetTempCode()
+                    @ [ (I32Const(offset * 4), "push field offset to stack") ]
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 
         // Put everything together: compile the target, access the field
-        selTargetCode.AddCode(fieldAccessCode)
+        m.AddCode(
+            C [ Comment "Start of field select" ]
+            @ fieldAccessCode
+            @ C [ Comment "End of field select" ]
+        )
+        ++ selTargetCode.ResetTempCode()
+
     | x -> failwith "not implemented"
 
 and internal compileFunction
