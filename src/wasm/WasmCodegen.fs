@@ -656,7 +656,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let combi = (instrs ++ scopeCode)
 
-            combi.AddLocals([ (Some(Identifier(varName)), I32) ])
+            C [ Comment "Start of let" ]
+            ++ m'.ResetTempCode()
+            ++ combi
+                .AddLocals([ (Some(Identifier(varName)), I32) ])
+                .AddCode([ Comment "End of let" ])
         | t when (isSubtypeOf init.Env t TFloat) ->
             let varLabel = Named(varName)
             let initCode = m'.GetTempCode()
@@ -669,7 +673,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let combi = (instrs ++ scopeCode)
 
-            combi.AddLocals([ (Some(Identifier(varName)), F32) ])
+            C [ Comment "Start of let" ]
+            ++ m'.ResetTempCode()
+            ++ combi
+                .AddLocals([ (Some(Identifier(varName)), F32) ])
+                .AddCode([ Comment "End of let" ])
         | TFun(_, _) ->
             // todo make function pointer
             let varLabel = Named(varName)
@@ -701,7 +709,28 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let combi = (instrs ++ scopeCode)
 
-            combi.AddLocals([ (Some(Identifier(varName)), I32) ])
+            C [ Comment "Start of let" ]
+            ++ m'.ResetTempCode()
+            ++ combi
+                .AddLocals([ (Some(Identifier(varName)), I32) ])
+                .AddCode([ Comment "End of let" ])
+        | TStruct(_) ->
+            let varLabel = Named(varName)
+            let initCode = m'.GetTempCode()
+
+            let instrs =
+                initCode // inizilize code
+                @ [ (LocalSet varLabel, "set local var") ] // set local var
+
+            let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+
+            let combi = (instrs ++ scopeCode)
+
+            C [ Comment "Start of let" ]
+            ++ m'.ResetTempCode()
+            ++ combi
+                .AddLocals([ (Some(Identifier(varName)), I32) ])
+                .AddCode([ Comment "End of let" ])
         | _ ->
             // todo make function pointer
             let varLabel = Named(varName)
@@ -715,7 +744,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let combi = (instrs ++ scopeCode)
 
-            combi.AddLocals([ (Some(Identifier(varName)), I32) ])
+            C [ Comment "Start of let" ]
+            ++ m'.ResetTempCode()
+            ++ combi
+                .AddLocals([ (Some(Identifier(varName)), I32) ])
+                .AddCode([ Comment "End of let" ])
 
 
     | LetMut(name, tpe, init, scope) ->
@@ -797,23 +830,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // store field in memory
                 let instr =
                     match fieldInit.Type with
-                    | t when (isSubtypeOf fieldInit.Env t TInt) ->
-                        [ (I32Const fieldAddress, "push field address to stack") ]
-                        @ initField.GetTempCode()
-                        @ [ (I32Store, "store field in memory") ]
                     | t when (isSubtypeOf fieldInit.Env t TFloat) ->
                         [ (I32Const fieldAddress, "push field address to stack") ]
                         @ initField.GetTempCode()
                         @ [ (F32Store, "store field in memory") ]
-                    | t when (isSubtypeOf fieldInit.Env t TBool) ->
-                        [ (I32Const fieldAddress, "push field address to stack") ]
+                        // leave pointer to field on stack
+                        @ [ (I32Const fieldAddress, "push field address to stack") ]
+                    | _ ->
+                        [ (I32Const(fieldAddress * 4), "push field address to stack") ]
                         @ initField.GetTempCode()
                         @ [ (I32Store, "store field in memory") ]
-                    | t when (isSubtypeOf fieldInit.Env t TString) ->
-                        [ (I32Const fieldAddress, "push field address to stack") ]
-                        @ initField.GetTempCode()
-                        @ [ (I32Store, "store field in memory") ]
-                    | _ -> failwith "not implemented"
+                        // leave pointer to field on stack
+                        @ [ (I32Const fieldAddress, "push field address to stack") ]
 
                 // acuminlate code
                 acc ++ initField.ResetTempCode().AddCode(instr)
@@ -823,7 +851,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let combined = m' ++ fieldsInitCode
 
-        combined
+        C [ Comment "start of struct contructor" ]
+        ++ combined.AddCode(C [ Comment "end of struct contructor" ])
     | FieldSelect(target, field) ->
         let selTargetCode = doCodegen env target m
 
@@ -838,11 +867,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | t when (isSubtypeOf node.Env t TFloat) ->
                     // Retrieve value of struct field
                     selTargetCode.GetTempCode()
-                    @ [ (I32Const(offset * 4), "push field offset to stack") ]
+                    @ [ (I32Const(offset * 4), "push field offset to stack")
+                        (F32Load, "load field") ]
                 | _ ->
                     // Retrieve value of struct field
                     selTargetCode.GetTempCode()
-                    @ [ (I32Const(offset * 4), "push field offset to stack") ]
+                    @ [ (I32Const(offset * 4), "push field offset to stack")
+                        (I32Load, "load field") ]
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 
         // Put everything together: compile the target, access the field

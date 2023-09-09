@@ -106,9 +106,11 @@ module WFG =
         | BrTable of int list * int
         | Return
         // Memory Instrs
-        | I32Load of int * int
+        | I32Load_ of int option * int option
+        | I32Load
         | I64Load of int * int
-        | F32Load of int * int
+        | F32Load_ of int option * int option
+        | F32Load
         | F64Load of int * int
         | I32Load8S of int * int
         | I32Load8U of int * int
@@ -120,7 +122,8 @@ module WFG =
         | I64Load16U of int * int
         | I64Load32S of int * int
         | I64Load32U of int * int
-        | I32Store_ of int * int
+        /// align and offset
+        | I32Store_ of int option * int option
         | I32Store
         | I64Store of int * int
         | F32Store_ of int * int
@@ -396,9 +399,21 @@ module WFG =
                 | F64Min -> "f64.min"
                 | F64Max -> "f64.max"
                 | F64Copysign -> "f64.copysign"
-                | I32Load (align, offset) -> sprintf "i32.load align=%d offset=%d" align offset
+                | I32Load_ (align, offset) -> 
+                    match align, offset with
+                    | Some align, Some offset -> sprintf "i32.load align=%d offset=%d" align offset
+                    | Some align, None -> sprintf "i32.load align=%d" align
+                    | None, Some offset -> sprintf "i32.load offset=%d" offset
+                    | None, None -> "i32.load"
+                | I32Load -> "i32.load"
                 | I64Load (align, offset) -> sprintf "i64.load align=%d offset=%d" align offset
-                | F32Load (align, offset) -> sprintf "f32.load align=%d offset=%d" align offset
+                | F32Load_ (align, offset) -> 
+                    match align, offset with
+                    | Some align, Some offset -> sprintf "f32.load align=%d offset=%d" align offset
+                    | Some align, None -> sprintf "f32.load align=%d" align
+                    | None, Some offset -> sprintf "f32.load offset=%d" offset
+                    | None, None -> "f32.load"
+                | F32Load -> "f32.load"
                 | F64Load (align, offset) -> sprintf "f64.load align=%d offset=%d" align offset
                 | I32Load8S (align, offset) -> sprintf "i32.load8_s align=%d offset=%d" align offset
                 | I32Load8U (align, offset) -> sprintf "i32.load8_u align=%d offset=%d" align offset
@@ -410,7 +425,12 @@ module WFG =
                 | I64Load16U (align, offset) -> sprintf "i64.load16_u align=%d offset=%d" align offset
                 | I64Load32S (align, offset) -> sprintf "i64.load32_s align=%d offset=%d" align offset
                 | I64Load32U (align, offset) -> sprintf "i64.load32_u align=%d offset=%d" align offset
-                | I32Store_ (align, offset) -> sprintf "i32.store align=%d offset=%d" align offset
+                | I32Store_ (align, offset) -> 
+                    match align, offset with
+                    | Some align, Some offset -> sprintf "i32.store align=%d offset=%d" align offset
+                    | Some align, None -> sprintf "i32.store align=%d" align
+                    | None, Some offset -> sprintf "i32.store offset=%d" offset
+                    | None, None -> "i32.store"
                 | I32Store -> "i32.store"
                 | I64Store (align, offset) -> sprintf "i64.store align=%d offset=%d" align offset
                 | F32Store_ (align, offset) -> sprintf "f32.store align=%d offset=%d" align offset
