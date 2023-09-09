@@ -831,7 +831,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let instr =
                     match fieldInit.Type with
                     | t when (isSubtypeOf fieldInit.Env t TFloat) ->
-                        [ (I32Const fieldAddress, "push field address to stack") ]
+                        [ (I32Const(fieldAddress * 4), "push field address to stack") ]
                         @ initField.GetTempCode()
                         @ [ (F32Store, "store field in memory") ]
                         // leave pointer to field on stack
