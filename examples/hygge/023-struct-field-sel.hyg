@@ -1,0 +1,4 @@
+let s1: struct {i: int} = struct {i = 42};
+let s2: struct {i: int} = struct {i = 43};
+assert(s1.i = 42);
+assert(s2.i = 43)

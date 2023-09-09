@@ -101,8 +101,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
         // add data to module. push address and size (bytes) to the stack
         allocatedModule
-            .AddData(I32Const address, s)
-            .AddCode([ (I32Const address, "offset in memory"); (I32Const(size), "size in bytes") ])
+            .AddData(I32Const(address * 4), s)
+            .AddCode(
+                [ (I32Const(address * 4), "offset in memory")
+                  (I32Const(size), "size in bytes") ]
+            )
     | Var v ->
         // load variable
         // TODO
@@ -587,7 +590,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     | t when (isSubtypeOf value.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf value.Env t TFloat) ->
                         let instrs =
-                            [ (I32Const offset, "offset of field") ]
+                            [ (I32Const(offset * 4), "offset of field") ]
                             @ rhsCode.GetTempCode() // value to store
                             @ [ (I32Const 0, "alignment") ]
                             @ [ (F32Store, "store int in struct") ]
@@ -595,7 +598,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         instrs
                     | _ ->
                         let instrs =
-                            [ (I32Const offset, "offset of field") ]
+                            [ (I32Const(offset * 4), "offset of field") ]
                             @ rhsCode.GetTempCode() // value to store
                             @ [ (I32Const 0, "alignment") ]
                             @ [ (I32Store, "store int in struct") ]
@@ -867,12 +870,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | t when (isSubtypeOf node.Env t TFloat) ->
                     // Retrieve value of struct field
                     selTargetCode.GetTempCode()
-                    @ [ (I32Const(offset * 4), "push field offset to stack")
+                    @ [ (I32Const 4, "4 bytes")
+                        (I32Mul, "multiply offset by 4")
+                        (I32Const(offset * 4), "push field offset to stack")
+                        (I32Add, "add offset to base address")
                         (F32Load, "load field") ]
                 | _ ->
                     // Retrieve value of struct field
                     selTargetCode.GetTempCode()
-                    @ [ (I32Const(offset * 4), "push field offset to stack")
+                    @ [ (I32Const 4, "4 bytes")
+                        (I32Mul, "multiply offset by 4")
+                        (I32Const(offset * 4), "push field offset to stack")
+                        (I32Add, "add offset to base address")
                         (I32Load, "load field") ]
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 
