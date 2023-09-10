@@ -309,7 +309,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | _ -> failwith "type mismatch"
 
         let instrs = m'.GetTempCode() @ m''.GetTempCode() @ C opcode
-        m.AddCode(instrs)
+        (m + m'.ResetTempCode() + m''.ResetTempCode()).AddCode(instrs)
     | Xor(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
