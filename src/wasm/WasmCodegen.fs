@@ -837,17 +837,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         [ (I32Const(fieldAddress * 4), "push field address to stack") ]
                         @ initField.GetTempCode()
                         @ [ (F32Store, "store field in memory") ]
-                        // leave pointer to field on stack
-                        @ [ (I32Const fieldAddress, "push field address to stack") ]
                     | _ ->
-                        [ (I32Const(fieldAddress * 4), "push field address to stack") ]
+                        [ (I32Const(fieldAddress * 4), "push field address to stack at end") ]
                         @ initField.GetTempCode()
                         @ [ (I32Store, "store field in memory") ]
-                        // leave pointer to field on stack
-                        @ [ (I32Const fieldAddress, "push field address to stack") ]
 
                 // acuminlate code
-                acc ++ initField.ResetTempCode().AddCode(instr)
+                // leave pointer to field on stack
+                acc
+                ++ initField
+                    .ResetTempCode()
+                    .AddCode(instr @ [ (I32Const(address * 4), "push struct address to stack") ])
 
         let fieldsInitCode =
             List.fold folder m (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
@@ -870,16 +870,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | t when (isSubtypeOf node.Env t TFloat) ->
                     // Retrieve value of struct field
                     selTargetCode.GetTempCode()
-                    @ [ (I32Const 4, "4 bytes")
-                        (I32Mul, "multiply offset by 4")
+                    @ [ //(I32Const 4, "4 bytes")
+                        //(I32Mul, "multiply offset by 4")
                         (I32Const(offset * 4), "push field offset to stack")
                         (I32Add, "add offset to base address")
                         (F32Load, "load field") ]
                 | _ ->
                     // Retrieve value of struct field
                     selTargetCode.GetTempCode()
-                    @ [ (I32Const 4, "4 bytes")
-                        (I32Mul, "multiply offset by 4")
+                    @ [ // (I32Const 4, "4 bytes")
+                        // (I32Mul, "multiply offset by 4")
                         (I32Const(offset * 4), "push field offset to stack")
                         (I32Add, "add offset to base address")
                         (I32Load, "load field") ]
