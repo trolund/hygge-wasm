@@ -886,13 +886,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 
         // Put everything together: compile the target, access the field
-        m.AddCode(
+        selTargetCode.ResetTempCode()
+        ++ m.AddCode(
             C [ Comment "Start of field select" ]
             @ fieldAccessCode
             @ C [ Comment "End of field select" ]
         )
-        ++ selTargetCode.ResetTempCode()
-
     | x -> failwith "not implemented"
 
 and internal compileFunction
