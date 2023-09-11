@@ -64,7 +64,7 @@ type internal MemoryAllocator() =
         allocatedMemory <- (startPosition, size) :: allocatedMemory
 
         allocationPosition <- allocationPosition + size
-        (startPosition, size)
+        (startPosition * 4, size * 4)
 
     member this.GetAllocationPosition() = allocationPosition
 
@@ -101,11 +101,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
         // add data to module. push address and size (bytes) to the stack
         allocatedModule
-            .AddData(I32Const(address * 4), s)
-            .AddCode(
-                [ (I32Const(address * 4), "offset in memory")
-                  (I32Const(size), "size in bytes") ]
-            )
+            .AddData(I32Const(address), s)
+            .AddCode([ (I32Const(address), "offset in memory"); (I32Const(size), "size in bytes") ])
     | Var v ->
         // load variable
         // TODO
@@ -590,7 +587,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     | t when (isSubtypeOf value.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf value.Env t TFloat) ->
                         let instrs =
-                            [ (I32Const(offset * 4), "offset of field") ]
+                            [ (I32Const(offset), "offset of field") ]
                             @ rhsCode.GetTempCode() // value to store
                             @ [ (I32Const 0, "alignment") ]
                             @ [ (F32Store, "store int in struct") ]
@@ -598,7 +595,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         instrs
                     | _ ->
                         let instrs =
-                            [ (I32Const(offset * 4), "offset of field") ]
+                            [ (I32Const(offset), "offset of field") ]
                             @ rhsCode.GetTempCode() // value to store
                             @ [ (I32Const 0, "alignment") ]
                             @ [ (I32Store, "store int in struct") ]
@@ -807,7 +804,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let structName = Util.genSymbol $"Sptr"
 
         // calculate size of struct (each field is 4 bytes)
-        let size = List.length fields * 4
+        let size = List.length fields
 
         // allocate memory for struct
         let (address, _) = env.memoryAllocator.Allocate(size)
@@ -824,35 +821,38 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let folder =
             fun (acc: Module) (fieldOffset: int, fieldName: string, fieldInit: TypedAST) ->
 
-                let fieldAddress = address + fieldOffset
+                let fieldAddress = address + fieldOffset * 4
 
                 // initialize field
                 let initField = doCodegen env fieldInit m
+
+                // add comment to init field
+                let initField' = C [ Comment $"init field {fieldName}" ] ++ initField
 
                 // instr based on type of field
                 // store field in memory
                 let instr =
                     match fieldInit.Type with
                     | t when (isSubtypeOf fieldInit.Env t TFloat) ->
-                        [ (I32Const(fieldAddress * 4), "push field address to stack") ]
-                        @ initField.GetTempCode()
+                        [ (I32Const fieldAddress, "push field address to stack") ]
+                        @ initField'.GetTempCode()
                         @ [ (F32Store, "store field in memory") ]
                     | _ ->
-                        [ (I32Const(fieldAddress * 4), "push field address to stack at end") ]
-                        @ initField.GetTempCode()
+                        [ (I32Const fieldAddress, "push field address to stack at end") ]
+                        @ initField'.GetTempCode()
                         @ [ (I32Store, "store field in memory") ]
 
                 // acuminlate code
                 // leave pointer to field on stack
-                acc
-                ++ initField
-                    .ResetTempCode()
-                    .AddCode(instr @ [ (I32Const(address * 4), "push struct address to stack") ])
+                acc ++ initField.ResetTempCode().AddCode(instr)
+        //     .AddCode(instr @ [ (I32Const(address), "push struct address to stack") ])
 
         let fieldsInitCode =
             List.fold folder m (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
 
-        let combined = m' ++ fieldsInitCode
+        let combined =
+            m'
+            ++ fieldsInitCode.AddCode([ (I32Const(address), "push struct address to stack") ])
 
         C [ Comment "start of struct contructor" ]
         ++ combined.AddCode(C [ Comment "end of struct contructor" ])
