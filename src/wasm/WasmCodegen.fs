@@ -566,11 +566,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             value'.ResetTempCode().AddCode(instrs)
         | FieldSelect(target, field) ->
-            /// Assembly code for computing the 'target' object of which we are
-            /// selecting the 'field'.  We write the computation result (which
-            /// should be a struct memory address) in the target register.
+
             let selTargetCode = doCodegen env target m
-            /// Code for the 'rhs', leaving its result in the target+1 register
+
+            /// Code for the 'rhs' expression of the assignment
             let rhsCode = doCodegen env value m
 
             match (expandType target.Env target.Type) with
@@ -581,28 +580,39 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 /// the struct
                 let offset = List.findIndex (fun f -> f = field) fieldNames
 
+                // is literal
+                let isLiteral =
+                    match value.Expr with
+                    | IntVal i -> true
+                    | FloatVal f -> true
+                    | BoolVal b -> true
+                    | _ -> false
+
+
                 /// Assembly code that performs the field value assignment
                 let assignCode =
                     match name.Type with
                     | t when (isSubtypeOf value.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf value.Env t TFloat) ->
                         let instrs =
-                            [ (I32Const(offset), "offset of field") ]
-                            @ rhsCode.GetTempCode() // value to store
-                            @ [ (I32Const 0, "alignment") ]
-                            @ [ (F32Store, "store int in struct") ]
+                            selTargetCode.GetTempCode()
+                            @ [ (I32Const(offset * 4), "offset of field"); (I32Add, "add offset") ]
+                            @ rhsCode.GetTempCode()
+                            @ [ (F32Store, "store float in struct") ]
+                            @ rhsCode.GetTempCode()
 
                         instrs
-                    | _ ->
+                    | x ->
                         let instrs =
-                            [ (I32Const(offset), "offset of field") ]
-                            @ rhsCode.GetTempCode() // value to store
-                            @ [ (I32Const 0, "alignment") ]
+                            selTargetCode.GetTempCode()
+                            @ [ (I32Const(offset * 4), "offset of field"); (I32Add, "add offset") ]
+                            @ rhsCode.GetTempCode()
                             @ [ (I32Store, "store int in struct") ]
+                            @ rhsCode.GetTempCode() // TODO possible bug (leave a constant on the stack after execution)
 
                         instrs
                 // Put everything together
-                selTargetCode ++ rhsCode.ResetTempCode().AddCode(assignCode)
+                (assignCode) ++ (rhsCode.ResetTempCode() + selTargetCode.ResetTempCode())
         | _ -> failwith "not implemented"
     | Ascription(_, node) ->
         // A type ascription does not produce code --- but the type-annotated
