@@ -814,8 +814,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
 
         // add global variable, to store pointer to struct
-        let ptr: Global = (structName, (I32, Mutable), [ I32Const address ])
-        let m' = allocatedModule.AddGlobal ptr
+        //let ptr: Global = (structName, (I32, Mutable), [ I32Const address ])
+        //let m' = allocatedModule.AddGlobal ptr
 
         // fold over fields and add them to struct with indexes
         let folder =
@@ -851,7 +851,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             List.fold folder m (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
 
         let combined =
-            m'
+            allocatedModule
             ++ fieldsInitCode.AddCode([ (I32Const(address), "push struct address to stack") ])
 
         C [ Comment "start of struct contructor" ]
