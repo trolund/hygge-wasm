@@ -9,7 +9,7 @@ export const WasmLoader = () => {
   const [msg, setMsg] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [wasmResult, setWasmResult] = useState(null);
-  const [wasmInstance, setWasmInstance] = useState(null);
+  const [wasmInstance, setWasmInstance] = useState<WebAssembly.Instance | null>(null);
 
   const [openFileSelector, { loading }] = useFilePicker({
     accept: ['.wasm'],
@@ -66,8 +66,9 @@ export const WasmLoader = () => {
   const createModule = (bytes: any) => {
     WebAssembly.instantiate(bytes, imports)
     .then((results: any) => {
-        const instance = results.instance
-        setWasmInstance(instance);          
+        const instance: WebAssembly.Instance = results.instance
+        setWasmInstance(instance);  
+        memory = instance.exports.memory as any;         
         // runInstance(instance);        
       })
       .catch((error) => {
