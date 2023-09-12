@@ -2,7 +2,7 @@ import { useState } from "react";
 import styles from './wasm-loader.module.css';
 import { useFilePicker } from 'use-file-picker';
 import { FiFileText, FiChevronRight } from "react-icons/fi";
-import { imports } from "../Imports";
+import { log } from "console";
 
 export const WasmLoader = () => {
   
@@ -37,6 +37,32 @@ export const WasmLoader = () => {
     },
   });
 
+  let memory: WebAssembly.Memory = new WebAssembly.Memory({initial: 1});
+
+  const imports = {
+    env: {
+      abort(_msg: any, _file: any, line: any, column: any) {
+        console.error("abort called at index.ts:" + line + ":" + column);
+      },
+      writeS(address: number, length: number) {
+        // Get `memory[address..address + length]`.
+        const mem = new Uint8Array(
+          memory.buffer
+        );
+        
+        const data = mem.subarray(
+          address,
+          address + length
+        );
+    
+        // Convert it into a string.
+        const decoder = new TextDecoder("utf-8");
+        const text = decoder.decode(data);
+        console.log(text);
+      }
+  }
+}
+
   const createModule = (bytes: any) => {
     WebAssembly.instantiate(bytes, imports)
     .then((results: any) => {
@@ -62,6 +88,9 @@ export const WasmLoader = () => {
     const res = instance.exports.main();
     setWasmResult(res);
     console.log("Result:", res);
+    
+    // get the memory
+    memory = instance.exports.memory;
 
     setIsRunning(false);
   }

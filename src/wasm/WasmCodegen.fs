@@ -43,6 +43,9 @@ type internal MemoryAllocator() =
     // get head of allocated memory list
     member this.GetAllocated() = (allocatedMemory.Head)
 
+    // 4 bytes stride
+    member this.stride: int = 4
+
     // get number of pages needed to allocate size bytes
     member this.GetNumPages() =
         let numPages = allocationPosition / pageSize
@@ -64,9 +67,15 @@ type internal MemoryAllocator() =
         allocatedMemory <- (startPosition, size) :: allocatedMemory
 
         allocationPosition <- allocationPosition + size
-        (startPosition * 4, size * 4)
+        (startPosition * this.stride, size * this.stride)
 
     member this.GetAllocationPosition() = allocationPosition
+
+// function that repeat code pattern and accumulate it
+let rec repeat (n: int) (f: int -> List<Commented<Instr>>) =
+    match n with
+    | 0 -> []
+    | _ -> f n @ repeat (n - 1) f
 
 type internal CodegenEnv =
     { funcIndexMap: Map<string, List<Instr>>
@@ -534,7 +543,41 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                                 Expr = Seq([ body; update ]) }
                         ) }
                 m)
+    | Array(length, data) ->
+        let length' = doCodegen env length m
+        let data' = doCodegen env data m
 
+        // create struct with length and data
+        let structm =
+            doCodegen
+                env
+                { node with
+                    Expr = Struct([ ("length", length); ("data", data) ]) }
+                m
+
+        // reduce length' to a single value
+        let length'' =
+            match length'.GetTempCode() with
+            | [ (I32Const i, _) ] -> i
+            | _ -> failwith "not implemented"
+
+        // allocate memory for array
+        let (address, size) = env.memoryAllocator.Allocate(2)
+
+
+
+
+        // store data in memory for each element
+        let instr: Commented<Instr> list =
+            repeat 2 (fun i ->
+                [ (I32Const(address + (i * 4)), "offset in memory")
+                  (I32Store, "store int in struct") ])
+
+        // let instrs = length'.GetTempCode() @ data'.GetTempCode() @ C [ Call "createArray" ]
+
+
+
+        (structm.AddCode(instr))
     | Assign(name, value) ->
         let value' = doCodegen env value m
 
