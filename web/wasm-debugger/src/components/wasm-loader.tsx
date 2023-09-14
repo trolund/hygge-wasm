@@ -1,9 +1,10 @@
 import { useState } from "react";
 import styles from './wasm-loader.module.css';
 import { useFilePicker } from 'use-file-picker';
-import { FiFileText, FiChevronRight } from "react-icons/fi";
+import { FiFileText, FiChevronRight, FiRefreshCcw } from "react-icons/fi";
 import { WASI, init } from "@wasmer/wasi";
 import { Buffer } from 'buffer';
+
 
 // @ts-ignore
 window.Buffer = Buffer;
@@ -132,6 +133,10 @@ export const WasmLoader = () => {
 
   }
 
+  const reloadPage = () => {
+    window.location.reload();
+  }
+
   const status = (result: number) => {
     if (result == 0) {
       return <div>exit code: {result}, Success✅</div>
@@ -145,6 +150,7 @@ export const WasmLoader = () => {
 
   return (
     <>
+    <button className={styles.button} onClick={reloadPage}><FiRefreshCcw className={styles.icon} />Reset</button>
       {loading && <div>⏳Loading...</div>}
       {isRunning && <div>🏃‍♂️Running...</div>}
       <div>
