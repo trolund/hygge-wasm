@@ -20,18 +20,29 @@ namespace WasmTimeDriver
                 .WithDebugInfo(true)
                 .WithCraneliftDebugVerifier(true)
                 .WithOptimizationLevel(0);
-            
+
             _engine = new Engine(config);
-            
-            _linker = new Linker(_engine);
             _store = new Store(_engine);
 
+            var WasiConfig = new WasiConfiguration()
+            //.WithStandardOutput("/dev/fd/1")
+            //.WithStandardInput("/dev/fd/0");
+            .WithInheritedStandardOutput()
+            .WithInheritedStandardInput();
+            // .WithInheritedArgs()
+            // .WithInheritedStandardError()
+            // .WithInheritedEnvironment();
+
+            // Set up all WASI functunality 
+            _store.SetWasiConfiguration(WasiConfig);
+
+            _linker = new Linker(_engine);
             SetupLinker();
         }
 
         private void SetupLinker()
         {
-            
+
             // get an input
             _linker.Define(
                 "env",
@@ -65,8 +76,8 @@ namespace WasmTimeDriver
                     Console.WriteLine(x);
                 })
             );*/
-            
-            
+
+
             /*_linker.Define(
                 "env",
                 "print",
@@ -78,61 +89,61 @@ namespace WasmTimeDriver
                 "write",
                 Function.FromCallback(_store, (string s) =>
                {
-                    
-                    Console.WriteLine(s);
-                })
+
+                   Console.WriteLine(s);
+               })
             );
 
-             _linker.Define(
-                "env",
-                "ReadInt",
-                Function.FromCallback(_store, () =>
-                {
-                    try
-                    {
-                        string? s = "";
-                        int res;
-                        do
-                        {
-                            s = Console.ReadLine();
-                            res = Int32.Parse(s);
-                        } while (s is null);
-                        return res;
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("error:" + e);
-                    }
+            _linker.Define(
+               "env",
+               "ReadInt",
+               Function.FromCallback(_store, () =>
+               {
+                   try
+                   {
+                       string? s = "";
+                       int res;
+                       do
+                       {
+                           s = Console.ReadLine();
+                           res = Int32.Parse(s);
+                       } while (s is null);
+                       return res;
+                   }
+                   catch (Exception e)
+                   {
+                       Console.WriteLine("error:" + e);
+                   }
 
-                    return 0;
-                })
-            );
+                   return 0;
+               })
+           );
 
 
-             _linker.Define(
-                "env",
-                "ReadFloat",
-                Function.FromCallback(_store, () =>
-                {
-                    try
-                    {
-                        string? s = "";
-                        float res;
-                        do
-                        {
-                            s = Console.ReadLine();
-                            res = float.Parse(s);
-                        } while (s is null);
-                        return res;
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("error:" + e);
-                    }
+            _linker.Define(
+               "env",
+               "ReadFloat",
+               Function.FromCallback(_store, () =>
+               {
+                   try
+                   {
+                       string? s = "";
+                       float res;
+                       do
+                       {
+                           s = Console.ReadLine();
+                           res = float.Parse(s);
+                       } while (s is null);
+                       return res;
+                   }
+                   catch (Exception e)
+                   {
+                       Console.WriteLine("error:" + e);
+                   }
 
-                    return 0;
-                })
-            );
+                   return 0;
+               })
+           );
 
             _linker.Define(
                 "env",
@@ -164,9 +175,10 @@ namespace WasmTimeDriver
                 })
             );
 
+            _linker.DefineWasi();
 
         }
-        
+
         public object?[] RunFileTimes(string path, int n)
         {
             return RunFileTimes(path, "main", n);
@@ -175,7 +187,7 @@ namespace WasmTimeDriver
         public object?[] RunFileTimes(string path, string target, int n)
         {
             ArrayList list = new ArrayList();
-            
+
             for (int i = 0; i < n; i++)
             {
                 list.Add(RunFile(path, target));
@@ -188,12 +200,12 @@ namespace WasmTimeDriver
         {
             return RunFile(path, "main");
         }
-        
+
         public object? RunWatString(string target, string wat)
         {
             return RunWat(target, wat);
         }
-        
+
         public object? RunWat(string target, string wat)
         {
             try
@@ -208,7 +220,7 @@ namespace WasmTimeDriver
                 return null;
             }
         }
-        
+
         public object? RunFile(string path, string? target)
         {
             try
@@ -220,7 +232,7 @@ namespace WasmTimeDriver
                 {
                     return 0;
                 }
-                
+
                 return ExecModule(module, target);
             }
             catch (Exception e)
@@ -229,15 +241,17 @@ namespace WasmTimeDriver
                 return null;
             }
         }
-        
+
         public object? ExecModule(Module m, string target)
         {
             // when the instance will the VM run.
             var instance = _linker.Instantiate(_store, m);
             // run specific target.
-            return RunTarget(target, instance);
+            var res = RunTarget(target, instance);
+
+            return res;
         }
-        
+
         public object? Run(string wat, string target)
         {
             try
@@ -260,12 +274,12 @@ namespace WasmTimeDriver
             {
                 throw new Exception("error: target was null or have length of zero");
             }
-            
+
             if (instance is null)
             {
                 throw new Exception("error: instance was null");
             }
-            
+
             // get target function
             var function = instance.GetFunction(target);
 

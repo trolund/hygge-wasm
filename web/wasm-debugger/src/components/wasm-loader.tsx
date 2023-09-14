@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from './wasm-loader.module.css';
 import { useFilePicker } from 'use-file-picker';
 import { FiFileText, FiChevronRight } from "react-icons/fi";
-import { log } from "console";
+import { start } from "../helloworld";
 
 export const WasmLoader = () => {
   
@@ -11,6 +11,7 @@ export const WasmLoader = () => {
   const [wasmResult, setWasmResult] = useState(null);
   const [wasmInstance, setWasmInstance] = useState<WebAssembly.Instance | null>(null);
 
+  
   const [openFileSelector, { loading }] = useFilePicker({
     accept: ['.wasm'],
     readAs: "ArrayBuffer",
@@ -65,10 +66,13 @@ export const WasmLoader = () => {
 
   const createModule = (bytes: any) => {
     WebAssembly.instantiate(bytes, imports)
-    .then((results: any) => {
-        const instance: WebAssembly.Instance = results.instance
+    .then(async (results: WebAssembly.WebAssemblyInstantiatedSource) => {
+        const instance: WebAssembly.Instance = results.instance;
         setWasmInstance(instance);  
-        memory = instance.exports.memory as any;         
+        memory = instance.exports.memory as any;       
+        
+
+
         // runInstance(instance);        
       })
       .catch((error) => {
@@ -77,7 +81,7 @@ export const WasmLoader = () => {
       });
   }
 
-  const runInstance = (instance: any) => {
+  const runInstance = async (instance: any) => {
 
     if (!instance) {
       console.log("No instance to run");
@@ -86,15 +90,25 @@ export const WasmLoader = () => {
     }
     setIsRunning(true);
 
-    const res = instance.exports.main();
-    setWasmResult(res);
-    console.log("Result:", res);
+    // const res = instance.exports.main();
+    // setWasmResult(res);
+    // console.log("Result:", res);
     
-    // get the memory
-    memory = instance.exports.memory;
+    // // get the memory
+    // memory = instance.exports.memory;
+
+    // Instantiate the WASI module
+
 
     setIsRunning(false);
   }
+
+  const buttonClick = async () => {
+    const moduleBytes = await fetch(
+      "https://cdn.deno.land/wasm/versions/v1.0.2/raw/tests/demo.wasm",
+    );
+    start(moduleBytes);
+  };
 
   const status = (result: number) => {
     if (result == 0) {
@@ -112,6 +126,7 @@ export const WasmLoader = () => {
     {loading && <div>Loading...</div>}
     {isRunning && <div>Running...</div>}
     <div>
+      <button onClick={buttonClick}></button>
       <button className={styles.button} onClick={openFileSelector}><FiFileText className={styles.icon} /> Select file</button>
       <button className={styles.button} onClick={() => runInstance(wasmInstance)}><FiChevronRight className={styles.icon} /> Run</button>
     </div>

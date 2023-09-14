@@ -1,41 +1,21 @@
 (module
-  (import "env" "writeS" (func $writeS (param i32) (param i32)  
-))
+  (type $write_type (func (param i32 i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_write" (func $fd_write (type $write_type)))
   (memory (export "memory") 1)
-  (data (i32.const 0) "hej2")
-  (data (i32.const 40) "hej")
-  (func $main  (result i32)  ;; entry point of program (main function)
-    ;; local variables declarations:
-    (local $var_arr i32)
- 
-    ;; execution start here:
-    i32.const 0 ;; offset in memory
-    i32.const 32 ;; size in bytes
-    call $writeS ;; call host function
-    ;; Start of let
-    ;; start of struct contructor
-    i32.const 32 ;; push field address to stack at end
-    ;; init field length
-    i32.const 2 ;; push 2 on stack
-    i32.const 2 ;; push 2 on stack
-    i32.add
-    i32.store ;; store field in memory
-    i32.const 36 ;; push field address to stack at end
-    ;; init field data
-    i32.const 40 ;; push 40 on stack
-    i32.const 2 ;; push 2 on stack
-    i32.add
-    i32.store ;; store field in memory
-    i32.const 32 ;; push struct address to stack
-    ;; end of struct contructor
-    local.set $var_arr ;; set local var
-    i32.const 40 ;; offset in memory
-    i32.const 24 ;; size in bytes
-    call $writeS ;; call host function
-    ;; End of let
-    ;; if execution reaches here, the program is successful
-    i32.const 0 ;; exit code 0
-    return ;; return the exit code
+  (data (i32.const 8) "Hello, WASI!\n")
+
+  (func $main (result i32)
+    (i32.store (i32.const 0) (i32.const 8))  ;; iov.iov_base - This is a pointer to the start of the 'hello world\n' string
+    (i32.store (i32.const 4) (i32.const 13))  ;; iov.iov_len - The length of the 'hello world\n' string
+    ;; Prepare parameters for fd_write
+    i32.const 1         ;; File descriptor (1 represents stdout)
+    i32.const 0         ;; Pointer to the data to be written
+    i32.const 1         ;; Length of the data
+    i32.const 20        ;; Pointer to store the number of bytes written (not used in this example)
+
+    ;; Call fd_write
+    call $fd_write
   )
-  (export "main" (func $main))
+
+  (export "_start" (func $main))
 )

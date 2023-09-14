@@ -28,3 +28,5 @@ riscv1.asm
 
 global.json
 .config/dotnet-tools.json
+wasi-sdk-20.0
+wasi-sdk-20.0-linux.tar.gz
