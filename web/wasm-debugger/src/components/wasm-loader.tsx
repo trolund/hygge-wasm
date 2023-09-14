@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from './wasm-loader.module.css';
 import { useFilePicker } from 'use-file-picker';
 import { FiFileText, FiChevronRight, FiRefreshCcw } from "react-icons/fi";
-import { WASI, init, MemFS, InitOutput } from "@wasmer/wasi";
+import { WASI, init, MemFS, JSVirtualFile } from "@wasmer/wasi";
 import { Buffer } from 'buffer';
-import { Console } from "console";
+import { lowerI64Imports } from "@wasmer/wasm-transformer"
 
 // @ts-ignore
 window.Buffer = Buffer;
@@ -23,6 +23,23 @@ export const WasmLoader = () => {
   const [isRunDisabled, setIsRunDisabled] = useState(true);
   const [stdout, setStdout] = useState("");
 
+  let isInitialized = false;
+
+  // on mount
+  useEffect(() => {
+    if (isInitialized) {
+      return;
+    }
+    init().then(() => {
+      console.log("🚀 WASI initialized");
+      isInitialized = true;
+    })
+
+    return () => {
+      isInitialized = false;
+    }
+  }, []);
+
   const [openFileSelector, { loading }] = useFilePicker({
     accept: ['.wasm'],
     readAs: "ArrayBuffer",
@@ -36,8 +53,11 @@ export const WasmLoader = () => {
       const wasmFile = file.filesContent[0];
       // get the bytes
       const bytes = wasmFile.content;
+
+      const loweredWasmBytes = await lowerI64Imports(bytes)
+
       // instantiate the wasm module
-      const module: WebAssembly.Module = await WebAssembly.compile(bytes);
+      const module: WebAssembly.Module = await WebAssembly.compile(loweredWasmBytes);
       setWasmInstance(module);
 
       const exports = WebAssembly.Module.exports(module);
@@ -100,12 +120,13 @@ export const WasmLoader = () => {
 
   const run = async () => {
     console.log("🏃‍♂️ Running...");
-    await init();
+
+    const fs = new MemFS()
 
     let wasi = new WASI({
       env: {},
       args: [],
-      fs: new MemFS(),
+      fs: fs,
       preopens: {
         "/": "/",
       }
@@ -131,6 +152,7 @@ export const WasmLoader = () => {
       let exitCode = wasi.start(instance);
       // Get the stdout of the WASI module
       let stdout = wasi.getStdoutString();
+      
       setStdout(stdout);
 
       // This should print "hello world (exit code: 0)"
