@@ -2,7 +2,7 @@ import { init, WASI } from "@wasmer/wasi";
 
 // This is needed to load the WASI library first
 
-export const start = async (buf: any) => {
+export const start = async (buf: ArrayBufferLike) => {
   await init();
 
   let wasi = new WASI({
@@ -10,7 +10,7 @@ export const start = async (buf: any) => {
     args: [],
   });
 
-  const module = await WebAssembly.compileStreaming(buf);
+  const module = await WebAssembly.instantiate(buf)
   await wasi.instantiate(module, {});
 
   let exitCode = wasi.start();

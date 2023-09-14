@@ -3,14 +3,22 @@ import styles from './wasm-loader.module.css';
 import { useFilePicker } from 'use-file-picker';
 import { FiFileText, FiChevronRight } from "react-icons/fi";
 import { start } from "../helloworld";
+import { WASI, init } from "@wasmer/wasi";
+import { buffer } from "stream/consumers";
+import { log } from "console";
+import { Buffer } from 'buffer';
+
+// @ts-ignore
+window.Buffer = Buffer;
 
 export const WasmLoader = () => {
   
   const [msg, setMsg] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [wasmResult, setWasmResult] = useState(null);
+  // set bytes 
+  const [bytes, setBytes] = useState(null);
   const [wasmInstance, setWasmInstance] = useState<WebAssembly.Instance | null>(null);
-
   
   const [openFileSelector, { loading }] = useFilePicker({
     accept: ['.wasm'],
@@ -24,7 +32,7 @@ export const WasmLoader = () => {
       // get the bytes
       const bytes = wasmFile.content;
       // instantiate the wasm module
-      createModule(bytes);
+      setBytes(bytes);
     },
     onFilesRejected: ({ errors }) => {
       // this callback is called when there were validation errors
@@ -64,21 +72,52 @@ export const WasmLoader = () => {
   }
 }
 
-  const createModule = (bytes: any) => {
-    WebAssembly.instantiate(bytes, imports)
-    .then(async (results: WebAssembly.WebAssemblyInstantiatedSource) => {
-        const instance: WebAssembly.Instance = results.instance;
-        setWasmInstance(instance);  
-        memory = instance.exports.memory as any;       
-        
+  const run = async (bytes: Buffer) => {
+    console.log("Running...");
+    // print the bytes
+    console.log("buffer", bytes);
+    
+    let wasi = new WASI({
+      env: {},
+      args: [],
+    });
 
+    await init();
 
-        // runInstance(instance);        
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        setMsg("Error: " + error);
+    function fetchArrayBuffer(bytes: Buffer) {
+      return new Promise((resolve, reject) => {
+        // Simulate an asynchronous operation that produces an ArrayBuffer
+          try {
+            const response = new Response(bytes, {
+              status: 200, // Status code
+              statusText: 'OK', // Status text
+              headers: { 'Content-Type': 'application/wasm' }, // Content-Type header
+            });
+            resolve(response); // Resolve the Promise with the custom Response
+          } catch (error) {
+            reject(error); // Reject the Promise if there's an error
+          }
       });
+    }
+
+    const module = await WebAssembly.compileStreaming(fetchArrayBuffer(bytes) as any);
+    // Instantiate the WASI module
+    await wasi.instantiate(module, {});
+    
+    // Run the start function
+    let exitCode = wasi.start();
+    let stdout = wasi.getStdoutString();
+    
+     // This should print "hello world (exit code: 0)"
+    console.log(`${stdout}(exit code: ${exitCode})`);
+    // const inst = wasi.instantiate(module.instance, {});
+
+    // // setWasmInstance(inst);
+
+    // let exitCode = wasi.start();
+    // let stdout = wasi.getStdoutString();
+    // // This should print "hello world (exit code: 0)"
+    // console.log(`${stdout}\n(exit code: ${exitCode})`);
   }
 
   const runInstance = async (instance: any) => {
@@ -103,13 +142,6 @@ export const WasmLoader = () => {
     setIsRunning(false);
   }
 
-  const buttonClick = async () => {
-    const moduleBytes = await fetch(
-      "https://cdn.deno.land/wasm/versions/v1.0.2/raw/tests/demo.wasm",
-    );
-    start(moduleBytes);
-  };
-
   const status = (result: number) => {
     if (result == 0) {
     return <div>exit code: {result}, Success✅</div>
@@ -126,7 +158,7 @@ export const WasmLoader = () => {
     {loading && <div>Loading...</div>}
     {isRunning && <div>Running...</div>}
     <div>
-      <button onClick={buttonClick}></button>
+      <button onClick={() => bytes ? run(bytes) : {}}></button>
       <button className={styles.button} onClick={openFileSelector}><FiFileText className={styles.icon} /> Select file</button>
       <button className={styles.button} onClick={() => runInstance(wasmInstance)}><FiChevronRight className={styles.icon} /> Run</button>
     </div>

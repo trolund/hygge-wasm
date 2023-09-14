@@ -187,6 +187,9 @@ module.exports = function (webpackEnv) {
   };
 
   return {
+    externals: {
+      'wasmer_wasi_js_bg.wasm': true
+    },
     target: ['browserslist'],
     // Webpack noise constrained to errors and warnings
     stats: 'errors-warnings',
