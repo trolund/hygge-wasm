@@ -2,8 +2,9 @@ import { useState } from "react";
 import styles from './wasm-loader.module.css';
 import { useFilePicker } from 'use-file-picker';
 import { FiFileText, FiChevronRight, FiRefreshCcw } from "react-icons/fi";
-import { WASI, init } from "@wasmer/wasi";
+import { WASI, init, MemFS, InitOutput } from "@wasmer/wasi";
 import { Buffer } from 'buffer';
+import { Console } from "console";
 
 // @ts-ignore
 window.Buffer = Buffer;
@@ -18,12 +19,8 @@ export const WasmLoader = () => {
   const [msg, setMsg] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [wasmResult, setWasmResult] = useState<number | null>(null);
-  // set bytes 
-  const [bytes, setBytes] = useState(null);
   const [wasmInstance, setWasmInstance] = useState<WebAssembly.Module | null>(null);
-  // is run disabled
   const [isRunDisabled, setIsRunDisabled] = useState(true);
-  // stdout
   const [stdout, setStdout] = useState("");
 
   const [openFileSelector, { loading }] = useFilePicker({
@@ -40,8 +37,7 @@ export const WasmLoader = () => {
       // get the bytes
       const bytes = wasmFile.content;
       // instantiate the wasm module
-      setBytes(bytes);
-      const module = await WebAssembly.compile(bytes);
+      const module: WebAssembly.Module = await WebAssembly.compile(bytes);
       setWasmInstance(module);
 
       const exports = WebAssembly.Module.exports(module);
@@ -109,25 +105,46 @@ export const WasmLoader = () => {
     let wasi = new WASI({
       env: {},
       args: [],
+      fs: new MemFS(),
+      preopens: {
+        "/": "/",
+      }
     });
 
     setIsRunning(true);
 
-    // Instantiate the WASI module
-    await wasi.instantiate(wasmInstance, {});
+    if (!wasmInstance) {
+      console.log("No wasm instance");
+      return;
+    }
 
-    // Run the start function
-    let exitCode = wasi.start();
-    // Get the stdout of the WASI module
-    let stdout = wasi.getStdoutString();
+    const combinedImports = {
+      ...wasi.getImports(wasmInstance), // WASI imports
+      ...imports // Other "custom" imports
+    };
 
-    setStdout(stdout);
+    const instance = await WebAssembly.instantiate(wasmInstance, combinedImports);
 
-    // This should print "hello world (exit code: 0)"
-    console.log(`${stdout}(exit code: ${exitCode})`);
-    setWasmResult(exitCode);
-    setIsRunning(false);
-    wasi.free();
+    // Start the WebAssembly WASI instance!
+    try {
+      // Run the start function
+      let exitCode = wasi.start(instance);
+      // Get the stdout of the WASI module
+      let stdout = wasi.getStdoutString();
+      setStdout(stdout);
+
+      // This should print "hello world (exit code: 0)"
+      console.log(`${stdout}(exit code: ${exitCode})`);
+      setWasmResult(exitCode);
+    } catch (e) {
+        console.error(e);
+    } finally {
+      setIsRunning(false);
+      wasi.free();
+    }
+
+
+
 
   }
 
@@ -148,7 +165,7 @@ export const WasmLoader = () => {
 
   return (
     <>
-    <button className={styles.button} onClick={reloadPage}><FiRefreshCcw className={styles.icon} />Reset</button>
+      <button className={styles.button} onClick={reloadPage}><FiRefreshCcw className={styles.icon} />Reset</button>
       {loading && <div>⏳Loading...</div>}
       {isRunning && <div>🏃‍♂️Running...</div>}
       <div>
