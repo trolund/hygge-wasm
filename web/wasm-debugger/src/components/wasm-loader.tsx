@@ -5,7 +5,6 @@ import { FiFileText, FiChevronRight, FiRefreshCcw } from "react-icons/fi";
 import { WASI, init } from "@wasmer/wasi";
 import { Buffer } from 'buffer';
 
-
 // @ts-ignore
 window.Buffer = Buffer;
 
@@ -56,7 +55,6 @@ export const WasmLoader = () => {
 
       if (s) {
         console.log("Found _start function");
-        // setMsg("Found _start function ✅");
         setIsRunDisabled(false);
       } else {
         console.log("No _start function found");
