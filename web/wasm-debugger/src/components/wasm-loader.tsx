@@ -15,7 +15,7 @@ export const WasmLoader = () => {
   
   const [msg, setMsg] = useState("");
   const [isRunning, setIsRunning] = useState(false);
-  const [wasmResult, setWasmResult] = useState(null);
+  const [wasmResult, setWasmResult] = useState<number | null>(null);
   // set bytes 
   const [bytes, setBytes] = useState(null);
   const [wasmInstance, setWasmInstance] = useState<WebAssembly.Instance | null>(null);
@@ -74,16 +74,12 @@ export const WasmLoader = () => {
 
   const run = async (bytes: Buffer) => {
     console.log("Running...");
-    // print the bytes
-    console.log("buffer", bytes);
     await init();
     
     let wasi = new WASI({
       env: {},
       args: [],
     });
-
-
 
     function fetchArrayBuffer(bytes: Buffer) {
       return new Promise((resolve, reject) => {
@@ -111,14 +107,9 @@ export const WasmLoader = () => {
     
      // This should print "hello world (exit code: 0)"
     console.log(`${stdout}(exit code: ${exitCode})`);
-    // const inst = wasi.instantiate(module.instance, {});
-
-    // // setWasmInstance(inst);
-
-    // let exitCode = wasi.start();
-    // let stdout = wasi.getStdoutString();
-    // // This should print "hello world (exit code: 0)"
-    // console.log(`${stdout}\n(exit code: ${exitCode})`);
+    setWasmResult(exitCode);
+    wasi.free();
+    
   }
 
   const runInstance = async (instance: any) => {
