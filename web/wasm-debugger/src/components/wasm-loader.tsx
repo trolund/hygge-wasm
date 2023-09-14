@@ -76,13 +76,14 @@ export const WasmLoader = () => {
     console.log("Running...");
     // print the bytes
     console.log("buffer", bytes);
+    await init();
     
     let wasi = new WASI({
       env: {},
       args: [],
     });
 
-    await init();
+
 
     function fetchArrayBuffer(bytes: Buffer) {
       return new Promise((resolve, reject) => {
@@ -158,9 +159,8 @@ export const WasmLoader = () => {
     {loading && <div>Loading...</div>}
     {isRunning && <div>Running...</div>}
     <div>
-      <button onClick={() => bytes ? run(bytes) : {}}></button>
       <button className={styles.button} onClick={openFileSelector}><FiFileText className={styles.icon} /> Select file</button>
-      <button className={styles.button} onClick={() => runInstance(wasmInstance)}><FiChevronRight className={styles.icon} /> Run</button>
+      <button className={styles.button} onClick={() => bytes ? run(bytes) : {}}><FiChevronRight className={styles.icon} /> Run</button>
     </div>
     <div>
       <div>{msg}</div>
