@@ -36,7 +36,7 @@ let internal runWasmTime tast expected =
     let explainExpected = RARS.explainExitCode expected
     
     let vm = WasmVM()
-    let exit: int = vm.RunWatString("main", asm.ToString()) :?> int
+    let exit: int = vm.RunWatString(asm.ToString()) :?> int
     Log.debug (sprintf "WasmTime exit code: %d" exit)
     let explainExit = RARS.explainExitCode exit
     Expect.equal exit expected ($"WasmTime should have exited with code %d{expected} (%s{explainExpected}), "

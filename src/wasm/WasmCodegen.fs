@@ -1075,7 +1075,7 @@ and internal captureVars (node: TypedAST) =
 // add special implicit main function
 let implicit (node: TypedAST) : Module =
 
-    let funcName = "main" // todo change name to _start
+    let funcName = "_start" // todo change name to _start
 
     let signature = ([], [ I32 ])
 

@@ -14,6 +14,8 @@ namespace WasmTimeDriver
         private readonly Linker _linker;
         private readonly Store _store;
 
+        private readonly string main = "_start";
+
         public WasmVM()
         {
             var config = new Config()
@@ -25,13 +27,11 @@ namespace WasmTimeDriver
             _store = new Store(_engine);
 
             var WasiConfig = new WasiConfiguration()
-            //.WithStandardOutput("/dev/fd/1")
-            //.WithStandardInput("/dev/fd/0");
             .WithInheritedStandardOutput()
-            .WithInheritedStandardInput();
-            // .WithInheritedArgs()
-            // .WithInheritedStandardError()
-            // .WithInheritedEnvironment();
+            .WithInheritedStandardInput()
+            .WithInheritedArgs()
+            .WithInheritedStandardError()
+            .WithInheritedEnvironment();
 
             // Set up all WASI functunality 
             _store.SetWasiConfiguration(WasiConfig);
@@ -181,7 +181,7 @@ namespace WasmTimeDriver
 
         public object?[] RunFileTimes(string path, int n)
         {
-            return RunFileTimes(path, "main", n);
+            return RunFileTimes(path, main, n);
         }
 
         public object?[] RunFileTimes(string path, string target, int n)
@@ -198,12 +198,17 @@ namespace WasmTimeDriver
 
         public object? RunFile(string path)
         {
-            return RunFile(path, "main");
+            return RunFile(path, main);
         }
 
         public object? RunWatString(string target, string wat)
         {
             return RunWat(target, wat);
+        }
+
+        public object? RunWatString(string wat)
+        {
+            return RunWat(main, wat);
         }
 
         public object? RunWat(string target, string wat)
