@@ -1,22 +1,23 @@
+using Wasmtime;
+
 namespace WasmTimeDriver
 {
 
 public class MemoryAllocator
 {
     private IntPtr _heap;  // Pointer to the allocated heap
-    private IntPtr _heapSize; // Size of the heap
+    private int _heapSize; // Size of the heap
     // wasm page sise - 64KB
     private readonly int _pageSize = 64 * 1024;
-    // 4 bytes stride
-    private readonly uint stride = 4;
 
     public MemoryAllocator(int initialHeapSize)
     {
-
+        _heap = IntPtr.Zero;
+        _heapSize = initialHeapSize;
     }
 
     // Custom malloc implementation
-    public IntPtr Malloc(int size)
+    public IntPtr Malloc(Memory? mem, int size)
     {
         
         // if size i <= 0 fail
@@ -24,28 +25,50 @@ public class MemoryAllocator
         {
             return new IntPtr(-1);
         }
+        
+        // check if allocation will be out of bounds
+        if (_heap.ToInt32() + size > (_heapSize * _pageSize))
+        {
+            if (mem != null)
+            {
+                mem.Grow(1);
+            }
+            else
+            {
+                return new IntPtr(-1);
+            }
+        }
+        
+        // if allocation is in bounds
+        // return pointer to the start of the heap
+        var pos = _heap.ToInt32();
+        
+        // increment the heap pointer
+        _heap = new IntPtr(pos + size);
+
+        Console.WriteLine($"malloc {size} pointer {pos}");
+        
+        return new IntPtr(pos);
+        
         // Implement your memory allocation logic here
         // You'll need to track allocated blocks and manage the heap
         // Return a pointer to the allocated memory
-        return new IntPtr();
     }
 
-    // Custom free implementation
-    public void Free(IntPtr ptr)
+    // set heap pointer
+    public void SetHeapPointer(int ptr)
     {
-        // Implement your memory deallocation logic here
-        // Mark the memory block as freed and update your memory management data structures
-    }
-
-    // Custom realloc implementation
-    public IntPtr Realloc(IntPtr ptr, int newSize)
-    {
-        // Implement your memory reallocation logic here
-        // You may need to allocate a new block, copy data, and free the old block
-        // Return a pointer to the reallocated memory
-        return new IntPtr();
+        this._heap = new IntPtr((ptr + 7) & (-8)); // https://www.geeksforgeeks.org/round-to-next-greater-multiple-of-8/
     }
     
+    // reset all memory
+    public void Reset()
+    {
+        // Implement your memory reset logic here
+        // This function will be called when the VM is reset   
+        this._heap = IntPtr.Zero;
+    }
+
 }
 
 }

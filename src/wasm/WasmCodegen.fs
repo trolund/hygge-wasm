@@ -32,7 +32,7 @@ type internal Storage =
 
 /// A memory allocator that allocates memory in pages of 64KB.
 /// The allocator keeps track of the current allocation position.
-type internal MemoryAllocator() =
+type internal StaticMemoryAllocator() =
 
     let mutable allocationPosition = 0
     let pageSize = 64 * 1024 // 64KB
@@ -55,6 +55,7 @@ type internal MemoryAllocator() =
         else
             numPages
 
+    /// function that call the dynamic allocator with the number of bytes needed and return the start position
     /// Allocate in linear memory a block of 'size' bytes.
     /// will return the start position and size of the allocated memory
     member this.Allocate(size: int) =
@@ -77,12 +78,24 @@ let rec repeat (n: int) (f: int -> List<Commented<Instr>>) =
     | 0 -> []
     | _ -> f n @ repeat (n - 1) f
 
+
+/// function that generates code for calling "env" "malloc" function with the size of in bytes
+/// it assumes that the size is on the stack
+/// it will return the start position or -1 if there is no more memory
+let allocate =
+    let m =
+        Module()
+            .AddImport("env", "malloc", FunctionType("malloc", Some([ (None, I32) ], [ I32 ])))
+
+    let instr = [ (Call "malloc", "call malloc function") ]
+    m.AddCode(instr)
+
 type internal CodegenEnv =
     { funcIndexMap: Map<string, List<Instr>>
       currFunc: string
       // // name, type, allocated address
       varEnv: Map<string, Var * ValueType>
-      memoryAllocator: MemoryAllocator
+      memoryAllocator: StaticMemoryAllocator
       VarStorage: Map<string, Storage> } // function refances in table
 
 /// look up variable in var env
@@ -555,29 +568,90 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     Expr = Struct([ ("length", length); ("data", data) ]) }
                 m
 
-        // reduce length' to a single value
-        let length'' =
-            match length'.GetTempCode() with
-            | [ (I32Const i, _) ] -> i
-            | _ -> failwith "not implemented"
+        // pointer to struct in local var
+        let structPointerLabel = Util.genSymbol $"structPointer"
 
-        // allocate memory for array
-        let (address, size) = env.memoryAllocator.Allocate(2)
+        let structPointer =
+            structm // pointer to struct on stack
+                .AddLocals([ (Some(Identifier(structPointerLabel)), I32) ]) // add local var
+                .AddCode([ (LocalSet(Named(structPointerLabel)), "set struct pointer var") ]) // set struct pointer var
+
+        let allocation = // leave pointer to allocated memory on stack
+            length' // length of array on stack
+                .AddImport("env", "malloc", FunctionType("malloc", Some([ (None, I32) ], [ I32 ]))) // import malloc function
+                .AddCode(
+                    [ (I32Const 4, "4 bytes")
+                      (I32Mul, "multiply length with 4 to get size")
+                      (Call "malloc", "call malloc function") ]
+                )
+
+        // set data pointer of struct
+        let instr =
+            [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
+              (I32Const 4, "offset of data field")
+              (I32Add, "add offset to base address to get data pointer field") ]
+            @ allocation.GetTempCode() // get pointer to allocated memory - value to store in data pointer field
+            @ [ (I32Store, "store pointer to data") ]
+
+        // loop that runs length times and stores data in allocated memory
+
+        let loopModule = Module().AddLocals([ (Some(Identifier("i")), I32) ])
+
+        let exitl = Util.genSymbol $"loop_exit"
+        let beginl = Util.genSymbol $"loop_begin"
+
+        // body should set data in allocated memory
+        let body =
+            [ (LocalGet(Named("i")), "get index")
+              // TODO
+              (I32Const(4), "offset of index")
+              (I32Mul, "multiply index with 4 to get offset")
+              (I32Add, "add offset to base address")
+              (LocalGet(Named("1")), "get array address")
+              (I32Store, "store value in array") ]
+
+        let loop =
+            C
+                [ Loop(
+                      beginl,
+                      [],
+                      length'.GetTempCode()
+                      @ [ (LocalGet(Named "i"), "get i") ]
+                      @ C [ I32Eqz; BrIf exitl ]
+                      // @ body'.GetTempCode()
+                      @ C [ Br beginl ]
+                  ) ]
+
+        let block = C [ (Block(exitl, loop @ C [ Nop ])) ]
 
 
-
-
-        // store data in memory for each element
-        let instr: Commented<Instr> list =
-            repeat 2 (fun i ->
-                [ (I32Const(address + (i * 4)), "offset in memory")
-                  (I32Store, "store int in struct") ])
+        // let instrs =
+        //     repeat 10 (fun i ->
+        //         [ (LocalGet(Named("0")), "get index")
+        //           (LocalGet(Named("1")), "get value")
+        //           (I32Const(i * 4), "offset of index")
+        //           (I32Add, "add offset to base address")
+        //           (LocalGet(Named("2")), "get array address")
+        //           (I32Store, "store value in array") ])
 
         // let instrs = length'.GetTempCode() @ data'.GetTempCode() @ C [ Call "createArray" ]
 
+        structPointer
+        ++ allocation
+        ++ loopModule.AddCode(
+            instr
+            @ [ (LocalGet(Named(structPointerLabel)), "leave pointer to allocated array struct on stack") ]
+        )
+    | ArrayLength(target) ->
+        let m' = doCodegen env target m
 
+        let instrs =
+            m'.GetTempCode()
+            // @ [ (I32Const 0, "offset of length field"); (I32Add, "add offset") ] // not needed when is first field in struct
+            @ [ (I32Load, "load length") ]
 
-        (structm.AddCode(instr))
+        C [ Comment "start array length node" ]
+        ++ m'.ResetTempCode().AddCode(instrs @ C [ Comment "end array length node" ])
     | Assign(name, value) ->
         let value' = doCodegen env value m
 
@@ -630,7 +704,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     | FloatVal f -> true
                     | BoolVal b -> true
                     | _ -> false
-
 
                 /// Assembly code that performs the field value assignment
                 let assignCode =
@@ -859,22 +932,24 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // calculate size of struct (each field is 4 bytes)
         let size = List.length fields
 
-        // allocate memory for struct
-        let (address, _) = env.memoryAllocator.Allocate(size)
-
-        // add memory to module
-        let allocatedModule =
-            m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
-
-        // add global variable, to store pointer to struct
-        //let ptr: Global = (structName, (I32, Mutable), [ I32Const address ])
-        //let m' = allocatedModule.AddGlobal ptr
+        // allocate memory for struct in dynamic memory
+        let allocate =
+            m
+                .AddImport("env", "malloc", FunctionType("malloc", Some([ (None, I32) ], [ I32 ])))
+                .AddLocals([ (Some(Identifier(structName)), I32) ])
+                .AddCode(
+                    [ (I32Const size, "size of struct")
+                      (I32Const 4, "4 bytes")
+                      (I32Mul, "multiply length with 4 to get size")
+                      (Call "malloc", "call malloc function")
+                      (LocalSet(Named(structName)), "set struct pointer var") ]
+                )
 
         // fold over fields and add them to struct with indexes
         let folder =
             fun (acc: Module) (fieldOffset: int, fieldName: string, fieldInit: TypedAST) ->
 
-                let fieldAddress = address + fieldOffset * 4
+                let fieldOffsetBytes = fieldOffset * 4
 
                 // initialize field
                 let initField = doCodegen env fieldInit m
@@ -887,25 +962,28 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let instr =
                     match fieldInit.Type with
                     | t when (isSubtypeOf fieldInit.Env t TFloat) ->
-                        [ (I32Const fieldAddress, "push field address to stack") ]
+                        [ (LocalGet(Named(structName)), "get struct pointer var")
+                          (I32Const fieldOffsetBytes, "push field offset to stack")
+                          (I32Add, "add offset to base address") ]
                         @ initField'.GetTempCode()
                         @ [ (F32Store, "store field in memory") ]
                     | _ ->
-                        [ (I32Const fieldAddress, "push field address to stack at end") ]
+                        [ (LocalGet(Named(structName)), "get struct pointer var")
+                          (I32Const fieldOffsetBytes, "push field offset to stack")
+                          (I32Add, "add offset to base address") ]
                         @ initField'.GetTempCode()
                         @ [ (I32Store, "store field in memory") ]
 
-                // acuminlate code
-                // leave pointer to field on stack
+                // accumulate code
                 acc ++ initField.ResetTempCode().AddCode(instr)
-        //     .AddCode(instr @ [ (I32Const(address), "push struct address to stack") ])
+
 
         let fieldsInitCode =
             List.fold folder m (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
 
         let combined =
-            allocatedModule
-            ++ fieldsInitCode.AddCode([ (I32Const(address), "push struct address to stack") ])
+            allocate
+            ++ fieldsInitCode.AddCode([ (LocalGet(Named(structName)), "push struct address to stack") ])
 
         C [ Comment "start of struct contructor" ]
         ++ combined.AddCode(C [ Comment "end of struct contructor" ])
@@ -1087,12 +1165,12 @@ let implicit (node: TypedAST) : Module =
            name = Some(Identifier(funcName)) },
          "entry point of program (main function)")
 
-    let m = Module()
+    let m = Module().AddMemory(("memory", Unbounded(1)))
 
     let env =
         { currFunc = funcName
           funcIndexMap = Map.empty
-          memoryAllocator = MemoryAllocator()
+          memoryAllocator = StaticMemoryAllocator()
           VarStorage = Map.empty
           varEnv = Map.empty }
 
@@ -1103,6 +1181,9 @@ let implicit (node: TypedAST) : Module =
     // compile main function
     let m = doCodegen env node m'
 
+    let staticOffset: int = env.memoryAllocator.GetAllocationPosition()
+    
+    let heapBase = "heap_base"
     // return 0 if program is successful
     m
         .AddLocals(env.currFunc, m.GetLocals()) // set locals of function
@@ -1110,3 +1191,5 @@ let implicit (node: TypedAST) : Module =
         .AddInstrs(env.currFunc, m.GetTempCode()) // add code of main function
         .AddInstrs(env.currFunc, [ Comment "if execution reaches here, the program is successful" ])
         .AddInstrs(env.currFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ])
+        .AddGlobal((heapBase, (I32, Immutable), [I32Const staticOffset])) 
+        .AddExport(heapBase + "_ptr", GlobalType("heap_base"))

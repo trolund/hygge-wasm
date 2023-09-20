@@ -1,7 +1,4 @@
 ﻿using System.Collections;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
-using Microsoft.VisualBasic;
 using Wasmtime;
 
 namespace WasmTimeDriver
@@ -13,7 +10,7 @@ namespace WasmTimeDriver
         private readonly Engine _engine;
         private readonly Linker _linker;
         private readonly Store _store;
-
+        private readonly MemoryAllocator _allocator = new MemoryAllocator(1);
         private readonly string main = "_start";
 
         public WasmVM()
@@ -42,6 +39,17 @@ namespace WasmTimeDriver
 
         private void SetupLinker()
         {
+
+            _linker.Define(
+                "env",
+                "malloc",
+                Function.FromCallback(_store, (Caller caller, int size) =>
+                {
+                    IntPtr adreess = _allocator.Malloc(caller.GetMemory("memory"), size);
+
+                    return adreess.ToInt32();
+                })
+            );
 
             // get an input
             _linker.Define(
@@ -272,8 +280,18 @@ namespace WasmTimeDriver
             }
         }
 
-        private static object? RunTarget(string target, Instance? instance)
+        private object? RunTarget(string target, Instance? instance)
         {
+            // get heap pointer
+            try
+            {
+                var heap = instance.GetGlobal("heap_base_ptr").GetValue();
+                _allocator.SetHeapPointer(Int32.Parse(heap.ToString()));
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
 
             if (target is null || target.Length == 0)
             {

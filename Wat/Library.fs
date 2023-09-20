@@ -482,10 +482,11 @@ module WFG =
     and Import = string * string * ExternalType
 
     and ExternalType =
+        /// type name and function signature
         | FunctionType of string * FunctionSignature option
         | TableType of Table
         | MemoryType of Memory
-        | GlobalType of Global
+        | GlobalType of Identifier
         | ElementType of ValueType  // todo element type and not value type
         | EmptyType
 
@@ -855,14 +856,17 @@ module WFG =
 
                 let printGlobal (global_: Global) =
                     let name, (valueType, mutability), instrs = global_
-                    let mutability = 
-                        match mutability with
-                        | Mutable -> "mut "
-                        | Immutable -> ""
                     let valueType = valueType.ToString()
+                    let gType = 
+                        match mutability with
+                        | Mutable -> sprintf "(mut %s)" valueType
+                        | Immutable -> sprintf "%s" valueType
+                    
+
+
                     let instrs = instrs |> List.map (fun x -> Commented(x, ""))
                     let instrs = generate_wat_code_ident instrs 0
-                    sprintf "  (global $%s (%s%s) %s %s)" name mutability valueType (commentS "") instrs
+                    sprintf "  (global $%s %s %s %s)" name gType (commentS "") instrs
 
                 for global_ in this.globals do
                     result <- result + (printGlobal global_)
@@ -898,7 +902,7 @@ module WFG =
                                                                                         | FunctionType (name, _) -> sprintf "(func $%s)" (name)
                                                                                         | TableType table -> sprintf "(table %s)" (table.ToString())
                                                                                         | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
-                                                                                        | GlobalType global_ -> sprintf "(global %s)" (global_.ToString())
+                                                                                        | GlobalType global_ -> sprintf "(global $%s)" (global_.ToString())
                                                                                         | _ -> "")
 
                 // print start

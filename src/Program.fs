@@ -205,7 +205,7 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
             Log.debug $"WASM code: %s{asm}"
             Log.debug $"Running WASM VM"
             let vm = WasmVM()
-            let res = vm.RunWatString("main", asm)
+            let res = vm.RunWatString(asm)
             Console.WriteLine($"WASM VM result: %O{res}")
             0
 
@@ -261,7 +261,7 @@ let internal launchWasmTime (opt: CmdLine.WasmTimeLaunchOptions): int =
    
    let vm = WasmVM()
    Console.WriteLine("Running file: " + opt.File)
-   let res = vm.RunFile(opt.File, "main")
+   let res = vm.RunFile(opt.File)
    Console.WriteLine($"return value {res.ToString()}")
    
    0
