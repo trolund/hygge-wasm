@@ -560,12 +560,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let length' = doCodegen env length m
         let data' = doCodegen env data m
 
+        // node with literal value 0
+        // data poiner of struct is first zoro.
+        let zero = { node with Expr = IntVal 0 }
+
         // create struct with length and data
         let structm =
             doCodegen
                 env
                 { node with
-                    Expr = Struct([ ("length", length); ("data", data) ]) }
+                    Expr = Struct([ ("length", length); ("data", zero) ]) }
                 m
 
         // pointer to struct in local var
@@ -593,22 +597,24 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ allocation.GetTempCode() // get pointer to allocated memory - value to store in data pointer field
             @ [ (I32Store, "store pointer to data") ]
 
+
         // loop that runs length times and stores data in allocated memory
-
-        let loopModule = Module().AddLocals([ (Some(Identifier("i")), I32) ])
-
         let exitl = Util.genSymbol $"loop_exit"
         let beginl = Util.genSymbol $"loop_begin"
 
         // body should set data in allocated memory
         let body =
-            [ (LocalGet(Named("i")), "get index")
-              // TODO
-              (I32Const(4), "offset of index")
-              (I32Mul, "multiply index with 4 to get offset")
-              (I32Add, "add offset to base address")
-              (LocalGet(Named("1")), "get array address")
-              (I32Store, "store value in array") ]
+            [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
+              (I32Const(8), "byte offset")
+              (I32Add, "add offset to base address") // then data pointer + 4 (point to fist elem) is on top of stack = [length, data, fist elem, second elem, ...]
+
+              (LocalGet(Named("i")), "get index")
+              (I32Const(4), "byte offset")
+              (I32Mul, "multiply index with byte offset") // then offset is on top of stack
+
+              (I32Add, "add offset to base address") ] // then pointer to element is on top of stack
+            @ data'.GetTempCode() // get value to store in allocated memory
+            @ [ (I32Store, "store value in elem pos") ]
 
         let loop =
             C
@@ -617,24 +623,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       [],
                       length'.GetTempCode()
                       @ [ (LocalGet(Named "i"), "get i") ]
-                      @ C [ I32Eqz; BrIf exitl ]
-                      // @ body'.GetTempCode()
+                      @ C [ I32Eq; BrIf exitl ]                      
+                      @ body
+                      @ [ (LocalGet(Named "i"), "get i"); (I32Const(1), "increment by 1"); (I32Add, "add 1 to i"); (LocalSet(Named "i"), "write to i") ]
                       @ C [ Br beginl ]
                   ) ]
 
         let block = C [ (Block(exitl, loop @ C [ Nop ])) ]
 
 
-        // let instrs =
-        //     repeat 10 (fun i ->
-        //         [ (LocalGet(Named("0")), "get index")
-        //           (LocalGet(Named("1")), "get value")
-        //           (I32Const(i * 4), "offset of index")
-        //           (I32Add, "add offset to base address")
-        //           (LocalGet(Named("2")), "get array address")
-        //           (I32Store, "store value in array") ])
-
-        // let instrs = length'.GetTempCode() @ data'.GetTempCode() @ C [ Call "createArray" ]
+        let loopModule =
+            data'.ResetTempCode().AddLocals([ (Some(Identifier("i")), I32) ]).AddCode(block)
 
         structPointer
         ++ allocation
@@ -1182,7 +1181,7 @@ let implicit (node: TypedAST) : Module =
     let m = doCodegen env node m'
 
     let staticOffset: int = env.memoryAllocator.GetAllocationPosition()
-    
+
     let heapBase = "heap_base"
     // return 0 if program is successful
     m
@@ -1191,5 +1190,5 @@ let implicit (node: TypedAST) : Module =
         .AddInstrs(env.currFunc, m.GetTempCode()) // add code of main function
         .AddInstrs(env.currFunc, [ Comment "if execution reaches here, the program is successful" ])
         .AddInstrs(env.currFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ])
-        .AddGlobal((heapBase, (I32, Immutable), [I32Const staticOffset])) 
+        .AddGlobal((heapBase, (I32, Immutable), [ I32Const staticOffset ]))
         .AddExport(heapBase + "_ptr", GlobalType("heap_base"))

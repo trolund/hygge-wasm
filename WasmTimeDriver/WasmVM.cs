@@ -282,16 +282,6 @@ namespace WasmTimeDriver
 
         private object? RunTarget(string target, Instance? instance)
         {
-            // get heap pointer
-            try
-            {
-                var heap = instance.GetGlobal("heap_base_ptr").GetValue();
-                _allocator.SetHeapPointer(Int32.Parse(heap.ToString()));
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
 
             if (target is null || target.Length == 0)
             {
@@ -301,6 +291,17 @@ namespace WasmTimeDriver
             if (instance is null)
             {
                 throw new Exception("error: instance was null");
+            }
+
+            // get heap pointer
+            try
+            {
+                var heap = instance.GetGlobal("heap_base_ptr").GetValue();
+                _allocator.SetHeapPointer(Int32.Parse(heap.ToString()));
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
             }
 
             // get target function
