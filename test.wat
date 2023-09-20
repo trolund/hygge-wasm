@@ -2,23 +2,32 @@
   (import "env" "malloc" (func $malloc (param i32) (result i32) 
 ))
   (memory (export "memory") 1)
-  (data (i32.const 0) "hallo")
-  (global $heap_base i32  i32.const 10
+  (global $heap_base i32  i32.const 0
 )  (func $_start  (result i32)  ;; entry point of program (main function)
     ;; local variables declarations:
     (local $Sptr i32)
     (local $i i32)
     (local $structPointer i32)
     (local $var_arr i32)
-    (local $var_len i32)
     (local $var_x i32)
  
     ;; execution start here:
     ;; Start of let
-    i32.const 0 ;; offset in memory
-    i32.const 40 ;; size in bytes
-    local.set $var_x ;; set local var
-    ;; Start of let
+    i32.const 2 ;; push 2 on stack
+    i32.const 2 ;; push 2 on stack
+    i32.add
+    i32.const 1 ;; put one on stack
+    i32.le_s ;; check if length is <= 1
+    (if 
+     (then
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
+
+     )
+     (else
+
+     )
+    ) ;; check that length of array is bigger then 1 - if not return 42
     ;; start of struct contructor
     i32.const 2 ;; size of struct
     i32.const 4 ;; 4 bytes
@@ -28,16 +37,16 @@
     local.get $Sptr ;; get struct pointer var
     i32.const 0 ;; push field offset to stack
     i32.add ;; add offset to base address
-    ;; init field length
-    i32.const 2 ;; push 2 on stack
-    i32.const 2 ;; push 2 on stack
-    i32.add
+    ;; init field data
+    i32.const 0 ;; push 0 on stack
     i32.store ;; store field in memory
     local.get $Sptr ;; get struct pointer var
     i32.const 4 ;; push field offset to stack
     i32.add ;; add offset to base address
-    ;; init field data
-    i32.const 0 ;; push 0 on stack
+    ;; init field length
+    i32.const 2 ;; push 2 on stack
+    i32.const 2 ;; push 2 on stack
+    i32.add
     i32.store ;; store field in memory
     local.get $Sptr ;; push struct address to stack
     ;; end of struct contructor
@@ -78,8 +87,6 @@
 
 )
     local.get $structPointer ;; get struct pointer var
-    i32.const 4 ;; offset of data field
-    i32.add ;; add offset to base address to get data pointer field
     i32.const 2 ;; push 2 on stack
     i32.const 2 ;; push 2 on stack
     i32.add
@@ -90,13 +97,18 @@
     local.get $structPointer ;; leave pointer to allocated array struct on stack
     local.set $var_arr ;; set local var
     ;; Start of let
-    ;; start array length node
+    ;; start array element access node
     local.get $var_arr
-    i32.load ;; load length
-    ;; end array length node
-    local.set $var_len ;; set local var
-    local.get $var_len
-    i32.const 4 ;; push 4 on stack
+    i32.load ;; load data pointer
+    i32.const 2 ;; push 2 on stack
+    i32.const 4 ;; byte offset
+    i32.mul ;; multiply index with byte offset
+    i32.add ;; add offset to base address
+    i32.load ;; load value
+    ;; end array element access node
+    local.set $var_x ;; set local var
+    local.get $var_x
+    i32.const 42 ;; push 42 on stack
     i32.eq
     (if 
      (then
@@ -109,7 +121,6 @@
 
      )
     )
-    ;; End of let
     ;; End of let
     ;; End of let
     ;; if execution reaches here, the program is successful

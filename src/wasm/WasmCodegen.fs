@@ -608,6 +608,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // loop that runs length times and stores data in allocated memory
         let exitl = Util.genSymbol $"loop_exit"
         let beginl = Util.genSymbol $"loop_begin"
+        let i = Util.genSymbol $"i"
 
         // body should set data in allocated memory
         // TODO: optimize loop so i just multiply index with 4 and add it to base address
@@ -616,7 +617,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
               (I32Const(8), "byte offset") // SHIFT TO POSITIONS
               (I32Add, "add offset to base address") // then data pointer + 4 (point to fist elem) is on top of stack = [length, data, fist elem, second elem, ...]
 
-              (LocalGet(Named("i")), "get index")
+              (LocalGet(Named(i)), "get index")
               (I32Const(4), "byte offset")
               (I32Mul, "multiply index with byte offset") // then offset is on top of stack
 
@@ -624,19 +625,21 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ data'.GetTempCode() // get value to store in allocated memory
             @ [ (I32Store, "store value in elem pos") ]
 
+        
+
         let loop =
             C
                 [ Loop(
                       beginl,
                       [],
                       length'.GetTempCode()
-                      @ [ (LocalGet(Named "i"), "get i") ]
+                      @ [ (LocalGet(Named i), "get i") ]
                       @ C [ I32Eq; BrIf exitl ]
                       @ body
-                      @ [ (LocalGet(Named "i"), "get i")
+                      @ [ (LocalGet(Named i), "get i")
                           (I32Const(1), "increment by 1")
                           (I32Add, "add 1 to i")
-                          (LocalSet(Named "i"), "write to i") ]
+                          (LocalSet(Named i), "write to i") ]
                       @ C [ Br beginl ]
                   ) ]
 
@@ -644,7 +647,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
 
         let loopModule =
-            data'.ResetTempCode().AddLocals([ (Some(Identifier("i")), I32) ]).AddCode(block)
+            data'.ResetTempCode().AddLocals([ (Some(Identifier(i)), I32) ]).AddCode(block)
 
         lengthCheck
         ++ structPointer
@@ -664,6 +667,23 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         C [ Comment "start array length node" ]
         ++ m'.ResetTempCode().AddCode(instrs @ C [ Comment "end array length node" ])
+
+    // Array element access
+    | ArrayElement(target, index) ->
+        let m' = doCodegen env target m
+        let m'' = doCodegen env index m
+
+        let instrs =
+            m'.GetTempCode() // struct pointer on stack
+            @ [ (I32Load, "load data pointer") ]
+            @ m''.GetTempCode() // index on stack
+            @ [ (I32Const 4, "byte offset")
+                (I32Mul, "multiply index with byte offset")
+                (I32Add, "add offset to base address") ]
+            @ [ (I32Load, "load value") ]
+
+        C [ Comment "start array element access node" ]
+        ++ (m' + m'').ResetTempCode().AddCode(instrs @ C [ Comment "end array element access node" ])
     | Assign(name, value) ->
         let value' = doCodegen env value m
 
