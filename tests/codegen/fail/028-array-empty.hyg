@@ -1,2 +1,2 @@
 let arr: array {int} = array(0, 1);
-print("should not print!")
+println("should not print!")

@@ -560,6 +560,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let length' = doCodegen env length m
         let data' = doCodegen env data m
 
+        // check that length is bigger then 1 - if not return 42
+        let lengthCheck =
+            length'.GetTempCode()
+            @ [ (I32Const 1, "put one on stack")
+                (I32LeS, "check if length is <= 1")
+                (If([], [ (I32Const errorExitCode, "error exit code push to stack"); (Return, "return exit code") ], None), "check that length of array is bigger then 1 - if not return 42") ]
+
         // node with literal value 0
         // data poiner of struct is first zoro.
         let zero = { node with Expr = IntVal 0 }
@@ -592,8 +599,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // set data pointer of struct
         let instr =
             [ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]
-              // (I32Const 4, "offset of data field")
-              // (I32Add, "add offset to base address to get data pointer field") ]
+            // (I32Const 4, "offset of data field")
+            // (I32Add, "add offset to base address to get data pointer field") ]
             @ allocation.GetTempCode() // get pointer to allocated memory - value to store in data pointer field
             @ [ (I32Store, "store pointer to data") ]
 
@@ -639,7 +646,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let loopModule =
             data'.ResetTempCode().AddLocals([ (Some(Identifier("i")), I32) ]).AddCode(block)
 
-        structPointer
+        lengthCheck
+        ++ structPointer
         ++ allocation
         ++ loopModule.AddCode(
             instr
@@ -650,7 +658,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             m'.GetTempCode()
-            @ [(I32Const 4, "offset of length field"); (I32Add, "add offset to base address"); (I32Load, "load length") ]
+            @ [ (I32Const 4, "offset of length field")
+                (I32Add, "add offset to base address")
+                (I32Load, "load length") ]
 
         C [ Comment "start array length node" ]
         ++ m'.ResetTempCode().AddCode(instrs @ C [ Comment "end array length node" ])
