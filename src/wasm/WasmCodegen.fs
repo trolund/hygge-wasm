@@ -569,7 +569,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             doCodegen
                 env
                 { node with
-                    Expr = Struct([ ("length", length); ("data", zero) ]) }
+                    Expr = Struct([ ("data", zero); ("length", length) ]) }
                 m
 
         // pointer to struct in local var
@@ -580,7 +580,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 .AddLocals([ (Some(Identifier(structPointerLabel)), I32) ]) // add local var
                 .AddCode([ (LocalSet(Named(structPointerLabel)), "set struct pointer var") ]) // set struct pointer var
 
-        let allocation = // leave pointer to allocated memory on stack
+        let allocation = // allocate memory for array, return pointer to allocated memory
             length' // length of array on stack
                 .AddImport("env", "malloc", FunctionType("malloc", Some([ (None, I32) ], [ I32 ]))) // import malloc function
                 .AddCode(
@@ -591,9 +591,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // set data pointer of struct
         let instr =
-            [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
-              (I32Const 4, "offset of data field")
-              (I32Add, "add offset to base address to get data pointer field") ]
+            [ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]
+              // (I32Const 4, "offset of data field")
+              // (I32Add, "add offset to base address to get data pointer field") ]
             @ allocation.GetTempCode() // get pointer to allocated memory - value to store in data pointer field
             @ [ (I32Store, "store pointer to data") ]
 
@@ -605,7 +605,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // body should set data in allocated memory
         let body =
             [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
-              (I32Const(8), "byte offset")
+              (I32Const(8), "byte offset") // SHIFT TO POSITIONS
               (I32Add, "add offset to base address") // then data pointer + 4 (point to fist elem) is on top of stack = [length, data, fist elem, second elem, ...]
 
               (LocalGet(Named("i")), "get index")
@@ -623,9 +623,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       [],
                       length'.GetTempCode()
                       @ [ (LocalGet(Named "i"), "get i") ]
-                      @ C [ I32Eq; BrIf exitl ]                      
+                      @ C [ I32Eq; BrIf exitl ]
                       @ body
-                      @ [ (LocalGet(Named "i"), "get i"); (I32Const(1), "increment by 1"); (I32Add, "add 1 to i"); (LocalSet(Named "i"), "write to i") ]
+                      @ [ (LocalGet(Named "i"), "get i")
+                          (I32Const(1), "increment by 1")
+                          (I32Add, "add 1 to i")
+                          (LocalSet(Named "i"), "write to i") ]
                       @ C [ Br beginl ]
                   ) ]
 
@@ -647,7 +650,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             m'.GetTempCode()
             // @ [ (I32Const 0, "offset of length field"); (I32Add, "add offset") ] // not needed when is first field in struct
-            @ [ (I32Load, "load length") ]
+            @ [(I32Const 4, "offset of length field"); (I32Add, "add offset to base address"); (I32Load, "load length") ]
 
         C [ Comment "start array length node" ]
         ++ m'.ResetTempCode().AddCode(instrs @ C [ Comment "end array length node" ])
