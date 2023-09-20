@@ -603,6 +603,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let beginl = Util.genSymbol $"loop_begin"
 
         // body should set data in allocated memory
+        // TODO: optimize loop so i just multiply index with 4 and add it to base address
         let body =
             [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
               (I32Const(8), "byte offset") // SHIFT TO POSITIONS
@@ -649,7 +650,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             m'.GetTempCode()
-            // @ [ (I32Const 0, "offset of length field"); (I32Add, "add offset") ] // not needed when is first field in struct
             @ [(I32Const 4, "offset of length field"); (I32Add, "add offset to base address"); (I32Load, "load length") ]
 
         C [ Comment "start array length node" ]
