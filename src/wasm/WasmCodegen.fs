@@ -650,11 +650,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             data'.ResetTempCode().AddLocals([ (Some(Identifier(i)), I32) ]).AddCode(block)
 
         lengthCheck
-        ++ structPointer
-        ++ allocation
-        ++ loopModule.AddCode(
-            instr
-            @ [ (LocalGet(Named(structPointerLabel)), "leave pointer to allocated array struct on stack") ]
+        ++ structPointer.AddCode(instr)
+        ++ loopModule.AddCode([ (LocalGet(Named(structPointerLabel)), "leave pointer to allocated array struct on stack") ]
         )
     | ArrayLength(target) ->
         let m' = doCodegen env target m

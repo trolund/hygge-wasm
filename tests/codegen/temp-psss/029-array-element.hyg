@@ -1,4 +1,7 @@
 let arr: array {int} = array(2 + 2, 40 + 2);
-let x: int = arrayElem(arr, 2);
+let x: int = arrayElem(arr, 3);
 
-assert(x = 42)
+assert(x = 42);
+assert(arrayElem(arr, 0) = 42);
+assert(arrayElem(arr, 1) = 42);
+assert(arrayElem(arr, 2) = 42)
