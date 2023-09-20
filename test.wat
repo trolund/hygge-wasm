@@ -14,7 +14,7 @@
     ;; execution start here:
     ;; Start of let
     i32.const 2 ;; push 2 on stack
-    i32.const 2 ;; push 2 on stack
+    i32.const 211 ;; push 211 on stack
     i32.add
     i32.const 1 ;; put one on stack
     i32.le_s ;; check if length is <= 1
@@ -45,7 +45,7 @@
     i32.add ;; add offset to base address
     ;; init field length
     i32.const 2 ;; push 2 on stack
-    i32.const 2 ;; push 2 on stack
+    i32.const 211 ;; push 211 on stack
     i32.add
     i32.store ;; store field in memory
     local.get $Sptr ;; push struct address to stack
@@ -53,7 +53,7 @@
     local.set $structPointer ;; set struct pointer var
     local.get $structPointer ;; get struct pointer var
     i32.const 2 ;; push 2 on stack
-    i32.const 2 ;; push 2 on stack
+    i32.const 211 ;; push 211 on stack
     i32.add
     i32.const 4 ;; 4 bytes
     i32.mul ;; multiply length with 4 to get size
@@ -62,7 +62,7 @@
     (block $loop_exit
       (loop $loop_begin 
       i32.const 2 ;; push 2 on stack
-      i32.const 2 ;; push 2 on stack
+      i32.const 211 ;; push 211 on stack
       i32.add
       local.get $i ;; get i
       i32.eq
