@@ -758,6 +758,23 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         instrs
                 // Put everything together
                 (assignCode) ++ (rhsCode.ResetTempCode() + selTargetCode.ResetTempCode())
+        | ArrayElement(target, index) ->
+            let selTargetCode = doCodegen env target m
+            let indexCode = doCodegen env index m
+
+            let rhsCode = doCodegen env value m
+
+            let instrs =
+                selTargetCode.GetTempCode() // struct pointer on stack
+                @ [ (I32Load, "load data pointer") ]
+                @ indexCode.GetTempCode() // index on stack
+                @ [ (I32Const 4, "byte offset")
+                    (I32Mul, "multiply index with byte offset")
+                    (I32Add, "add offset to base address") ]
+                @ rhsCode.GetTempCode()
+                @ [ (I32Store, "store value in elem pos") ]
+
+            (rhsCode.ResetTempCode() + indexCode.ResetTempCode() + selTargetCode.ResetTempCode()).AddCode(instrs)
         | _ -> failwith "not implemented"
     | Ascription(_, node) ->
         // A type ascription does not produce code --- but the type-annotated
