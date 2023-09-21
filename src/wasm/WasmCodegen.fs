@@ -677,6 +677,36 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m' = doCodegen env target m
         let m'' = doCodegen env index m
 
+        // check that index is bigger then 0 - if not return 42
+        // and that index is smaller then length - if not return 42
+        let indexCheck =
+                m''.GetTempCode() // index on stack
+                @ [ (I32Const 0, "put zero on stack")
+                    (I32LtS, "check if index is >= 0")
+                    (If(
+                        [],
+                        [ (I32Const errorExitCode, "error exit code push to stack")
+                          (Return, "return exit code") ],
+                        None
+                     ),
+                     "check that index is >= 0 - if not return 42") ]
+                @ C [Comment "lower bound check"]
+                @ m''.GetTempCode() // index on stack
+                @ m'.GetTempCode() // struct pointer on stack
+                @ [ (I32Const 4, "offset of length field")
+                    (I32Add, "add offset to base address")
+                    (I32Load, "load length") ]
+                @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
+                    (If(
+                        [],
+                        [ (I32Const errorExitCode, "error exit code push to stack")
+                          (Return, "return exit code") ],
+                        None
+                     ),
+                     "check that index is < length - if not return 42") ]
+                @ C [Comment "lower bound check done"]
+
+
         let instrs =
             m'.GetTempCode() // struct pointer on stack
             @ [ (I32Load, "load data pointer") ]
@@ -686,7 +716,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (I32Add, "add offset to base address") ]
             @ [ (I32Load, "load value") ]
 
-        C [ Comment "start array element access node" ]
+        indexCheck
         ++ (m' + m'')
             .ResetTempCode()
             .AddCode(instrs @ C [ Comment "end array element access node" ])
