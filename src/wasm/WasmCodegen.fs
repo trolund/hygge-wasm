@@ -690,7 +690,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         None
                      ),
                      "check that index is >= 0 - if not return 42") ]
-                @ C [Comment "lower bound check"]
                 @ m''.GetTempCode() // index on stack
                 @ m'.GetTempCode() // struct pointer on stack
                 @ [ (I32Const 4, "offset of length field")
@@ -704,7 +703,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         None
                      ),
                      "check that index is < length - if not return 42") ]
-                @ C [Comment "lower bound check done"]
 
 
         let instrs =
@@ -818,7 +816,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         None
                      ),
                      "check that index is >= 0 - if not return 42") ]
-                @ C [Comment "lower bound check"]
                 @ indexCode.GetTempCode() // index on stack
                 @ selTargetCode.GetTempCode() // struct pointer on stack
                 @ [ (I32Const 4, "offset of length field")
@@ -832,7 +829,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         None
                      ),
                      "check that index is < length - if not return 42") ]
-                @ C [Comment "lower bound check done"]
 
             let instrs =
                 selTargetCode.GetTempCode() // struct pointer on stack
