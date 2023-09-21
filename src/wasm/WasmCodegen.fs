@@ -565,7 +565,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             length'.GetTempCode()
             @ [ (I32Const 1, "put one on stack")
                 (I32LeS, "check if length is <= 1")
-                (If([], [ (I32Const errorExitCode, "error exit code push to stack"); (Return, "return exit code") ], None), "check that length of array is bigger then 1 - if not return 42") ]
+                (If(
+                    [],
+                    [ (I32Const errorExitCode, "error exit code push to stack")
+                      (Return, "return exit code") ],
+                    None
+                 ),
+                 "check that length of array is bigger then 1 - if not return 42") ]
 
         // node with literal value 0
         // data poiner of struct is first zoro.
@@ -625,7 +631,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ data'.GetTempCode() // get value to store in allocated memory
             @ [ (I32Store, "store value in elem pos") ]
 
-        
+
 
         let loop =
             C
@@ -651,7 +657,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         lengthCheck
         ++ structPointer.AddCode(instr)
-        ++ loopModule.AddCode([ (LocalGet(Named(structPointerLabel)), "leave pointer to allocated array struct on stack") ]
+        ++ loopModule.AddCode(
+            [ (LocalGet(Named(structPointerLabel)), "leave pointer to allocated array struct on stack") ]
         )
     | ArrayLength(target) ->
         let m' = doCodegen env target m
@@ -680,7 +687,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ [ (I32Load, "load value") ]
 
         C [ Comment "start array element access node" ]
-        ++ (m' + m'').ResetTempCode().AddCode(instrs @ C [ Comment "end array element access node" ])
+        ++ (m' + m'')
+            .ResetTempCode()
+            .AddCode(instrs @ C [ Comment "end array element access node" ])
     | Assign(name, value) ->
         let value' = doCodegen env value m
 
@@ -764,6 +773,37 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let rhsCode = doCodegen env value m
 
+            // Q: What is the oppeset of  >=
+            // A: <
+
+            // Check index >= 0 and index < length
+            let indexCheck =
+                indexCode.GetTempCode() // index on stack
+                @ [ (I32Const 0, "put zero on stack")
+                    (I32LtS, "check if index is >= 0")
+                    (If(
+                        [],
+                        [ (I32Const errorExitCode, "error exit code push to stack")
+                          (Return, "return exit code") ],
+                        None
+                     ),
+                     "check that index is >= 0 - if not return 42") ]
+                @ C [Comment "lower bound check"]
+                @ indexCode.GetTempCode() // index on stack
+                @ selTargetCode.GetTempCode() // struct pointer on stack
+                @ [ (I32Const 4, "offset of length field")
+                    (I32Add, "add offset to base address")
+                    (I32Load, "load length") ]
+                @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
+                    (If(
+                        [],
+                        [ (I32Const errorExitCode, "error exit code push to stack")
+                          (Return, "return exit code") ],
+                        None
+                     ),
+                     "check that index is < length - if not return 42") ]
+                @ C [Comment "lower bound check done"]
+
             let instrs =
                 selTargetCode.GetTempCode() // struct pointer on stack
                 @ [ (I32Load, "load data pointer") ]
@@ -774,7 +814,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 @ rhsCode.GetTempCode()
                 @ [ (I32Store, "store value in elem pos") ]
 
-            (rhsCode.ResetTempCode() + indexCode.ResetTempCode() + selTargetCode.ResetTempCode()).AddCode(instrs)
+            (rhsCode.ResetTempCode()
+             + indexCode.ResetTempCode()
+             + selTargetCode.ResetTempCode())
+                .AddCode(indexCheck @ instrs)
         | _ -> failwith "not implemented"
     | Ascription(_, node) ->
         // A type ascription does not produce code --- but the type-annotated
