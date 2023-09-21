@@ -731,6 +731,40 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // compile start
         let startm = doCodegen env start m
 
+        // check of indecies are valid
+        // check that start is bigger then 0 - if not return 42
+        // and that start is smaller then length of the original array - if not return 42
+        let startCheck =
+            startm.GetTempCode() // start on stack
+            @ [ (I32Const 0, "put zero on stack")
+                (I32LtS, "check if start is >= 0")
+                (If(
+                    [],
+                    [ (I32Const errorExitCode, "error exit code push to stack")
+                      (Return, "return exit code") ],
+                    None
+                 ),
+                 "check that start is >= 0 - if not return 42") ]
+            @ startm.GetTempCode() // start on stack
+            @ targetm.GetTempCode() // struct pointer on stack
+            @ [ (I32Const 4, "offset of length field")
+                (I32Add, "add offset to base address")
+                (I32Load, "load length") ]
+            @ [ (I32GeU, "check if start is < length") // TODO check if this is correct
+                (If(
+                    [],
+                    [ (I32Const errorExitCode, "error exit code push to stack")
+                      (Return, "return exit code") ],
+                    None
+                 ),
+                 "check that start is < length - if not return 42") ]
+
+        // TODO: end index check
+        // check that end is bigger then 0 - if not return 42
+        // and that end is smaller then length of the original array - if not return 42
+        // and end is bigger then start - if not return 42
+        // and the difference between end and start should be at least 1 - if not return 42
+        
         // create struct with length and data
         let structm =
             doCodegen
@@ -761,7 +795,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ [ 
                 (I32Store, "store pointer to data") ]
 
-        C [ Comment "start array slice" ]
+        (C [ Comment "start array slice" ] @ startCheck)
         ++ structm'
         ++ (targetm.ResetTempCode())
             // .AddCode([ (LocalSet(Named(structPointerLabel)), "set struct pointer var") ])
