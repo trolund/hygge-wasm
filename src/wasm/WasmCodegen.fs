@@ -586,7 +586,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 m
 
         // pointer to struct in local var
-        let structPointerLabel = Util.genSymbol $"structPointer"
+        let structPointerLabel = Util.genSymbol $"arr_ptr"
 
         let structPointer =
             structm // pointer to struct on stack
@@ -672,7 +672,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         C [ Comment "start array length node" ]
         ++ m'.ResetTempCode().AddCode(instrs @ C [ Comment "end array length node" ])
 
-    // Array element access
     | ArrayElement(target, index) ->
         let m' = doCodegen env target m
         let m'' = doCodegen env index m
@@ -680,29 +679,29 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // check that index is bigger then 0 - if not return 42
         // and that index is smaller then length - if not return 42
         let indexCheck =
-                m''.GetTempCode() // index on stack
-                @ [ (I32Const 0, "put zero on stack")
-                    (I32LtS, "check if index is >= 0")
-                    (If(
-                        [],
-                        [ (I32Const errorExitCode, "error exit code push to stack")
-                          (Return, "return exit code") ],
-                        None
-                     ),
-                     "check that index is >= 0 - if not return 42") ]
-                @ m''.GetTempCode() // index on stack
-                @ m'.GetTempCode() // struct pointer on stack
-                @ [ (I32Const 4, "offset of length field")
-                    (I32Add, "add offset to base address")
-                    (I32Load, "load length") ]
-                @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
-                    (If(
-                        [],
-                        [ (I32Const errorExitCode, "error exit code push to stack")
-                          (Return, "return exit code") ],
-                        None
-                     ),
-                     "check that index is < length - if not return 42") ]
+            m''.GetTempCode() // index on stack
+            @ [ (I32Const 0, "put zero on stack")
+                (I32LtS, "check if index is >= 0")
+                (If(
+                    [],
+                    [ (I32Const errorExitCode, "error exit code push to stack")
+                      (Return, "return exit code") ],
+                    None
+                 ),
+                 "check that index is >= 0 - if not return 42") ]
+            @ m''.GetTempCode() // index on stack
+            @ m'.GetTempCode() // struct pointer on stack
+            @ [ (I32Const 4, "offset of length field")
+                (I32Add, "add offset to base address")
+                (I32Load, "load length") ]
+            @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
+                (If(
+                    [],
+                    [ (I32Const errorExitCode, "error exit code push to stack")
+                      (Return, "return exit code") ],
+                    None
+                 ),
+                 "check that index is < length - if not return 42") ]
 
 
         let instrs =
@@ -718,6 +717,54 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         ++ (m' + m'')
             .ResetTempCode()
             .AddCode(instrs @ C [ Comment "end array element access node" ])
+
+    // array slice creates a new struct with a pointer to the data of the original array
+    | ArraySlice(target, start, ending) ->
+
+        let length =
+            { node with
+                Expr = Sub(ending, start)
+                Type = TInt }
+
+        // compile target
+        let targetm = doCodegen env target m
+        // compile start
+        let startm = doCodegen env start m
+
+        // create struct with length and data
+        let structm =
+            doCodegen
+                env
+                { node with
+                    Expr = Struct([ ("data", { node with Expr = IntVal 0 }); ("length", length) ]) }
+                m
+
+        let structPointerLabel = Util.genSymbol $"arr_slice_ptr"
+
+        let structm' =
+            structm
+                .AddLocals([ (Some(Identifier(structPointerLabel)), I32) ]) // add local var
+                .AddCode([ (LocalSet(Named(structPointerLabel)), "set struct pointer var") ]) // set struct pointer var
+
+        // set data pointer of struct
+        let instr =
+            targetm.GetTempCode() // pointer to exsisiting array struct on stack
+            @ startm.GetTempCode() // index of start
+            @ [ (I32Const 4, "offset of data field")
+                (I32Mul, "multiply index with byte offset")
+                (I32Add, "add offset to base address") ] // get pointer to allocated memory - value to store in data pointer field
+            @ [ (LocalGet(Named(structPointerLabel)), "get struct pointer var"); 
+            (I32Store, "store pointer to data") ]
+
+        C [ Comment "start array slice" ]
+        ++ structm'
+        ++ (targetm.ResetTempCode())
+            // .AddCode([ (LocalSet(Named(structPointerLabel)), "set struct pointer var") ])
+            .AddCode(instr)
+            .AddCode(
+                [ (LocalGet(Named(structPointerLabel)), "leave pointer to allocated array struct on stack")
+                  (Comment "end array slice", "") ]
+            )
     | Assign(name, value) ->
         let value' = doCodegen env value m
 
