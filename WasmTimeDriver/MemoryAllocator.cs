@@ -5,14 +5,14 @@ namespace WasmTimeDriver
 
 public class MemoryAllocator
 {
-    private IntPtr _heap;  // Pointer to the allocated heap
+    private IntPtr _offset;  // Pointer to the allocated heap
     private int _heapSize; // Size of the heap
     // wasm page sise - 64KB
     private readonly int _pageSize = 64 * 1024;
 
     public MemoryAllocator(int initialHeapSize)
     {
-        _heap = IntPtr.Zero;
+        _offset = IntPtr.Zero;
         _heapSize = initialHeapSize;
     }
 
@@ -27,11 +27,21 @@ public class MemoryAllocator
         }
         
         // check if allocation will be out of bounds
-        if (_heap.ToInt32() + size > (_heapSize * _pageSize))
+        if (_offset.ToInt32() + size > (_heapSize * _pageSize))
         {
             if (mem != null)
             {
-                mem.Grow(1);
+
+                var requiredPages = (this._offset.ToInt32() + size) / this._pageSize;
+                // round required pages to the next integer
+                var roundedPages = (int) Math.Ceiling((double) requiredPages);
+
+                mem.Grow(roundedPages);
+                _heapSize++;
+
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine($"MemoryAllocator: growing memory by {roundedPages} pages");
+                Console.ResetColor();
             }
             else
             {
@@ -41,13 +51,13 @@ public class MemoryAllocator
         
         // if allocation is in bounds
         // return pointer to the start of the heap
-        var pos = _heap.ToInt32();
+        var pos = _offset.ToInt32();
         
         // increment the heap pointer
-        _heap = new IntPtr(pos + size);
+        _offset = new IntPtr(pos + size);
 
-        Console.WriteLine($"malloc {size} pointer {pos}");
-        
+        Console.WriteLine($"MemoryAllocator: malloc {size} pointer {pos}");
+
         return new IntPtr(pos);
         
         // Implement your memory allocation logic here
@@ -58,7 +68,7 @@ public class MemoryAllocator
     // set heap pointer
     public void SetHeapPointer(int ptr)
     {
-        this._heap = new IntPtr((ptr + 7) & (-8)); // https://www.geeksforgeeks.org/round-to-next-greater-multiple-of-8/
+        this._offset = new IntPtr((ptr + 7) & (-8)); // https://www.geeksforgeeks.org/round-to-next-greater-multiple-of-8/
     }
     
     // reset all memory
@@ -66,7 +76,7 @@ public class MemoryAllocator
     {
         // Implement your memory reset logic here
         // This function will be called when the VM is reset   
-        this._heap = IntPtr.Zero;
+        this._offset = IntPtr.Zero;
     }
 
 }

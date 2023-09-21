@@ -1,0 +1,5 @@
+let len: int = 530000000;
+let arr: array {int} = array(len, 100);
+let len2: int = arrayLength(arr);
+
+assert(len = len2)
