@@ -107,12 +107,13 @@
     local.get $Sptr$0 ;; push struct address to stack
     ;; end of struct contructor
     local.set $arr_slice_ptr ;; set struct pointer var
+    local.get $arr_slice_ptr ;; get struct pointer var
     local.get $var_arr
+    i32.load ;; Load data pointer from array struct
     i32.const 2 ;; push 2 on stack
     i32.const 4 ;; offset of data field
     i32.mul ;; multiply index with byte offset
     i32.add ;; add offset to base address
-    local.get $arr_slice_ptr ;; get struct pointer var
     i32.store ;; store pointer to data
     local.get $arr_slice_ptr ;; leave pointer to allocated array struct on stack
     ;; end array slice

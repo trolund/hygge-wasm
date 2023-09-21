@@ -748,13 +748,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // set data pointer of struct
         let instr =
-            targetm.GetTempCode() // pointer to exsisiting array struct on stack
+            // here to store pointer to allocated memory 
+            [(LocalGet(Named(structPointerLabel)), "get struct pointer var")]
+
+            // value to store in data pointer field
+            @ targetm.GetTempCode() // pointer to exsisiting array struct on stack
+            @ [(I32Load, "Load data pointer from array struct")]
             @ startm.GetTempCode() // index of start
             @ [ (I32Const 4, "offset of data field")
                 (I32Mul, "multiply index with byte offset")
                 (I32Add, "add offset to base address") ] // get pointer to allocated memory - value to store in data pointer field
-            @ [ (LocalGet(Named(structPointerLabel)), "get struct pointer var"); 
-            (I32Store, "store pointer to data") ]
+            @ [ 
+                (I32Store, "store pointer to data") ]
 
         C [ Comment "start array slice" ]
         ++ structm'
