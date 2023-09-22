@@ -731,6 +731,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // compile start
         let startm = doCodegen env start m
 
+        let endingm = doCodegen env ending m
+
         // check of indecies are valid
         // check that start is bigger then 0 - if not return 42
         // and that start is smaller then length of the original array - if not return 42
@@ -764,6 +766,38 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // and that end is smaller then length of the original array - if not return 42
         // and end is bigger then start - if not return 42
         // and the difference between end and start should be at least 1 - if not return 42
+
+        // check that end index is smaller then length of the original array - if not return 42
+        let endCheck =
+            endingm.GetTempCode() // end index on stack
+            @ targetm.GetTempCode() // struct pointer on stack
+            @ [ (I32Const 4, "offset of length field")
+                (I32Add, "add offset to base address")
+                (I32Load, "load length") ]
+            @ [ (I32GtU, "check if end is < length") // TODO check if this is correct
+                (If(
+                    [],
+                    [ (I32Const errorExitCode, "error exit code push to stack")
+                      (Return, "return exit code") ],
+                    None
+                 ),
+                 "check that end is < length - if not return 42") ]
+  
+
+        // difference between end and start should be at least 1
+        let atleastOne =
+            endingm.GetTempCode() // end on stack
+            @ startm.GetTempCode() // start on stack
+            @ [ (I32Sub, "subtract end from start") ]
+            @ [ (I32Const 1, "put one on stack")
+                (I32LtU, "check if difference is < 1")
+                (If(
+                    [],
+                    [ (I32Const errorExitCode, "error exit code push to stack")
+                      (Return, "return exit code") ],
+                    None
+                 ),
+                 "check that difference is <= 1 - if not return 42") ]
         
         // create struct with length and data
         let structm =
@@ -795,9 +829,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ [ 
                 (I32Store, "store pointer to data") ]
 
-        (C [ Comment "start array slice" ] @ startCheck)
+        (C [ Comment "start array slice" ] @ atleastOne @ endCheck @ startCheck)
         ++ structm'
-        ++ (targetm.ResetTempCode())
+        ++ (targetm.ResetTempCode() + endingm.ResetTempCode())
             // .AddCode([ (LocalSet(Named(structPointerLabel)), "set struct pointer var") ])
             .AddCode(instr)
             .AddCode(
