@@ -48,11 +48,13 @@ module WFG =
     type Label =  
         | Named of string
         | Index of int
+        | Address of int
 
         override this.ToString() =
         match this with
             | Named s -> sprintf "$%s" s
             | Index i -> i.ToString()
+            | Address i -> sprintf "%d" i
     
     type Identifier = string
 
@@ -287,9 +289,9 @@ module WFG =
         | F32ReinterpretI32
         | F64ReinterpretI64
         // Block Instr
-        | Block of Identifier * list<Commented<Instr>>
+        | Block of Identifier * ValueType list * list<Commented<Instr>>
         | Loop of Identifier * ValueType list * list<Commented<Instr>>
-        // reuslt type of if, then block, else block
+        /// reuslt type of if, then block, else block
         | If of ValueType list * list<Commented<Instr>> * list<Commented<Instr>> option
 
         // comment
@@ -461,14 +463,12 @@ module WFG =
                 | Drop -> "drop"
                 | Select -> "select"
                 // block instructions
-                | Block (label, instrs) -> sprintf "(block $%s\n%s\n)" label (generate_wat_code_ident instrs indent) 
+                | Block (label, valueTypes, instrs) -> sprintf "(block $%s %s\n%s\n    )" label (resultPrint valueTypes) (generate_wat_code_ident instrs indent) 
                 | Loop (label, valueTypes, instrs: Commented<Instr> list) -> sprintf "(loop $%s %s\n%s\n)" label (resultPrint valueTypes) (generate_wat_code_ident instrs indent)
                 | If (types, ifInstrs, elseInstrs) -> 
-                    let elseInstrs = 
-                        match elseInstrs with
-                        | Some instrs -> instrs
-                        | None -> []
-                    sprintf "(if %s\n     (then\n%s\n     )\n     (else\n%s\n     )\n    )" (resultPrint types) (generate_wat_code_ident ifInstrs indent) (generate_wat_code_ident elseInstrs indent)
+                    match elseInstrs with
+                    | Some elseInstrs' -> sprintf "(if %s\n     (then\n%s\n     )\n     (else\n%s\n     )\n    )" (resultPrint types) (generate_wat_code_ident ifInstrs indent) (generate_wat_code_ident elseInstrs' indent)
+                    | None -> sprintf "(if%s (then\n%s       )\n      )" (resultPrint types) (generate_wat_code_ident ifInstrs indent) 
                 // comments
                 | Comment comment -> sprintf ";; %s" comment
                 | x -> sprintf "not implemented: %s" (x.ToString())

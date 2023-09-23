@@ -17,18 +17,17 @@ type Var =
 /// Storage information for variables.
 [<RequireQualifiedAccess; StructuralComparison; StructuralEquality>]
 type internal Storage =
-    // /// The variable is stored in an integerregister.
-    // | Reg of reg: Reg
-    // /// The variable is stored in a floating-point register.
-    // | FPReg of fpreg: FPReg
-    /// The variable is stored in memory, in a location marked with a
-    /// label in the compiled assembly code.
+    /// label of local or global variable
     | Label of label: string
-    /// This variable is stored on the stack, at the given offset (in bytes)
-    /// from the memory address contained in the frame pointer (fp) register.
-    | Offset of offset: int
+    /// index of local variable
+    | Offset of offset: int // idex
+    /// address in linear memory
+    | Memory of offset: int // idex
+    /// function reference in table
     | Tabel of label: string * int
+    /// function reference in table
     | FuncRef of label: string * int
+    | Id of id: int
 
 /// A memory allocator that allocates memory in pages of 64KB.
 /// The allocator keeps track of the current allocation position.
@@ -105,6 +104,7 @@ let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
         match env.VarStorage.TryFind v with
         | Some(Storage.Label(l)) -> Named(l)
         | Some(Storage.Offset(o)) -> Index(o)
+        | Some(Storage.Memory(o)) -> Address(o)
         | _ -> failwith "not implemented"
     | _ -> failwith "not implemented"
 
@@ -132,6 +132,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             match env.VarStorage.TryFind v with
             | Some(Storage.Label(l)) -> [ LocalGet(Named(l)) ]
             | Some(Storage.Offset(o)) -> [ LocalGet(Index(o)) ]
+            | Some(Storage.Memory(o)) -> [ I32Const o; I32Load ]
             | _ -> failwith "not implemented"
 
         m.AddCode(instrs)
@@ -423,22 +424,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m''' = doCodegen env ifFalse m
 
         // get subtype of ifTrue and ifFalse
+        // IFTRUE AND IF FASLE ARE always THE SAME
         let t =
             match ifTrue.Type, ifFalse.Type with
-            | t, _ when (isSubtypeOf ifTrue.Env t TUnit) -> []
-            | _, t when (isSubtypeOf ifFalse.Env t TUnit) -> []
-            | t, _ when (isSubtypeOf ifTrue.Env t TFloat) -> [ F32 ]
-            | _, t when (isSubtypeOf ifFalse.Env t TFloat) -> [ F32 ]
-            | t, _ when (isSubtypeOf ifTrue.Env t TInt) -> [ I32 ]
-            | _, t when (isSubtypeOf ifFalse.Env t TInt) -> [ I32 ]
-            | t, _ when (isSubtypeOf ifTrue.Env t TBool) -> [ I32 ]
-            | _, t when (isSubtypeOf ifFalse.Env t TBool) -> [ I32 ]
-            | t, _ when (isSubtypeOf ifTrue.Env t TString) -> [ I32; I32 ]
-            | _, t when (isSubtypeOf ifFalse.Env t TString) -> [ I32; I32 ]
-            | _ -> failwith "not implemented"
+            | t1, t2 when (isSubtypeOf ifTrue.Env t1 TInt) & (isSubtypeOf ifFalse.Env t2 TInt) -> I32
+            | t1, t2 when (isSubtypeOf ifTrue.Env t1 TFloat) & (isSubtypeOf ifFalse.Env t2 TFloat) -> F32
+            | t1, t2 when (isSubtypeOf ifTrue.Env t1 TBool) & (isSubtypeOf ifFalse.Env t2 TBool) -> I32
+            | t1, t2 when (isSubtypeOf ifTrue.Env t1 TString) & (isSubtypeOf ifFalse.Env t2 TString) -> I32
+            | _ -> failwith "type mismatch"
 
         let instrs =
-            m'.GetTempCode() @ C [ (If(t, m''.GetTempCode(), Some(m'''.GetTempCode()))) ]
+            m'.GetTempCode()
+            @ C [ (If([ t ], m''.GetTempCode(), Some(m'''.GetTempCode()))) ]
 
         (m' + m'' + m''').ResetTempCode().AddCode(instrs)
     | Assertion(e) ->
@@ -536,7 +533,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       @ C [ Br beginl ]
                   ) ]
 
-        let block = C [ (Block(exitl, loop @ C [ Nop ])) ]
+        let block = C [ (Block(exitl, [], loop @ C [ Nop ])) ]
 
         (cond'.ResetTempCode() + body'.ResetTempCode()).AddCode(block)
 
@@ -649,7 +646,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       @ C [ Br beginl ]
                   ) ]
 
-        let block = C [ (Block(exitl, loop @ C [ Nop ])) ]
+        let block = C [ (Block(exitl, [], loop @ C [ Nop ])) ]
 
 
         let loopModule =
@@ -782,7 +779,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     None
                  ),
                  "check that end is < length - if not return 42") ]
-  
+
 
         // difference between end and start should be at least 1
         let atleastOne =
@@ -798,7 +795,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     None
                  ),
                  "check that difference is <= 1 - if not return 42") ]
-        
+
         // create struct with length and data
         let structm =
             doCodegen
@@ -816,18 +813,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // set data pointer of struct
         let instr =
-            // here to store pointer to allocated memory 
-            [(LocalGet(Named(structPointerLabel)), "get struct pointer var")]
+            // here to store pointer to allocated memory
+            [ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]
 
             // value to store in data pointer field
             @ targetm.GetTempCode() // pointer to exsisiting array struct on stack
-            @ [(I32Load, "Load data pointer from array struct")]
+            @ [ (I32Load, "Load data pointer from array struct") ]
             @ startm.GetTempCode() // index of start
             @ [ (I32Const 4, "offset of data field")
                 (I32Mul, "multiply index with byte offset")
                 (I32Add, "add offset to base address") ] // get pointer to allocated memory - value to store in data pointer field
-            @ [ 
-                (I32Store, "store pointer to data") ]
+            @ [ (I32Store, "store pointer to data") ]
 
         (C [ Comment "start array slice" ] @ atleastOne @ endCheck @ startCheck)
         ++ structm'
@@ -838,6 +834,97 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ (LocalGet(Named(structPointerLabel)), "leave pointer to allocated array struct on stack")
                   (Comment "end array slice", "") ]
             )
+    | UnionCons(label, expr) ->
+        // compute label id
+        let id = Util.genSymbolId label
+        // create node for label
+        let idNode = { node with Expr = IntVal id }
+
+        // in case there is no data aka a unit - we need to add a zero
+        let data =
+            match expr.Type with
+            | TUnit -> { node with Expr = IntVal 0 } // unitvalue
+            | _ -> expr
+
+        // rewrite as struct
+        let structNode =
+            { node with
+                Expr = Struct([ ("id", idNode); ("data", data) ]) }
+
+        // codegen structNode
+        C [ Comment "Start of union contructor" ]
+        ++ (doCodegen env structNode m).AddCode([ (Comment "End of union contructor") ])
+    | Match(target, cases) ->
+        let targetm = doCodegen env target m
+
+        let (labels, vars, exprs) = List.unzip3 cases
+        let indexedLabels = List.indexed labels
+
+        // TODO: is this correct?
+        let reusltType = findReturnType (exprs[0])
+
+        let getTargetData = // get data pointer of target struct
+            targetm.AddCode(
+                [ (I32Const 4, "offset of data field")
+                  (I32Add, "add offset to base address")
+                  (I32Load, "load data pointer") ]
+            )
+
+        let matchResult = Util.genSymbol $"match_result"
+        let matchEndLabel = Util.genSymbol $"match_end"
+        // fold over indexedLabels to generate code for each case
+        let folder =
+            fun (acc: Module) (i: int * string) ->
+                let (index, label) = i
+                let id = Util.genSymbolId label
+                let expr = exprs.[index]
+                let var = vars.[index]
+
+                let scopeVarStorage = env.VarStorage.Add(var, Storage.Label(var))
+
+                /// Environment for compiling the 'case' scope
+                let scopeEnv =
+                    { env with
+                        VarStorage = scopeVarStorage }
+
+                let caseCode =
+                    //  (doCodegen scopeEnv expr m)
+                    getTargetData
+                        .AddLocals([ (Some(Identifier(var)), I32) ])
+                        .AddCode(
+                            [
+                              //(LocalSet(Named(matchResult)), "set reuslt of case");
+                              (Br matchEndLabel, "break out of match") ]
+                        )
+
+                let condition =
+                    targetm.GetTempCode()
+                    @ [ (I32Load, "load label")
+                        (I32Const id, $"put label id {id} on stack")
+                        (I32Eq, "check if index is equal to target") ]
+
+                // if case is not the last case
+                let case = condition @ C [ (If([], caseCode.GetTempCode(), None)) ]
+
+                acc
+                ++ (caseCode.ResetTempCode())
+                    .AddCode(C [ Comment $"case for id: ${id}, label: {label}" ] @ case)
+
+        let casesCode =
+            List.fold folder (Module().AddLocals([ (Some(Identifier(matchResult)), I32) ])) indexedLabels
+
+        // TODO: default case
+
+        // block that contains all cases
+        let block =
+            C
+                [ (Block(
+                      matchEndLabel,
+                      reusltType,
+                      casesCode.GetTempCode() @ [ (LocalGet(Named(matchResult)), "set result") ]
+                  )) ]
+
+        (casesCode.ResetTempCode()).AddCode(block)
     | Assign(name, value) ->
         let value' = doCodegen env value m
 
@@ -1267,11 +1354,18 @@ and internal compileFunction
     (env: CodegenEnv)
     (m: Module)
     : Module =
+
     // map args to local variables
+    // TODO look at mappings!!
     let argTypes: Local list =
         List.map
             (fun (n, t) ->
                 match t with
+                | TUnion _ -> (Some(n), I32)
+                | TVar(name) -> (Some(n), I32)
+                | TFun(args, ret) -> (Some(n), I32)
+                | TStruct(fields) -> (Some(n), I32)
+                | TArray(elements) -> (Some(n), I32)
                 | TInt -> (Some(n), I32)
                 | TFloat -> (Some(n), F32)
                 | TBool -> (Some(n), I32)
@@ -1384,6 +1478,15 @@ and internal captureVars (node: TypedAST) =
     | LetRec(name, _, init, scope) -> List.concat [ captureVars init; captureVars scope ]
     | Pointer(_) -> []
     | _ -> []
+
+and internal findReturnType (expr: TypedAST) : ValueType list =
+    match expr.Type with
+    | TUnit -> []
+    | TFloat -> [ F32 ]
+    | TInt -> [ I32 ]
+    | TBool -> [ I32 ]
+    | TString -> [ I32 ]
+    | _ -> [ I32 ]
 
 // add special implicit main function
 let implicit (node: TypedAST) : Module =
