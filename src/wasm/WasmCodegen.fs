@@ -876,20 +876,22 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let expr = exprs.[index]
                 let var = vars.[index]
 
+                let varName = Util.genSymbol $"match_var_{var}"
+
                 // map case var to label address
-                let scopeVarStorage = env.VarStorage.Add(var, Storage.Label(var))
+                let scopeVarStorage = env.VarStorage.Add(var, Storage.Label(varName))
 
                 /// Environment for compiling the 'case' scope
                 let scopeEnv =
                     { env with
                         VarStorage = scopeVarStorage }
 
-                let scope = (doCodegen scopeEnv expr m)
+                let scope = (doCodegen scopeEnv expr m).AddLocals([ (Some(Identifier(varName)), I32) ])
 
                 // address to data
                 let dataPointer =
                     targetm.GetTempCode()
-                    @ [ (I32Const 4, "offset of data field"); (I32Add, "add offset to base address"); (I32Load, "load data pointer"); (LocalSet(Named(var)), "set local var")]
+                    @ [ (I32Const 4, "offset of data field"); (I32Add, "add offset to base address"); (I32Load, "load data pointer"); (LocalSet(Named(varName)), "set local var")]
 
                 let caseCode =
                     dataPointer
@@ -1481,14 +1483,40 @@ and internal captureVars (node: TypedAST) =
     | Pointer(_) -> []
     | _ -> []
 
+// reduce expression to a single value
+// then find the vlaue that is returned
+// TODO: this is not correct
 and internal findReturnType (expr: TypedAST) : ValueType list =
-    match expr.Type with
-    | TUnit -> []
-    | TFloat -> [ F32 ]
-    | TInt -> [ I32 ]
-    | TBool -> [ I32 ]
-    | TString -> [ I32 ]
-    | _ -> [ I32 ]
+    match expr.Expr with
+    | IntVal _ -> [ I32 ]
+    | FloatVal _ -> [ F32 ]
+    | BoolVal _ -> [ I32 ]
+    | StringVal _ -> [ I32 ]
+    | UnitVal -> []
+    | Var _ -> [ I32 ]
+    | Add _ -> [ I32 ]
+    | Sub _ -> [ I32 ]
+    | Div _ -> [ I32 ]
+    | Lambda _ -> [ I32 ]
+    | Struct _ -> [ I32 ]
+    | FieldSelect _ -> [ I32 ]
+    | ArrayElement _ -> [ I32 ]
+    | UnionCons _ -> [ I32 ]
+    | Match _ -> [ I32 ]
+    | Application _ -> [ I32 ]
+    | Seq _ -> [ I32 ]
+    | AST.If _ -> [ I32 ]
+    | While _ -> [ I32 ]
+    | DoWhile _ -> [ I32 ]
+    | For _ -> [ I32 ]
+    | Assign _ -> [ ]
+    | Ascription _ -> [ I32 ]
+    | Let _ -> [ I32 ]
+    | LetMut _ -> [ I32 ]
+    | LetRec _ -> [ I32 ]
+    | Pointer _ -> [ I32 ]
+    | AST.Type _ -> [ I32 ]
+    | _ -> failwith "not implemented"
 
 // add special implicit main function
 let implicit (node: TypedAST) : Module =

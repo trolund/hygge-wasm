@@ -91,6 +91,8 @@
   (func $fun_checkOption (param $o i32) (result i32)  ;; function fun_checkOption
     ;; local variables declarations:
     (local $_ i32)
+    (local $match_var__ i32)
+    (local $match_var_x i32)
     (local $x i32)
  
     (block $match_end  (result i32)
@@ -104,11 +106,11 @@
       i32.const 4 ;; offset of data field
       i32.add ;; add offset to base address
       i32.load ;; load data pointer
-      local.set $x ;; set local var
-      local.get $x
+      local.set $match_var_x ;; set local var
+      local.get $match_var_x
       i32.const 3 ;; push 3 on stack
       i32.mul
-      local.get $x
+      local.get $match_var_x
       i32.add
       br $match_end ;; break out of match
        )
@@ -123,12 +125,12 @@
       i32.const 4 ;; offset of data field
       i32.add ;; add offset to base address
       i32.load ;; load data pointer
-      local.set $_ ;; set local var
+      local.set $match_var__ ;; set local var
       i32.const 0 ;; push 0 on stack
       br $match_end ;; break out of match
        )
       )
-      ;; no case was match, therefore return exit error code
+      ;; no case was matched, therefore return exit error code
       i32.const 42 ;; error exit code push to stack
       return ;; return exit code
 
