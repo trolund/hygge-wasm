@@ -28,6 +28,7 @@ type internal Storage =
     /// function reference in table
     | FuncRef of label: string * int
     | Id of id: int
+    | Stack of label: string
 
 /// A memory allocator that allocates memory in pages of 64KB.
 /// The allocator keeps track of the current allocation position.
@@ -133,6 +134,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | Some(Storage.Label(l)) -> [ LocalGet(Named(l)) ]
             | Some(Storage.Offset(o)) -> [ LocalGet(Index(o)) ]
             | Some(Storage.Memory(o)) -> [ I32Const o; I32Load ]
+            | Some(Storage.Id(i)) -> [ I32Const i ]
+            | Some(Storage.Stack(l)) -> [ LocalSet(Named(l)); LocalGet(Named(l)) ]
             | _ -> failwith "not implemented"
 
         m.AddCode(instrs)
@@ -863,13 +866,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // TODO: is this correct?
         let reusltType = findReturnType (exprs[0])
 
-        let getTargetData = // get data pointer of target struct
-            targetm.AddCode(
-                [ (I32Const 4, "offset of data field")
-                  (I32Add, "add offset to base address")
-                  (I32Load, "load data pointer") ]
-            )
-
         let matchResult = Util.genSymbol $"match_result"
         let matchEndLabel = Util.genSymbol $"match_end"
         // fold over indexedLabels to generate code for each case
@@ -880,6 +876,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let expr = exprs.[index]
                 let var = vars.[index]
 
+                // map case var to label address
                 let scopeVarStorage = env.VarStorage.Add(var, Storage.Label(var))
 
                 /// Environment for compiling the 'case' scope
@@ -887,13 +884,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     { env with
                         VarStorage = scopeVarStorage }
 
+                let scope = (doCodegen scopeEnv expr m)
+
+                // address to data
+                let dataPointer =
+                    targetm.GetTempCode()
+                    @ [ (I32Const 4, "offset of data field"); (I32Add, "add offset to base address"); (I32Load, "load data pointer"); (LocalSet(Named(var)), "set local var")]
+
                 let caseCode =
-                    //  (doCodegen scopeEnv expr m)
-                    getTargetData
+                    dataPointer
+                    ++ scope
                         .AddLocals([ (Some(Identifier(var)), I32) ])
                         .AddCode(
                             [
-                              //(LocalSet(Named(matchResult)), "set reuslt of case");
                               (Br matchEndLabel, "break out of match") ]
                         )
 

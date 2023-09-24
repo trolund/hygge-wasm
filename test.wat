@@ -37,6 +37,8 @@
     ;; End of union contructor
     call $fun_checkOption ;; call function fun_checkOption
     i32.const 42 ;; push 42 on stack
+    i32.const 4 ;; push 4 on stack
+    i32.mul
     i32.eq
     (if 
      (then
@@ -106,6 +108,12 @@
       i32.const 4 ;; offset of data field
       i32.add ;; add offset to base address
       i32.load ;; load data pointer
+      local.set $x ;; set local var
+      local.get $x
+      i32.const 3 ;; push 3 on stack
+      i32.mul
+      local.get $x
+      i32.add
       br $match_end ;; break out of match
        )
       )
@@ -119,6 +127,8 @@
       i32.const 4 ;; offset of data field
       i32.add ;; add offset to base address
       i32.load ;; load data pointer
+      local.set $_ ;; set local var
+      i32.const 0 ;; push 0 on stack
       br $match_end ;; break out of match
        )
       )
