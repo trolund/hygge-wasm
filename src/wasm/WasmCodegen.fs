@@ -916,8 +916,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let casesCode =
             List.fold folder (Module()) indexedLabels
 
-        // TODO: default case
-        let defaultCase =[ (Comment "no case was match, therefore return exit error code", ""); (I32Const errorExitCode, "error exit code push to stack"); (Return, "return exit code")  ]
+        let defaultCase =[ (Comment "no case was matched, therefore return exit error code", ""); (I32Const errorExitCode, "error exit code push to stack"); (Return, "return exit code")  ]
 
         // block that contains all cases
         let block =
