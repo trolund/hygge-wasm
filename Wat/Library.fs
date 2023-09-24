@@ -248,7 +248,7 @@ module WFG =
         | Local of Label * ValueType // https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Variables/Local
         | LocalGet of Label
         | LocalSet of Label
-        | LocalTee of int
+        | LocalTee of Label
         | GlobalGet of int
         | GlobalSet of int
         // Table Instr
@@ -448,7 +448,7 @@ module WFG =
                 // declare variable
                 | LocalGet l -> sprintf "local.get %s" (l.ToString())
                 | LocalSet l -> sprintf "local.set %s" (l.ToString())
-                | LocalTee index -> sprintf "local.tee %d" index
+                | LocalTee l -> sprintf "local.tee %s" (l.ToString())
                 | GlobalGet index -> sprintf "global.get %d" index
                 | GlobalSet index -> sprintf "global.set %d" index
                 | Unreachable -> "unreachable"

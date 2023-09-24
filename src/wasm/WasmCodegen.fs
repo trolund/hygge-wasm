@@ -228,7 +228,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | Some(Storage.Offset(o)) -> [ LocalGet(Index(o)) ]
             | Some(Storage.Memory(o)) -> [ I32Const o; I32Load ]
             | Some(Storage.Id(i)) -> [ I32Const i ]
-            | Some(Storage.Stack(l)) -> [ LocalSet(Named(l)); LocalGet(Named(l)) ]
+            | Some(Storage.Stack(l)) -> [ LocalTee(Named(l)) ]
             | _ -> failwith "not implemented"
 
         m.AddCode(instrs)
@@ -241,7 +241,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match e.Type with
             | t when (isSubtypeOf e.Env t TInt) ->
-                m'.GetTempCode() @ C [ I32Const 1; I32Add; LocalSet(label); LocalGet(label) ]
+                m'.GetTempCode() @ C [ I32Const 1; I32Add; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PreIncr" ]
@@ -267,7 +267,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match e.Type with
             | t when (isSubtypeOf e.Env t TInt) ->
-                m'.GetTempCode() @ C [ I32Const 1; I32Sub; LocalSet(label); LocalGet(label) ]
+                m'.GetTempCode() @ C [ I32Const 1; I32Sub; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PreDecr" ]
@@ -319,11 +319,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | t when (isSubtypeOf node.Env t TInt) ->
                 lhs'.GetTempCode()
                 @ rhs'.GetTempCode()
-                @ C [ opCode; LocalSet(label); LocalGet(label) ]
+                @ C [ opCode; LocalTee(label) ]
             | t when (isSubtypeOf node.Env t TFloat) ->
                 lhs'.GetTempCode()
                 @ rhs'.GetTempCode()
-                @ C [ opCode; LocalSet(label); LocalGet(label) ]
+                @ C [ opCode; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start AddAsgn/MinAsgn" ]
