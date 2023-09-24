@@ -866,7 +866,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // TODO: is this correct?
         let reusltType = findReturnType (exprs[0])
 
-        let matchResult = Util.genSymbol $"match_result"
+        // let matchResult = Util.genSymbol $"match_result"
         let matchEndLabel = Util.genSymbol $"match_end"
         // fold over indexedLabels to generate code for each case
         let folder =
@@ -914,9 +914,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     .AddCode(C [ Comment $"case for id: ${id}, label: {label}" ] @ case)
 
         let casesCode =
-            List.fold folder (Module().AddLocals([ (Some(Identifier(matchResult)), I32) ])) indexedLabels
+            List.fold folder (Module()) indexedLabels
 
         // TODO: default case
+        let defaultCase =[ (Comment "no case was match, therefore return exit error code", ""); (I32Const errorExitCode, "error exit code push to stack"); (Return, "return exit code")  ]
 
         // block that contains all cases
         let block =
@@ -924,7 +925,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ (Block(
                       matchEndLabel,
                       reusltType,
-                      casesCode.GetTempCode() @ [ (LocalGet(Named(matchResult)), "set result") ]
+                      casesCode.GetTempCode() @ defaultCase
                   )) ]
 
         (casesCode.ResetTempCode()).AddCode(block)
@@ -1399,8 +1400,6 @@ and internal compileFunction
 
     let m' = m.AddFunction(name, f, true)
 
-    // .AddExport(name, FunctionType(name, None))
-
     // compile function body
     let m'' = doCodegen { env' with currFunc = name } body m'
     // add code and locals to function
@@ -1408,6 +1407,7 @@ and internal compileFunction
         .AddInstrs(name, m''.GetTempCode())
         .AddLocals(name, m''.GetLocals())
         .ResetTempCode()
+        .ResetLocals()
 
 
 and internal compileLambdaFunction

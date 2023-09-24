@@ -633,6 +633,10 @@ module WFG =
             member this.ResetTempCode () =
                 Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, [], 0)
 
+            // reset Locals
+            member this.ResetLocals () =
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, Set.empty, this.tempCode, 0)
+
             // add locals to module
             member this.AddLocals (locals: list<Local>) =
                 let locals = locals @ Set.toList this.locals

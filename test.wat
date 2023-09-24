@@ -8,9 +8,6 @@
     ;; local variables declarations:
     (local $Sptr i32)
     (local $Sptr$0 i32)
-    (local $_ i32)
-    (local $match_result i32)
-    (local $x i32)
  
     ;; execution start here:
     ;; Start of union contructor
@@ -94,7 +91,6 @@
   (func $fun_checkOption (param $o i32) (result i32)  ;; function fun_checkOption
     ;; local variables declarations:
     (local $_ i32)
-    (local $match_result i32)
     (local $x i32)
  
     (block $match_end  (result i32)
@@ -132,7 +128,9 @@
       br $match_end ;; break out of match
        )
       )
-      local.get $match_result ;; set result
+      ;; no case was match, therefore return exit error code
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
 
     )
   )
