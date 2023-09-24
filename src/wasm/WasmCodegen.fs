@@ -489,7 +489,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m.AddImport("env", "readFloat", FunctionType("readFloat", Some(readFunctionSignature)))
         // perform host (system) call
         m'.AddCode([ (Call "readFloat", "call host function") ])
-    | PrintLn e ->
+    | PrintLn e 
+    | Print e ->
+        // TODO make print and println different
         // TODO support more types
         let m' = doCodegen env e m
 
@@ -532,17 +534,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // get subtype of ifTrue and ifFalse
         // IFTRUE AND IF FASLE ARE always THE SAME
-        let t =
-            match ifTrue.Type, ifFalse.Type with
-            | t1, t2 when (isSubtypeOf ifTrue.Env t1 TInt) & (isSubtypeOf ifFalse.Env t2 TInt) -> I32
-            | t1, t2 when (isSubtypeOf ifTrue.Env t1 TFloat) & (isSubtypeOf ifFalse.Env t2 TFloat) -> F32
-            | t1, t2 when (isSubtypeOf ifTrue.Env t1 TBool) & (isSubtypeOf ifFalse.Env t2 TBool) -> I32
-            | t1, t2 when (isSubtypeOf ifTrue.Env t1 TString) & (isSubtypeOf ifFalse.Env t2 TString) -> I32
-            | _ -> failwith "type mismatch"
+        let t = findReturnType ifTrue
 
         let instrs =
             m'.GetTempCode()
-            @ C [ (If([ t ], m''.GetTempCode(), Some(m'''.GetTempCode()))) ]
+            @ C [ (If(t , m''.GetTempCode(), Some(m'''.GetTempCode()))) ]
 
         (m' + m'' + m''').ResetTempCode().AddCode(instrs)
     | Assertion(e) ->

@@ -75,36 +75,18 @@ namespace WasmTimeDriver
                 })
             );
 
-            // print to the console
-            /*_linker.Define(
-                "env",
-                "write",
-                Function.FromCallback(_store, (int x) =>
-                {
-                    Console.WriteLine(x);
-                })
-            );*/
-
-
-            /*_linker.Define(
-                "env",
-                "print",
-                Function.FromCallback(_store, (string? s) => Console.WriteLine(s))
-            );*/
-
             _linker.Define(
                 "env",
                 "write",
                 Function.FromCallback(_store, (string s) =>
                {
-
                    Console.WriteLine(s);
                })
             );
 
             _linker.Define(
                "env",
-               "ReadInt",
+               "readInt",
                Function.FromCallback(_store, () =>
                {
                    try
@@ -130,7 +112,7 @@ namespace WasmTimeDriver
 
             _linker.Define(
                "env",
-               "ReadFloat",
+               "readFloat",
                Function.FromCallback(_store, () =>
                {
                    try

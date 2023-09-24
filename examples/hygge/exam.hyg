@@ -1,0 +1,48 @@
+let mutable x: int = readInt(); // read input
+println("--------------------------");
+
+let arr: array {int} = array(x, 0); // array constructor
+
+fun f(arr: array {int}, i: int): array {int} = { // recursive function
+    if (i < arrayLength(arr)) then { // read length of array as part of condition 
+        arrayElem(arr, i) <- i + 1; // assign value to array element
+        f(arr, i + 1) // recursive function call
+    }
+    else {
+        arr // return modified array
+    }
+};
+
+f(arr, x / 2); // modified array returned
+
+x <- 0; // reset x
+
+do { // do-while to print array data
+    println(arrayElem(arr, x)); // read array element
+    x <- x + 1 // increment
+} while (x < arrayLength(arr)); // read length of array as part of condition 
+
+println("--------------------------");
+
+let sliced: array {int} = arraySlice(arr, x / 2, arrayLength(arr)); // slice array in half
+
+x <- 0;
+
+do { // do-while to print array data
+    println(arrayElem(sliced, x)); // read array element
+    x <- x + 1 // increment
+} while (x < arrayLength(sliced)); // read length of array as part of condition 
+
+println("--------------------------");
+
+type OptionalArray = union { // read length of array as part of condition
+    Some: array {int};
+    None: unit
+};
+
+let o: OptionalArray = Some{sliced}; // union constructor
+
+match o with { // match pattern of 'o'
+    Some{v} -> println(arrayLength(v));
+    None{_} -> println("None")
+}
