@@ -1,21 +1,16 @@
 (module
   (type $fun_f_type (func (param i32) (param i32) (result i32)))
-  (import "env" "malloc" (func $malloc (param i32) (result i32) 
-))
-  (import "env" "readInt" (func $readInt  (result i32) 
-))
-  (import "env" "writeInt" (func $writeInt (param i32)  
-))
-  (import "env" "writeS" (func $writeS (param i32) (param i32)  
-))
+  (import "env" "malloc" (func $malloc (param i32) (result i32)))
+  (import "env" "readInt" (func $readInt  (result i32)))
+  (import "env" "writeInt" (func $writeInt (param i32) ))
+  (import "env" "writeS" (func $writeS (param i32) (param i32) ))
   (memory (export "memory") 1)
   (data (i32.const 8) "--------------------------")
   (data (i32.const 68) "--------------------------")
   (data (i32.const 128) "--------------------------")
   (data (i32.const 188) "None")
   (global $heap_base i32  i32.const 196
-)  (func $_start  (result i32)  ;; entry point of program (main function)
-    ;; local variables declarations:
+)  (func $_start  (result i32) ;; entry point of program (main function)    ;; local variables declarations:
     (local $Sptr i32)
     (local $Sptr$2 i32)
     (local $Sptr$5 i32)
@@ -521,8 +516,7 @@
     i32.const 0 ;; exit code 0
     return ;; return the exit code
   )
-  (func $fun_f (param $arr i32) (param $i i32) (result i32)  ;; function fun_f
- 
+  (func $fun_f (param $arr i32) (param $i i32) (result i32) ;; function fun_f 
     local.get $i
     ;; start array length node
     local.get $arr

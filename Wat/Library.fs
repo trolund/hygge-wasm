@@ -795,7 +795,7 @@ module WFG =
                         | Some name -> sprintf "(param $%s %s)" name (t.ToString())
                         | None -> sprintf "(param %s)" (t.ToString())) parameters)
                     let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
-                    sprintf "%s %s %s\n" parametersString returnValuesString (commentS comment)
+                    sprintf "%s %s%s" parametersString returnValuesString (commentS comment)
                 
                 let generate_local (locals: Local list) =
                     if locals.Length > 0 then 
