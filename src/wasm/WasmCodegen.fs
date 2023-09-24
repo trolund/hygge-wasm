@@ -68,7 +68,7 @@ type internal StaticMemoryAllocator() =
         allocatedMemory <- (startPosition, size) :: allocatedMemory
 
         allocationPosition <- allocationPosition + size
-        (startPosition * this.stride, size * this.stride)
+        startPosition * this.stride
 
     member this.GetAllocationPosition() = allocationPosition
 
@@ -98,6 +98,84 @@ type internal CodegenEnv =
       memoryAllocator: StaticMemoryAllocator
       VarStorage: Map<string, Storage> } // function refances in table
 
+
+// reduce expression to a single value
+// then find the vlaue that is returned
+// TODO: this is not correct
+let rec findReturnType (expr: TypedAST) : ValueType list =
+    match expr.Expr with
+    | UnitVal -> []
+    | IntVal _ -> [ I32 ]
+    | FloatVal _ -> [ F32 ]
+    | StringVal _ -> [ I32 ]
+    | BoolVal _ -> [ I32 ]
+    | Var v -> [ I32 ]
+    | PreIncr e -> findReturnType e
+    | PostIncr e -> findReturnType e
+    | PreDcr e -> findReturnType e
+    | PostDcr e -> findReturnType e
+    | MinAsg(lhs, rhs)
+    | DivAsg(lhs, rhs)
+    | MulAsg(lhs, rhs)
+    | RemAsg(lhs, rhs)
+    | AddAsg(lhs, rhs) -> findReturnType lhs
+    | Max(e1, e2)
+    | Min(e1, e2) -> findReturnType e1
+    | Sqrt e -> findReturnType e
+    | Add(lhs, rhs)
+    | Sub(lhs, rhs)
+    | Rem(lhs, rhs)
+    | Div(lhs, rhs)
+    | Mult(lhs, rhs) -> findReturnType lhs
+    | And(e1, e2)
+    | Or(e1, e2)
+    | Xor(e1, e2)
+    | Less(e1, e2)
+    | LessOrEq(e1, e2)
+    | Greater(e1, e2)
+    | GreaterOrEq(e1, e2)
+    | Eq(e1, e2) -> findReturnType e1
+    | Not e -> findReturnType e
+    | ReadInt -> [ I32 ]
+    | ReadFloat -> [ F32 ]
+    | PrintLn e -> []
+    | AST.If(condition, ifTrue, ifFalse) -> findReturnType ifTrue
+    | Assertion e -> findReturnType e
+    | Application(f, args) -> findReturnType f
+    | Lambda(args, body) -> findReturnType body
+    | Seq(nodes) ->
+        // fold over all nodes and find the return type of the last node
+        let rec findReturnType' (typesAcc: ValueType list) (nodes: TypedAST list) : ValueType list =
+            match nodes with
+            | [] -> typesAcc
+            | x :: xs -> findReturnType x @ (findReturnType' typesAcc xs)
+
+        findReturnType' [] nodes
+    | While(cond, body) -> findReturnType body
+    | DoWhile(cond, body) -> findReturnType body
+    | For(init, cond, update, body) -> findReturnType body
+    | Array(length, data) -> findReturnType length
+    | ArrayLength(target) -> [ I32 ]
+    | Struct(fields) -> [ I32 ]
+    | FieldSelect(target, field) -> [ I32 ]
+    | ShortAnd(lhs, rhs) -> [ I32 ]
+    | ShortOr(lhs, rhs) -> [ I32 ]
+    | CSIncr(arg) -> [ I32 ]
+    | CSDcr(arg) -> [ I32 ]
+    | Print(arg) -> [ I32 ]
+    | Ascription(tpe, node) -> []
+    | Let(name, tpe, init, scope) -> [ I32 ]
+    | LetMut(name, tpe, init, scope) -> [ I32 ]
+    | LetRec(name, tpe, init, scope) -> [ I32 ]
+    | Assign(target, expr) -> []
+    | AST.Type(name, def, scope) -> []
+    | ArrayElement(target, index) -> findReturnType target
+    | ArraySlice(target, start, ending) -> findReturnType target
+    | Pointer(addr) -> [ I32 ]
+    | UnionCons(label, expr) -> [ I32 ]
+    | Match(expr, cases) -> findReturnType expr
+
+
 /// look up variable in var env
 let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
     match e.Expr with
@@ -116,16 +194,31 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | BoolVal b -> m.AddCode([ I32Const(if b then 1 else 0) ])
     | FloatVal f -> m.AddCode([ F32Const f ])
     | StringVal s ->
+
+        // allocate for struct like structure
+        let ptr = env.memoryAllocator.Allocate(2 * 4)
+
+        let stringSizeInBytes = Encoding.BigEndianUnicode.GetByteCount(s)
+
         // allocate string in memory
-        let (address, size) =
-            env.memoryAllocator.Allocate(Encoding.BigEndianUnicode.GetByteCount(s))
-        // add memory to module
-        let allocatedModule =
-            m.AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
-        // add data to module. push address and size (bytes) to the stack
-        allocatedModule
-            .AddData(I32Const(address), s)
-            .AddCode([ (I32Const(address), "offset in memory"); (I32Const(size), "size in bytes") ])
+        let daraPtr = env.memoryAllocator.Allocate(stringSizeInBytes)
+
+        // store data pointer and length in struct
+        let stringStruct =
+            m
+                .AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
+                .AddData(I32Const(daraPtr), s) // store string in memory
+                .AddCode(
+                    [ (I32Const ptr, "offset in memory")
+                      (I32Const daraPtr, "data pointer to store")
+                      (I32Store, "store size in bytes")
+                      (I32Const(ptr + 4), "offset in memory")
+                      (I32Const stringSizeInBytes, "length to store")
+                      (I32Store, "store data pointer")
+                      (I32Const(ptr), "leave pointer to string on stack") ]
+                )
+
+        stringStruct
     | Var v ->
         // load variable
         // TODO
@@ -417,9 +510,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let writeFunctionSignature: FunctionSignature = ([ (None, I32); (None, I32) ], [])
 
             let m'' =
-                m'.AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
+                m
+                    .AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
+                    .AddCode(
+                        // push string pointer to stack
+                        m'.GetTempCode()
+                        @ [ (I32Load, "Load string pointer") ]
+                        @ m'.GetTempCode()
+                        @ [ (I32Const 4, "length offset")
+                            (I32Add, "add offset to pointer")
+                            (I32Load, "Load string length") ]
+                    )
+
             // perform host (system) call
-            m''.AddCode([ (Call "writeS", "call host function") ])
+            (m'.ResetTempCode() ++ m'').AddCode([ (Call "writeS", "call host function") ])
         | _ -> failwith "not implemented"
     | AST.If(condition, ifTrue, ifFalse) ->
         let m' = doCodegen env condition m
@@ -886,21 +990,22 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     { env with
                         VarStorage = scopeVarStorage }
 
-                let scope = (doCodegen scopeEnv expr m).AddLocals([ (Some(Identifier(varName)), I32) ])
+                let scope =
+                    (doCodegen scopeEnv expr m).AddLocals([ (Some(Identifier(varName)), I32) ])
 
                 // address to data
                 let dataPointer =
                     targetm.GetTempCode()
-                    @ [ (I32Const 4, "offset of data field"); (I32Add, "add offset to base address"); (I32Load, "load data pointer"); (LocalSet(Named(varName)), "set local var")]
+                    @ [ (I32Const 4, "offset of data field")
+                        (I32Add, "add offset to base address")
+                        (I32Load, "load data pointer")
+                        (LocalSet(Named(varName)), "set local var") ]
 
                 let caseCode =
                     dataPointer
                     ++ scope
                         .AddLocals([ (Some(Identifier(var)), I32) ])
-                        .AddCode(
-                            [
-                              (Br matchEndLabel, "break out of match") ]
-                        )
+                        .AddCode([ (Br matchEndLabel, "break out of match") ])
 
                 let condition =
                     targetm.GetTempCode()
@@ -915,19 +1020,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 ++ (caseCode.ResetTempCode())
                     .AddCode(C [ Comment $"case for id: ${id}, label: {label}" ] @ case)
 
-        let casesCode =
-            List.fold folder (Module()) indexedLabels
+        let casesCode = List.fold folder (Module()) indexedLabels
 
-        let defaultCase =[ (Comment "no case was matched, therefore return exit error code", ""); (I32Const errorExitCode, "error exit code push to stack"); (Return, "return exit code")  ]
+        let defaultCase =
+            [ (Comment "no case was matched, therefore return exit error code", "")
+              (I32Const errorExitCode, "error exit code push to stack")
+              (Return, "return exit code") ]
 
         // block that contains all cases
         let block =
-            C
-                [ (Block(
-                      matchEndLabel,
-                      reusltType,
-                      casesCode.GetTempCode() @ defaultCase
-                  )) ]
+            C [ (Block(matchEndLabel, reusltType, casesCode.GetTempCode() @ defaultCase)) ]
 
         (casesCode.ResetTempCode()).AddCode(block)
     | Assign(name, value) ->
@@ -1483,40 +1585,7 @@ and internal captureVars (node: TypedAST) =
     | Pointer(_) -> []
     | _ -> []
 
-// reduce expression to a single value
-// then find the vlaue that is returned
-// TODO: this is not correct
-and internal findReturnType (expr: TypedAST) : ValueType list =
-    match expr.Expr with
-    | IntVal _ -> [ I32 ]
-    | FloatVal _ -> [ F32 ]
-    | BoolVal _ -> [ I32 ]
-    | StringVal _ -> [ I32 ]
-    | UnitVal -> []
-    | Var _ -> [ I32 ]
-    | Add _ -> [ I32 ]
-    | Sub _ -> [ I32 ]
-    | Div _ -> [ I32 ]
-    | Lambda _ -> [ I32 ]
-    | Struct _ -> [ I32 ]
-    | FieldSelect _ -> [ I32 ]
-    | ArrayElement _ -> [ I32 ]
-    | UnionCons _ -> [ I32 ]
-    | Match _ -> [ I32 ]
-    | Application _ -> [ I32 ]
-    | Seq _ -> [ I32 ]
-    | AST.If _ -> [ I32 ]
-    | While _ -> [ I32 ]
-    | DoWhile _ -> [ I32 ]
-    | For _ -> [ I32 ]
-    | Assign _ -> [ ]
-    | Ascription _ -> [ I32 ]
-    | Let _ -> [ I32 ]
-    | LetMut _ -> [ I32 ]
-    | LetRec _ -> [ I32 ]
-    | Pointer _ -> [ I32 ]
-    | AST.Type _ -> [ I32 ]
-    | _ -> failwith "not implemented"
+
 
 // add special implicit main function
 let implicit (node: TypedAST) : Module =
