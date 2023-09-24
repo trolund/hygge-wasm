@@ -1,2 +1,5 @@
 let s: string = "hygge";
-println(s)
+println(s);
+
+let s2: string = "hygge2";
+println(s2)

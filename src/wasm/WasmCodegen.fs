@@ -68,7 +68,7 @@ type internal StaticMemoryAllocator() =
         allocatedMemory <- (startPosition, size) :: allocatedMemory
 
         allocationPosition <- allocationPosition + size
-        startPosition * this.stride
+        startPosition
 
     member this.GetAllocationPosition() = allocationPosition
 
