@@ -240,8 +240,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             match e.Type with
-            | t when (isSubtypeOf e.Env t TInt) ->
-                m'.GetTempCode() @ C [ I32Const 1; I32Add; LocalTee(label) ]
+            | t when (isSubtypeOf e.Env t TInt) -> m'.GetTempCode() @ C [ I32Const 1; I32Add; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PreIncr" ]
@@ -266,8 +265,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             match e.Type with
-            | t when (isSubtypeOf e.Env t TInt) ->
-                m'.GetTempCode() @ C [ I32Const 1; I32Sub; LocalTee(label) ]
+            | t when (isSubtypeOf e.Env t TInt) -> m'.GetTempCode() @ C [ I32Const 1; I32Sub; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PreDecr" ]
@@ -317,13 +315,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match node.Type with
             | t when (isSubtypeOf node.Env t TInt) ->
-                lhs'.GetTempCode()
-                @ rhs'.GetTempCode()
-                @ C [ opCode; LocalTee(label) ]
+                lhs'.GetTempCode() @ rhs'.GetTempCode() @ C [ opCode; LocalTee(label) ]
             | t when (isSubtypeOf node.Env t TFloat) ->
-                lhs'.GetTempCode()
-                @ rhs'.GetTempCode()
-                @ C [ opCode; LocalTee(label) ]
+                lhs'.GetTempCode() @ rhs'.GetTempCode() @ C [ opCode; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start AddAsgn/MinAsgn" ]
@@ -489,7 +483,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m.AddImport("env", "readFloat", FunctionType("readFloat", Some(readFunctionSignature)))
         // perform host (system) call
         m'.AddCode([ (Call "readFloat", "call host function") ])
-    | PrintLn e 
+    | PrintLn e
     | Print e ->
         // TODO make print and println different
         // TODO support more types
@@ -537,8 +531,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let t = findReturnType ifTrue
 
         let instrs =
-            m'.GetTempCode()
-            @ C [ (If(t , m''.GetTempCode(), Some(m'''.GetTempCode()))) ]
+            m'.GetTempCode() @ C [ (If(t, m''.GetTempCode(), Some(m'''.GetTempCode()))) ]
 
         (m' + m'' + m''').ResetTempCode().AddCode(instrs)
     | Assertion(e) ->
@@ -1236,14 +1229,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             // get function label
             let funcLabel =
                 match init.Expr with
-                | Application(f, _) ->
-                    match f.Expr with
-                    | Var(v) ->
-                        match env.VarStorage.TryFind v with
-                        | Some(Storage.Label(l)) -> l
-                        | _ -> failwith "not implemented"
+                | Var(v) ->
+                    match env.VarStorage.TryFind v with
+                    | Some(Storage.Label(l)) -> l
                     | _ -> failwith "not implemented"
-
+                | _ -> failwith "not implemented"
 
             // add var to func ref
             let env' =
