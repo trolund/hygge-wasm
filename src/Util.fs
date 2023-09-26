@@ -170,3 +170,13 @@ let genSymbolId (symbol: string): int =
             // We return the symbol position in 'knownSymsWithIds' as unique id
             id + 1
     )
+
+
+/// take number as input and convert it to a hex string
+/// e.g. 28 -> "\1c"
+/// // returns 8 bit hex string
+/// 
+let intToHex (i: int): string =
+    let hex = System.Convert.ToString(i, 16)
+    let paddedHex = if hex.Length = 1 then "0" + hex else hex
+    System.String.Concat("\\", paddedHex)

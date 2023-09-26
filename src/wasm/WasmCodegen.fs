@@ -1311,6 +1311,28 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// label 'funLabel'
         let funcref = env.VarStorage.Add(name, Storage.Label(funLabel))
 
+        // get the index of the function
+        let funcindex = m.GetFuncTableSize
+
+        // add function to function table
+        let m = m.AddFuncRefElement(funLabel)
+
+        // // allocate memory for function pointer
+        // let ptr = env.memoryAllocator.Allocate(4)
+
+        // // index to hex
+        // let funcindexhex = Util.intToHex funcindex
+
+        // create function pointer
+        // TODO: should load from memory
+        let funcPointer =
+            m   // .AddData(I32Const ptr, funcindexhex)
+                .AddLocals([ (Some(Identifier(funLabel)), I32) ])
+                .AddCode([ 
+                    (I32Const funcindex, "pointer to function")
+                ])
+                .AddCode([ (LocalSet(Named(funLabel)), "set local var") ])
+
         /// Names of the lambda term arguments
         let (argNames, _) = List.unzip args
         /// List of pairs associating each function argument to its type
@@ -1322,7 +1344,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let scopeModule: Module = (doCodegen { env with VarStorage = funcref } scope m)
 
-        scopeModule + bodyCode
+        funcPointer + scopeModule + bodyCode
 
     | LetRec(name, tpe, init, scope) ->
         doCodegen
