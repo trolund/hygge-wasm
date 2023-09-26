@@ -11,3 +11,7 @@ assert(resultx = 64);
 let gxs: (int) -> int = f;
 let resultx2: int = gxs(8);
 assert(resultx2 = 16)
+
+fun t(k: (int) -> int): int = k(2);
+let resultx3: int = t(f);
+assert(resultx2 = 4)

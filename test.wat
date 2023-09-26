@@ -2,8 +2,7 @@
   (type $fun_f_type (func (param i32) (result i32)))
   (type $fun_fx_type (func (param i32) (result i32)))
   (memory (export "memory") 1)
-  (global $heap_base i32  i32.const 0
-)  (table $func_table 2 funcref)
+  (global $heap_base i32  i32.const 0)  (table $func_table 2 funcref)
   (elem (i32.const 0) $fun_f)
   (elem (i32.const 1) $fun_fx)
   (func $_start  (result i32) ;; entry point of program (main function)    ;; local variables declarations:
