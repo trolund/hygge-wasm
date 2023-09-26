@@ -283,7 +283,7 @@ namespace WasmTimeDriver
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                Console.WriteLine("No heap_base_ptr found");
             }
 
             // get target function

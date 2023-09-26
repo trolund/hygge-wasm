@@ -261,7 +261,9 @@ module WFG =
         | TableSize of int
         // Call Instr
         | Call of string
-        | CallIndirect of int * int
+        | CallIndirect_ of int * int
+        /// type label
+        | CallIndirect of Label
         // Conversion Instr
         | I32WrapI64
         | I32TruncF32S
@@ -459,7 +461,8 @@ module WFG =
                 // | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
                 | Return -> "return"
                 | Call name -> sprintf "call $%s" name
-                | CallIndirect (index, x) -> sprintf "call_indirect %d" index // TODO: add x?? 
+                | CallIndirect_ (index, x) -> sprintf "call_indirect %d" index // TODO: add x?? 
+                | CallIndirect label -> sprintf "call_indirect (type %s)" (label.ToString())
                 | Drop -> "drop"
                 | Select -> "select"
                 // block instructions
@@ -591,22 +594,28 @@ module WFG =
             
             // empty constructor
             new () = 
-                // init function table 
-                //let func_table: Table = ("func_table", AnyFunc, Unbounded 0)
                 Module(Set.empty, Map.empty, [], Set.empty, Set.empty, Set.empty, Set.empty, None, Set.empty, Set.empty, Set.empty, [], 0)
             
             // module constructor that take temp code
             new (tempCode: list<Commented<Instr>>) = 
-                // let func_table: Table = ("func_table", AnyFunc, Unbounded 0)
                 Module(Set.empty, Map.empty, [], Set.empty, Set.empty, Set.empty, Set.empty, None, Set.empty, Set.empty, Set.empty, tempCode, 0)
 
             member this.GetFuncTableSize = 
-                funcTableSize
+                this.elements.Count
 
             /// add func ref element and grow func table 
             member this.AddFuncRefElement (label: string) =
+                // is there a tabel named func_table
+                let func_table = this.tables |> List.tryFind (fun (name, _, _) -> name = "func_table")
+
+                // init table if no table named func_table exists
+                let (table: Table) = 
+                    match func_table with
+                    | Some (name, valueType, limits) -> (name, valueType, limits)
+                    | None -> ("func_table", Funcref, Unbounded 1)
+
                 let elements: Element = (this.GetFuncTableSize, label)
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, Set(elements :: Set.toList this.elements), this.data, this.locals, this.tempCode, this.funcTableSize + 1)
+                Module(this.types, this.functions, table :: this.tables, this.memories, this.globals, this.exports, this.imports, this.start, Set(elements :: Set.toList this.elements), this.data, this.locals, this.tempCode, this.funcTableSize + 1)
 
             // match function name with type index
             member this.MatchFunctionType (name: string) =
@@ -882,9 +891,9 @@ module WFG =
                 if not elements.IsEmpty then
                     result <- result + sprintf "  (table $%s %s %s)\n" "func_table" (sprintf "%d" this.elements.Count) (ValueType.Funcref.ToString())
                 
-                // print rest of tables
-                for table in this.tables do
-                    result <- result + sprintf "  (table %s)\n" (table.ToString())
+                // // print rest of tables
+                // for table in this.tables do
+                //     result <- result + sprintf "  (table %s)\n" (table.ToString())
 
                 for element in this.elements do
                     // unpacked element 
