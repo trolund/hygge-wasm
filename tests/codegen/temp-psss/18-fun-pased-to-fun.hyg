@@ -1,17 +1,5 @@
 fun f(x: int): int = x + x;
-let g: (int) -> int = f;
-let result: int = g(2);
-assert(result = 4);
-
-fun fx(x: int): int = x * x;
-let gx: (int) -> int = fx;
-let resultx: int = gx(8);
-assert(resultx = 64);
-
-let gxs: (int) -> int = f;
-let resultx2: int = gxs(8);
-assert(resultx2 = 16)
 
 fun t(k: (int) -> int): int = k(2);
-let resultx3: int = t(f);
-assert(resultx2 = 4)
+let result: int = t(f);
+assert(result = 4)

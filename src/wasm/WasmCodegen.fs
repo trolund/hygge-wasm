@@ -1104,9 +1104,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let rhsCode = doCodegen env value m
 
-            // Q: What is the oppeset of  >=
-            // A: <
-
             // Check index >= 0 and index < length
             let indexCheck =
                 indexCode.GetTempCode() // index on stack
@@ -1317,19 +1314,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // add function to function table
         let m = m.AddFuncRefElement(funLabel)
 
-        // // allocate memory for function pointer
-        // let ptr = env.memoryAllocator.Allocate(4)
+        // allocate memory for function pointer
+        let ptr = env.memoryAllocator.Allocate(4)
 
-        // // index to hex
-        // let funcindexhex = Util.intToHex funcindex
+        // index to hex
+        let funcindexhex = Util.intToHex funcindex
 
         // create function pointer
         // TODO: should load from memory
         let funcPointer =
-            m   // .AddData(I32Const ptr, funcindexhex)
+            m   .AddData(I32Const ptr, funcindexhex)
                 .AddLocals([ (Some(Identifier(funLabel)), I32) ])
                 .AddCode([ 
-                    (I32Const funcindex, "pointer to function")
+                    (I32Const ptr, "pointer to function")
+                    (I32Load, "load function pointer")
                 ])
                 .AddCode([ (LocalSet(Named(funLabel)), "set local var") ])
 
@@ -1478,7 +1476,7 @@ and internal compileFunction
                 match t with
                 | TUnion _ -> (Some(n), I32)
                 | TVar(name) -> (Some(n), I32)
-                | TFun(args, ret) -> (Some(n), I32)
+                | TFun(args, ret) -> (Some(n), Funcref)
                 | TStruct(fields) -> (Some(n), I32)
                 | TArray(elements) -> (Some(n), I32)
                 | TInt -> (Some(n), I32)
