@@ -221,6 +221,7 @@ namespace WasmTimeDriver
             try
             {
                 // load module 
+                Console.WriteLine("Loading module from file: " + path);
                 using var module = Module.FromTextFile(_engine, path);
 
                 if (target is null)

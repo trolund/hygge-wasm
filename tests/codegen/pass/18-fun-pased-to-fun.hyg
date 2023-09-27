@@ -1,0 +1,5 @@
+fun f(x: int): int = x + x;
+
+fun t(k: (int) -> int): int = k(2);
+let result: int = t(f);
+assert(result = 4)

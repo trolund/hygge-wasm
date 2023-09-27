@@ -166,9 +166,9 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | CSDcr(arg) -> [ I32 ]
     | Print(arg) -> []
     | Ascription(tpe, node) -> []
-    | Let(name, tpe, init, scope) -> [  ]
-    | LetMut(name, tpe, init, scope) -> [  ]
-    | LetRec(name, tpe, init, scope) -> [  ]
+    | Let(name, tpe, init, scope) -> []
+    | LetMut(name, tpe, init, scope) -> []
+    | LetRec(name, tpe, init, scope) -> []
     | Assign(target, expr) -> []
     | AST.Type(name, def, scope) -> []
     | ArrayElement(target, index) -> findReturnType target
@@ -554,20 +554,26 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let m'' = List.fold (fun m arg -> m + doCodegen env arg (m.ResetTempCode())) m args
 
-        let func_label =
-            match f.Expr with
-            | Var v ->
-                match env.VarStorage.TryFind v with
-                | Some(Storage.Label(l)) -> l
-                | Some(Storage.FuncRef(l, _)) -> l
-                // todo make function pointer
-                | _ -> failwith "not implemented"
+
+        match f.Expr with
+        | Var v ->
+            match env.VarStorage.TryFind v with
+            | Some(Storage.Label(l)) ->
+                let instrs = m''.GetTempCode() @ [ (Call l, sprintf "call function %s" l) ]
+
+                m''.ResetTempCode().AddCode(instrs)
+            | Some(Storage.FuncRef(l, i)) ->
+                // type to function signature
+                let s = typeToFuncSiganture f.Type
+
+                let instrs = m''.GetTempCode() @ [ (LocalGet(Named(l)), "get table index");  (CallIndirect__(s), sprintf "call function %s" l) ]
+
+                m''.ResetTempCode().AddCode(instrs)
+            // todo make function pointer
             | _ -> failwith "not implemented"
+        | _ -> failwith "not implemented"
 
-        let instrs =
-            m''.GetTempCode() @ [ (Call func_label, sprintf "call function %s" func_label) ]
 
-        m''.ResetTempCode().AddCode(instrs)
 
     | Lambda(args, body) ->
         // Label to mark the position of the lambda term body
@@ -1456,6 +1462,47 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         )
     | x -> failwith "not implemented"
 
+/// create a function signature from a type
+and typeToFuncSiganture (t: Type.Type) =
+    match t with
+    | TFun(args, ret) ->
+        
+        // map args to there types
+        let argTypes: Local list =
+            List.map
+                (fun (t) ->
+                    match t with
+                    | TUnion _ -> (None, I32)
+                    | TVar(_) -> (None, I32)
+                    | TFun(_, _) -> (None, I32) // passing function as a index to function table
+                    | TStruct(_) -> (None, I32)
+                    | TArray(_) -> (None, I32)
+                    | TInt -> (None, I32)
+                    | TFloat -> (None, F32)
+                    | TBool -> (None, I32)
+                    | TString -> (None, I32)
+                    | TUnit -> failwith "a function cannot have a unit argument")
+                args
+
+        // extract return type
+        let retType =
+            match ret with
+            | TUnion _ -> [ I32 ]
+            | TVar(_) -> [ I32 ]
+            | TFun(_, _) -> [ I32 ] // passing function as a index to function table
+            | TStruct(_) -> [ I32 ]
+            | TArray(_) -> [ I32 ]
+            | TInt -> [ I32 ]
+            | TFloat -> [ F32 ]
+            | TBool -> [ I32 ]
+            | TString -> [ I32 ]
+            | TUnit -> []
+
+        let signature: FunctionSignature = (argTypes, retType)
+
+        signature
+    | _ -> failwith "type is not a function"
+
 /// Compile a function with its arguments, body and return the resulting module
 and internal compileFunction
     (name: string)
@@ -1472,7 +1519,7 @@ and internal compileFunction
                 match t with
                 | TUnion _ -> (Some(n), I32)
                 | TVar(_) -> (Some(n), I32)
-                | TFun(_, _) -> (Some(n), Funcref)
+                | TFun(_, _) -> (Some(n), I32) // passing function as a index to function table
                 | TStruct(_) -> (Some(n), I32)
                 | TArray(_) -> (Some(n), I32)
                 | TInt -> (Some(n), I32)
@@ -1486,10 +1533,10 @@ and internal compileFunction
     let retType =
         match body.Type with
         | TUnion _ -> [ I32 ]
-        | TVar(name) -> [ I32 ]
-        | TFun(args, ret) -> [ Funcref ]
-        | TStruct(fields) -> [ I32 ]
-        | TArray(elements) -> [ I32 ]
+        | TVar(_) -> [ I32 ]
+        | TFun(_, _) -> [ I32 ] // passing function as a index to function table
+        | TStruct(_) -> [ I32 ]
+        | TArray(_) -> [ I32 ]
         | TInt -> [ I32 ]
         | TFloat -> [ F32 ]
         | TBool -> [ I32 ]

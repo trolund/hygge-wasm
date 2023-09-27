@@ -6,6 +6,18 @@ module WFG =
 
     type Commented<'a> = 
         'a * string    
+    
+    let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""    
+
+    // create functions
+    let generate_signature (signature) (comment: string) =
+                    let parameters, returnValues = signature
+                    let parametersString = String.concat " " (List.map (fun (n, t) -> 
+                        match n with
+                        | Some name -> sprintf "(param $%s %s)" name (t.ToString())
+                        | None -> sprintf "(param %s)" (t.ToString())) parameters)
+                    let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
+                    sprintf "%s %s%s" parametersString returnValuesString (commentS comment)
 
     let generate_wat_code instrs =
 
@@ -264,6 +276,7 @@ module WFG =
         | CallIndirect_ of int * int
         /// type label
         | CallIndirect of Label
+        | CallIndirect__ of FunctionSignature
         // Conversion Instr
         | I32WrapI64
         | I32TruncF32S
@@ -463,6 +476,8 @@ module WFG =
                 | Call name -> sprintf "call $%s" name
                 | CallIndirect_ (index, x) -> sprintf "call_indirect %d" index // TODO: add x?? 
                 | CallIndirect label -> sprintf "call_indirect (type %s)" (label.ToString())
+                | CallIndirect__ (signature) -> 
+                        sprintf "call_indirect %s" (generate_signature signature "")
                 | Drop -> "drop"
                 | Select -> "select"
                 // block instructions
@@ -477,7 +492,7 @@ module WFG =
                 | x -> sprintf "not implemented: %s" (x.ToString())
 
 
-    type Instrs = Instr list
+    and  Instrs = Instr list
 
     and Type = Identifier * FunctionSignature
 
@@ -569,10 +584,9 @@ module WFG =
 
     and funcTable = Identifier * ValueType * Limits
 
-
     let commentString (a) (b: string) = sprintf "%s ;; %s" a b
     
-    let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""
+
 
     [<RequireQualifiedAccess>]
     type Module private (types: Set<Type>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: Set<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: Set<Element>, data: Set<Data>, locals: Set<Local>, tempCode: list<Commented<Instr>>, funcTableSize: int) =
@@ -795,16 +809,6 @@ module WFG =
 
             override this.ToString() =
                 let mutable result = ""
-
-                // create functions
-                let generate_signature (signature: FunctionSignature) (comment: string) =
-                    let parameters, returnValues = signature
-                    let parametersString = String.concat " " (List.map (fun (n, t) -> 
-                        match n with
-                        | Some name -> sprintf "(param $%s %s)" name (t.ToString())
-                        | None -> sprintf "(param %s)" (t.ToString())) parameters)
-                    let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
-                    sprintf "%s %s%s" parametersString returnValuesString (commentS comment)
                 
                 let generate_local (locals: Local list) =
                     if locals.Length > 0 then 
