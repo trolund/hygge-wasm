@@ -1561,9 +1561,13 @@ and internal captureVars (node: TypedAST) =
 
 
 /// add special implicit main function
+/// as the entry point of the program
 let implicit (node: TypedAST) : Module =
 
-    let funcName = "_start" // todo change name to _start
+    // _start function is the entry point of the program
+    // _start name is a special name that is part of the WASI ABI.
+    // https://github.com/WebAssembly/WASI/blob/main/legacy/application-abi.md
+    let funcName = "_start" 
 
     // signature of main function
     // the main function has no arguments and returns an 32 bit int (exit code)
