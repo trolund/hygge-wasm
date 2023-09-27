@@ -4,16 +4,12 @@
   (memory (export "memory") 1)
   (data (i32.const 0) "\00")
   (data (i32.const 12) "hej")
-  (global $heap_base i32  i32.const 18
-)  (table $func_table 1 funcref)
+  (global $fun_y_ptr (mut i32) i32.const 0)
+  (global $heap_base i32 i32.const 18)
+  (table $func_table 1 funcref)
   (elem (i32.const 0) $fun_y)
-  (func $_start  (result i32) ;; entry point of program (main function)    ;; local variables declarations:
-    (local $fun_y i32)
- 
+  (func $_start  (result i32) ;; entry point of program (main function) 
     ;; execution start here:
-    i32.const 0 ;; pointer to function
-    i32.load ;; load function pointer
-    local.set $fun_y ;; set local var
     call $fun_y ;; call function fun_y
     ;; if execution reaches here, the program is successful
     i32.const 0 ;; exit code 0

@@ -505,7 +505,7 @@ module WFG =
     /// The value can be either a constant or an import.
     /// It can have a name, which is used to export the global variable.
     /// The name is optional, and can be used to import the global variable.
-    and Global = Identifier * (ValueType * Mutability) * Instr list
+    and Global = Identifier * (ValueType * Mutability) * Instr
 
     and Mutability =
         | Mutable
@@ -868,18 +868,16 @@ module WFG =
                     result <- result + sprintf "  (data (%s) \"%s\")\n" (instr.ToString()) (data.ToString())
 
                 let printGlobal (global_: Global) =
-                    let name, (valueType, mutability), instrs = global_
+                    let name, (valueType, mutability), instr = global_
                     let valueType = valueType.ToString()
                     let gType = 
                         match mutability with
                         | Mutable -> sprintf "(mut %s)" valueType
                         | Immutable -> sprintf "%s" valueType
                     
-
-
-                    let instrs = instrs |> List.map (fun x -> Commented(x, ""))
-                    let instrs = generate_wat_code_ident instrs 0
-                    sprintf "  (global $%s %s %s %s)" name gType (commentS "") instrs
+                    //let instrs = instrs |> List.map (fun x -> Commented(x, ""))
+                    //let instrs = generate_wat_code_ident instrs 0
+                    sprintf "  (global $%s %s%s %s)\n" name gType (commentS "") (instr.ToString())
 
                 for global_ in this.globals do
                     result <- result + (printGlobal global_)

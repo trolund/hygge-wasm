@@ -723,8 +723,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ data'.GetTempCode() // get value to store in allocated memory
             @ [ (I32Store, "store value in elem pos") ]
 
-
-
+        // loop that runs length times and stores data in allocated memory
         let loop =
             C
                 [ Loop(
@@ -741,8 +740,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       @ C [ Br beginl ]
                   ) ]
 
-        let block = C [ (Block(exitl, [], loop @ C [ Nop ])) ]
-
+        // block that contains loop and provides a way to exit the loop
+        let block: Commented<Instr> list = C [ (Block(exitl, [], loop @ C [ Nop ])) ]
 
         let loopModule =
             data'.ResetTempCode().AddLocals([ (Some(Identifier(i)), I32) ]).AddCode(block)
@@ -1609,5 +1608,5 @@ let implicit (node: TypedAST) : Module =
         .AddInstrs(env.currFunc, m.GetTempCode()) // add code of main function
         .AddInstrs(env.currFunc, [ Comment "if execution reaches here, the program is successful" ])
         .AddInstrs(env.currFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ]) // return 0 if program is successful
-        .AddGlobal((heapBase, (I32, Immutable), [ I32Const staticOffset ])) // add heap base pointer
+        .AddGlobal((heapBase, (I32, Immutable), (I32Const staticOffset))) // add heap base pointer
         .AddExport(heapBase + "_ptr", GlobalType("heap_base")) // export heap base pointer
