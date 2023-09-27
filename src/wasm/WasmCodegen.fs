@@ -1468,8 +1468,7 @@ and internal compileFunction
     (m: Module)
     : Module =
 
-    // map args to local variables
-    // TODO look at mappings!!
+    // map args to there types
     let argTypes: Local list =
         List.map
             (fun (n, t) ->
@@ -1507,6 +1506,7 @@ and internal compileFunction
         List.fold
             (fun env (n, t) ->
                 match t with
+                // TODO: no right!
                 | TFun(args, ret) ->
                     { env with
                         VarStorage = env.VarStorage.Add(n, Storage.FuncRef(n, 0)) }
@@ -1529,6 +1529,7 @@ and internal compileFunction
 
     // compile function body
     let m'' = doCodegen { env' with currFunc = name } body m'
+
     // add code and locals to function
     m''
         .AddInstrs(name, m''.GetTempCode()) // add instructions to function
@@ -1559,8 +1560,7 @@ and internal captureVars (node: TypedAST) =
     | _ -> []
 
 
-
-// add special implicit main function
+/// add special implicit main function
 let implicit (node: TypedAST) : Module =
 
     let funcName = "_start" // todo change name to _start
@@ -1594,6 +1594,9 @@ let implicit (node: TypedAST) : Module =
     // compile main function
     let m = doCodegen env node m'
 
+    // get the heap base pointer
+    // the offset is the current position of the memory allocator
+    // before this offset only static data is allocated
     let staticOffset: int = env.memoryAllocator.GetAllocationPosition()
 
     let heapBase = "heap_base"
