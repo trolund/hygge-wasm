@@ -195,7 +195,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | BoolVal b -> m.AddCode([ I32Const(if b then 1 else 0) ])
     | FloatVal f -> m.AddCode([ F32Const f ])
     | StringVal s ->
-
         // allocate for struct like structure
         let ptr = env.memoryAllocator.Allocate(2 * 4)
 
@@ -205,21 +204,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let daraPtr = env.memoryAllocator.Allocate(stringSizeInBytes)
 
         // store data pointer and length in struct
-        let stringStruct =
-            m
-                .AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
-                .AddData(I32Const(daraPtr), s) // store string in memory
-                .AddCode(
-                    [ (I32Const ptr, "offset in memory")
-                      (I32Const daraPtr, "data pointer to store")
-                      (I32Store, "store size in bytes")
-                      (I32Const(ptr + 4), "offset in memory")
-                      (I32Const stringSizeInBytes, "length to store")
-                      (I32Store, "store data pointer")
-                      (I32Const(ptr), "leave pointer to string on stack") ]
-                )
-
-        stringStruct
+        // leave pointer to string on stack
+        m
+            .AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
+            .AddData(I32Const(daraPtr), s) // store string in memory
+            .AddCode(
+                [ (I32Const ptr, "offset in memory")
+                  (I32Const daraPtr, "data pointer to store")
+                  (I32Store, "store size in bytes")
+                  (I32Const(ptr + 4), "offset in memory")
+                  (I32Const stringSizeInBytes, "length to store")
+                  (I32Store, "store data pointer")
+                  (I32Const(ptr), "leave pointer to string on stack") ]
+            )
     | Var v ->
         // load variable
         // TODO
@@ -1567,7 +1564,7 @@ let implicit (node: TypedAST) : Module =
     // _start function is the entry point of the program
     // _start name is a special name that is part of the WASI ABI.
     // https://github.com/WebAssembly/WASI/blob/main/legacy/application-abi.md
-    let funcName = "_start" 
+    let funcName = "_start"
 
     // signature of main function
     // the main function has no arguments and returns an 32 bit int (exit code)
