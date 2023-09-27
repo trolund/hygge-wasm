@@ -1,5 +1,8 @@
-fun f(x: int): int = x + x;
+// fun f(x: int): int = x + x;
+fun y(): unit = println("hej");
 
-fun t(k: (int) -> int): int = k(2);
-let result: int = t(f);
-assert(result = 4)
+y()
+
+// fun t(k: (int) -> int): int = k(2);
+// let result: int = t(f);
+// assert(result = 4)

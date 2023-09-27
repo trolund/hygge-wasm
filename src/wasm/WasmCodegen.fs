@@ -30,6 +30,7 @@ type internal Storage =
     | Id of id: int
     | Stack of label: string
 
+
 /// A memory allocator that allocates memory in pages of 64KB.
 /// The allocator keeps track of the current allocation position.
 type internal StaticMemoryAllocator() =
@@ -1323,12 +1324,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // create function pointer
         // TODO: should load from memory
         let funcPointer =
-            m   .AddData(I32Const ptr, funcindexhex)
+            m
+                .AddData(I32Const ptr, funcindexhex)
                 .AddLocals([ (Some(Identifier(funLabel)), I32) ])
-                .AddCode([ 
-                    (I32Const ptr, "pointer to function")
-                    (I32Load, "load function pointer")
-                ])
+                .AddCode([ (I32Const ptr, "pointer to function"); (I32Load, "load function pointer") ])
                 .AddCode([ (LocalSet(Named(funLabel)), "set local var") ])
 
         /// Names of the lambda term arguments
@@ -1460,6 +1459,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         )
     | x -> failwith "not implemented"
 
+/// Compile a function with its arguments, body and return the resulting module
 and internal compileFunction
     (name: string)
     (args: List<string * Type.Type>)
@@ -1486,14 +1486,33 @@ and internal compileFunction
                 | TUnit -> failwith "not implemented")
             args
 
-    let signature: FunctionSignature = (argTypes, [ I32 ])
+    // extract return type
+    let retType =
+        match body.Type with
+        | TUnion _ -> [ I32 ]
+        | TVar(name) -> [ I32 ]
+        | TFun(args, ret) -> [ Funcref ]
+        | TStruct(fields) -> [ I32 ]
+        | TArray(elements) -> [ I32 ]
+        | TInt -> [ I32 ]
+        | TFloat -> [ F32 ]
+        | TBool -> [ I32 ]
+        | TString -> [ I32 ]
+        | TUnit -> []
 
-    // add each arg to var storage
+    let signature: FunctionSignature = (argTypes, retType)
+
+    // add each arg to var storage (all local vars)
     let env' =
         List.fold
             (fun env (n, t) ->
-                { env with
-                    VarStorage = env.VarStorage.Add(n, Storage.Label(n)) })
+                match t with
+                | TFun(args, ret) ->
+                    { env with
+                        VarStorage = env.VarStorage.Add(n, Storage.FuncRef(n, 0)) }
+                | _ ->
+                    { env with
+                        VarStorage = env.VarStorage.Add(n, Storage.Label(n)) })
             env
             args
 
@@ -1505,7 +1524,6 @@ and internal compileFunction
            body = []
            name = Some(Identifier(name)) },
          sprintf "function %s" name)
-
 
     let m' = m.AddFunction(name, f, true)
 
@@ -1513,61 +1531,10 @@ and internal compileFunction
     let m'' = doCodegen { env' with currFunc = name } body m'
     // add code and locals to function
     m''
-        .AddInstrs(name, m''.GetTempCode())
-        .AddLocals(name, m''.GetLocals())
-        .ResetTempCode()
-        .ResetLocals()
-
-
-and internal compileLambdaFunction
-    (name: string)
-    (args: List<string * Type.Type>)
-    (body: TypedAST)
-    (env: CodegenEnv)
-    (m: Module)
-    : Module =
-    // map args to local variables
-    let argTypes: Local list =
-        List.map
-            (fun (n, t) ->
-                match t with
-                | TInt -> (Some(n), I32)
-                | TFloat -> (Some(n), F32)
-                | TBool -> (Some(n), I32)
-                | TString -> (Some(n), I32)
-                | TUnit -> failwith "not implemented")
-            args
-
-    let signature: FunctionSignature = (argTypes, [ I32 ])
-
-    // add each arg to var storage
-    let env' =
-        List.fold
-            (fun env (n, t) ->
-                { env with
-                    VarStorage = env.VarStorage.Add(n, Storage.Label(n)) })
-            env
-            args
-
-    // create function instance
-    let f: Commented<FunctionInstance> =
-        ({ typeIndex = 0
-           locals = []
-           signature = signature
-           body = []
-           name = Some(Identifier(name)) },
-         sprintf "function %s" name)
-
-
-    let m' = m.AddFunction(name, f) // .AddExport(name, FunctionType(name, None))
-
-    // compile function body
-    let m'' = doCodegen { env' with currFunc = name } body m'
-    // add code and locals to function
-    m''
-        .AddInstrs(name, m''.GetTempCode())
-        .AddLocals(name, m''.GetLocals())
-        .ResetTempCode()
+        .AddInstrs(name, m''.GetTempCode()) // add instructions to function
+        .AddLocals(name, m''.GetLocals()) // set locals of function
+        .ResetTempCode() // reset accumulated code
+        .ResetLocals() // reset locals
 
 // return a list of all variables in the given expression
 and internal captureVars (node: TypedAST) =
@@ -1598,6 +1565,8 @@ let implicit (node: TypedAST) : Module =
 
     let funcName = "_start" // todo change name to _start
 
+    // signature of main function
+    // the main function has no arguments and returns an 32 bit int (exit code)
     let signature = ([], [ I32 ])
 
     let f: Commented<FunctionInstance> =
@@ -1608,6 +1577,7 @@ let implicit (node: TypedAST) : Module =
            name = Some(Identifier(funcName)) },
          "entry point of program (main function)")
 
+    // add memory, start with 1 page of memory, can grow at runtime
     let m = Module().AddMemory(("memory", Unbounded(1)))
 
     let env =
@@ -1627,12 +1597,12 @@ let implicit (node: TypedAST) : Module =
     let staticOffset: int = env.memoryAllocator.GetAllocationPosition()
 
     let heapBase = "heap_base"
-    // return 0 if program is successful
+
     m
         .AddLocals(env.currFunc, m.GetLocals()) // set locals of function
         .AddInstrs(env.currFunc, [ Comment "execution start here:" ])
         .AddInstrs(env.currFunc, m.GetTempCode()) // add code of main function
         .AddInstrs(env.currFunc, [ Comment "if execution reaches here, the program is successful" ])
-        .AddInstrs(env.currFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ])
-        .AddGlobal((heapBase, (I32, Immutable), [ I32Const staticOffset ]))
-        .AddExport(heapBase + "_ptr", GlobalType("heap_base"))
+        .AddInstrs(env.currFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ]) // return 0 if program is successful
+        .AddGlobal((heapBase, (I32, Immutable), [ I32Const staticOffset ])) // add heap base pointer
+        .AddExport(heapBase + "_ptr", GlobalType("heap_base")) // export heap base pointer
