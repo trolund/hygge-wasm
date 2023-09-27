@@ -1475,15 +1475,15 @@ and internal compileFunction
             (fun (n, t) ->
                 match t with
                 | TUnion _ -> (Some(n), I32)
-                | TVar(name) -> (Some(n), I32)
-                | TFun(args, ret) -> (Some(n), Funcref)
-                | TStruct(fields) -> (Some(n), I32)
-                | TArray(elements) -> (Some(n), I32)
+                | TVar(_) -> (Some(n), I32)
+                | TFun(_, _) -> (Some(n), Funcref)
+                | TStruct(_) -> (Some(n), I32)
+                | TArray(_) -> (Some(n), I32)
                 | TInt -> (Some(n), I32)
                 | TFloat -> (Some(n), F32)
                 | TBool -> (Some(n), I32)
                 | TString -> (Some(n), I32)
-                | TUnit -> failwith "not implemented")
+                | TUnit -> failwith "a function cannot have a unit argument")
             args
 
     // extract return type
