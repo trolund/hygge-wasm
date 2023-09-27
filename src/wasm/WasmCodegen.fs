@@ -566,7 +566,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // type to function signature
                 let s = typeToFuncSiganture f.Type
 
-                let instrs = m''.GetTempCode() @ [ (LocalGet(Named(l)), "get table index");  (CallIndirect__(s), sprintf "call function %s" l) ]
+                let instrs =
+                    m''.GetTempCode()
+                    @ [ (LocalGet(Named(l)), "get table index")
+                        (CallIndirect__(s), sprintf "call function %s" l) ]
 
                 m''.ResetTempCode().AddCode(instrs)
             // todo make function pointer
@@ -1330,13 +1333,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let funcindexhex = Util.intToHex funcindex
 
         // create function pointer
-        // TODO: should load from memory
         let funcPointer =
             m
                 .AddData(I32Const ptr, funcindexhex)
                 .AddLocals([ (Some(Identifier(funLabel)), I32) ])
-                .AddCode([ (I32Const ptr, "pointer to function"); (I32Load, "load function pointer") ])
-                .AddCode([ (LocalSet(Named(funLabel)), "set local var") ])
+                .AddCode(
+                    [ (I32Const ptr, "pointer to function")
+                      (I32Load, "load function pointer")
+                      (LocalSet(Named(funLabel)), "set local var") ]
+                )
 
         /// Names of the lambda term arguments
         let (argNames, _) = List.unzip args
@@ -1471,7 +1476,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 and typeToFuncSiganture (t: Type.Type) =
     match t with
     | TFun(args, ret) ->
-        
+
         // map args to there types
         let argTypes: Local list =
             List.map
