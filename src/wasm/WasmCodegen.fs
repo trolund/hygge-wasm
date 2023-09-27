@@ -83,6 +83,7 @@ let rec repeat (n: int) (f: int -> List<Commented<Instr>>) =
 /// function that generates code for calling "env" "malloc" function with the size of in bytes
 /// it assumes that the size is on the stack
 /// it will return the start position or -1 if there is no more memory
+/// TODO: use or remove!?
 let allocate =
     let m =
         Module()
@@ -158,16 +159,16 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | Array(length, data) -> findReturnType length
     | ArrayLength(target) -> [ I32 ]
     | Struct(fields) -> [ I32 ]
-    | FieldSelect(target, field) -> [ I32 ]
+    | FieldSelect(target, field) -> findReturnType target
     | ShortAnd(lhs, rhs) -> [ I32 ]
     | ShortOr(lhs, rhs) -> [ I32 ]
     | CSIncr(arg) -> [ I32 ]
     | CSDcr(arg) -> [ I32 ]
-    | Print(arg) -> [ I32 ]
+    | Print(arg) -> []
     | Ascription(tpe, node) -> []
-    | Let(name, tpe, init, scope) -> [ I32 ]
-    | LetMut(name, tpe, init, scope) -> [ I32 ]
-    | LetRec(name, tpe, init, scope) -> [ I32 ]
+    | Let(name, tpe, init, scope) -> [  ]
+    | LetMut(name, tpe, init, scope) -> [  ]
+    | LetRec(name, tpe, init, scope) -> [  ]
     | Assign(target, expr) -> []
     | AST.Type(name, def, scope) -> []
     | ArrayElement(target, index) -> findReturnType target
