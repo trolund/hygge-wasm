@@ -571,6 +571,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 m''.ResetTempCode().AddCode(instrs)
             // todo make function pointer
             | _ -> failwith "not implemented"
+        // | IntVal i ->
+        //     let s = typeToFuncSiganture f.Type
+        //     let instrs = m''.GetTempCode() @ [ (I32Const i, "table index"); (CallIndirect__(s), "call function pointer") ]
+
+        //     m''.ResetTempCode().AddCode(instrs)
         | _ -> failwith "not implemented"
 
 

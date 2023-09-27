@@ -1,0 +1,8 @@
+fun f(x: int): int = x + x;
+fun g(x: int): int = x * x;
+
+fun t(x: int, k: (int) -> int, o: (int) -> int): int = k(x) + o(x);
+
+let result: int = t(2, f, g) + f(2);
+
+assert(result = 12)
