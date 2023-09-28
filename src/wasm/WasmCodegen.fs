@@ -228,8 +228,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | Some(Storage.Memory(o)) -> [ I32Const o; I32Load ]
             | Some(Storage.Id(i)) -> [ I32Const i ]
             | Some(Storage.Stack(l)) -> [ LocalTee(Named(l)) ]
-            | Some(Storage.Tabel(l, i)) -> [ LocalGet(Named(l)); I32Const i; ]
-            | Some(Storage.FuncRef(l, i)) -> [ LocalGet(Named(l)); I32Const i; ]
+            | Some(Storage.Tabel(l, i)) -> [ LocalGet(Named(l))  ]
+            | Some(Storage.FuncRef(l, i)) -> [ LocalGet(Named(l)) ]
             | _ -> failwith "not implemented"
 
         m.AddCode(instrs)
@@ -573,8 +573,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
                 let instrs =
                     argm.GetTempCode()
-                    @ [ (LocalGet(Named(l)), "get table index")
-                        (CallIndirect__(s), sprintf "call function %s" l) ]
+                    @ appTermCode.GetTempCode()
+                    @ [ (CallIndirect__(s), sprintf "call function %s" l) ]
 
                 argm.ResetTempCode().AddCode(instrs)
             // todo make function pointer
