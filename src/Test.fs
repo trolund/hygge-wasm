@@ -32,7 +32,7 @@ let internal runRARS tast expected =
 
 let internal runWasmTime tast expected = 
     // let anf = ANF.transform tast
-    let asm = (WASMCodegen.implicit tast).ToString()
+    let asm = (hyggec.WASMCodegen.implicit tast).ToString()
     let explainExpected = RARS.explainExitCode expected
     
     let vm = WasmVM()

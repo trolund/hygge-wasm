@@ -1,4 +1,4 @@
-module WASMCodegen
+module hyggec.WASMCodegen
 
 open AST
 open Type
@@ -23,8 +23,6 @@ type internal Storage =
     | Offset of offset: int // idex
     /// function reference in table
     | FuncRef of label: string
-
-
 
 /// A memory allocator that allocates memory in pages of 64KB.
 /// The allocator keeps track of the current allocation position.
@@ -74,18 +72,14 @@ let rec repeat (n: int) (f: int -> List<Commented<Instr>>) =
     | 0 -> []
     | _ -> f n @ repeat (n - 1) f
 
-
 /// function that generates code for calling "env" "malloc" function with the size of in bytes
 /// it assumes that the size is on the stack
 /// it will return the start position or -1 if there is no more memory
 /// TODO: use or remove!?
-let allocate =
-    let m =
-        Module()
-            .AddImport("env", "malloc", FunctionType("malloc", Some([ (None, I32) ], [ I32 ])))
-
+let allocate (m: Module) =
+    let m' = m.AddImport("env", "malloc", FunctionType("malloc", Some([ (None, I32) ], [ I32 ])))
     let instr = [ (Call "malloc", "call malloc function") ]
-    m.AddCode(instr)
+    m'.AddCode(instr)
 
 type internal CodegenEnv =
     { funcIndexMap: Map<string, List<Instr>>
@@ -1069,7 +1063,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | TStruct(fields) ->
                 /// Names of the struct fields
                 let (fieldNames, _) = List.unzip fields
-                /// Offset of the selected struct field from the beginning of
+                /// offset of the selected struct field from the beginning of
                 /// the struct
                 let offset = List.findIndex (fun f -> f = field) fieldNames
 
