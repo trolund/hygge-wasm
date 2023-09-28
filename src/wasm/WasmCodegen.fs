@@ -228,6 +228,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | Some(Storage.Memory(o)) -> [ I32Const o; I32Load ]
             | Some(Storage.Id(i)) -> [ I32Const i ]
             | Some(Storage.Stack(l)) -> [ LocalTee(Named(l)) ]
+            | Some(Storage.Tabel(l, i)) -> [ LocalGet(Named(l)); I32Const i; ]
+            | Some(Storage.FuncRef(l, i)) -> [ LocalGet(Named(l)); I32Const i; ]
             | _ -> failwith "not implemented"
 
         m.AddCode(instrs)
@@ -554,6 +556,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let argm = List.fold (fun m arg -> m + doCodegen env arg (m.ResetTempCode())) m args
 
+        let appTermCode =
+            Module().AddCode([ Comment "Load expression to be applied as a function" ])
+            ++ (doCodegen env expr m)
 
         match expr.Expr with
         | Var v ->
@@ -574,12 +579,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 argm.ResetTempCode().AddCode(instrs)
             // todo make function pointer
             | _ -> failwith "not implemented"
-        // | IntVal i ->
-        //     let s = typeToFuncSiganture f.Type
-        //     let instrs = m''.GetTempCode() @ [ (I32Const i, "table index"); (CallIndirect__(s), "call function pointer") ]
+        | _ ->
+            // type to function signature
+            let s = typeToFuncSiganture expr.Type
 
-        //     m''.ResetTempCode().AddCode(instrs)
-        | _ -> failwith "not implemented"
+            let instrs = [ (CallIndirect__(s), sprintf "call function") ]
+
+            argm ++ appTermCode.AddCode(instrs)
 
 
 
