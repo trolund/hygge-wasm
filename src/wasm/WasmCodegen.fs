@@ -550,28 +550,28 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         m'.ResetTempCode().AddCode(instrs)
 
-    | Application(f, args) ->
+    | Application(expr, args) ->
 
-        let m'' = List.fold (fun m arg -> m + doCodegen env arg (m.ResetTempCode())) m args
+        let argm = List.fold (fun m arg -> m + doCodegen env arg (m.ResetTempCode())) m args
 
 
-        match f.Expr with
+        match expr.Expr with
         | Var v ->
             match env.VarStorage.TryFind v with
             | Some(Storage.Label(l)) ->
-                let instrs = m''.GetTempCode() @ [ (Call l, sprintf "call function %s" l) ]
+                let instrs = argm.GetTempCode() @ [ (Call l, sprintf "call function %s" l) ]
 
-                m''.ResetTempCode().AddCode(instrs)
+                argm.ResetTempCode().AddCode(instrs)
             | Some(Storage.FuncRef(l, i)) ->
                 // type to function signature
-                let s = typeToFuncSiganture f.Type
+                let s = typeToFuncSiganture expr.Type
 
                 let instrs =
-                    m''.GetTempCode()
+                    argm.GetTempCode()
                     @ [ (LocalGet(Named(l)), "get table index")
                         (CallIndirect__(s), sprintf "call function %s" l) ]
 
-                m''.ResetTempCode().AddCode(instrs)
+                argm.ResetTempCode().AddCode(instrs)
             // todo make function pointer
             | _ -> failwith "not implemented"
         // | IntVal i ->
