@@ -5,6 +5,7 @@ open Type
 open Typechecker
 open Wat.WFG
 open System.Text
+open SI
 
 let errorExitCode = 42
 let successExitCode = 0
@@ -71,15 +72,6 @@ let rec repeat (n: int) (f: int -> List<Commented<Instr>>) =
     match n with
     | 0 -> []
     | _ -> f n @ repeat (n - 1) f
-
-/// function that generates code for calling "env" "malloc" function with the size of in bytes
-/// it assumes that the size is on the stack
-/// it will return the start position or -1 if there is no more memory
-/// TODO: use or remove!?
-let allocate (m: Module) =
-    let m' = m.AddImport("env", "malloc", FunctionType("malloc", Some([ (None, I32) ], [ I32 ])))
-    let instr = [ (Call "malloc", "call malloc function") ]
-    m'.AddCode(instr)
 
 type internal CodegenEnv =
     { funcIndexMap: Map<string, List<Instr>>
@@ -454,18 +446,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     | ReadInt ->
         // import readInt function
-        let readFunctionSignature: FunctionSignature = ([], [ I32 ])
-
         let m' =
-            m.AddImport("env", "readInt", FunctionType("readInt", Some(readFunctionSignature)))
+            m.AddImport(getImport "readInt")
         // perform host (system) call
         m'.AddCode([ (Call "readInt", "call host function") ])
     | ReadFloat ->
         // import readFloat function
-        let readFunctionSignature: FunctionSignature = ([], [ F32 ])
-
         let m' =
-            m.AddImport("env", "readFloat", FunctionType("readFloat", Some(readFunctionSignature)))
+            m.AddImport(getImport "readFloat")
         // perform host (system) call
         m'.AddCode([ (Call "readFloat", "call host function") ])
     | PrintLn e
@@ -478,21 +466,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         match e.Type with
         | t when (isSubtypeOf node.Env t TInt) ->
             // import writeInt function
-            let writeFunctionSignature: FunctionSignature = ([ (None, I32) ], [])
-
             let m'' =
-                m'.AddImport("env", "writeInt", FunctionType("writeInt", Some(writeFunctionSignature)))
+                m'.AddImport(getImport "writeInt")
             // perform host (system) call
             m''.AddCode([ (Call "writeInt", "call host function") ])
         | t when (isSubtypeOf node.Env t TFloat) -> failwith "not implemented"
         | t when (isSubtypeOf node.Env t TBool) -> failwith "not implemented"
         | t when (isSubtypeOf node.Env t TString) ->
             // import writeS function
-            let writeFunctionSignature: FunctionSignature = ([ (None, I32); (None, I32) ], [])
-
             let m'' =
                 m
-                    .AddImport("env", "writeS", FunctionType("writeS", Some(writeFunctionSignature)))
+                    .AddImport(getImport "writeS")
                     .AddCode(
                         // push string pointer to stack
                         m'.GetTempCode()
@@ -690,7 +674,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let allocation = // allocate memory for array, return pointer to allocated memory
             length' // length of array on stack
-                .AddImport("env", "malloc", FunctionType("malloc", Some([ (None, I32) ], [ I32 ]))) // import malloc function
+                .AddImport(getImport "malloc") // import malloc function
                 .AddCode(
                     [ (I32Const 4, "4 bytes")
                       (I32Mul, "multiply length with 4 to get size")
@@ -1371,7 +1355,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // allocate memory for struct in dynamic memory
         let allocate =
             m
-                .AddImport("env", "malloc", FunctionType("malloc", Some([ (None, I32) ], [ I32 ])))
+                .AddImport(getImport "malloc")
                 .AddLocals([ (Some(Identifier(structName)), I32) ])
                 .AddCode(
                     [ (I32Const size, "size of struct")
