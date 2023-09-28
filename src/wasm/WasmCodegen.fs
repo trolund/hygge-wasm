@@ -21,14 +21,9 @@ type internal Storage =
     | Label of label: string
     /// index of local variable
     | Offset of offset: int // idex
-    /// address in linear memory
-    | Memory of offset: int // idex
     /// function reference in table
-    | Tabel of label: string * int
-    /// function reference in table
-    | FuncRef of label: string * int
-    | Id of id: int
-    | Stack of label: string
+    | FuncRef of label: string
+
 
 
 /// A memory allocator that allocates memory in pages of 64KB.
@@ -185,7 +180,6 @@ let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
         match env.VarStorage.TryFind v with
         | Some(Storage.Label(l)) -> Named(l)
         | Some(Storage.Offset(o)) -> Index(o)
-        | Some(Storage.Memory(o)) -> Address(o)
         | _ -> failwith "not implemented"
     | _ -> failwith "not implemented"
 
@@ -225,11 +219,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             match env.VarStorage.TryFind v with
             | Some(Storage.Label(l)) -> [ LocalGet(Named(l)) ]
             | Some(Storage.Offset(o)) -> [ LocalGet(Index(o)) ]
-            | Some(Storage.Memory(o)) -> [ I32Const o; I32Load ]
-            | Some(Storage.Id(i)) -> [ I32Const i ]
-            | Some(Storage.Stack(l)) -> [ LocalTee(Named(l)) ]
-            | Some(Storage.Tabel(l, i)) -> [ LocalGet(Named(l))  ]
-            | Some(Storage.FuncRef(l, i)) -> [ LocalGet(Named(l)) ]
+            | Some(Storage.FuncRef(l)) -> [ LocalGet(Named(l)) ]
             | _ -> failwith "not implemented"
 
         m.AddCode(instrs)
@@ -567,7 +557,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let instrs = argm.GetTempCode() @ [ (Call l, sprintf "call function %s" l) ]
 
                 argm.ResetTempCode().AddCode(instrs)
-            | Some(Storage.FuncRef(l, i)) ->
+            | Some(Storage.FuncRef(l)) ->
                 // type to function signature
                 let s = typeToFuncSiganture expr.Type
 
@@ -577,7 +567,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     @ [ (CallIndirect__(s), sprintf "call function %s" l) ]
 
                 argm.ResetTempCode().AddCode(instrs)
-            // todo make function pointer
             | _ -> failwith "not implemented"
         | _ ->
             // type to function signature
@@ -1253,7 +1242,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             // add var to func ref
             let env' =
                 { env' with
-                    VarStorage = env.VarStorage.Add(name, Storage.FuncRef(funcLabel, 0)) }
+                    VarStorage = env.VarStorage.Add(name, Storage.FuncRef(funcLabel)) }
 
             let initCode = m'.GetTempCode()
 
@@ -1569,7 +1558,7 @@ and internal compileFunction
                 // TODO: no right!
                 | TFun(args, ret) ->
                     { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.FuncRef(n, 0)) }
+                        VarStorage = env.VarStorage.Add(n, Storage.FuncRef(n)) }
                 | _ ->
                     { env with
                         VarStorage = env.VarStorage.Add(n, Storage.Label(n)) })

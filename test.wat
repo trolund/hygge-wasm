@@ -27,7 +27,8 @@
     local.set $var_g ;; set local var
     ;; Start of let
     i32.const 2 ;; push 2 on stack
-    local.get $fun_f ;; get table index
+    ;; Load expression to be applied as a function
+    local.get $fun_f
     call_indirect (param i32) (result i32) ;; call function fun_f
     local.set $var_result ;; set local var
     local.get $var_result
@@ -52,7 +53,8 @@
     local.set $var_gx ;; set local var
     ;; Start of let
     i32.const 8 ;; push 8 on stack
-    local.get $fun_fx ;; get table index
+    ;; Load expression to be applied as a function
+    local.get $fun_fx
     call_indirect (param i32) (result i32) ;; call function fun_fx
     local.set $var_resultx ;; set local var
     local.get $var_resultx
@@ -74,7 +76,8 @@
     local.set $var_gxs ;; set local var
     ;; Start of let
     i32.const 8 ;; push 8 on stack
-    local.get $fun_f ;; get table index
+    ;; Load expression to be applied as a function
+    local.get $fun_f
     call_indirect (param i32) (result i32) ;; call function fun_f
     local.set $var_resultx2 ;; set local var
     local.get $var_resultx2
