@@ -217,11 +217,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             match e.Type with
-            | t when (isSubtypeOf e.Env t TInt) -> m'.GetTempCode() @ C [ I32Const 1; I32Add; LocalTee(label) ]
+            | t when (isSubtypeOf e.Env t TInt) -> m'.GetAccCode() @ C [ I32Const 1; I32Add; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PreIncr" ]
-        ++ (m'.ResetTempCode().AddCode(instrs @ (C [ Comment "End PreIncr" ])))
+        ++ (m'.ResetAccCode().AddCode(instrs @ (C [ Comment "End PreIncr" ])))
     | PostIncr(e) ->
         let m' = doCodegen env e m
 
@@ -230,11 +230,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match e.Type with
             | t when (isSubtypeOf e.Env t TInt) ->
-                m'.GetTempCode() @ C [ LocalGet(label); I32Const 1; I32Add; LocalSet(label) ]
+                m'.GetAccCode() @ C [ LocalGet(label); I32Const 1; I32Add; LocalSet(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PostIncr" ]
-        ++ (m'.ResetTempCode().AddCode(instrs @ (C [ Comment "End PostIncr" ])))
+        ++ (m'.ResetAccCode().AddCode(instrs @ (C [ Comment "End PostIncr" ])))
     | PreDcr(e) ->
         let m' = doCodegen env e m
 
@@ -242,11 +242,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             match e.Type with
-            | t when (isSubtypeOf e.Env t TInt) -> m'.GetTempCode() @ C [ I32Const 1; I32Sub; LocalTee(label) ]
+            | t when (isSubtypeOf e.Env t TInt) -> m'.GetAccCode() @ C [ I32Const 1; I32Sub; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PreDecr" ]
-        ++ (m'.ResetTempCode().AddCode(instrs @ (C [ Comment "End PreDecr" ])))
+        ++ (m'.ResetAccCode().AddCode(instrs @ (C [ Comment "End PreDecr" ])))
     | PostDcr(e) ->
         let m' = doCodegen env e m
 
@@ -255,11 +255,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match e.Type with
             | t when (isSubtypeOf e.Env t TInt) ->
-                m'.GetTempCode() @ C [ LocalGet(label); I32Const 1; I32Sub; LocalSet(label) ]
+                m'.GetAccCode() @ C [ LocalGet(label); I32Const 1; I32Sub; LocalSet(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PostDecr" ]
-        ++ (m'.ResetTempCode().AddCode(instrs @ (C [ Comment "End PostDecr" ])))
+        ++ (m'.ResetAccCode().AddCode(instrs @ (C [ Comment "End PostDecr" ])))
 
     | MinAsg(lhs, rhs)
     | DivAsg(lhs, rhs)
@@ -292,14 +292,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match node.Type with
             | t when (isSubtypeOf node.Env t TInt) ->
-                lhs'.GetTempCode() @ rhs'.GetTempCode() @ C [ opCode; LocalTee(label) ]
+                lhs'.GetAccCode() @ rhs'.GetAccCode() @ C [ opCode; LocalTee(label) ]
             | t when (isSubtypeOf node.Env t TFloat) ->
-                lhs'.GetTempCode() @ rhs'.GetTempCode() @ C [ opCode; LocalTee(label) ]
+                lhs'.GetAccCode() @ rhs'.GetAccCode() @ C [ opCode; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start AddAsgn/MinAsgn" ]
         ++ (lhs' + rhs')
-            .ResetTempCode()
+            .ResetAccCode()
             .AddCode(instrs @ (C [ Comment "End AddAsgn/MinAsgn" ]))
 
     | Max(e1, e2)
@@ -317,8 +317,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | _ -> failwith "not implemented"
             | t when (isSubtypeOf node.Env t TInt) ->
                 match node.Expr with
-                | Max(_, _) -> m'.GetTempCode() @ m''.GetTempCode() @ C [ I32GtS; Select ]
-                | Min(_, _) -> m'.GetTempCode() @ m''.GetTempCode() @ C [ I32LtS; Select ]
+                | Max(_, _) -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32GtS; Select ]
+                | Min(_, _) -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32LtS; Select ]
                 | _ -> failwith "not implemented"
             | _ -> failwith "failed type of max/min"
 
@@ -327,8 +327,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     | Sqrt e ->
         let m' = doCodegen env e m
-        let instrs = m'.GetTempCode() @ C [ F32Sqrt ]
-        m'.ResetTempCode().AddCode(instrs)
+        let instrs = m'.GetAccCode() @ C [ F32Sqrt ]
+        m'.ResetAccCode().AddCode(instrs)
     | Add(lhs, rhs)
     | Sub(lhs, rhs)
     | Rem(lhs, rhs)
@@ -395,8 +395,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [ I32Eq ]
             | _ -> failwith "type mismatch"
 
-        let instrs = m'.GetTempCode() @ m''.GetTempCode() @ C opcode
-        (m + m'.ResetTempCode() + m''.ResetTempCode()).AddCode(instrs)
+        let instrs = m'.GetAccCode() @ m''.GetAccCode() @ C opcode
+        (m + m'.ResetAccCode() + m''.ResetAccCode()).AddCode(instrs)
     | Xor(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
@@ -479,16 +479,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     .AddImport(getImport "writeS")
                     .AddCode(
                         // push string pointer to stack
-                        m'.GetTempCode()
+                        m'.GetAccCode()
                         @ [ (I32Load, "Load string pointer") ]
-                        @ m'.GetTempCode()
+                        @ m'.GetAccCode()
                         @ [ (I32Const 4, "length offset")
                             (I32Add, "add offset to pointer")
                             (I32Load, "Load string length") ]
                     )
 
             // perform host (system) call
-            (m'.ResetTempCode() ++ m'').AddCode([ (Call "writeS", "call host function") ])
+            (m'.ResetAccCode() ++ m'').AddCode([ (Call "writeS", "call host function") ])
         | _ -> failwith "not implemented"
     | AST.If(condition, ifTrue, ifFalse) ->
         let m' = doCodegen env condition m
@@ -499,14 +499,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let t = findReturnType ifTrue
 
         let instrs =
-            m'.GetTempCode() @ C [ (If(t, m''.GetTempCode(), Some(m'''.GetTempCode()))) ]
+            m'.GetAccCode() @ C [ (If(t, m''.GetAccCode(), Some(m'''.GetAccCode()))) ]
 
-        (m' + m'' + m''').ResetTempCode().AddCode(instrs)
+        (m' + m'' + m''').ResetAccCode().AddCode(instrs)
     | Assertion(e) ->
-        let m' = doCodegen env e (m.ResetTempCode())
+        let m' = doCodegen env e (m.ResetAccCode())
 
         let instrs =
-            m'.GetTempCode()
+            m'.GetAccCode()
             @ C
                 [ (If(
                       [],
@@ -517,11 +517,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       )
                   )) ]
 
-        m'.ResetTempCode().AddCode(instrs)
+        m'.ResetAccCode().AddCode(instrs)
 
     | Application(expr, args) ->
         /// compile arguments
-        let argm = List.fold (fun m arg -> m + doCodegen env arg (m.ResetTempCode())) m args
+        let argm = List.fold (fun m arg -> m + doCodegen env arg (m.ResetAccCode())) m args
 
         /// generate code for the expression for the function to be applied
         let appTermCode =
@@ -532,19 +532,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         | Var v ->
             match env.VarStorage.TryFind v with
             | Some(Storage.Label(l)) ->
-                let instrs = argm.GetTempCode() @ [ (Call l, sprintf "call function %s" l) ]
+                let instrs = argm.GetAccCode() @ [ (Call l, sprintf "call function %s" l) ]
 
-                argm.ResetTempCode().AddCode(instrs)
+                argm.ResetAccCode().AddCode(instrs)
             | Some(Storage.FuncRef(l)) ->
                 // type to function signature
                 let s = typeToFuncSiganture expr.Type
 
                 let instrs =
-                    argm.GetTempCode()
-                    @ appTermCode.GetTempCode()
+                    argm.GetAccCode()
+                    @ appTermCode.GetAccCode()
                     @ [ (CallIndirect__(s), sprintf "call function %s" l) ]
 
-                argm.ResetTempCode().AddCode(instrs)
+                argm.ResetAccCode().AddCode(instrs)
             | _ -> failwith "not implemented"
         | _ ->
             // type to function signature
@@ -595,7 +595,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         l ++ (compileFunction funLabel argNamesTypes body env' m')
     | Seq(nodes) ->
         // We collect the code of each sequence node by folding over all nodes
-        List.fold (fun m node -> (m + doCodegen env node (m.ResetTempCode()))) m nodes
+        List.fold (fun m node -> (m + doCodegen env node (m.ResetAccCode()))) m nodes
 
     | While(cond, body) ->
         let cond' = doCodegen env cond m
@@ -609,15 +609,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ Loop(
                       beginl,
                       [],
-                      cond'.GetTempCode()
+                      cond'.GetAccCode()
                       @ C [ I32Eqz; BrIf exitl ]
-                      @ body'.GetTempCode()
+                      @ body'.GetAccCode()
                       @ C [ Br beginl ]
                   ) ]
 
         let block = C [ (Block(exitl, [], loop @ C [ Nop ])) ]
 
-        (cond'.ResetTempCode() + body'.ResetTempCode()).AddCode(block)
+        (cond'.ResetAccCode() + body'.ResetAccCode()).AddCode(block)
 
     | DoWhile(cond, body) ->
         (doCodegen env body m)
@@ -641,7 +641,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // check that length is bigger then 1 - if not return 42
         let lengthCheck =
-            length'.GetTempCode()
+            length'.GetAccCode()
             @ [ (I32Const 1, "put one on stack")
                 (I32LeS, "check if length is <= 1")
                 (If(
@@ -686,7 +686,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             [ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]
             // (I32Const 4, "offset of data field")
             // (I32Add, "add offset to base address to get data pointer field") ]
-            @ allocation.GetTempCode() // get pointer to allocated memory - value to store in data pointer field
+            @ allocation.GetAccCode() // get pointer to allocated memory - value to store in data pointer field
             @ [ (I32Store, "store pointer to data") ]
 
 
@@ -707,7 +707,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
               (I32Mul, "multiply index with byte offset") // then offset is on top of stack
 
               (I32Add, "add offset to base address") ] // then pointer to element is on top of stack
-            @ data'.GetTempCode() // get value to store in allocated memory
+            @ data'.GetAccCode() // get value to store in allocated memory
             @ [ (I32Store, "store value in elem pos") ]
 
         // loop that runs length times and stores data in allocated memory
@@ -716,7 +716,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ Loop(
                       beginl,
                       [],
-                      length'.GetTempCode()
+                      length'.GetAccCode()
                       @ [ (LocalGet(Named i), "get i") ]
                       @ C [ I32Eq; BrIf exitl ]
                       @ body
@@ -731,7 +731,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let block: Commented<Instr> list = C [ (Block(exitl, [], loop @ C [ Nop ])) ]
 
         let loopModule =
-            data'.ResetTempCode().AddLocals([ (Some(Identifier(i)), I32) ]).AddCode(block)
+            data'.ResetAccCode().AddLocals([ (Some(Identifier(i)), I32) ]).AddCode(block)
 
         lengthCheck
         ++ structPointer.AddCode(instr)
@@ -742,13 +742,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m' = doCodegen env target m
 
         let instrs =
-            m'.GetTempCode()
+            m'.GetAccCode()
             @ [ (I32Const 4, "offset of length field")
                 (I32Add, "add offset to base address")
                 (I32Load, "load length") ]
 
         C [ Comment "start array length node" ]
-        ++ m'.ResetTempCode().AddCode(instrs @ C [ Comment "end array length node" ])
+        ++ m'.ResetAccCode().AddCode(instrs @ C [ Comment "end array length node" ])
 
     | ArrayElement(target, index) ->
         let m' = doCodegen env target m
@@ -757,7 +757,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // check that index is bigger then 0 - if not return 42
         // and that index is smaller then length - if not return 42
         let indexCheck =
-            m''.GetTempCode() // index on stack
+            m''.GetAccCode() // index on stack
             @ [ (I32Const 0, "put zero on stack")
                 (I32LtS, "check if index is >= 0")
                 (If(
@@ -767,8 +767,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     None
                  ),
                  "check that index is >= 0 - if not return 42") ]
-            @ m''.GetTempCode() // index on stack
-            @ m'.GetTempCode() // struct pointer on stack
+            @ m''.GetAccCode() // index on stack
+            @ m'.GetAccCode() // struct pointer on stack
             @ [ (I32Const 4, "offset of length field")
                 (I32Add, "add offset to base address")
                 (I32Load, "load length") ]
@@ -783,9 +783,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
 
         let instrs =
-            m'.GetTempCode() // struct pointer on stack
+            m'.GetAccCode() // struct pointer on stack
             @ [ (I32Load, "load data pointer") ]
-            @ m''.GetTempCode() // index on stack
+            @ m''.GetAccCode() // index on stack
             @ [ (I32Const 4, "byte offset")
                 (I32Mul, "multiply index with byte offset")
                 (I32Add, "add offset to base address") ]
@@ -793,7 +793,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         indexCheck
         ++ (m' + m'')
-            .ResetTempCode()
+            .ResetAccCode()
             .AddCode(instrs @ C [ Comment "end array element access node" ])
 
     // array slice creates a new struct with a pointer to the data of the original array
@@ -815,7 +815,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // check that start is bigger then 0 - if not return 42
         // and that start is smaller then length of the original array - if not return 42
         let startCheck =
-            startm.GetTempCode() // start on stack
+            startm.GetAccCode() // start on stack
             @ [ (I32Const 0, "put zero on stack")
                 (I32LtS, "check if start is >= 0")
                 (If(
@@ -825,8 +825,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     None
                  ),
                  "check that start is >= 0 - if not return 42") ]
-            @ startm.GetTempCode() // start on stack
-            @ targetm.GetTempCode() // struct pointer on stack
+            @ startm.GetAccCode() // start on stack
+            @ targetm.GetAccCode() // struct pointer on stack
             @ [ (I32Const 4, "offset of length field")
                 (I32Add, "add offset to base address")
                 (I32Load, "load length") ]
@@ -847,8 +847,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // check that end index is smaller then length of the original array - if not return 42
         let endCheck =
-            endingm.GetTempCode() // end index on stack
-            @ targetm.GetTempCode() // struct pointer on stack
+            endingm.GetAccCode() // end index on stack
+            @ targetm.GetAccCode() // struct pointer on stack
             @ [ (I32Const 4, "offset of length field")
                 (I32Add, "add offset to base address")
                 (I32Load, "load length") ]
@@ -864,8 +864,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // difference between end and start should be at least 1
         let atleastOne =
-            endingm.GetTempCode() // end on stack
-            @ startm.GetTempCode() // start on stack
+            endingm.GetAccCode() // end on stack
+            @ startm.GetAccCode() // start on stack
             @ [ (I32Sub, "subtract end from start") ]
             @ [ (I32Const 1, "put one on stack")
                 (I32LtU, "check if difference is < 1")
@@ -898,9 +898,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             [ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]
 
             // value to store in data pointer field
-            @ targetm.GetTempCode() // pointer to exsisiting array struct on stack
+            @ targetm.GetAccCode() // pointer to exsisiting array struct on stack
             @ [ (I32Load, "Load data pointer from array struct") ]
-            @ startm.GetTempCode() // index of start
+            @ startm.GetAccCode() // index of start
             @ [ (I32Const 4, "offset of data field")
                 (I32Mul, "multiply index with byte offset")
                 (I32Add, "add offset to base address") ] // get pointer to allocated memory - value to store in data pointer field
@@ -908,7 +908,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         (C [ Comment "start array slice" ] @ atleastOne @ endCheck @ startCheck)
         ++ structm'
-        ++ (targetm.ResetTempCode() + endingm.ResetTempCode())
+        ++ (targetm.ResetAccCode() + endingm.ResetAccCode())
             // .AddCode([ (LocalSet(Named(structPointerLabel)), "set struct pointer var") ])
             .AddCode(instr)
             .AddCode(
@@ -969,7 +969,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
                 // address to data
                 let dataPointer =
-                    targetm.GetTempCode()
+                    targetm.GetAccCode()
                     @ [ (I32Const 4, "offset of data field")
                         (I32Add, "add offset to base address")
                         (I32Load, "load data pointer")
@@ -982,16 +982,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         .AddCode([ (Br matchEndLabel, "break out of match") ])
 
                 let condition =
-                    targetm.GetTempCode()
+                    targetm.GetAccCode()
                     @ [ (I32Load, "load label")
                         (I32Const id, $"put label id {id} on stack")
                         (I32Eq, "check if index is equal to target") ]
 
                 // if case is not the last case
-                let case = condition @ C [ (If([], caseCode.GetTempCode(), None)) ]
+                let case = condition @ C [ (If([], caseCode.GetAccCode(), None)) ]
 
                 acc
-                ++ (caseCode.ResetTempCode())
+                ++ (caseCode.ResetAccCode())
                     .AddCode(C [ Comment $"case for id: ${id}, label: {label}" ] @ case)
 
         let casesCode = List.fold folder (Module()) indexedLabels
@@ -1003,9 +1003,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // block that contains all cases
         let block =
-            C [ (Block(matchEndLabel, reusltType, casesCode.GetTempCode() @ defaultCase)) ]
+            C [ (Block(matchEndLabel, reusltType, casesCode.GetAccCode() @ defaultCase)) ]
 
-        (casesCode.ResetTempCode()).AddCode(block)
+        (casesCode.ResetAccCode()).AddCode(block)
     | Assign(name, value) ->
         let value' = doCodegen env value m
 
@@ -1033,9 +1033,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | _ -> []
 
             let instrs =
-                value'.GetTempCode() @ isNested @ [ (LocalSet varLabel, "set local var") ]
+                value'.GetAccCode() @ isNested @ [ (LocalSet varLabel, "set local var") ]
 
-            value'.ResetTempCode().AddCode(instrs)
+            value'.ResetAccCode().AddCode(instrs)
         | FieldSelect(target, field) ->
 
             let selTargetCode = doCodegen env target m
@@ -1065,24 +1065,24 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     | t when (isSubtypeOf value.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf value.Env t TFloat) ->
                         let instrs =
-                            selTargetCode.GetTempCode()
+                            selTargetCode.GetAccCode()
                             @ [ (I32Const(offset * 4), "offset of field"); (I32Add, "add offset") ]
-                            @ rhsCode.GetTempCode()
+                            @ rhsCode.GetAccCode()
                             @ [ (F32Store, "store float in struct") ]
-                            @ rhsCode.GetTempCode()
+                            @ rhsCode.GetAccCode()
 
                         instrs
                     | x ->
                         let instrs =
-                            selTargetCode.GetTempCode()
+                            selTargetCode.GetAccCode()
                             @ [ (I32Const(offset * 4), "offset of field"); (I32Add, "add offset") ]
-                            @ rhsCode.GetTempCode()
+                            @ rhsCode.GetAccCode()
                             @ [ (I32Store, "store int in struct") ]
-                            @ rhsCode.GetTempCode() // TODO possible bug (leave a constant on the stack after execution)
+                            @ rhsCode.GetAccCode() // TODO possible bug (leave a constant on the stack after execution)
 
                         instrs
                 // Put everything together
-                (assignCode) ++ (rhsCode.ResetTempCode() + selTargetCode.ResetTempCode())
+                (assignCode) ++ (rhsCode.ResetAccCode() + selTargetCode.ResetAccCode())
         | ArrayElement(target, index) ->
             let selTargetCode = doCodegen env target m
             let indexCode = doCodegen env index m
@@ -1091,7 +1091,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             // Check index >= 0 and index < length
             let indexCheck =
-                indexCode.GetTempCode() // index on stack
+                indexCode.GetAccCode() // index on stack
                 @ [ (I32Const 0, "put zero on stack")
                     (I32LtS, "check if index is >= 0")
                     (If(
@@ -1101,8 +1101,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         None
                      ),
                      "check that index is >= 0 - if not return 42") ]
-                @ indexCode.GetTempCode() // index on stack
-                @ selTargetCode.GetTempCode() // struct pointer on stack
+                @ indexCode.GetAccCode() // index on stack
+                @ selTargetCode.GetAccCode() // struct pointer on stack
                 @ [ (I32Const 4, "offset of length field")
                     (I32Add, "add offset to base address")
                     (I32Load, "load length") ]
@@ -1116,18 +1116,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                      "check that index is < length - if not return 42") ]
 
             let instrs =
-                selTargetCode.GetTempCode() // struct pointer on stack
+                selTargetCode.GetAccCode() // struct pointer on stack
                 @ [ (I32Load, "load data pointer") ]
-                @ indexCode.GetTempCode() // index on stack
+                @ indexCode.GetAccCode() // index on stack
                 @ [ (I32Const 4, "byte offset")
                     (I32Mul, "multiply index with byte offset")
                     (I32Add, "add offset to base address") ]
-                @ rhsCode.GetTempCode()
+                @ rhsCode.GetAccCode()
                 @ [ (I32Store, "store value in elem pos") ]
 
-            (rhsCode.ResetTempCode()
-             + indexCode.ResetTempCode()
-             + selTargetCode.ResetTempCode())
+            (rhsCode.ResetAccCode()
+             + indexCode.ResetAccCode()
+             + selTargetCode.ResetAccCode())
                 .AddCode(indexCheck @ instrs)
         | _ -> failwith "not implemented"
     | Ascription(_, node) ->
@@ -1172,35 +1172,35 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         | t when (isSubtypeOf init.Env t TUnit) -> m' ++ (doCodegen env scope m)
         | t when (isSubtypeOf init.Env t TInt) ->
             let varLabel = Named(varName)
-            let initCode = m'.GetTempCode()
+            let initCode = m'.GetAccCode()
 
             let instrs =
                 initCode // inizilize code
                 @ [ (LocalSet varLabel, "set local var") ] // set local var
 
-            let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+            let scopeCode = (doCodegen env' scope (m.ResetAccCode()))
 
             let combi = (instrs ++ scopeCode)
 
             C [ Comment "Start of let" ]
-            ++ m'.ResetTempCode()
+            ++ m'.ResetAccCode()
             ++ combi
                 .AddLocals([ (Some(Identifier(varName)), I32) ])
                 .AddCode([ Comment "End of let" ])
         | t when (isSubtypeOf init.Env t TFloat) ->
             let varLabel = Named(varName)
-            let initCode = m'.GetTempCode()
+            let initCode = m'.GetAccCode()
 
             let instrs =
                 initCode // inizilize code
                 @ [ (LocalSet varLabel, "set local var") ] // set local var
 
-            let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+            let scopeCode = (doCodegen env' scope (m.ResetAccCode()))
 
             let combi = (instrs ++ scopeCode)
 
             C [ Comment "Start of let" ]
-            ++ m'.ResetTempCode()
+            ++ m'.ResetAccCode()
             ++ combi
                 .AddLocals([ (Some(Identifier(varName)), F32) ])
                 .AddCode([ Comment "End of let" ])
@@ -1222,53 +1222,53 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 { env' with
                     VarStorage = env.VarStorage.Add(name, Storage.FuncRef(funcLabel)) }
 
-            let initCode = m'.GetTempCode()
+            let initCode = m'.GetAccCode()
 
             let instrs =
                 initCode // inizilize code
                 @ [ (LocalSet varLabel, "set local var") ] // set local var
 
-            let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+            let scopeCode = (doCodegen env' scope (m.ResetAccCode()))
 
             let combi = (instrs ++ scopeCode)
 
             C [ Comment "Start of let" ]
-            ++ m'.ResetTempCode()
+            ++ m'.ResetAccCode()
             ++ combi
                 .AddLocals([ (Some(Identifier(varName)), I32) ])
                 .AddCode([ Comment "End of let" ])
         | TStruct(_) ->
             let varLabel = Named(varName)
-            let initCode = m'.GetTempCode()
+            let initCode = m'.GetAccCode()
 
             let instrs =
                 initCode // inizilize code
                 @ [ (LocalSet varLabel, "set local var") ] // set local var
 
-            let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+            let scopeCode = (doCodegen env' scope (m.ResetAccCode()))
 
             let combi = (instrs ++ scopeCode)
 
             C [ Comment "Start of let" ]
-            ++ m'.ResetTempCode()
+            ++ m'.ResetAccCode()
             ++ combi
                 .AddLocals([ (Some(Identifier(varName)), I32) ])
                 .AddCode([ Comment "End of let" ])
         | _ ->
             // todo make function pointer
             let varLabel = Named(varName)
-            let initCode = m'.GetTempCode()
+            let initCode = m'.GetAccCode()
 
             let instrs =
                 initCode // inizilize code
                 @ [ (LocalSet varLabel, "set local var") ] // set local var
 
-            let scopeCode = (doCodegen env' scope (m.ResetTempCode()))
+            let scopeCode = (doCodegen env' scope (m.ResetAccCode()))
 
             let combi = (instrs ++ scopeCode)
 
             C [ Comment "Start of let" ]
-            ++ m'.ResetTempCode()
+            ++ m'.ResetAccCode()
             ++ combi
                 .AddLocals([ (Some(Identifier(varName)), I32) ])
                 .AddCode([ Comment "End of let" ])
@@ -1385,17 +1385,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         [ (LocalGet(Named(structName)), "get struct pointer var")
                           (I32Const fieldOffsetBytes, "push field offset to stack")
                           (I32Add, "add offset to base address") ]
-                        @ initField'.GetTempCode()
+                        @ initField'.GetAccCode()
                         @ [ (F32Store, "store field in memory") ]
                     | _ ->
                         [ (LocalGet(Named(structName)), "get struct pointer var")
                           (I32Const fieldOffsetBytes, "push field offset to stack")
                           (I32Add, "add offset to base address") ]
-                        @ initField'.GetTempCode()
+                        @ initField'.GetAccCode()
                         @ [ (I32Store, "store field in memory") ]
 
                 // accumulate code
-                acc ++ initField.ResetTempCode().AddCode(instr)
+                acc ++ initField.ResetAccCode().AddCode(instr)
 
 
         let fieldsInitCode =
@@ -1420,7 +1420,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | t when (isSubtypeOf node.Env t TUnit) -> [] // Nothing to do
                 | t when (isSubtypeOf node.Env t TFloat) ->
                     // Retrieve value of struct field
-                    selTargetCode.GetTempCode()
+                    selTargetCode.GetAccCode()
                     @ [ //(I32Const 4, "4 bytes")
                         //(I32Mul, "multiply offset by 4")
                         (I32Const(offset * 4), "push field offset to stack")
@@ -1428,7 +1428,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         (F32Load, "load field") ]
                 | _ ->
                     // Retrieve value of struct field
-                    selTargetCode.GetTempCode()
+                    selTargetCode.GetAccCode()
                     @ [ // (I32Const 4, "4 bytes")
                         // (I32Mul, "multiply offset by 4")
                         (I32Const(offset * 4), "push field offset to stack")
@@ -1437,7 +1437,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 
         // Put everything together: compile the target, access the field
-        selTargetCode.ResetTempCode()
+        selTargetCode.ResetAccCode()
         ++ m.AddCode(
             C [ Comment "Start of field select" ]
             @ fieldAccessCode
@@ -1559,9 +1559,9 @@ and internal compileFunction
 
     // add code and locals to function
     m''
-        .AddInstrs(name, m''.GetTempCode()) // add instructions to function
+        .AddInstrs(name, m''.GetAccCode()) // add instructions to function
         .AddLocals(name, m''.GetLocals()) // set locals of function
-        .ResetTempCode() // reset accumulated code
+        .ResetAccCode() // reset accumulated code
         .ResetLocals() // reset locals
 
 // return a list of all variables in the given expression
@@ -1635,7 +1635,7 @@ let implicit (node: TypedAST) : Module =
     m
         .AddLocals(env.currFunc, m.GetLocals()) // set locals of function
         .AddInstrs(env.currFunc, [ Comment "execution start here:" ])
-        .AddInstrs(env.currFunc, m.GetTempCode()) // add code of main function
+        .AddInstrs(env.currFunc, m.GetAccCode()) // add code of main function
         .AddInstrs(env.currFunc, [ Comment "if execution reaches here, the program is successful" ])
         .AddInstrs(env.currFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ]) // return 0 if program is successful
         .AddGlobal((heapBase, (I32, Immutable), (I32Const staticOffset))) // add heap base pointer

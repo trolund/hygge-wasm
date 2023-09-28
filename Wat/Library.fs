@@ -631,11 +631,6 @@ module WFG =
                 let elements: Element = (this.GetFuncTableSize, label)
                 Module(this.types, this.functions, table :: this.tables, this.memories, this.globals, this.exports, this.imports, this.start, Set(elements :: Set.toList this.elements), this.data, this.locals, this.tempCode, this.funcTableSize + 1)
 
-            // match function name with type index
-            member this.MatchFunctionType (name: string) =
-                let (f), _ = this.functions.[name]
-                (f.typeIndex, sprintf "$%s_type" name)
-
             // add temp code
             member this.AddCode (instrs: Instr list) =
                 // map comment to instrs
@@ -649,11 +644,11 @@ module WFG =
                 Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode, 0)
 
             // get temp code
-            member this.GetTempCode () =
+            member this.GetAccCode () =
                 this.tempCode
 
             // reset temp code
-            member this.ResetTempCode () =
+            member this.ResetAccCode () =
                 Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, [], 0)
 
             // reset Locals
@@ -736,12 +731,6 @@ module WFG =
                         this.types, f
 
                 Module(types, functions.Add(name, f'), this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)    
-
-                
-            // Add a type to the module
-            member this.AddType (t: Type) =
-                let types = t :: Set.toList this.types
-                Module(Set(types), this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
 
             // Add a table to the module
             member this.AddTable (t: Table) =
