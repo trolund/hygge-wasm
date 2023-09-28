@@ -3,33 +3,23 @@
   (import "env" "malloc" (func $malloc (param i32) (result i32)))
   (memory (export "memory") 1)
   (data (i32.const 0) "\00")
-  (global $heap_base i32 i32.const 4)
+  (data (i32.const 12) "Hello")
+  (data (i32.const 44) "Hej")
+  (global $heap_base i32 i32.const 50)
   (table $func_table 1 funcref)
   (elem (i32.const 0) $fun_f)
   (func $_start  (result i32) ;; entry point of program (main function)    ;; local variables declarations:
     (local $Sptr i32)
-    (local $arr_ptr i32)
     (local $fun_f i32)
-    (local $i i32)
-    (local $var_arr4 i32)
+    (local $var_t i32)
  
     ;; execution start here:
     i32.const 0 ;; pointer to function
     i32.load ;; load function pointer
     local.set $fun_f ;; set local var
     ;; Start of let
-    i32.const 2 ;; push 2 on stack
-    i32.const 2 ;; push 2 on stack
-    i32.add
-    i32.const 1 ;; put one on stack
-    i32.le_s ;; check if length is <= 1
-    (if (then
-      i32.const 42 ;; error exit code push to stack
-      return ;; return exit code
-       )
-      ) ;; check that length of array is bigger then 1 - if not return 42
     ;; start of struct contructor
-    i32.const 2 ;; size of struct
+    i32.const 3 ;; size of struct
     i32.const 4 ;; 4 bytes
     i32.mul ;; multiply length with 4 to get size
     call $malloc ;; call malloc function
@@ -37,89 +27,69 @@
     local.get $Sptr ;; get struct pointer var
     i32.const 0 ;; push field offset to stack
     i32.add ;; add offset to base address
-    ;; init field data
-    i32.const 0 ;; push 0 on stack
+    ;; init field _1
+    i32.const 4 ;; offset in memory
+    i32.const 12 ;; data pointer to store
+    i32.store ;; store size in bytes
+    i32.const 8 ;; offset in memory
+    i32.const 10 ;; length to store
+    i32.store ;; store data pointer
+    i32.const 4 ;; leave pointer to string on stack
     i32.store ;; store field in memory
     local.get $Sptr ;; get struct pointer var
     i32.const 4 ;; push field offset to stack
     i32.add ;; add offset to base address
-    ;; init field length
-    i32.const 2 ;; push 2 on stack
+    ;; init field _2
+    i32.const 40 ;; push 40 on stack
     i32.const 2 ;; push 2 on stack
     i32.add
     i32.store ;; store field in memory
+    local.get $Sptr ;; get struct pointer var
+    i32.const 8 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field _3
+    local.get $fun_f
+    i32.store ;; store field in memory
     local.get $Sptr ;; push struct address to stack
     ;; end of struct contructor
-    local.set $arr_ptr ;; set struct pointer var
-    local.get $arr_ptr ;; get struct pointer var
-    i32.const 2 ;; push 2 on stack
-    i32.const 2 ;; push 2 on stack
-    i32.add
-    i32.const 4 ;; 4 bytes
-    i32.mul ;; multiply length with 4 to get size
-    call $malloc ;; call malloc function
-    i32.store ;; store pointer to data
-    (block $loop_exit 
-      (loop $loop_begin 
-      i32.const 2 ;; push 2 on stack
-      i32.const 2 ;; push 2 on stack
-      i32.add
-      local.get $i ;; get i
-      i32.eq
-      br_if $loop_exit
-      local.get $arr_ptr ;; get struct pointer var
-      i32.const 8 ;; byte offset
-      i32.add ;; add offset to base address
-      local.get $i ;; get index
-      i32.const 4 ;; byte offset
-      i32.mul ;; multiply index with byte offset
-      i32.add ;; add offset to base address
-      local.get $fun_f
-      i32.store ;; store value in elem pos
-      local.get $i ;; get i
-      i32.const 1 ;; increment by 1
-      i32.add ;; add 1 to i
-      local.set $i ;; write to i
-      br $loop_begin
-
-)
-      nop
-
-    )
-    local.get $arr_ptr ;; leave pointer to allocated array struct on stack
-    local.set $var_arr4 ;; set local var
-    i32.const 3 ;; push 3 on stack
-    call $fun_f ;; call function fun_f
+    local.set $var_t ;; set local var
+    local.get $var_t
+    i32.const 0 ;; offset of field
+    i32.add ;; add offset
+    i32.const 36 ;; offset in memory
+    i32.const 44 ;; data pointer to store
+    i32.store ;; store size in bytes
+    i32.const 40 ;; offset in memory
+    i32.const 6 ;; length to store
+    i32.store ;; store data pointer
+    i32.const 36 ;; leave pointer to string on stack
+    i32.store ;; store int in struct
+    i32.const 36 ;; offset in memory
+    i32.const 44 ;; data pointer to store
+    i32.store ;; store size in bytes
+    i32.const 40 ;; offset in memory
+    i32.const 6 ;; length to store
+    i32.store ;; store data pointer
+    i32.const 36 ;; leave pointer to string on stack
     i32.const 3 ;; push 3 on stack
     ;; Load expression to be applied as a function
-    i32.const 0 ;; push 0 on stack
-    i32.const 0 ;; put zero on stack
-    i32.lt_s ;; check if index is >= 0
-    (if (then
-      i32.const 42 ;; error exit code push to stack
-      return ;; return exit code
-       )
-      ) ;; check that index is >= 0 - if not return 42
-    i32.const 0 ;; push 0 on stack
-    local.get $var_arr4
-    i32.const 4 ;; offset of length field
+    ;; Start of field select
+    local.get $var_t
+    i32.const 8 ;; push field offset to stack
     i32.add ;; add offset to base address
-    i32.load ;; load length
-    i32.ge_u ;; check if index is < length
-    (if (then
-      i32.const 42 ;; error exit code push to stack
-      return ;; return exit code
-       )
-      ) ;; check that index is < length - if not return 42
-    local.get $var_arr4
-    i32.load ;; load data pointer
-    i32.const 0 ;; push 0 on stack
-    i32.const 4 ;; byte offset
-    i32.mul ;; multiply index with byte offset
-    i32.add ;; add offset to base address
-    i32.load ;; load value
-    ;; end array element access node
+    i32.load ;; load field
+    ;; End of field select
     call_indirect (param i32) (result i32) ;; call function
+    i32.const 3 ;; push 3 on stack
+    ;; Load expression to be applied as a function
+    ;; Start of field select
+    local.get $var_t
+    i32.const 8 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    i32.load ;; load field
+    ;; End of field select
+    call_indirect (param i32) (result i32) ;; call function
+    i32.const 4 ;; push 4 on stack
     i32.eq
     (if 
      (then
