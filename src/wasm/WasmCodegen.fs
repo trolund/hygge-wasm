@@ -494,9 +494,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m' = doCodegen env condition m
         let m'' = doCodegen env ifTrue m
         let m''' = doCodegen env ifFalse m
-
-        // get subtype of ifTrue and ifFalse
-        // IFTRUE AND IF FASLE ARE always THE SAME
+        
+        // get the return type of the ifTrue branch and subsequently the ifFalse branch
         let t = findReturnType ifTrue
 
         let instrs =
@@ -521,9 +520,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         m'.ResetTempCode().AddCode(instrs)
 
     | Application(expr, args) ->
-
+        /// compile arguments
         let argm = List.fold (fun m arg -> m + doCodegen env arg (m.ResetTempCode())) m args
 
+        /// generate code for the expression for the function to be applied
         let appTermCode =
             Module().AddCode([ Comment "Load expression to be applied as a function" ])
             ++ (doCodegen env expr m)
