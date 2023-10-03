@@ -195,7 +195,7 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
                                 (compileRISCV opt tast).ToString()
                             | CmdLine.CompilationTarget.WASM ->
                                 // Compile the AST to WASM assembly
-                                (WASMCodegen.implicit tast).ToString()
+                                (WASMCodegen.codegen tast).ToString()
                                 
                 
             // Write the output file (or print to stdout if no output file is given)

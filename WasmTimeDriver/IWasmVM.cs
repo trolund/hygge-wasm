@@ -10,8 +10,8 @@ namespace WasmTimeDriver
 		public object? RunFile(string path, string target);
 		public object?[] RunFileTimes(string path, string target, int n);
 		public object?[] RunFileTimes(string path, int n);
-		object? RunWatString(string target, string wat);
-		object? RunWatString(string wat);
+		object? RunWatString(string target, string wat, string name = "unknown");
+		object? RunWatString(string wat, string name = "unknown");
 	}
 }
 

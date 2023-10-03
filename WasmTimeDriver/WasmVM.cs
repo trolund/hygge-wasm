@@ -191,22 +191,23 @@ namespace WasmTimeDriver
             return RunFile(path, main);
         }
 
-        public object? RunWatString(string target, string wat)
+        public object? RunWatString(string target, string wat, string name = "unknown")
         {
-            return RunWat(target, wat);
+            return RunWat(target, wat, name);
         }
 
-        public object? RunWatString(string wat)
+        public object? RunWatString(string wat, string name = "unknown")
         {
-            return RunWat(main, wat);
+            return RunWat(main, wat, name);
         }
 
-        public object? RunWat(string target, string wat)
+
+        public object? RunWat(string target, string wat, string name = "unknown")
         {
             try
             {
                 // load module 
-                using var module = Module.FromText(_engine, "test", wat);
+                using var module = Module.FromText(_engine, name, wat);
                 return ExecModule(module, target);
             }
             catch (Exception e)

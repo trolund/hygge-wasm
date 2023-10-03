@@ -1609,7 +1609,7 @@ and internal captureVars (node: TypedAST) =
 
 /// add special implicit main function
 /// as the entry point of the program
-let implicit (node: TypedAST) : Module =
+let codegen (node: TypedAST) : Module =
 
     // _start function is the entry point of the program
     // _start name is a special name that is part of the WASI ABI.

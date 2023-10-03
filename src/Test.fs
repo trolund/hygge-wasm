@@ -30,16 +30,16 @@ let internal runRARS tast expected =
     Expect.equal exit expected ($"RARS should have exited with code %d{expected} (%s{explainExpected}), "
                                         + $"got %d{exit} (%s{explainExit})")
 
-let internal runWasmTime tast expected = 
+let internal runWasmTime tast expected name = 
     // let anf = ANF.transform tast
-    let asm = (hyggec.WASMCodegen.implicit tast).ToString()
+    let asm = (hyggec.WASMCodegen.codegen tast).ToString()
     let explainExpected = RARS.explainExitCode expected
     
     let vm = WasmVM()
     let exit: int = vm.RunWatString(asm.ToString()) :?> int
     Log.debug (sprintf "WasmTime exit code: %d" exit)
     let explainExit = RARS.explainExitCode exit
-    Expect.equal exit expected ($"WasmTime should have exited with code %d{expected} (%s{explainExpected}), "
+    Expect.equal exit expected ($"Test with name: %s{name}," + $"WasmTime should have exited with code %d{expected} (%s{explainExpected}), "
                                         + $"got %d{exit} (%s{explainExit})")
 
 
@@ -211,13 +211,13 @@ let tests = testList "tests" [
         testList "pass" (
             getFilesInTestDir ["codegen"; "pass"] |> List.map ( fun file ->
                 testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
-                    testWasmCodegen file 0
+                    testWasmCodegen file 0 file
             )
         )
         testList "fail" (
             getFilesInTestDir ["codegen"; "fail"] |> List.map ( fun file ->
                 testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
-                    testWasmCodegen file RISCVCodegen.assertExitCode
+                    testWasmCodegen file RISCVCodegen.assertExitCode file
             )
         )
     ]
