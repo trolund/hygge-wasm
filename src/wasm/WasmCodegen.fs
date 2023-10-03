@@ -507,15 +507,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             m'.GetAccCode()
-            @ C
-                [ (If(
-                      [],
-                      [ (Nop, "do nothing - if all correct") ],
-                      Some(
-                          [ (I32Const errorExitCode, "error exit code push to stack")
-                            (Return, "return exit code") ]
-                      )
-                  )) ]
+            // invert assertion
+            @ [ (I32Eqz, "invert assertion") ]
+            @ C [ (If(
+                    [],
+                    [ (I32Const errorExitCode, "error exit code push to stack")
+                      (Return, "return exit code") ],
+                    None
+                )) ]
 
         m'.ResetAccCode().AddCode(instrs)
 
