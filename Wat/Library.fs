@@ -603,7 +603,7 @@ module WFG =
             // member private this.codes = Code
             member private this.locals: Set<Local> = locals
 
-            member this.funcTableSize: int = funcTableSize
+            member private this.funcTableSize: int = funcTableSize
             member private this.tempCode: list<Commented<Instr>> = tempCode
             
             // empty constructor
