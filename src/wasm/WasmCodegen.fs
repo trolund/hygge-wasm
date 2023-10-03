@@ -18,8 +18,10 @@ type Var =
 /// Storage information for variables.
 [<RequireQualifiedAccess; StructuralComparison; StructuralEquality>]
 type internal Storage =
-    /// label of local or global variable
-    | Label of label: string
+    /// label of local
+    | local of label: string
+    /// global variable
+    | glob of label: string
     /// index of local variable
     | Offset of offset: int // idex
     /// function reference in table
@@ -164,7 +166,7 @@ let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
     match e.Expr with
     | Var v ->
         match env.VarStorage.TryFind v with
-        | Some(Storage.Label(l)) -> Named(l)
+        | Some(Storage.local(l)) -> Named(l)
         | Some(Storage.Offset(o)) -> Index(o)
         | _ -> failwith "not implemented"
     | _ -> failwith "not implemented"
@@ -203,9 +205,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // TODO
         let instrs =
             match env.VarStorage.TryFind v with
-            | Some(Storage.Label(l)) -> [ LocalGet(Named(l)) ]
+            | Some(Storage.local(l)) -> [ LocalGet(Named(l)) ]
             | Some(Storage.Offset(o)) -> [ LocalGet(Index(o)) ]
             | Some(Storage.FuncRef(l)) -> [ LocalGet(Named(l)) ]
+            | Some(Storage.glob(l)) -> [ GlobalGet(Named(l)) ]
             | _ -> failwith "not implemented"
 
         m.AddCode(instrs)
@@ -521,37 +524,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let argm = List.fold (fun m arg -> m + doCodegen env arg (m.ResetAccCode())) m args
 
         /// generate code for the expression for the function to be applied
+        let exprm = (doCodegen env expr m)
         let appTermCode =
             Module().AddCode([ Comment "Load expression to be applied as a function" ])
-            ++ (doCodegen env expr m)
+            ++ exprm
 
-        match expr.Expr with
-        | Var v ->
-            match env.VarStorage.TryFind v with
-            | Some(Storage.Label(l)) ->
-                let instrs = argm.GetAccCode() @ [ (Call l, sprintf "call function %s" l) ]
+        // type to function signature
+        let s = typeToFuncSiganture expr.Type
 
-                argm.ResetAccCode().AddCode(instrs)
-            | Some(Storage.FuncRef(l)) ->
-                // type to function signature
-                let s = typeToFuncSiganture expr.Type
+        let instrs = [ (CallIndirect__(s), sprintf "call function") ]
 
-                let instrs =
-                    argm.GetAccCode()
-                    @ appTermCode.GetAccCode()
-                    @ [ (CallIndirect__(s), sprintf "call function %s" l) ]
-
-                argm.ResetAccCode().AddCode(instrs)
-            | _ -> failwith "not implemented"
-        | _ ->
-            // type to function signature
-            let s = typeToFuncSiganture expr.Type
-
-            let instrs = [ (CallIndirect__(s), sprintf "call function") ]
-
-            argm ++ appTermCode.AddCode(instrs)
-
-
+        argm ++ appTermCode.AddCode(instrs)
 
     | Lambda(args, body) ->
         // Label to mark the position of the lambda term body
@@ -573,7 +556,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // add func ref to env
         let env' =
             { env with
-                VarStorage = env.VarStorage.Add(funLabel, Storage.FuncRef(funLabel)) }
+                VarStorage = env.VarStorage.Add(funLabel, Storage.glob(funLabel)) }
 
         // intrctions that get all locals used in lamda and push them to stack
         let instrs =
@@ -956,7 +939,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let varName = Util.genSymbol $"match_var_{var}"
 
                 // map case var to label address
-                let scopeVarStorage = env.VarStorage.Add(var, Storage.Label(varName))
+                let scopeVarStorage = env.VarStorage.Add(var, Storage.local(varName))
 
                 /// Environment for compiling the 'case' scope
                 let scopeEnv =
@@ -1013,7 +996,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let varLabel =
                 match env.VarStorage.TryFind name with
-                | Some(Storage.Label(l)) -> Named(l)
+                | Some(Storage.local(l)) -> Named(l)
                 | _ -> failwith "not implemented"
 
             // is nested? - is multiple assignment
@@ -1024,7 +1007,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         match v.Expr with
                         | Var(n) ->
                             match env.VarStorage.TryFind n with
-                            | Some(Storage.Label(l)) -> Named(l)
+                            | Some(Storage.local(l)) -> Named(l)
                             | _ -> failwith "not implemented"
                         | _ -> failwith "not implemented"
 
@@ -1150,11 +1133,29 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
-        let varStorage2 = env.VarStorage.Add(name, Storage.Label(funLabel))
+        let varStorage2 = env.VarStorage.Add(name, Storage.glob(funLabel))
 
         let scopeModule: Module = (doCodegen { env with VarStorage = varStorage2 } scope m)
 
-        scopeModule + bodyCode
+        // get the index of the function
+        let funcindex = m.GetFuncTableSize
+
+        // add function to function table
+        let m = m.AddFuncRefElement(funLabel)
+
+        // allocate memory for function pointer
+        let ptr = env.memoryAllocator.Allocate(4)
+
+        // index to hex
+        let funcindexhex = Util.intToHex funcindex
+
+        // create function pointer
+        let funcPointer =
+            m
+                .AddData(I32Const ptr, funcindexhex)
+                .AddGlobal((funLabel, (I32, Mutable), (I32Const funcindex)))
+
+        funcPointer + scopeModule + bodyCode
 
     | Let(name, _, init, scope) ->
         let m' = doCodegen env init m
@@ -1163,7 +1164,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let env' =
             { env with
-                VarStorage = env.VarStorage.Add(name, Storage.Label(varName)) }
+                VarStorage = env.VarStorage.Add(name, Storage.local(varName)) }
 
         match init.Type with
         | t when (isSubtypeOf init.Env t TUnit) -> m' ++ (doCodegen env scope m)
@@ -1210,22 +1211,24 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 match init.Expr with
                 | Var(v) ->
                     match env.VarStorage.TryFind v with
-                    | Some(Storage.Label(l)) -> l
+                    | Some(Storage.local(l)) -> l
                     | Some(Storage.FuncRef(l)) -> l
+                    | Some(Storage.glob(l)) -> l
                     | _ -> failwith "not implemented"
                 | Application(expr, _) ->
                     match expr.Expr with
                     | Var(n) ->     
                         match env.VarStorage.TryFind n with
-                        | Some(Storage.Label(l)) -> l
+                        | Some(Storage.local(l)) -> l
                         | Some(Storage.FuncRef(l)) -> l
+                        | Some(Storage.glob(l)) -> l
                     | _ -> failwith "not implemented"
                 | _ -> failwith "not implemented"
 
             // add var to func ref
             let env'' =
                 { env' with
-                    VarStorage = env.VarStorage.Add(name, Storage.FuncRef(funcLabel)) }
+                    VarStorage = env.VarStorage.Add(name, Storage.glob(funcLabel)) }
 
             let initCode = m'.GetAccCode()
 
@@ -1296,7 +1299,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
-        let funcref = env.VarStorage.Add(name, Storage.Label(funLabel))
+        let funcref = env.VarStorage.Add(name, Storage.glob(funLabel))
 
         // get the index of the function
         let funcindex = m.GetFuncTableSize
@@ -1314,12 +1317,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let funcPointer =
             m
                 .AddData(I32Const ptr, funcindexhex)
-                .AddLocals([ (Some(Identifier(funLabel)), I32) ])
-                .AddCode(
-                    [ (I32Const ptr, "pointer to function")
-                      (I32Load, "load function pointer")
-                      (LocalSet(Named(funLabel)), "set local var") ]
-                )
+                .AddGlobal((funLabel, (I32, Mutable), (I32Const funcindex)))
 
         /// Names of the lambda term arguments
         let (argNames, _) = List.unzip args
@@ -1559,7 +1557,7 @@ and internal compileFunction
                         VarStorage = env.VarStorage.Add(n, Storage.FuncRef(n)) }
                 | _ ->
                     { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.Label(n)) })
+                        VarStorage = env.VarStorage.Add(n, Storage.local(n)) })
             env
             args
 

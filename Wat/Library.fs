@@ -261,8 +261,8 @@ module WFG =
         | LocalGet of Label
         | LocalSet of Label
         | LocalTee of Label
-        | GlobalGet of int
-        | GlobalSet of int
+        | GlobalGet of Label
+        | GlobalSet of Label
         // Table Instr
         | TableGet of int
         | TableSet of int
@@ -464,8 +464,8 @@ module WFG =
                 | LocalGet l -> sprintf "local.get %s" (l.ToString())
                 | LocalSet l -> sprintf "local.set %s" (l.ToString())
                 | LocalTee l -> sprintf "local.tee %s" (l.ToString())
-                | GlobalGet index -> sprintf "global.get %d" index
-                | GlobalSet index -> sprintf "global.set %d" index
+                | GlobalGet index -> sprintf "global.get %s" (index.ToString())
+                | GlobalSet index -> sprintf "global.set %s" (index.ToString())
                 | Unreachable -> "unreachable"
                 | Nop -> "nop"
                 | Br id -> sprintf "br $%s" id
