@@ -446,14 +446,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     | ReadInt ->
         // import readInt function
-        let m' =
-            m.AddImport(getImport "readInt")
+        let m' = m.AddImport(getImport "readInt")
         // perform host (system) call
         m'.AddCode([ (Call "readInt", "call host function") ])
     | ReadFloat ->
         // import readFloat function
-        let m' =
-            m.AddImport(getImport "readFloat")
+        let m' = m.AddImport(getImport "readFloat")
         // perform host (system) call
         m'.AddCode([ (Call "readFloat", "call host function") ])
     | PrintLn e
@@ -466,8 +464,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         match e.Type with
         | t when (isSubtypeOf node.Env t TInt) ->
             // import writeInt function
-            let m'' =
-                m'.AddImport(getImport "writeInt")
+            let m'' = m'.AddImport(getImport "writeInt")
             // perform host (system) call
             m''.AddCode([ (Call "writeInt", "call host function") ])
         | t when (isSubtypeOf node.Env t TFloat) -> failwith "not implemented"
@@ -494,7 +491,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m' = doCodegen env condition m
         let m'' = doCodegen env ifTrue m
         let m''' = doCodegen env ifFalse m
-        
+
         // get the return type of the ifTrue branch and subsequently the ifFalse branch
         let t = findReturnType ifTrue
 
@@ -558,7 +555,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     | Lambda(args, body) ->
         // Label to mark the position of the lambda term body
-        let funLabel = Util.genSymbol "lambda"
+        let funLabel = Util.genSymbol "anonymous"
 
         // capture variables in body
         let l = captureVars body
@@ -569,14 +566,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// Names of the Lambda arguments
         let (argNames, _) = List.unzip args
 
-        let argNamesTypes = (List.map (fun a -> (a, body.Env.Vars[a])) argNames) @ l'
+        let argNamesTypes = (List.map (fun a -> (a, body.Env.Vars[a])) argNames) 
 
         let m' = m.AddFuncRefElement(funLabel)
 
         // add func ref to env
         let env' =
             { env with
-                VarStorage = env.VarStorage.Add(funLabel, Storage.Offset(m'.funcTableSize - 1)) }
+                VarStorage = env.VarStorage.Add(funLabel, Storage.FuncRef(funLabel)) }
 
         // intrctions that get all locals used in lamda and push them to stack
         let instrs =
@@ -592,7 +589,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let l = (C instrs) @ (C [ Call funLabel ])
 
-        l ++ (compileFunction funLabel argNamesTypes body env' m')
+        let body' = (compileFunction funLabel argNamesTypes body env' m')
+
+        l ++ body'
     | Seq(nodes) ->
         // We collect the code of each sequence node by folding over all nodes
         List.fold (fun m node -> (m + doCodegen env node (m.ResetAccCode()))) m nodes
@@ -1125,9 +1124,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 @ rhsCode.GetAccCode()
                 @ [ (I32Store, "store value in elem pos") ]
 
-            (rhsCode.ResetAccCode()
-             + indexCode.ResetAccCode()
-             + selTargetCode.ResetAccCode())
+            (rhsCode.ResetAccCode() + indexCode.ResetAccCode() + selTargetCode.ResetAccCode())
                 .AddCode(indexCheck @ instrs)
         | _ -> failwith "not implemented"
     | Ascription(_, node) ->
@@ -1214,11 +1211,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | Var(v) ->
                     match env.VarStorage.TryFind v with
                     | Some(Storage.Label(l)) -> l
+                    | Some(Storage.FuncRef(l)) -> l
+                    | _ -> failwith "not implemented"
+                | Application(expr, _) ->
+                    match expr.Expr with
+                    | Var(n) ->     
+                        match env.VarStorage.TryFind n with
+                        | Some(Storage.Label(l)) -> l
+                        | Some(Storage.FuncRef(l)) -> l
                     | _ -> failwith "not implemented"
                 | _ -> failwith "not implemented"
 
             // add var to func ref
-            let env' =
+            let env'' =
                 { env' with
                     VarStorage = env.VarStorage.Add(name, Storage.FuncRef(funcLabel)) }
 
@@ -1228,7 +1233,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 initCode // inizilize code
                 @ [ (LocalSet varLabel, "set local var") ] // set local var
 
-            let scopeCode = (doCodegen env' scope (m.ResetAccCode()))
+            let scopeCode = (doCodegen env'' scope (m.ResetAccCode()))
 
             let combi = (instrs ++ scopeCode)
 
@@ -1320,6 +1325,21 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let (argNames, _) = List.unzip args
         /// List of pairs associating each function argument to its type
         let argNamesTypes = List.zip argNames targs
+
+        /// TODO: Capture environment in struct, with a field for each captured variable
+        /// // list of string * Node<'E,'T> where the string is the name of the captured variable
+        // let x = captureVars body
+
+        // // resolve variable to its type
+        // let xt = List.map (fun a -> (a, body.Env.Vars[a])) x
+
+        // // map x to a list of string * Node<'E,'T> where the string is the name of the captured variable
+        // let captured = List.map (fun (n, t) -> (n, { node with Expr = Var(n); Type = t })) xt
+
+        // // all captured variables are stored in a struct
+        // let capturedVarsStruct =
+        //     { node with
+        //         Expr = Struct(captured) }
 
         /// Compiled function body
         let bodyCode: Module =
