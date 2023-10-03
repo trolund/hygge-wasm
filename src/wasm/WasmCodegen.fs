@@ -166,7 +166,7 @@ let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
     match e.Expr with
     | Var v ->
         match env.VarStorage.TryFind v with
-        | Some(Storage.local(l)) -> Named(l)
+        | Some(Storage.local (l)) -> Named(l)
         | Some(Storage.Offset(o)) -> Index(o)
         | _ -> failwith "not implemented"
     | _ -> failwith "not implemented"
@@ -205,10 +205,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // TODO
         let instrs =
             match env.VarStorage.TryFind v with
-            | Some(Storage.local(l)) -> [ LocalGet(Named(l)) ]
+            | Some(Storage.local (l)) -> [ LocalGet(Named(l)) ]
             | Some(Storage.Offset(o)) -> [ LocalGet(Index(o)) ]
             | Some(Storage.FuncRef(l)) -> [ LocalGet(Named(l)) ]
-            | Some(Storage.glob(l)) -> [ GlobalGet(Named(l)) ]
+            | Some(Storage.glob (l)) -> [ GlobalGet(Named(l)) ]
             | _ -> failwith "not implemented"
 
         m.AddCode(instrs)
@@ -509,12 +509,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m'.GetAccCode()
             // invert assertion
             @ [ (I32Eqz, "invert assertion") ]
-            @ C [ (If(
-                    [],
-                    [ (I32Const errorExitCode, "error exit code push to stack")
-                      (Return, "return exit code") ],
-                    None
-                )) ]
+            @ C
+                [ (If(
+                      [],
+                      [ (I32Const errorExitCode, "error exit code push to stack")
+                        (Return, "return exit code") ],
+                      None
+                  )) ]
 
         m'.ResetAccCode().AddCode(instrs)
 
@@ -524,6 +525,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// generate code for the expression for the function to be applied
         let exprm = (doCodegen env expr m)
+
         let appTermCode =
             Module().AddCode([ Comment "Load expression to be applied as a function" ])
             ++ exprm
@@ -540,22 +542,22 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let funLabel = Util.genSymbol "anonymous"
 
         // capture variables in body
-        let l = captureVars body
+        // let l = captureVars body
 
         // resolve type of captured variables
-        let l' = List.map (fun v -> (v, body.Env.Vars[v])) l
+        // let l' = List.map (fun v -> (v, body.Env.Vars[v])) l
 
         /// Names of the Lambda arguments
         let (argNames, _) = List.unzip args
 
-        let argNamesTypes = (List.map (fun a -> (a, body.Env.Vars[a])) argNames) 
+        let argNamesTypes = (List.map (fun a -> (a, body.Env.Vars[a])) argNames)
 
         let m' = m.AddFuncRefElement(funLabel)
 
         // add func ref to env
         let env' =
             { env with
-                VarStorage = env.VarStorage.Add(funLabel, Storage.glob(funLabel)) }
+                VarStorage = env.VarStorage.Add(funLabel, Storage.glob (funLabel)) }
 
         // intrctions that get all locals used in lamda and push them to stack
         let instrs =
@@ -938,7 +940,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let varName = Util.genSymbol $"match_var_{var}"
 
                 // map case var to label address
-                let scopeVarStorage = env.VarStorage.Add(var, Storage.local(varName))
+                let scopeVarStorage = env.VarStorage.Add(var, Storage.local (varName))
 
                 /// Environment for compiling the 'case' scope
                 let scopeEnv =
@@ -995,7 +997,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let varLabel =
                 match env.VarStorage.TryFind name with
-                | Some(Storage.local(l)) -> Named(l)
+                | Some(Storage.local (l)) -> Named(l)
                 | _ -> failwith "not implemented"
 
             // is nested? - is multiple assignment
@@ -1006,7 +1008,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         match v.Expr with
                         | Var(n) ->
                             match env.VarStorage.TryFind n with
-                            | Some(Storage.local(l)) -> Named(l)
+                            | Some(Storage.local (l)) -> Named(l)
                             | _ -> failwith "not implemented"
                         | _ -> failwith "not implemented"
 
@@ -1132,7 +1134,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
-        let varStorage2 = env.VarStorage.Add(name, Storage.glob(funLabel))
+        let varStorage2 = env.VarStorage.Add(name, Storage.glob (funLabel))
 
         let scopeModule: Module = (doCodegen { env with VarStorage = varStorage2 } scope m)
 
@@ -1163,7 +1165,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let env' =
             { env with
-                VarStorage = env.VarStorage.Add(name, Storage.local(varName)) }
+                VarStorage = env.VarStorage.Add(name, Storage.local (varName)) }
 
         match init.Type with
         | t when (isSubtypeOf init.Env t TUnit) -> m' ++ (doCodegen env scope m)
@@ -1210,24 +1212,24 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 match init.Expr with
                 | Var(v) ->
                     match env.VarStorage.TryFind v with
-                    | Some(Storage.local(l)) -> l
+                    | Some(Storage.local (l)) -> l
                     | Some(Storage.FuncRef(l)) -> l
-                    | Some(Storage.glob(l)) -> l
+                    | Some(Storage.glob (l)) -> l
                     | _ -> failwith "not implemented"
                 | Application(expr, _) ->
                     match expr.Expr with
-                    | Var(n) ->     
+                    | Var(n) ->
                         match env.VarStorage.TryFind n with
-                        | Some(Storage.local(l)) -> l
+                        | Some(Storage.local (l)) -> l
                         | Some(Storage.FuncRef(l)) -> l
-                        | Some(Storage.glob(l)) -> l
+                        | Some(Storage.glob (l)) -> l
                     | _ -> failwith "not implemented"
                 | _ -> failwith "not implemented"
 
             // add var to func ref
             let env'' =
                 { env' with
-                    VarStorage = env.VarStorage.Add(name, Storage.glob(funcLabel)) }
+                    VarStorage = env.VarStorage.Add(name, Storage.glob (funcLabel)) }
 
             let initCode = m'.GetAccCode()
 
@@ -1291,7 +1293,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | LetRec(name,
              _,
              { Node.Expr = Lambda(args, body)
-               Node.Type = TFun(targs, _) },
+               Node.Type = TFun(targs, ret) },
              scope) ->
 
         let funLabel = Util.genSymbol $"fun_%s{name}"
@@ -1323,20 +1325,37 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// List of pairs associating each function argument to its type
         let argNamesTypes = List.zip argNames targs
 
-        /// TODO: Capture environment in struct, with a field for each captured variable
-        /// // list of string * Node<'E,'T> where the string is the name of the captured variable
-        // let x = captureVars body
+        /// TODO: capture environment in struct, with a field for each captured variable 
+        // let v = Set(captureVars node)
+        // /// // list of string * Node<'E,'T> where the string is the name of the captured variable
+        // let x = []
 
         // // resolve variable to its type
         // let xt = List.map (fun a -> (a, body.Env.Vars[a])) x
 
         // // map x to a list of string * Node<'E,'T> where the string is the name of the captured variable
-        // let captured = List.map (fun (n, t) -> (n, { node with Expr = Var(n); Type = t })) xt
+        // let captured =
+        //     List.map (fun (n, t) -> (n, { node with Expr = Var(n); Type = t })) xt
+
+        // // add each arg to var storage (all local vars)
+        // let env' =
+        //     List.fold
+        //         (fun env (n, t) ->
+        //             { env with
+        //                 VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
+        //         env
+        //         argNamesTypes
 
         // // all captured variables are stored in a struct
-        // let capturedVarsStruct =
-        //     { node with
-        //         Expr = Struct(captured) }
+        // let capturedVarsStruct = { node with Expr = Struct(captured) }
+
+        // // seq of captured vars and body
+        // let body' =
+        //     if captured.Length > 0 then
+        //         { node with
+        //             Expr = Seq([ body; capturedVarsStruct ]) }
+        //     else
+        //         body
 
         /// Compiled function body
         let bodyCode: Module =
@@ -1556,7 +1575,7 @@ and internal compileFunction
                         VarStorage = env.VarStorage.Add(n, Storage.FuncRef(n)) }
                 | _ ->
                     { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.local(n)) })
+                        VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
             env
             args
 
@@ -1601,7 +1620,34 @@ and internal captureVars (node: TypedAST) =
     | LetMut(name, _, init, scope) -> List.concat [ captureVars init; captureVars scope ]
     | LetRec(name, _, init, scope) -> List.concat [ captureVars init; captureVars scope ]
     | Pointer(_) -> []
-    | _ -> []
+    | Struct(fields) -> List.concat (List.map (fun (_, v) -> captureVars v) fields)
+    | FieldSelect(target, _) -> captureVars target
+    | Match(target, cases) ->
+        let (labels, vars, exprs) = List.unzip3 cases
+        let indexedLabels = List.indexed labels
+        let exprsVars = List.concat (List.map captureVars exprs)
+        let targetVars = captureVars target
+        let caseVars = List.concat (List.map captureVars exprs)
+        List.concat [ targetVars; exprsVars; caseVars ]
+    | Application(func, args) -> List.concat [ captureVars func; List.concat (List.map captureVars args) ]
+    | IntVal _ -> []
+    | FloatVal _ -> []
+    | BoolVal _ -> []
+    | StringVal _ -> []
+    | UnitVal -> []
+    | Less(left, right) -> List.concat [ captureVars left; captureVars right ]
+    | Eq(left, right) -> List.concat [ captureVars left; captureVars right ]
+    | Not(node) -> captureVars node
+    | Add(left, right) -> List.concat [ captureVars left; captureVars right ]
+    | Sub(left, right) -> List.concat [ captureVars left; captureVars right ]
+    | Mult(left, right) -> List.concat [ captureVars left; captureVars right ]
+    | Div(left, right) -> List.concat [ captureVars left; captureVars right ]
+    | Rem(left, right) -> List.concat [ captureVars left; captureVars right ]
+    | And(left, right) -> List.concat [ captureVars left; captureVars right ]
+    | Or(left, right) -> List.concat [ captureVars left; captureVars right ]
+    | Greater(left, right) -> List.concat [ captureVars left; captureVars right ]
+    | Assertion(node) -> captureVars node
+    | x -> failwith $"BUG: captureVars on invalid expression: %O{x}"
 
 
 /// add special implicit main function
