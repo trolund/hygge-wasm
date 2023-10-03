@@ -186,9 +186,9 @@ namespace WasmTimeDriver
             return list.ToArray();
         }
 
-        public object? RunFile(string path)
+        public object? RunFile(string path, string name = "unknown")
         {
-            return RunFile(path, main);
+            return RunFile(path, main, name);
         }
 
         public object? RunWatString(string target, string wat, string name = "unknown")
@@ -212,12 +212,13 @@ namespace WasmTimeDriver
             }
             catch (Exception e)
             {
+                Console.WriteLine(name);
                 Console.WriteLine(e);
                 return null;
             }
         }
 
-        public object? RunFile(string path, string? target)
+        public object? RunFile(string path, string? target, string name = "unknown")
         {
             try
             {
@@ -234,6 +235,7 @@ namespace WasmTimeDriver
             }
             catch (Exception e)
             {
+                Console.WriteLine(name);
                 Console.WriteLine(e);
                 return null;
             }
@@ -249,7 +251,7 @@ namespace WasmTimeDriver
             return res;
         }
 
-        public object? Run(string wat, string target)
+        public object? Run(string wat, string target, string name = "unknown")
         {
             try
             {
@@ -259,12 +261,13 @@ namespace WasmTimeDriver
             }
             catch (Exception e)
             {
+                Console.WriteLine(name);
                 Console.WriteLine(e);
                 return null;
             }
         }
 
-        private object? RunTarget(string target, Instance? instance)
+        private object? RunTarget(string target, Instance? instance, string name = "unknown")
         {
 
             if (target is null || target.Length == 0)
@@ -293,6 +296,7 @@ namespace WasmTimeDriver
 
             if (function is null)
             {
+                Console.WriteLine(name);
                 Console.WriteLine($"warn: {target} export is missing");
             }
 
