@@ -189,7 +189,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // store data pointer and length in struct
         // leave pointer to string on stack
         m
-            .AddMemory("memory", Unbounded(env.memoryAllocator.GetNumPages()))
             .AddData(I32Const(daraPtr), s) // store string in memory
             .AddCode(
                 [ (I32Const ptr, "offset in memory")
@@ -1690,7 +1689,7 @@ let codegen (node: TypedAST) : Module =
          "entry point of program (main function)")
 
     // add memory, start with 1 page of memory, can grow at runtime
-    let m = Module().AddMemory(("memory", Unbounded(1)))
+    // let m = Module()
 
     let env =
         { currFunc = funcName
@@ -1701,7 +1700,7 @@ let codegen (node: TypedAST) : Module =
 
     // add function to module and export it
     let m' =
-        m.AddFunction(funcName, f).AddExport(funcName, FunctionType(funcName, None))
+        Module().AddFunction(funcName, f).AddExport(funcName, FunctionType(funcName, None))
 
     // compile main function
     let m = doCodegen env node m'
@@ -1710,10 +1709,12 @@ let codegen (node: TypedAST) : Module =
     // the offset is the current position of the memory allocator
     // before this offset only static data is allocated
     let staticOffset: int = env.memoryAllocator.GetAllocationPosition()
-
+    // TODO: move this logic to the memory allocator
+    let numOfStaticPages: int = if env.memoryAllocator.GetNumPages() <= 0 then 1 else env.memoryAllocator.GetNumPages()
     let heapBase = "heap_base"
 
-    m
+    m   
+        .AddMemory(("memory", Unbounded(numOfStaticPages)))
         .AddLocals(env.currFunc, m.GetLocals()) // set locals of function
         .AddInstrs(env.currFunc, [ Comment "execution start here:" ])
         .AddInstrs(env.currFunc, m.GetAccCode()) // add code of main function
