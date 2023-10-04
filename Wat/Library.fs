@@ -277,6 +277,8 @@ module WFG =
         /// type label
         | CallIndirect of Label
         | CallIndirect__ of FunctionSignature
+        // ref 
+        | RefFunc of Label
         // Conversion Instr
         | I32WrapI64
         | I32TruncF32S
@@ -488,6 +490,7 @@ module WFG =
                     | Some elseInstrs' -> sprintf "(if %s\n     (then\n%s\n     )\n     (else\n%s\n     )\n    )" (resultPrint types) (generate_wat_code_ident ifInstrs indent) (generate_wat_code_ident elseInstrs' indent)
                     | None -> sprintf "(if%s (then\n%s       )\n      )" (resultPrint types) (generate_wat_code_ident ifInstrs indent) 
                 // comments
+                | RefFunc label -> sprintf "ref.func %s" (label.ToString())
                 | Comment comment -> sprintf ";; %s" comment
                 | x -> sprintf "not implemented: %s" (x.ToString())
 

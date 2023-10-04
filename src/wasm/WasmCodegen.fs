@@ -539,43 +539,68 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     | Lambda(args, body) ->
         // Label to mark the position of the lambda term body
-        let funLabel = Util.genSymbol "anonymous"
+        let funLabel = Util.genSymbol $"{env.currFunc}/anonymous"
 
-        // capture variables in body
-        // let l = captureVars body
+        // capture environment in struct, with a field for each captured variable
+        let captured = Set(captureVars body)
 
-        // resolve type of captured variables
-        // let l' = List.map (fun v -> (v, body.Env.Vars[v])) l
+        // map captured to a list of string * TypedAST where the string is the name of the captured variable
+        let capturedStructFields =
+            List.map (fun (n, t) -> (n, { node with Expr = Var(n); Type = t })) (Set.toList captured)
 
-        /// Names of the Lambda arguments
+        // all captured variables are stored in a struct
+        let capturedVarsStruct =
+            { node with
+                Expr = Struct(capturedStructFields) }
+
+        // generate code for struct
+        let capturedVarsStructCode = doCodegen env capturedVarsStruct m
+
+        // get last local var from capturedVarsStructCode
+        let pointerVar = List.last (capturedVarsStructCode.GetLocals())
+
+        // get the index of the function
+        let funcindex = m.GetFuncTableSize
+
+        // add function to function table
+        let m = m.AddFuncRefElement(funLabel)
+
+        // allocate memory for function pointer
+        let ptr = env.memoryAllocator.Allocate(4)
+
+        // index to hex
+        let funcindexhex = Util.intToHex funcindex
+
+        // create function pointer
+        let funcPointer =
+            m
+                .AddData(I32Const ptr, funcindexhex)
+                .AddGlobal((funLabel, (I32, Mutable), (I32Const funcindex)))
+
+        /// TODO: add env as argument to function
+        /// Names of the lambda term arguments
         let (argNames, _) = List.unzip args
+        /// List of pairs associating each function argument to its type
+        let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
 
-        let argNamesTypes = (List.map (fun a -> (a, body.Env.Vars[a])) argNames)
+        /// Compiled function body
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env m
 
-        let m' = m.AddFuncRefElement(funLabel)
+        // add function to function table
+        // let instrs =
+        //     List.map
+        //         (fun (n, t) ->
+        //             match t with
+        //             | TInt -> LocalGet(Named(n))
+        //             | TFloat -> LocalGet(Named(n))
+        //             | TBool -> LocalGet(Named(n))
+        //             // | TString -> (LocalGet(Named(n)), "get local var")
+        //             | TUnit -> failwith "not implemented")
+        //         argNamesTypes
 
-        // add func ref to env
-        let env' =
-            { env with
-                VarStorage = env.VarStorage.Add(funLabel, Storage.glob (funLabel)) }
+        // let l = (C instrs) @ (C [ Call funLabel ])
 
-        // intrctions that get all locals used in lamda and push them to stack
-        let instrs =
-            List.map
-                (fun (n, t) ->
-                    match t with
-                    | TInt -> LocalGet(Named(n))
-                    | TFloat -> LocalGet(Named(n))
-                    | TBool -> LocalGet(Named(n))
-                    // | TString -> (LocalGet(Named(n)), "get local var")
-                    | TUnit -> failwith "not implemented")
-                argNamesTypes
-
-        let l = (C instrs) @ (C [ Call funLabel ])
-
-        let body' = (compileFunction funLabel argNamesTypes body env' m')
-
-        l ++ body'
+        funcPointer + bodyCode.AddCode([ (GlobalGet (Named(funLabel)), "return table index")  ]) // .AddCode([ Call funLabel ]) // .AddCode([ (RefFunc(Named(funLabel)), "return ref to lambda") ])
     | Seq(nodes) ->
         // We collect the code of each sequence node by folding over all nodes
         List.fold (fun m node -> (m + doCodegen env node (m.ResetAccCode()))) m nodes
@@ -1229,7 +1254,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             // add var to func ref
             let env'' =
                 { env' with
-                    VarStorage = env.VarStorage.Add(name, Storage.glob (funcLabel)) }
+                    VarStorage = env.VarStorage.Add(name, Storage.local (varName)) }
 
             let initCode = m'.GetAccCode()
 
@@ -1293,14 +1318,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | LetRec(name,
              _,
              { Node.Expr = Lambda(args, body)
-               Node.Type = TFun(targs, ret) },
+               Node.Type = TFun(targs, _) },
              scope) ->
 
         let funLabel = Util.genSymbol $"fun_%s{name}"
 
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
-        let funcref = env.VarStorage.Add(name, Storage.glob(funLabel))
+        let funcref = env.VarStorage.Add(name, Storage.glob (funLabel))
+        let env' = { env with VarStorage = funcref }
 
         // get the index of the function
         let funcindex = m.GetFuncTableSize
@@ -1325,43 +1351,33 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// List of pairs associating each function argument to its type
         let argNamesTypes = List.zip argNames targs
 
-        /// TODO: capture environment in struct, with a field for each captured variable 
-        // let v = Set(captureVars node)
+        // /// TODO: capture environment in struct, with a field for each captured variable
+        // let captured = Set(captureVars body)
         // /// // list of string * Node<'E,'T> where the string is the name of the captured variable
-        // let x = []
-
-        // // resolve variable to its type
-        // let xt = List.map (fun a -> (a, body.Env.Vars[a])) x
 
         // // map x to a list of string * Node<'E,'T> where the string is the name of the captured variable
-        // let captured =
-        //     List.map (fun (n, t) -> (n, { node with Expr = Var(n); Type = t })) xt
+        // let capturedStructFields =
+        //     List.map (fun (n, t) -> (n, { node with Expr = Var(n); Type = t })) (Set.toList captured)
 
         // // add each arg to var storage (all local vars)
-        // let env' =
-        //     List.fold
+        // let env'' =
+        //     (List.fold
         //         (fun env (n, t) ->
         //             { env with
         //                 VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
-        //         env
-        //         argNamesTypes
+        //         env'
+        //         argNamesTypes)
 
         // // all captured variables are stored in a struct
-        // let capturedVarsStruct = { node with Expr = Struct(captured) }
+        // let capturedVarsStruct = { node with Expr = Struct(capturedStructFields) }
 
-        // // seq of captured vars and body
-        // let body' =
-        //     if captured.Length > 0 then
-        //         { node with
-        //             Expr = Seq([ body; capturedVarsStruct ]) }
-        //     else
-        //         body
+        // // // compile struct
+        // let capturedVarsStructCode = doCodegen env'' capturedVarsStruct m
 
         /// Compiled function body
-        let bodyCode: Module =
-            compileFunction funLabel argNamesTypes body { env with VarStorage = funcref } m
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env' m
 
-        let scopeModule: Module = (doCodegen { env with VarStorage = funcref } scope m)
+        let scopeModule: Module = (doCodegen env' scope m)
 
         funcPointer + scopeModule + bodyCode
 
@@ -1603,11 +1619,18 @@ and internal compileFunction
 // return a list of all variables in the given expression
 and internal captureVars (node: TypedAST) =
     match node.Expr with
-    | Var v -> [ v ]
+    | Var v -> [ (v, node.Type) ]
+    | IntVal _ -> []
+    | FloatVal _ -> []
+    | BoolVal _ -> []
+    | StringVal _ -> []
+    | UnitVal -> []
     | Lambda(args, body) ->
         let (argNames, _) = List.unzip args
         let bodyVars = captureVars body
-        List.filter (fun v -> not (List.contains v argNames)) bodyVars
+        // resolve pretypes of arguments
+        bodyVars
+    //List.filter (fun v -> not (List.contains v argNames)) bodyVars
     | Seq(nodes) -> List.concat (List.map captureVars nodes)
     | AST.If(cond, ifTrue, ifFalse) -> List.concat [ captureVars cond; captureVars ifTrue; captureVars ifFalse ]
     | While(cond, body) -> List.concat [ captureVars cond; captureVars body ]
@@ -1630,11 +1653,6 @@ and internal captureVars (node: TypedAST) =
         let caseVars = List.concat (List.map captureVars exprs)
         List.concat [ targetVars; exprsVars; caseVars ]
     | Application(func, args) -> List.concat [ captureVars func; List.concat (List.map captureVars args) ]
-    | IntVal _ -> []
-    | FloatVal _ -> []
-    | BoolVal _ -> []
-    | StringVal _ -> []
-    | UnitVal -> []
     | Less(left, right) -> List.concat [ captureVars left; captureVars right ]
     | Eq(left, right) -> List.concat [ captureVars left; captureVars right ]
     | Not(node) -> captureVars node

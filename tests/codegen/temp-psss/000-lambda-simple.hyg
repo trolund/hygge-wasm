@@ -1,0 +1,6 @@
+fun makeCounter(): () -> int = {
+    fun () -> 10 
+};
+
+let c1: () -> int = makeCounter();
+assert(c1() = 10)
