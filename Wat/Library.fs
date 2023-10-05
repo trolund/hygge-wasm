@@ -620,7 +620,10 @@ module WFG =
             member this.GetFuncTableSize = 
                 this.elements.Count
 
-            /// add func ref element and grow func table 
+            /// add func ref element and grow func table. GetFuncTableSize will be increased by 1
+            /// <summary>add func ref element and grow func table</summary>
+            /// <param name="label">label of function</param>
+            /// <returns>new module</returns>
             member this.AddFuncRefElement (label: string) =
                 // is there a tabel named func_table
                 let func_table = this.tables |> List.tryFind (fun (name, _, _) -> name = "func_table")
@@ -631,20 +634,20 @@ module WFG =
                     | Some (name, valueType, limits) -> (name, valueType, limits)
                     | None -> ("func_table", Funcref, Unbounded 1)
 
-                let elements: Element = (this.GetFuncTableSize, label)
-                Module(this.types, this.functions, table :: this.tables, this.memories, this.globals, this.exports, this.imports, this.start, Set(elements :: Set.toList this.elements), this.data, this.locals, this.tempCode, this.funcTableSize + 1)
+                let elements: Element = (this.elements.Count, label)
+                Module(this.types, this.functions, table :: this.tables, this.memories, this.globals, this.exports, this.imports, this.start, Set(elements :: Set.toList this.elements), this.data, this.locals, this.tempCode, this.elements.Count + 1)
 
             // add temp code
             member this.AddCode (instrs: Instr list) =
                 // map comment to instrs
                 let instrs = instrs |> List.map (fun x -> Commented(x, ""))
                 let tempCode = this.tempCode @ instrs
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode, 0)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode, this.funcTableSize)
 
             // add temp code with comment
             member this.AddCode (instrs: Commented<Instr> list) =
                 let tempCode = this.tempCode @ instrs
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode, 0)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode, this.funcTableSize)
 
             // get temp code
             member this.GetAccCode () =
@@ -652,16 +655,16 @@ module WFG =
 
             // reset temp code
             member this.ResetAccCode () =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, [], 0)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, [], this.funcTableSize)
 
             // reset Locals
             member this.ResetLocals () =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, Set.empty, this.tempCode, 0)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, Set.empty, this.tempCode, this.funcTableSize)
 
             // add locals to module
             member this.AddLocals (locals: list<Local>) =
                 let locals = locals @ Set.toList this.locals
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, Set(locals), this.tempCode, 0)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, Set(locals), this.tempCode, this.funcTableSize)
 
             // get locals from module
             member this.GetLocals () =
@@ -677,7 +680,7 @@ module WFG =
                                                                  name = f.name }, s)
 
                 let functions = this.functions.Add(name, newInstance)
-                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
+                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize)
 
             // Add instructions to function with name
             member this.AddInstrs (name: string, instrs: Instr list) =
@@ -690,7 +693,7 @@ module WFG =
                                                                  name = f.name }, s)
 
                 let functions = this.functions.Add(name, newInstance)
-                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
+                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize)
                 
             member this.AddInstrs (name: string, instrs: Commented<Instr> list) = 
                 let (f), s = this.functions.[name]
@@ -702,12 +705,12 @@ module WFG =
                                                                  name = f.name }, s)
 
                 let functions = this.functions.Add(name, newInstance)
-                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
+                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize)
                 
             // Add an import to the module
             member this.AddImport (i: Import) =
                 let imports = i :: Set.toList this.imports
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, Set(imports), this.start, this.elements, this.data, this.locals, this.tempCode, 0)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, Set(imports), this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize)
 
 
             // Add a function to the module
@@ -733,16 +736,16 @@ module WFG =
                     else
                         this.types, f
 
-                Module(types, functions.Add(name, f'), this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)    
+                Module(types, functions.Add(name, f'), this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize)    
 
             // Add a table to the module
             member this.AddTable (t: Table) =
                 let tables = t :: this.tables
-                Module(this.types, this.functions, tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
+                Module(this.types, this.functions, tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize)
 
             // Add a memory to the module
             member this.AddMemory (m: Memory) =
-                Module(this.types, this.functions, this.tables, Set(m :: (Set.toList memories)), this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
+                Module(this.types, this.functions, this.tables, Set(m :: (Set.toList memories)), this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize)
 
             /// <summary>add global to module</summary>
             /// <param name="g">global</param>
@@ -754,17 +757,17 @@ module WFG =
             /// <remarks>add global to module</remarks>
             member this.AddGlobal (g: Global) =
                 let globals = g :: Set.toList this.globals
-                Module(this.types, this.functions, this.tables, this.memories, Set(globals), this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
+                Module(this.types, this.functions, this.tables, this.memories, Set(globals), this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize)
 
             // Add an export to the module
             member this.AddExport (e: Export) =
                 let exports = e :: Set.toList this.exports
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, Set(exports), this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, 0)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, Set(exports), this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize)
 
             //  Add Data to the module
             member this.AddData (d: Data) =
                 let data = d :: Set.toList this.data
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, Set(data), this.locals ,this.tempCode, 0)
+                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, Set(data), this.locals ,this.tempCode, this.funcTableSize)
 
             // combine two wasm modules
             member this.Combine (m: Module) =
@@ -786,8 +789,7 @@ module WFG =
 
             static member (++) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
 
-            static member (++) (instr: Commented<Instr> list, wasm2: Module): Module = 
-                Module(instr).Combine wasm2
+            static member (++) (instr: Commented<Instr> list, wasm2: Module): Module = Module(instr).Combine wasm2
 
             static member ( @ ) (wasm1: Instrs list, wasm2: Commented<Instrs> list) = 
                 let instrs = wasm1 |> List.map (fun x -> Commented(x, ""))
