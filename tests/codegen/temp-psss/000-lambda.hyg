@@ -1,13 +1,13 @@
 // Return a function that counts how many times it is called
 fun makeCounter(): () -> int = {
-    let mutable x: int = 22;
+    let mutable x: int = 0;
     fun () ->
-        22 // x <- x + 1 // x is captured from the surrounding scope
+        x <- x + 1 // x is captured from the surrounding scope
 };
 
 // This is interpreted and compiled incorrectly!
 let c1: () -> int = makeCounter();
 let c2: () -> int = makeCounter();
-assert(c1() = 22);
-assert(c1() = 22);
-assert(c2() = 22)
+assert(c1() = 0);
+assert(c1() = 2);
+assert(c2() = 1)
