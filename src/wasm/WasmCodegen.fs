@@ -226,7 +226,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match env.VarStorage.TryFind v with
             | Some(Storage.local (l)) -> [ LocalGet(Named(l)) ]
-            | Some(Storage.Offset(o)) -> [ LocalGet(Index(o)) ]
+            | Some(Storage.Offset(i)) -> [ LocalGet(Index(0)); (I32Load_(None, Some(i * 4))) ]
             | Some(Storage.FuncRef(l)) -> [ LocalGet(Named(l)) ]
             | Some(Storage.glob (l)) -> [ GlobalGet(Named(l)) ]
             | _ -> failwith "could not find variable in var storage"
@@ -577,7 +577,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let (argNames, _) = List.unzip args
         /// List of pairs associating each function argument to its type
         let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
+
+        let captured = Set(captureVars body)
     
+        let capturedList = (Set.toList captured)
         // add each arg to var storage (all local vars)
         // TODO maybe lables should be generated here
         // TODO: unik-probem-guid:11111+22222+33333
@@ -589,10 +592,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 env
                 args
 
-        /// Compiled function body
-        let bodyCode: Module = compileFunction funLabel argNamesTypes body env' funcPointer
+        let capturedIndexed = (List.indexed capturedList)
 
-        let closure = createClosure env' node body index funcPointer
+        let env'' =
+            List.fold
+                (fun env (index, (n, t)) ->
+                        { env with
+                            VarStorage = env.VarStorage.Add(n, Storage.Offset (index * 4)) })
+                env'
+                capturedIndexed
+
+        /// Compiled function body
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
+
+        let closure = createClosure env' node body index funcPointer capturedList
 
         (funcPointer + bodyCode + closure) // .AddCode([ (GlobalGet (Named(funLabel)), "return table index")  ]) // .AddCode([ Call funLabel ]) // .AddCode([ (RefFunc(Named(funLabel)), "return ref to lambda") ])
     | Seq(nodes) ->
@@ -1014,11 +1027,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         match name.Expr with
         | Var(name) ->
 
-            let varLabel =
-                match env.VarStorage.TryFind name with
-                | Some(Storage.local (l)) -> Named(l)
-                | _ -> failwith "not implemented"
-
             // is nested? - is multiple assignment
             let isNested =
                 match value.Expr with
@@ -1034,10 +1042,29 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     [ (LocalGet nestedName, "get local var") ]
                 | _ -> []
 
-            let instrs =
-                value'.GetAccCode() @ isNested @ [ (LocalSet varLabel, "set local var") ]
+            match env.VarStorage.TryFind name with
+                | Some(Storage.local (l)) -> 
 
-            value'.ResetAccCode().AddCode(instrs)
+                    let instrs =
+                        value'.GetAccCode() @ isNested @ [ (LocalSet(Named(l)), "set local var") ]
+
+                    value'.ResetAccCode().AddCode(instrs)                    
+                // TODO: support more types
+                | Some(Storage.Offset (i)) ->     
+                    // TODO: support nested assignments 
+
+                    // [(LocalGet(Index(0)), "get env"); (I32Const i, "get var offset"); (I32Add, "get env"); (I32Store, "store value in env")]
+
+                    let store =
+                        [(LocalGet(Index(0)), "get env")]  @ value'.GetAccCode() @ [(I32Store_(None, Some(i * 4)), "store value in env")] 
+                    
+                    let load =
+                        [(LocalGet(Index(0)), "get env")] @ [(I32Load_(None, Some(i * 4)), "load value from env")]
+
+                    value'.ResetAccCode().AddCode(store @ load)   
+                | _ -> failwith "not implemented"
+
+
         | FieldSelect(target, field) ->
 
             let selTargetCode = doCodegen env target m
@@ -1161,6 +1188,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                             VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
                 env
                 args
+        
+        // let capturedIndexed = (List.indexed capturedList)
+
+        // let env' =
+        //     List.fold
+        //         (fun env (index, (n, t)) ->
+        //                 { env with
+        //                     VarStorage = env.VarStorage.Add(n, Storage.Offset (index * 4)) })
+        //         env
+        //         capturedIndexed
+
 
         /// Compiled function body
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env' funcPointer
@@ -1171,7 +1209,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let scopeModule: Module = (doCodegen { env with VarStorage = varStorage2 } scope funcPointer)
 
-        let closure = createClosure env' node body index funcPointer
+        let captured = Set(captureVars body)
+    
+        let capturedList = (Set.toList captured)
+
+        let closure = createClosure env' node body index funcPointer capturedList
 
         funcPointer + scopeModule + bodyCode + closure
 
@@ -1324,7 +1366,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let scopeModule: Module = (doCodegen env' scope funcPointer)
 
-        let closure = createClosure env'' node body index funcPointer
+        let captured = Set(captureVars body)
+    
+        let capturedList = (Set.toList captured)
+
+        let closure = createClosure env'' node body index funcPointer capturedList
 
         funcPointer + scopeModule + bodyCode + closure
 
@@ -1602,14 +1648,13 @@ and internal captureVars (node: TypedAST) =
     | Assertion(node) -> captureVars node
     | x -> failwith $"BUG: captureVars on invalid expression: %O{x}"
 
-and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) =
+and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) (capturedList) =
 
         // capture environment in struct, with a field for each captured variable
-        let captured = Set(captureVars body)
 
         // map captured to a list of string * TypedAST where the string is the name of the captured variable
         let capturedStructFields =
-            List.map (fun (n, t) -> (n, { node with Expr = IntVal(10); Type = t })) (Set.toList captured)
+            List.map (fun (n, t) -> (n, { node with Expr = IntVal(0); Type = t })) capturedList
 
         // all captured variables are stored in a struct
         let capturedVarsStruct =
@@ -1629,7 +1674,7 @@ and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (
                                Type = TInt })
                           ("env",
                            { node with
-                               Expr = IntVal(100) // env pointer, is later replaced with pointer to closure environment
+                               Expr = IntVal(42) // env pointer, is later replaced with pointer to closure environment
                                Type = TInt }) ]
                     ) }
 

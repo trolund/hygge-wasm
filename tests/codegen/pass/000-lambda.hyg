@@ -8,6 +8,6 @@ fun makeCounter(): () -> int = {
 // This is interpreted and compiled incorrectly!
 let c1: () -> int = makeCounter();
 let c2: () -> int = makeCounter();
-assert(c1() = 0);
+assert(c1() = 1);
 assert(c1() = 2);
 assert(c2() = 1)
