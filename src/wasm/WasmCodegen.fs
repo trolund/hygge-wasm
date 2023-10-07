@@ -83,6 +83,27 @@ type internal CodegenEnv =
       memoryAllocator: StaticMemoryAllocator
       VarStorage: Map<string, Storage> } // function refances in table
 
+let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) =
+    let ptr_label = $"{name}*ptr"
+
+    // get the index of the function
+    let funcindex = m.GetFuncTableSize
+
+    // add function to function table
+    let m = m.AddFuncRefElement(name)
+
+    // allocate memory for function pointer
+    let ptr = env.memoryAllocator.Allocate(4)
+
+    // index to hex
+    let funcindexhex = Util.intToHex funcindex
+
+    let FunctionPointer =
+        m
+            .AddData(I32Const ptr, funcindexhex)
+            .AddGlobal((ptr_label, (I32, Mutable), (I32Const ptr)))
+
+    (FunctionPointer, funcindex, ptr_label)
 
 // reduce expression to a single value
 // then find the vlaue that is returned
@@ -208,7 +229,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | Some(Storage.Offset(o)) -> [ LocalGet(Index(o)) ]
             | Some(Storage.FuncRef(l)) -> [ LocalGet(Named(l)) ]
             | Some(Storage.glob (l)) -> [ GlobalGet(Named(l)) ]
-            | _ -> failwith "not implemented"
+            | _ -> failwith "could not find variable in var storage"
 
         m.AddCode(instrs)
 
@@ -523,50 +544,57 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let argm = List.fold (fun m arg -> m + doCodegen env arg (m.ResetAccCode())) m args
 
         /// generate code for the expression for the function to be applied
-        let exprm = (doCodegen env expr m)
+        let exprm: Module = (doCodegen env expr m)
 
         let appTermCode =
-            Module().AddCode([ Comment "Load expression to be applied as a function" ])
-            ++ exprm
+            Module()
+                .AddCode([ Comment "Load expression to be applied as a function" ])
+                .AddCode(
+                    exprm.GetAccCode() // load closure environment pointer as first argument
+                    @ [ (I32Const 4, "4 byte offset")
+                        (I32Add, "add offset")
+                        (I32Load, "load closure environment pointer") ]
+                    @ argm.GetAccCode() // load the rest of the arguments
+                    @ exprm.GetAccCode() // load function pointer
+                    @ [ (I32Load, "load table index") ]
+                )
 
         // type to function signature
         let s = typeToFuncSiganture expr.Type
 
         let instrs = [ (CallIndirect__(s), sprintf "call function") ]
 
-        argm ++ appTermCode.AddCode(instrs)
+        C [Comment "start of application"] ++ (argm.ResetAccCode()) + appTermCode.AddCode(instrs @ C [Comment "end of application"])
 
     | Lambda(args, body) ->
         // Label to mark the position of the lambda term body
         let funLabel = Util.genSymbol $"{env.currFunc}/anonymous"
 
-        // capture environment in struct, with a field for each captured variable
-        let captured = Set(captureVars body)
-
-        // map captured to a list of string * TypedAST where the string is the name of the captured variable
-        let capturedStructFields =
-            List.map (fun (n, t) -> (n, { node with Expr = Var(n); Type = t })) (Set.toList captured)
-
-        // all captured variables are stored in a struct
-        let capturedVarsStruct =
-            { node with
-                Expr = Struct(capturedStructFields) }
-
-        // generate code for struct
-        let capturedVarsStructCode = doCodegen env capturedVarsStruct m
-
-        let funcPointer = createFunctionPointer funLabel env m
+        let (funcPointer, index, _) = createFunctionPointer funLabel env m
 
         /// TODO: add env as argument to function
         /// Names of the lambda term arguments
         let (argNames, _) = List.unzip args
         /// List of pairs associating each function argument to its type
         let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
+    
+        // add each arg to var storage (all local vars)
+        // TODO maybe lables should be generated here
+        // TODO: unik-probem-guid:11111+22222+33333
+        let env' =
+            List.fold
+                (fun env (n, t) ->
+                        { env with
+                            VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
+                env
+                args
 
         /// Compiled function body
-        let bodyCode: Module = compileFunction funLabel argNamesTypes body env m
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env' funcPointer
 
-        funcPointer + bodyCode.AddCode([ (GlobalGet (Named(funLabel)), "return table index")  ]) // .AddCode([ Call funLabel ]) // .AddCode([ (RefFunc(Named(funLabel)), "return ref to lambda") ])
+        let closure = createClosure env' node body index funcPointer
+
+        (funcPointer + bodyCode + closure) // .AddCode([ (GlobalGet (Named(funLabel)), "return table index")  ]) // .AddCode([ Call funLabel ]) // .AddCode([ (RefFunc(Named(funLabel)), "return ref to lambda") ])
     | Seq(nodes) ->
         // We collect the code of each sequence node by folding over all nodes
         List.fold (fun m node -> (m + doCodegen env node (m.ResetAccCode()))) m nodes
@@ -1116,22 +1144,36 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// For readability, we make the label similar to the function name
         let funLabel = Util.genSymbol $"fun_%s{name}"
 
+        let (funcPointer, index, func_ptr) = createFunctionPointer funLabel env m
+
         /// Names of the lambda term arguments
         let (argNames, _) = List.unzip args
         /// List of pairs associating each function argument to its type
         let argNamesTypes = List.zip argNames targs
+
+        // add each arg to var storage (all local vars)
+        // TODO maybe lables should be generated here
+        // TODO: unik-probem-guid:11111+22222+33333
+        let env' =
+            List.fold
+                (fun env (n, t) ->
+                        { env with
+                            VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
+                env
+                args
+
         /// Compiled function body
-        let bodyCode: Module = compileFunction funLabel argNamesTypes body env m
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env' funcPointer
 
         /// Storage info where the name of the compiled function points to the
-        /// label 'funLabel'
-        let varStorage2 = env.VarStorage.Add(name, Storage.glob (funLabel))
+     
+        let varStorage2 = env.VarStorage.Add(name, Storage.glob (func_ptr))
 
-        let scopeModule: Module = (doCodegen { env with VarStorage = varStorage2 } scope m)
+        let scopeModule: Module = (doCodegen { env with VarStorage = varStorage2 } scope funcPointer)
 
-        let funcPointer = createFunctionPointer funLabel env m
+        let closure = createClosure env' node body index funcPointer
 
-        funcPointer + scopeModule + bodyCode
+        funcPointer + scopeModule + bodyCode + closure
 
     | Let(name, _, init, scope) ->
         let m' = doCodegen env init m
@@ -1181,25 +1223,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         | TFun(_, _) ->
             // todo make function pointer
             let varLabel = Named(varName)
-
-            // get function label
-            let funcLabel =
-                match init.Expr with
-                | Var(v) ->
-                    match env.VarStorage.TryFind v with
-                    | Some(Storage.local (l)) -> l
-                    | Some(Storage.FuncRef(l)) -> l
-                    | Some(Storage.glob (l)) -> l
-                    | _ -> failwith "not implemented"
-                | Application(expr, _) ->
-                    match expr.Expr with
-                    | Var(n) ->
-                        match env.VarStorage.TryFind n with
-                        | Some(Storage.local (l)) -> l
-                        | Some(Storage.FuncRef(l)) -> l
-                        | Some(Storage.glob (l)) -> l
-                    | _ -> failwith "not implemented"
-                | _ -> failwith "not implemented"
 
             // add var to func ref
             let env'' =
@@ -1273,28 +1296,23 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let funLabel = Util.genSymbol $"fun_%s{name}"
 
+        let (funcPointer, index, ptr_label) = createFunctionPointer funLabel env m
+
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
-        let funcref = env.VarStorage.Add(name, Storage.glob (funLabel))
+        let funcref = env.VarStorage.Add(name, Storage.glob (ptr_label))
         let env' = { env with VarStorage = funcref }
 
-        // get the index of the function
-        let funcindex = m.GetFuncTableSize
-
-        // add function to function table
-        let m = m.AddFuncRefElement(funLabel)
-
-        // allocate memory for function pointer
-        let ptr = env.memoryAllocator.Allocate(4)
-
-        // index to hex
-        let funcindexhex = Util.intToHex funcindex
-
-        // create function pointer
-        let funcPointer =
-            m
-                .AddData(I32Const ptr, funcindexhex)
-                .AddGlobal((funLabel, (I32, Mutable), (I32Const funcindex)))
+        // add each arg to var storage (all local vars)
+        // TODO maybe lables should be generated here
+        // TODO: unik-probem-guid:11111+22222+33333
+        let env'' =
+            List.fold
+                (fun env (n, t) ->
+                        { env with
+                            VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
+                env'
+                args
 
         /// Names of the lambda term arguments
         let (argNames, _) = List.unzip args
@@ -1302,11 +1320,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let argNamesTypes = List.zip argNames targs
 
         /// Compiled function body
-        let bodyCode: Module = compileFunction funLabel argNamesTypes body env' m
+        let bodyCode: Module = compileFunction funLabel argNamesTypes (body) env'' funcPointer
 
-        let scopeModule: Module = (doCodegen env' scope m)
+        let scopeModule: Module = (doCodegen env' scope funcPointer)
 
-        funcPointer + scopeModule + bodyCode
+        let closure = createClosure env'' node body index funcPointer
+
+        funcPointer + scopeModule + bodyCode + closure
 
     | LetRec(name, tpe, init, scope) ->
         doCodegen
@@ -1460,32 +1480,13 @@ and typeToFuncSiganture (t: Type.Type) =
             | TString -> [ I32 ]
             | TUnit -> []
 
-        let signature: FunctionSignature = (argTypes, retType)
+        // added env var to args
+        let argTypes' = (None, I32) :: argTypes
+        let signature: FunctionSignature = (argTypes', retType)
 
         signature
     | _ -> failwith "type is not a function"
 
-and internal createFunctionPointer 
-    (name: string)
-    (env: CodegenEnv)
-    (m: Module)
-    : Module =
-
-    // get the index of the function
-    let funcindex = m.GetFuncTableSize
-
-    // add function to function table
-    let m = m.AddFuncRefElement(name)
-
-    // allocate memory for function pointer
-    let ptr = env.memoryAllocator.Allocate(4)
-
-    // index to hex
-    let funcindexhex = Util.intToHex funcindex
-
-    m
-        .AddData(I32Const ptr, funcindexhex)
-        .AddGlobal((name, (I32, Mutable), (I32Const funcindex)))
 /// Compile a function with its arguments, body and return the resulting module
 and internal compileFunction
     (name: string)
@@ -1526,22 +1527,8 @@ and internal compileFunction
         | TString -> [ I32 ]
         | TUnit -> []
 
-    let signature: FunctionSignature = (argTypes, retType)
-
-    // add each arg to var storage (all local vars)
-    let env' =
-        List.fold
-            (fun env (n, t) ->
-                match t with
-                // TODO: no right!
-                | TFun(args, ret) ->
-                    { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.FuncRef(n)) }
-                | _ ->
-                    { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
-            env
-            args
+    let argTypes' = (Some("cenv"), I32) :: argTypes
+    let signature: FunctionSignature = (argTypes', retType)
 
     // create function instance
     let f: Commented<FunctionInstance> =
@@ -1555,7 +1542,7 @@ and internal compileFunction
     let m' = m.AddFunction(name, f, true)
 
     // compile function body
-    let m'' = doCodegen { env' with currFunc = name } body m'
+    let m'' = doCodegen { env with currFunc = name } body m'
 
     // add code and locals to function
     m''
@@ -1615,6 +1602,54 @@ and internal captureVars (node: TypedAST) =
     | Assertion(node) -> captureVars node
     | x -> failwith $"BUG: captureVars on invalid expression: %O{x}"
 
+and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) =
+
+        // capture environment in struct, with a field for each captured variable
+        let captured = Set(captureVars body)
+
+        // map captured to a list of string * TypedAST where the string is the name of the captured variable
+        let capturedStructFields =
+            List.map (fun (n, t) -> (n, { node with Expr = IntVal(10); Type = t })) (Set.toList captured)
+
+        // all captured variables are stored in a struct
+        let capturedVarsStruct =
+            { node with
+                Expr = Struct(capturedStructFields) }
+
+        // generate code for struct
+        let capturedVarsStructCode = doCodegen env capturedVarsStruct m
+            // struct that contains env and function pointer
+        let returnStruct =
+            { node with
+                Expr =
+                    Struct(
+                        [ ("f",
+                           { node with
+                               Expr = IntVal(index) // function pointer
+                               Type = TInt })
+                          ("env",
+                           { node with
+                               Expr = IntVal(100) // env pointer, is later replaced with pointer to closure environment
+                               Type = TInt }) ]
+                    ) }
+
+        let returnStructCode = doCodegen env returnStruct m
+
+        // get name local var that stores pointer to struct
+        let (Some(n), _) = List.last (returnStructCode.GetLocals())
+
+        let instr =
+            returnStructCode.GetAccCode() @
+            [ (I32Const 4, "4 byte offset")
+              (I32Add, "add offset") ]
+            @ capturedVarsStructCode.GetAccCode()
+            @ [ (I32Store, "store poninter in return struct") ]
+            @ [ (LocalGet(Named(n)), "get pointer to return struct") ]
+
+        let combinePointerAndreturnStruct =
+            (returnStructCode.ResetAccCode() + capturedVarsStructCode.ResetAccCode()).AddCode(instr) // pointer becomes value to store
+
+        combinePointerAndreturnStruct
 
 /// add special implicit main function
 /// as the entry point of the program
@@ -1649,7 +1684,9 @@ let codegen (node: TypedAST) : Module =
 
     // add function to module and export it
     let m' =
-        Module().AddFunction(funcName, f).AddExport(funcName, FunctionType(funcName, None))
+        Module()
+            .AddFunction(funcName, f)
+            .AddExport(funcName, FunctionType(funcName, None))
 
     // compile main function
     let m = doCodegen env node m'
@@ -1659,10 +1696,15 @@ let codegen (node: TypedAST) : Module =
     // before this offset only static data is allocated
     let staticOffset: int = env.memoryAllocator.GetAllocationPosition()
     // TODO: move this logic to the memory allocator
-    let numOfStaticPages: int = if env.memoryAllocator.GetNumPages() <= 0 then 1 else env.memoryAllocator.GetNumPages()
+    let numOfStaticPages: int =
+        if env.memoryAllocator.GetNumPages() <= 0 then
+            1
+        else
+            env.memoryAllocator.GetNumPages()
+
     let heapBase = "heap_base"
 
-    m   
+    m
         .AddMemory(("memory", Unbounded(numOfStaticPages)))
         .AddLocals(env.currFunc, m.GetLocals()) // set locals of function
         .AddInstrs(env.currFunc, [ Comment "execution start here:" ])
