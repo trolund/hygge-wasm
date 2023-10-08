@@ -564,7 +564,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs = [ (CallIndirect__(s), sprintf "call function") ]
 
-        C [Comment "start of application"] ++ (argm.ResetAccCode()) + appTermCode.AddCode(instrs @ C [Comment "end of application"])
+        C [ Comment "start of application" ] ++ (argm.ResetAccCode())
+        + appTermCode.AddCode(instrs @ C [ Comment "end of application" ])
 
     | Lambda(args, body) ->
         // Label to mark the position of the lambda term body
@@ -578,8 +579,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// List of pairs associating each function argument to its type
         let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
 
-        let captured = Set(captureVars body)
-    
+        let captured = Set(captureVars [] body)
+
         let capturedList = (Set.toList captured)
         // add each arg to var storage (all local vars)
         // TODO maybe lables should be generated here
@@ -587,8 +588,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let env' =
             List.fold
                 (fun env (n, t) ->
-                        { env with
-                            VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
+                    { env with
+                        VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
                 env
                 args
 
@@ -597,8 +598,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let env'' =
             List.fold
                 (fun env (index, (n, t)) ->
-                        { env with
-                            VarStorage = env.VarStorage.Add(n, Storage.Offset (index * 4)) })
+                    { env with
+                        VarStorage = env.VarStorage.Add(n, Storage.Offset(index * 4)) })
                 env'
                 capturedIndexed
 
@@ -1043,26 +1044,29 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | _ -> []
 
             match env.VarStorage.TryFind name with
-                | Some(Storage.local (l)) -> 
+            | Some(Storage.local (l)) ->
 
-                    let instrs =
-                        value'.GetAccCode() @ isNested @ [ (LocalSet(Named(l)), "set local var") ]
+                let instrs =
+                    value'.GetAccCode() @ isNested @ [ (LocalSet(Named(l)), "set local var") ]
 
-                    value'.ResetAccCode().AddCode(instrs)                    
-                // TODO: support more types
-                | Some(Storage.Offset (i)) ->     
-                    // TODO: support nested assignments 
+                value'.ResetAccCode().AddCode(instrs)
+            // TODO: support more types
+            | Some(Storage.Offset(i)) ->
+                // TODO: support nested assignments
 
-                    // [(LocalGet(Index(0)), "get env"); (I32Const i, "get var offset"); (I32Add, "get env"); (I32Store, "store value in env")]
+                // [(LocalGet(Index(0)), "get env"); (I32Const i, "get var offset"); (I32Add, "get env"); (I32Store, "store value in env")]
 
-                    let store =
-                        [(LocalGet(Index(0)), "get env")]  @ value'.GetAccCode() @ [(I32Store_(None, Some(i * 4)), "store value in env")] 
-                    
-                    let load =
-                        [(LocalGet(Index(0)), "get env")] @ [(I32Load_(None, Some(i * 4)), "load value from env")]
+                let store =
+                    [ (LocalGet(Index(0)), "get env") ]
+                    @ value'.GetAccCode()
+                    @ [ (I32Store_(None, Some(i * 4)), "store value in env") ]
 
-                    value'.ResetAccCode().AddCode(store @ load)   
-                | _ -> failwith "not implemented"
+                let load =
+                    [ (LocalGet(Index(0)), "get env") ]
+                    @ [ (I32Load_(None, Some(i * 4)), "load value from env") ]
+
+                value'.ResetAccCode().AddCode(store @ load)
+            | _ -> failwith "not implemented"
 
 
         | FieldSelect(target, field) ->
@@ -1184,33 +1188,23 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let env' =
             List.fold
                 (fun env (n, t) ->
-                        { env with
-                            VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
+                    { env with
+                        VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
                 env
                 args
-        
-        // let capturedIndexed = (List.indexed capturedList)
-
-        // let env' =
-        //     List.fold
-        //         (fun env (index, (n, t)) ->
-        //                 { env with
-        //                     VarStorage = env.VarStorage.Add(n, Storage.Offset (index * 4)) })
-        //         env
-        //         capturedIndexed
-
 
         /// Compiled function body
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env' funcPointer
 
         /// Storage info where the name of the compiled function points to the
-     
+
         let varStorage2 = env.VarStorage.Add(name, Storage.glob (func_ptr))
 
-        let scopeModule: Module = (doCodegen { env with VarStorage = varStorage2 } scope funcPointer)
+        let scopeModule: Module =
+            (doCodegen { env with VarStorage = varStorage2 } scope funcPointer)
 
-        let captured = Set(captureVars body)
-    
+        let captured = Set(captureVars [] body)
+
         let capturedList = (Set.toList captured)
 
         let closure = createClosure env' node body index funcPointer capturedList
@@ -1351,8 +1345,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let env'' =
             List.fold
                 (fun env (n, t) ->
-                        { env with
-                            VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
+                    { env with
+                        VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
                 env'
                 args
 
@@ -1362,12 +1356,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let argNamesTypes = List.zip argNames targs
 
         /// Compiled function body
-        let bodyCode: Module = compileFunction funLabel argNamesTypes (body) env'' funcPointer
+        let bodyCode: Module =
+            compileFunction funLabel argNamesTypes (body) env'' funcPointer
 
         let scopeModule: Module = (doCodegen env' scope funcPointer)
 
-        let captured = Set(captureVars body)
-    
+        let captured = Set(captureVars [] body)
+
         let capturedList = (Set.toList captured)
 
         let closure = createClosure env'' node body index funcPointer capturedList
@@ -1597,104 +1592,120 @@ and internal compileFunction
         .ResetAccCode() // reset accumulated code
         .ResetLocals() // reset locals
 
-// return a list of all variables in the given expression
-and internal captureVars (node: TypedAST) =
+// capture all free variable in expression
+and internal captureVars (acc: (string * TypedAST) list) (node: TypedAST) =
     match node.Expr with
-    | Var v -> [ (v, node.Type) ]
-    | IntVal _ -> []
-    | FloatVal _ -> []
-    | BoolVal _ -> []
-    | StringVal _ -> []
-    | UnitVal -> []
+    | Var v -> acc @ [ (v, node) ]
+    | IntVal _ -> acc
+    | FloatVal _ -> acc
+    | BoolVal _ -> acc
+    | StringVal _ -> acc
+    | UnitVal -> acc
+    | Pointer(_) -> acc // TODO: could probably be removed
     | Lambda(args, body) ->
-        let (argNames, _) = List.unzip args
-        let bodyVars = captureVars body
-        // resolve pretypes of arguments
-        bodyVars
+        // exclude agrs and capture vars in body
+        let c = captureVars acc body
+        let argNames = List.map (fun (n, _) -> n) args
+        // remove all args from captured vars
+        let c' = List.filter (fun (n, _) -> not (List.contains n argNames)) c
+
+        c'
     //List.filter (fun v -> not (List.contains v argNames)) bodyVars
-    | Seq(nodes) -> List.concat (List.map captureVars nodes)
-    | AST.If(cond, ifTrue, ifFalse) -> List.concat [ captureVars cond; captureVars ifTrue; captureVars ifFalse ]
-    | While(cond, body) -> List.concat [ captureVars cond; captureVars body ]
-    | DoWhile(cond, body) -> List.concat [ captureVars cond; captureVars body ]
+    | Seq(nodes) -> List.concat (List.map (captureVars acc) nodes)
+    | AST.If(cond, ifTrue, ifFalse) ->
+        List.concat [ captureVars acc cond; captureVars acc ifTrue; captureVars acc ifFalse ]
+    | While(cond, body) -> List.concat [ captureVars acc cond; captureVars acc body ]
+    | DoWhile(cond, body) -> List.concat [ captureVars acc cond; captureVars acc body ]
     | For(init, cond, update, body) ->
-        List.concat [ captureVars init; captureVars cond; captureVars update; captureVars body ]
-    | Assign(name, value) -> List.concat [ captureVars name; captureVars value ]
-    | Ascription(_, node) -> captureVars node
-    | Let(name, _, init, scope) -> List.concat [ captureVars init; captureVars scope ]
-    | LetMut(name, _, init, scope) -> List.concat [ captureVars init; captureVars scope ]
-    | LetRec(name, _, init, scope) -> List.concat [ captureVars init; captureVars scope ]
-    | Pointer(_) -> []
-    | Struct(fields) -> List.concat (List.map (fun (_, v) -> captureVars v) fields)
-    | FieldSelect(target, _) -> captureVars target
+        List.concat
+            [ captureVars acc init
+              captureVars acc cond
+              captureVars acc update
+              captureVars acc body ]
+    | Assign(name, value) -> List.concat [ captureVars acc name; captureVars acc value ]
+    | Ascription(_, node) -> captureVars acc node
+    | Let(name, _, init, scope) ->
+        let c = List.concat [ captureVars acc init; captureVars acc scope ]
+        removeFromCaptured c name
+    | LetMut(name, _, init, scope) ->
+        let c = List.concat [ captureVars acc init; captureVars acc scope ]
+        removeFromCaptured c name
+    | LetRec(name, _, init, scope) ->
+        let c = List.concat [ captureVars acc init; captureVars acc scope ]
+        removeFromCaptured c name
+    | Struct(fields) -> List.concat (List.map (fun (_, v) -> captureVars acc v) fields)
+    | FieldSelect(target, _) -> captureVars acc target
     | Match(target, cases) ->
         let (labels, vars, exprs) = List.unzip3 cases
-        let indexedLabels = List.indexed labels
-        let exprsVars = List.concat (List.map captureVars exprs)
-        let targetVars = captureVars target
-        let caseVars = List.concat (List.map captureVars exprs)
+        let exprsVars = List.concat (List.map (captureVars acc) exprs)
+        let targetVars = captureVars acc target
+        let caseVars = List.concat (List.map (captureVars acc) exprs)
         List.concat [ targetVars; exprsVars; caseVars ]
-    | Application(func, args) -> List.concat [ captureVars func; List.concat (List.map captureVars args) ]
-    | Less(left, right) -> List.concat [ captureVars left; captureVars right ]
-    | Eq(left, right) -> List.concat [ captureVars left; captureVars right ]
-    | Not(node) -> captureVars node
-    | Add(left, right) -> List.concat [ captureVars left; captureVars right ]
-    | Sub(left, right) -> List.concat [ captureVars left; captureVars right ]
-    | Mult(left, right) -> List.concat [ captureVars left; captureVars right ]
-    | Div(left, right) -> List.concat [ captureVars left; captureVars right ]
-    | Rem(left, right) -> List.concat [ captureVars left; captureVars right ]
-    | And(left, right) -> List.concat [ captureVars left; captureVars right ]
-    | Or(left, right) -> List.concat [ captureVars left; captureVars right ]
-    | Greater(left, right) -> List.concat [ captureVars left; captureVars right ]
-    | Assertion(node) -> captureVars node
+    | Application(func, args) -> List.concat [ captureVars acc func; List.concat (List.map (captureVars acc) args) ]
+    | Less(left, right) -> List.concat [ captureVars acc left; captureVars acc right ]
+    | Eq(left, right) -> List.concat [ captureVars acc left; captureVars acc right ]
+    | Not(node) -> captureVars acc node
+    | Add(left, right) -> List.concat [ captureVars acc left; captureVars acc right ]
+    | Sub(left, right) -> List.concat [ captureVars acc left; captureVars acc right ]
+    | Mult(left, right) -> List.concat [ captureVars acc left; captureVars acc right ]
+    | Div(left, right) -> List.concat [ captureVars acc left; captureVars acc right ]
+    | Rem(left, right) -> List.concat [ captureVars acc left; captureVars acc right ]
+    | And(left, right) -> List.concat [ captureVars acc left; captureVars acc right ]
+    | Or(left, right) -> List.concat [ captureVars acc left; captureVars acc right ]
+    | Greater(left, right) -> List.concat [ captureVars acc left; captureVars acc right ]
+    | Assertion(node) -> captureVars acc node
     | x -> failwith $"BUG: captureVars on invalid expression: %O{x}"
+
+and removeFromCaptured (captured: (string * TypedAST) list) (name: string) =
+    List.filter (fun (n, _) -> n <> name) captured
 
 and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) (capturedList) =
 
-        // capture environment in struct, with a field for each captured variable
+    // capture environment in struct, with a field for each captured variable
 
-        // map captured to a list of string * TypedAST where the string is the name of the captured variable
-        let capturedStructFields =
-            List.map (fun (n, t) -> (n, { node with Expr = IntVal(0); Type = t })) capturedList
+    // map captured to a list of string * TypedAST where the string is the name of the captured variable
+    let capturedStructFields =
+        List.map (fun (n, (x: TypedAST)) -> (n, { node with Expr = IntVal(0); Type = x.Type })) capturedList
 
-        // all captured variables are stored in a struct
-        let capturedVarsStruct =
-            { node with
-                Expr = Struct(capturedStructFields) }
+    // all captured variables are stored in a struct
+    let capturedVarsStruct =
+        { node with
+            Expr = Struct(capturedStructFields) }
 
-        // generate code for struct
-        let capturedVarsStructCode = doCodegen env capturedVarsStruct m
-            // struct that contains env and function pointer
-        let returnStruct =
-            { node with
-                Expr =
-                    Struct(
-                        [ ("f",
-                           { node with
-                               Expr = IntVal(index) // function pointer
-                               Type = TInt })
-                          ("env",
-                           { node with
-                               Expr = IntVal(42) // env pointer, is later replaced with pointer to closure environment
-                               Type = TInt }) ]
-                    ) }
+    // generate code for struct
+    let capturedVarsStructCode = doCodegen env capturedVarsStruct m
+    // struct that contains env and function pointer
+    let returnStruct =
+        { node with
+            Expr =
+                Struct(
+                    [ ("f",
+                       { node with
+                           Expr = IntVal(index) // function pointer
+                           Type = TInt })
+                      ("env",
+                       { node with
+                           Expr = IntVal(42) // env pointer, is later replaced with pointer to closure environment
+                           Type = TInt }) ]
+                ) }
 
-        let returnStructCode = doCodegen env returnStruct m
+    let returnStructCode = doCodegen env returnStruct m
 
-        // get name local var that stores pointer to struct
-        let (Some(n), _) = List.last (returnStructCode.GetLocals())
+    // get name local var that stores pointer to struct
+    let (Some(n), _) = List.last (returnStructCode.GetLocals())
 
-        let instr =
-            returnStructCode.GetAccCode() @
-            [ (I32Const 4, "4 byte offset")
-              (I32Add, "add offset") ]
-            @ capturedVarsStructCode.GetAccCode()
-            @ [ (I32Store, "store poninter in return struct") ]
-            @ [ (LocalGet(Named(n)), "get pointer to return struct") ]
+    let instr =
+        returnStructCode.GetAccCode()
+        @ [ (I32Const 4, "4 byte offset"); (I32Add, "add offset") ]
+        @ capturedVarsStructCode.GetAccCode()
+        @ [ (I32Store, "store poninter in return struct") ]
+        @ [ (LocalGet(Named(n)), "get pointer to return struct") ]
 
-        let combinePointerAndreturnStruct =
-            (returnStructCode.ResetAccCode() + capturedVarsStructCode.ResetAccCode()).AddCode(instr) // pointer becomes value to store
+    let combinePointerAndreturnStruct =
+        (returnStructCode.ResetAccCode() + capturedVarsStructCode.ResetAccCode())
+            .AddCode(instr) // pointer becomes value to store
 
-        combinePointerAndreturnStruct
+    combinePointerAndreturnStruct
 
 /// add special implicit main function
 /// as the entry point of the program
