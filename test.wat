@@ -8,16 +8,24 @@
   (global $fun_makeCounter*ptr (mut i32) i32.const 0)
   (global $fun_makeCounter/anonymous*ptr (mut i32) i32.const 4)
   (global $heap_base i32 i32.const 8)
-  (global $var_a (mut i32) i32.const 0)
-  (global $var_b (mut i32) i32.const 0)
+  (global $var_a$0 (mut i32) i32.const 0)
+  (global $var_b$1 (mut i32) i32.const 0)
   (table $func_table 2 funcref)
   (elem (i32.const 0) $fun_makeCounter)
   (elem (i32.const 1) $fun_makeCounter/anonymous)
   (func $_start  (result i32) ;; entry point of program (main function)    ;; local variables declarations:
+    (local $var_a i32)
+    (local $var_b i32)
     (local $var_c1 i32)
     (local $var_c2 i32)
  
     ;; execution start here:
+    ;; Start of let
+    i32.const 13 ;; push 13 on stack
+    local.set $var_a ;; set local var
+    ;; Start of let
+    i32.const 11 ;; push 11 on stack
+    local.set $var_b ;; set local var
     ;; Start of let
     ;; start of application
     ;; Load expression to be applied as a function
@@ -74,7 +82,7 @@
     i32.load ;; load table index
     call_indirect (param i32) (result i32) ;; call function
     ;; end of application
-    i32.const 13 ;; push 13 on stack
+    local.get $var_a
     i32.eq
     i32.eqz ;; invert assertion
     (if (then
@@ -92,7 +100,7 @@
     i32.load ;; load table index
     call_indirect (param i32) (result i32) ;; call function
     ;; end of application
-    i32.const 11 ;; push 11 on stack
+    local.get $var_b
     i32.eq
     i32.eqz ;; invert assertion
     (if (then
@@ -102,39 +110,41 @@
       )
     ;; End of let
     ;; End of let
+    ;; End of let
+    ;; End of let
     ;; if execution reaches here, the program is successful
     i32.const 0 ;; exit code 0
     return ;; return the exit code
   )
   (func $fun_makeCounter (param $cenv i32) (param $x i32) (param $y i32) (result i32) ;; function fun_makeCounter    ;; local variables declarations:
     (local $Sptr i32)
-    (local $Sptr$0 i32)
+    (local $Sptr$2 i32)
  
     ;; Start of let
     i32.const 1 ;; push 1 on stack
-    global.set $var_a ;; set local var have been hoisted
+    global.set $var_a$0 ;; set local var have been hoisted
     ;; Start of let
     i32.const 2 ;; push 2 on stack
-    global.set $var_b ;; set local var have been hoisted
+    global.set $var_b$1 ;; set local var have been hoisted
     ;; start of struct contructor
     i32.const 2 ;; size of struct
     i32.const 4 ;; 4 bytes
     i32.mul ;; multiply length with 4 to get size
     call $malloc ;; call malloc function
-    local.set $Sptr$0 ;; set struct pointer var
-    local.get $Sptr$0 ;; get struct pointer var
+    local.set $Sptr$2 ;; set struct pointer var
+    local.get $Sptr$2 ;; get struct pointer var
     i32.const 0 ;; push field offset to stack
     i32.add ;; add offset to base address
     ;; init field f
     i32.const 1 ;; push 1 on stack
     i32.store ;; store field in memory
-    local.get $Sptr$0 ;; get struct pointer var
+    local.get $Sptr$2 ;; get struct pointer var
     i32.const 4 ;; push field offset to stack
     i32.add ;; add offset to base address
     ;; init field env
     i32.const 0 ;; push 0 on stack
     i32.store ;; store field in memory
-    local.get $Sptr$0 ;; push struct address to stack
+    local.get $Sptr$2 ;; push struct address to stack
     ;; end of struct contructor
     i32.const 4 ;; 4 byte offset
     i32.add ;; add offset
@@ -148,13 +158,13 @@
     i32.const 0 ;; push field offset to stack
     i32.add ;; add offset to base address
     ;; init field a
-    global.get $var_a ;;  have been hoisted
+    global.get $var_a$0 ;;  have been hoisted
     i32.store ;; store field in memory
     local.get $Sptr ;; get struct pointer var
     i32.const 4 ;; push field offset to stack
     i32.add ;; add offset to base address
     ;; init field b
-    global.get $var_b ;;  have been hoisted
+    global.get $var_b$1 ;;  have been hoisted
     i32.store ;; store field in memory
     local.get $Sptr ;; get struct pointer var
     i32.const 8 ;; push field offset to stack
@@ -171,7 +181,7 @@
     local.get $Sptr ;; push struct address to stack
     ;; end of struct contructor
     i32.store ;; store poninter in return struct
-    local.get $Sptr$0 ;; get pointer to return struct
+    local.get $Sptr$2 ;; get pointer to return struct
     ;; End of let
     ;; End of let
   )
