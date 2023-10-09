@@ -1375,11 +1375,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let scopeModule: Module = (doCodegen env' scope funcPointer)
 
-        // TODO: capture free variables is always empty
-
         let captured = freeVariables node
-
-        let captured = Set.empty
+        
+        // map captured to list of pairs (name, TypedAST) with env
+        let captured = Set.map (fun n -> (n, {node with Expr = Var(n) })) captured
 
         let capturedList = List.distinctBy fst (Set.toList captured)
 
@@ -1617,18 +1616,18 @@ and freeVariables (node: TypedAST): Set<string> =
     | Application (target, args) ->
         List.fold
             (fun acc (arg) ->
-                Set.difference acc (freeVariables arg))
+                Set.union acc (freeVariables arg))
             (freeVariables target)
             args
-    | Let (name, _, bindingExpr, bodyExpr) ->
-        let boundVariables = freeVariables bindingExpr
-        Set.union (freeVariables bodyExpr) (Set.remove name boundVariables)
     | Lambda (args, body) ->
-        Set.difference (freeVariables body) (Set.ofList (List.map fst args))
+        let body' = (freeVariables body) 
+        let argsNames = (Set.ofList (List.map fst args))
+
+        Set.difference body' argsNames
     | Match (target, cases) ->
         List.fold
-            (fun acc (label, var, expr) ->
-                Set.difference (freeVariables expr) (Set.add var acc))
+            (fun acc (label, var, expr) -> 
+                (Set.remove var (Set.union (freeVariables expr) acc)))
             (freeVariables target)
             cases
     | Assign (name, value) ->
@@ -1637,10 +1636,15 @@ and freeVariables (node: TypedAST): Set<string> =
         freeVariables target
     | Ascription (_, node) ->
         freeVariables node
+    | Let (name, _, bindingExpr, bodyExpr) ->
+        let set = Set.union (freeVariables bodyExpr) (freeVariables bindingExpr)
+        Set.remove name set
     | LetMut (name, _, init, scope) ->
-        Set.union (freeVariables init) (Set.remove name (freeVariables scope))
+        let set = Set.union (freeVariables scope) (freeVariables init)
+        Set.remove name set
     | LetRec (name, _, lambda, scope) ->
-        Set.union (freeVariables lambda) (Set.remove name (freeVariables scope))
+        let set = Set.union (freeVariables scope) (freeVariables lambda)
+        Set.remove name set
     | Struct (fields) ->
         List.fold
             (fun acc (_, expr) ->
@@ -1649,6 +1653,13 @@ and freeVariables (node: TypedAST): Set<string> =
             fields
     | ArrayElement (target, index) ->   
         Set.union (freeVariables target) (freeVariables index)
+    | Mult(lhs, rhs) 
+    | Div(lhs, rhs)
+    | Sub(lhs, rhs)
+    | Rem(lhs, rhs)
+    | Eq(lhs, rhs)
+    | Add (lhs, rhs) ->
+        Set.union (freeVariables lhs) (freeVariables rhs)
     | _ -> Set.empty     
         
 and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) (capturedList) =
