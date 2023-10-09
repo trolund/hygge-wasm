@@ -3,7 +3,13 @@ using Wasmtime;
 
 namespace WasmTimeDriver
 {
-
+    /// <summary>
+    ///  Memory allocator for the VM with initial heap size of 1 page.
+    /// </summary>
+    /// <remarks>
+    /// The heap size will grow if the VM tries to allocate more memory than the current heap size.
+    /// A debug flag can be set to print out when the heap is growing.
+    /// </remarks>
     public class MemoryAllocator
     {
         private IntPtr _offset;  // Pointer to the allocated heap
