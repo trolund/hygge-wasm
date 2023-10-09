@@ -5,7 +5,6 @@ fun makeCounter(y: int): () -> int = {
         x <- x * y // x is captured from the surrounding scope
 };
 
-// This is interpreted and compiled incorrectly!
 let c1: () -> int = makeCounter(2);
 let c2: () -> int = makeCounter(4);
 let c3: () -> int = makeCounter(8);

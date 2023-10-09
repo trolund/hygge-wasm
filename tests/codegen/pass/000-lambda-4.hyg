@@ -1,0 +1,13 @@
+// Return a function that counts how many times it is called
+fun makeCounter(x: int, y: int): () -> int = {
+    let mutable a: int = 1;
+    let mutable b: int = 2;
+    fun () ->
+        a <- x + y + a + b
+};
+
+let c1: () -> int = makeCounter(2, 2);
+let c2: () -> int = makeCounter(4, 4);
+assert(c1() = 7);
+assert(c1() = 13);
+assert(c2() = 11)
