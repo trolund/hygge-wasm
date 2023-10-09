@@ -23,7 +23,7 @@ type internal Storage =
     /// global variable
     | glob of label: string
     /// offset in bytes of element in structure
-    | Offset of offset: int 
+    | Offset of offset: int
 
 /// A memory allocator that allocates memory in pages of 64KB.
 /// The allocator keeps track of the current allocation position.
@@ -75,9 +75,9 @@ let rec repeat (n: int) (f: int -> List<Commented<Instr>>) =
 
 type internal CodegenEnv =
     { CurrFunc: string
+      CurrFuncArgs: list<string>
       MemoryAllocator: StaticMemoryAllocator
-      VarStorage: Map<string, Storage>
-    } // function refances in table
+      VarStorage: Map<string, Storage> } // function refances in table
 
 let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) =
     let ptr_label = $"{name}*ptr"
@@ -575,9 +575,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
 
         let captured = freeVariables node
-        
+
         // map captured to list of pairs (name, TypedAST) with env
-        let captured = Set.map (fun n -> (n, {node with Expr = Var(n) })) captured
+        let captured = Set.map (fun n -> (n, { node with Expr = Var(n) })) captured
 
         let capturedList = List.distinctBy fst (Set.toList captured)
         // add each arg to var storage (all local vars)
@@ -586,8 +586,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let env' =
             List.fold
                 (fun env (n, t) ->
+                    // generate label for local var
+                    let l = Util.genSymbol $"local_{n}"
+
                     { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
+                        VarStorage = env.VarStorage.Add(n, Storage.local (l)) })
                 env
                 args
 
@@ -606,10 +609,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             List.fold
                 (fun (m: Module) (_, (n, _)) ->
                     match env.VarStorage.TryFind n with
-                    | Some(Storage.local(l)) -> m.AddToHostingList(l)
+                    | Some(Storage.local (l)) ->
+                        if List.contains n env.CurrFuncArgs then
+                            m
+                        else
+                            m.AddToHostingList(l)
                     | None -> failwith "failed to find captured var in var storage"
-                    | _ -> failwith "failed to find captured var in var storage"
-                    )
+                    | _ -> failwith "failed to find captured var in var storage")
                 funcPointer
                 capturedIndexed
 
@@ -1214,16 +1220,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let scopeModule: Module =
             (doCodegen { env with VarStorage = varStorage2 } scope funcPointer)
 
-        let captured = freeVariables node
-        
-        // map captured to list of pairs (name, TypedAST) with env
-        let captured = Set.map (fun n -> (n, {node with Expr = Var(n) })) captured
-        
-        let capturedList = List.distinctBy fst (Set.toList captured)
 
-        let closure = createClosure env' node body index funcPointer capturedList
+        // let captured = freeVariables node
 
-        funcPointer + scopeModule + bodyCode + closure
+        // // map captured to list of pairs (name, TypedAST) with env
+        // let captured = Set.map (fun n -> (n, {node with Expr = Var(n) })) captured
+
+        // let capturedList = List.distinctBy fst (Set.toList captured)
+
+        // let closure = createClosure env' node body index funcPointer capturedList
+
+        funcPointer + scopeModule + bodyCode // + closure
 
     | Let(name, _, init, scope) ->
         let m' = doCodegen env init m
@@ -1375,16 +1382,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let scopeModule: Module = (doCodegen env' scope funcPointer)
 
-        let captured = freeVariables node
-        
-        // map captured to list of pairs (name, TypedAST) with env
-        let captured = Set.map (fun n -> (n, {node with Expr = Var(n) })) captured
+        // TODO: maybe bring back?
 
-        let capturedList = List.distinctBy fst (Set.toList captured)
+        // let captured = freeVariables node
 
-        let closure = createClosure env'' node body index funcPointer capturedList
+        // // map captured to list of pairs (name, TypedAST) with env
+        // let captured = Set.map (fun n -> (n, {node with Expr = Var(n) })) captured
 
-        funcPointer + scopeModule + bodyCode + closure
+        // let capturedList = List.distinctBy fst (Set.toList captured)
+
+        // let closure = createClosure env'' node body index funcPointer capturedList
+
+        funcPointer + scopeModule + bodyCode // + closure
 
     | LetRec(name, tpe, init, scope) ->
         doCodegen
@@ -1600,7 +1609,13 @@ and internal compileFunction
     let m' = m.AddFunction(name, f, true)
 
     // compile function body
-    let m'' = doCodegen { env with CurrFunc = name } body m'
+    let m'' =
+        doCodegen
+            { env with
+                CurrFunc = name
+                CurrFuncArgs = List.map (fun (n, _) -> n) args }
+            body
+            m'
 
     // add code and locals to function
     m''
@@ -1610,58 +1625,43 @@ and internal compileFunction
         .ResetLocals() // reset locals
 
 // capture all free variable in expression and a list of var names that
-and freeVariables (node: TypedAST): Set<string> =
+and freeVariables (node: TypedAST) : Set<string> =
     match node.Expr with
     | Var v -> Set.singleton v
-    | Application (target, args) ->
-        List.fold
-            (fun acc (arg) ->
-                Set.union acc (freeVariables arg))
-            (freeVariables target)
-            args
-    | Lambda (args, body) ->
-        let body' = (freeVariables body) 
+    | Application(target, args) ->
+        List.fold (fun acc (arg) -> Set.union acc (freeVariables arg)) (freeVariables target) args
+    | Lambda(args, body) ->
+        let body' = (freeVariables body)
         let argsNames = (Set.ofList (List.map fst args))
-
-        Set.difference body' argsNames
-    | Match (target, cases) ->
+        let s = Set.difference body' argsNames
+        s
+    | Match(target, cases) ->
         List.fold
-            (fun acc (label, var, expr) -> 
-                (Set.remove var (Set.union (freeVariables expr) acc)))
+            (fun acc (label, var, expr) -> (Set.remove var (Set.union (freeVariables expr) acc)))
             (freeVariables target)
             cases
-    | Assign (name, value) ->
-        Set.union (freeVariables name) (freeVariables value)
-    | FieldSelect (target, _) ->
-        freeVariables target
-    | Ascription (_, node) ->
-        freeVariables node
-    | Let (name, _, bindingExpr, bodyExpr) ->
+    | Assign(name, value) -> Set.union (freeVariables name) (freeVariables value)
+    | FieldSelect(target, _) -> freeVariables target
+    | Ascription(_, node) -> freeVariables node
+    | Let(name, _, bindingExpr, bodyExpr) ->
         let set = Set.union (freeVariables bodyExpr) (freeVariables bindingExpr)
         Set.remove name set
-    | LetMut (name, _, init, scope) ->
+    | LetMut(name, _, init, scope) ->
         let set = Set.union (freeVariables scope) (freeVariables init)
         Set.remove name set
-    | LetRec (name, _, lambda, scope) ->
+    | LetRec(name, _, lambda, scope) ->
         let set = Set.union (freeVariables scope) (freeVariables lambda)
         Set.remove name set
-    | Struct (fields) ->
-        List.fold
-            (fun acc (_, expr) ->
-                Set.union (freeVariables expr) acc)
-            Set.empty
-            fields
-    | ArrayElement (target, index) ->   
-        Set.union (freeVariables target) (freeVariables index)
-    | Mult(lhs, rhs) 
+    | Struct(fields) -> List.fold (fun acc (_, expr) -> Set.union (freeVariables expr) acc) Set.empty fields
+    | ArrayElement(target, index) -> Set.union (freeVariables target) (freeVariables index)
+    | Mult(lhs, rhs)
     | Div(lhs, rhs)
     | Sub(lhs, rhs)
     | Rem(lhs, rhs)
     | Eq(lhs, rhs)
-    | Add (lhs, rhs) ->
-        Set.union (freeVariables lhs) (freeVariables rhs)
-    | _ -> Set.empty     
-        
+    | Add(lhs, rhs) -> Set.union (freeVariables lhs) (freeVariables rhs)
+    | _ -> Set.empty
+
 and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) (capturedList) =
 
     // capture environment in struct, with a field for each captured variable
@@ -1769,11 +1769,7 @@ let hoistingLocals (m: Module) (upgradeList: list<string>) : Module =
             funcs
 
     // add all vars from upgradeList to global vars
-    let globals =
-        List.map
-            (fun (n) ->
-                (n, (I32, Mutable), (I32Const 0)))
-            upgradeList
+    let globals = List.map (fun (n) -> (n, (I32, Mutable), (I32Const 0))) upgradeList
 
     let m' = m.AddGlobals(globals).ReplaceFuncs(funcs')
 
@@ -1804,7 +1800,7 @@ let codegen (node: TypedAST) : Module =
         { CurrFunc = funcName
           MemoryAllocator = StaticMemoryAllocator()
           VarStorage = Map.empty
-        }
+          CurrFuncArgs = [] }
 
     // add function to module and export it
     let m' =
@@ -1828,18 +1824,19 @@ let codegen (node: TypedAST) : Module =
 
     let heapBase = "heap_base"
 
-    let final = m
-                        .AddMemory(("memory", Unbounded(numOfStaticPages)))
-                        .AddLocals(env.CurrFunc, m.GetLocals()) // set locals of function
-                        .AddInstrs(env.CurrFunc, [ Comment "execution start here:" ])
-                        .AddInstrs(env.CurrFunc, m.GetAccCode()) // add code of main function
-                        .AddInstrs(env.CurrFunc, [ Comment "if execution reaches here, the program is successful" ])
-                        .AddInstrs(env.CurrFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ]) // return 0 if program is successful
-                        .AddGlobal((heapBase, (I32, Immutable), (I32Const staticOffset))) // add heap base pointer
-                        .AddExport(heapBase + "_ptr", GlobalType("heap_base")) // export heap base pointer
-                        .ResetAccCode() // reset accumulated code
-                        .ResetLocals() // reset locals
+    let final =
+        m
+            .AddMemory(("memory", Unbounded(numOfStaticPages)))
+            .AddLocals(env.CurrFunc, m.GetLocals()) // set locals of function
+            .AddInstrs(env.CurrFunc, [ Comment "execution start here:" ])
+            .AddInstrs(env.CurrFunc, m.GetAccCode()) // add code of main function
+            .AddInstrs(env.CurrFunc, [ Comment "if execution reaches here, the program is successful" ])
+            .AddInstrs(env.CurrFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ]) // return 0 if program is successful
+            .AddGlobal((heapBase, (I32, Immutable), (I32Const staticOffset))) // add heap base pointer
+            .AddExport(heapBase + "_ptr", GlobalType("heap_base")) // export heap base pointer
+            .ResetAccCode() // reset accumulated code
+            .ResetLocals() // reset locals
 
     let h = Set.toList (Set(m.GetHostingList()))
-    
+
     hoistingLocals final h
