@@ -556,8 +556,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // type to function signature
         let s = typeToFuncSiganture expr.Type
+        let name = GenFuncTypeName s
 
-        let instrs = [ (CallIndirect__(s), sprintf "call function") ]
+        let instrs = [ (CallIndirect(Named(name)), sprintf "call function") ]
 
         C [ Comment "start of application" ] ++ (argm.ResetAccCode())
         + appTermCode.AddCode(instrs @ C [ Comment "end of application" ])

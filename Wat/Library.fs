@@ -4,6 +4,22 @@ module WFG =
 
     let indent = 6;
 
+    /// generate function type stirng
+    let GenFuncTypeName (t) =
+        // generate function type name
+        let locals = fst t
+        let ret = snd t
+
+        let l = List.fold (fun str (i, x) -> 
+                        let (_, t) = x
+                        str + (if i > 0 then "_" else "") + t.ToString()
+                    ) "" (List.indexed locals)
+        let r = List.fold (fun str x -> 
+                        str + "_" + x.ToString()
+                    ) "" ret
+
+        $"{l}_=>{r}"
+
     type Commented<'a> = 
         'a * string    
     
@@ -751,8 +767,13 @@ module WFG =
                         let f' = (instance, snd f)
                         let typedef = instance.signature
 
-                        let typedef = (name, typedef)
-                        Set(typedef :: Set.toList this.types), f'
+                        let typeS = GenFuncTypeName typedef
+
+                        let typedef = (typeS, typedef)
+
+                        let set = Set(List.distinctBy (fun l -> fst l) (typedef :: Set.toList this.types))
+
+                        set, f'
                     else
                         this.types, f
 
@@ -795,7 +816,7 @@ module WFG =
 
             // combine two wasm modules
             member this.Combine (m: Module) =
-                let types = Set.toList this.types @ Set.toList m.types
+                let types = Set(List.distinctBy (fun l -> fst l) (Set.toList this.types @ Set.toList m.types))
                 let functions = Map.fold (fun acc key value -> Map.add key value acc) this.functions m.functions
                 let tables = this.tables @ m.tables
                 let memories = Set.toList this.memories @ Set.toList m.memories
@@ -863,7 +884,7 @@ module WFG =
                         | None -> sprintf "(param %s)" (t.ToString())) parameters)
                     let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
                     // name with suffix
-                    let name = sprintf "%s_type" name
+                    // let name = sprintf "%s_type" name
                     sprintf "  (type $%s (func %s %s))\n" name parametersString returnValuesString 
 
 
