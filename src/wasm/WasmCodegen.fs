@@ -10,11 +10,6 @@ open SI
 let errorExitCode = 42
 let successExitCode = 0
 
-// adress and size
-type Var =
-    | GloVar of int * int
-    | LocVar of int * int
-
 /// Storage information for variables.
 [<RequireQualifiedAccess; StructuralComparison; StructuralEquality>]
 type internal Storage =
@@ -37,9 +32,6 @@ type internal StaticMemoryAllocator() =
 
     // get head of allocated memory list
     member this.GetAllocated() = (allocatedMemory.Head)
-
-    // 4 bytes stride
-    member this.stride: int = 4
 
     // get number of pages needed to allocate size bytes
     member this.GetNumPages() =
@@ -66,12 +58,6 @@ type internal StaticMemoryAllocator() =
         startPosition
 
     member this.GetAllocationPosition() = allocationPosition
-
-// function that repeat code pattern and accumulate it
-let rec repeat (n: int) (f: int -> List<Commented<Instr>>) =
-    match n with
-    | 0 -> []
-    | _ -> f n @ repeat (n - 1) f
 
 type internal CodegenEnv =
     { CurrFunc: string
