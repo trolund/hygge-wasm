@@ -10,6 +10,13 @@ namespace WasmTimeDriver
         private readonly Engine _engine;
         private readonly Linker _linker;
         private readonly Store _store;
+        /// <summary>
+        ///  Memory allocator for the VM with initial heap size of 1 page.
+        /// </summary>
+        /// <remarks>
+        /// The heap size will grow if the VM tries to allocate more memory than the current heap size.
+        /// A debug flag can be set to print out when the heap is growing.
+        /// </remarks>
         private readonly MemoryAllocator _allocator = new MemoryAllocator(1);
         private readonly string main = "_start";
 
