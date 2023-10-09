@@ -15,6 +15,7 @@
   (func $_start  (result i32) ;; entry point of program (main function)    ;; local variables declarations:
     (local $var_c1 i32)
     (local $var_c2 i32)
+    (local $var_c3 i32)
  
     ;; execution start here:
     ;; Start of let
@@ -43,6 +44,19 @@
     call_indirect (param i32) (param i32) (result i32) ;; call function
     ;; end of application
     local.set $var_c2 ;; set local var
+    ;; Start of let
+    ;; start of application
+    ;; Load expression to be applied as a function
+    global.get $fun_makeCounter*ptr
+    i32.const 4 ;; 4 byte offset
+    i32.add ;; add offset
+    i32.load ;; load closure environment pointer
+    i32.const 8 ;; push 8 on stack
+    global.get $fun_makeCounter*ptr
+    i32.load ;; load table index
+    call_indirect (param i32) (param i32) (result i32) ;; call function
+    ;; end of application
+    local.set $var_c3 ;; set local var
     ;; start of application
     ;; Load expression to be applied as a function
     local.get $var_c1
@@ -97,6 +111,35 @@
       return ;; return exit code
        )
       )
+    ;; start of application
+    ;; Load expression to be applied as a function
+    local.get $var_c3
+    i32.const 4 ;; 4 byte offset
+    i32.add ;; add offset
+    i32.load ;; load closure environment pointer
+    local.get $var_c3
+    i32.load ;; load table index
+    call_indirect (param i32) (result i32) ;; call function
+    ;; end of application
+    i32.const 16 ;; push 16 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if (then
+      i32.const 42 ;; error exit code push to stack
+      return ;; return exit code
+       )
+      )
+    ;; start of application
+    ;; Load expression to be applied as a function
+    local.get $var_c3
+    i32.const 4 ;; 4 byte offset
+    i32.add ;; add offset
+    i32.load ;; load closure environment pointer
+    local.get $var_c3
+    i32.load ;; load table index
+    call_indirect (param i32) (result i32) ;; call function
+    ;; end of application
+    ;; End of let
     ;; End of let
     ;; End of let
     ;; if execution reaches here, the program is successful
