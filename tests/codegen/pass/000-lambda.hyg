@@ -1,8 +1,10 @@
 // Return a function that counts how many times it is called
 fun makeCounter(): () -> int = {
     let mutable x: int = 0;
-    fun () ->
-        x <- x + 1 // x is captured from the surrounding scope
+    fun () -> {
+        x <- x + 1; // x is captured from the surrounding scope
+        x
+    }
 };
 
 // This is interpreted and compiled incorrectly!

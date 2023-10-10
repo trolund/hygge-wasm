@@ -97,7 +97,10 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | FloatVal _ -> [ F32 ]
     | StringVal _ -> [ I32 ]
     | BoolVal _ -> [ I32 ]
-    | Var v -> [ I32 ]
+    | Var v -> 
+        match expr.Type with
+        | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
+        | _ -> [ I32 ]
     | PreIncr e -> findReturnType e
     | PostIncr e -> findReturnType e
     | PreDcr e -> findReturnType e
@@ -208,7 +211,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match env.VarStorage.TryFind v with
             | Some(Storage.local (l)) -> [ LocalGet(Named(l)) ]
-            | Some(Storage.Offset(i)) -> [ LocalGet(Index(0)); (I32Load_(None, Some(i))) ]
+            | Some(Storage.Offset(i)) -> 
+
+                // get load instruction based on type
+                let li =
+                    match node.Type with
+                    | t when (isSubtypeOf node.Env t TBool) -> (I32Load_(None, Some(i)))
+                    | t when (isSubtypeOf node.Env t TInt) -> (I32Load_(None, Some(i)))
+                    | t when (isSubtypeOf node.Env t TFloat) -> (F32Load_(None, Some(i)))
+                    | _ -> failwith "not implemented"
+
+                [ LocalGet(Index(0)); li ]
             | Some(Storage.glob (l)) -> [ GlobalGet(Named(l)) ]
             | _ -> failwith "could not find variable in var storage"
 
@@ -564,7 +577,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let captured = freeVariables node
 
         // map captured to list of pairs (name, TypedAST) with env
-        let captured = Set.map (fun n -> (n, { node with Expr = Var(n) })) captured
+        // TODO: Add type here!!!
+        let captured = Set.map (fun n -> (n, { node with Expr = Var(n); Type = body.Env.Vars[n] })) captured
 
         let capturedList = List.distinctBy fst (Set.toList captured)
         // add each arg to var storage (all local vars)
@@ -1060,16 +1074,24 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
                 // [(LocalGet(Index(0)), "get env"); (I32Const i, "get var offset"); (I32Add, "get env"); (I32Store, "store value in env")]
 
+                // get correct load and store instruction
+                let (li, si) =
+                    match value.Type with
+                    | t when (isSubtypeOf value.Env t TInt) -> ((I32Load_(None, Some(i)), "load value i32 from env"), (I32Store_(None, Some(i)), "store i32 value in env"))
+                    | t when (isSubtypeOf value.Env t TFloat) -> ((F32Load_(None, Some(i)), "load value f32 from env"), (F32Store_(None, Some(i)), "store f32 value in env"))
+                    | _ -> failwith "not implemented"
+
                 let store =
                     [ (LocalGet(Index(0)), "get env") ]
                     @ value'.GetAccCode()
-                    @ [ (I32Store_(None, Some(i)), "store value in env") ]
+                    @ [ si ]
 
+                // TODO: Load is wrong!!
                 let load =
                     [ (LocalGet(Index(0)), "get env") ]
-                    @ [ (I32Load_(None, Some(i)), "load value from env") ]
+                    @ [ li ]
 
-                value'.ResetAccCode().AddCode(store @ load)
+                value'.ResetAccCode().AddCode(store)
             | _ -> failwith "not implemented"
 
 
@@ -1433,23 +1455,23 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // instr based on type of field
                 // store field in memory
                 let instr =
-                    match fieldInit.Type with
+                    match (expandType node.Env fieldInit.Type) with
+                    | t when (isSubtypeOf fieldInit.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf fieldInit.Env t TFloat) ->
                         [ (LocalGet(Named(structName)), "get struct pointer var")
                           (I32Const fieldOffsetBytes, "push field offset to stack")
                           (I32Add, "add offset to base address") ]
                         @ initField'.GetAccCode()
-                        @ [ (F32Store, "store field in memory") ]
+                        @ [ (F32Store, "store float field in memory") ]
                     | _ ->
                         [ (LocalGet(Named(structName)), "get struct pointer var")
                           (I32Const fieldOffsetBytes, "push field offset to stack")
                           (I32Add, "add offset to base address") ]
                         @ initField'.GetAccCode()
-                        @ [ (I32Store, "store field in memory") ]
+                        @ [ (I32Store, "store int field in memory") ]
 
                 // accumulate code
                 acc ++ initField.ResetAccCode().AddCode(instr)
-
 
         let fieldsInitCode =
             List.fold folder m (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
@@ -1647,6 +1669,9 @@ and freeVariables (node: TypedAST) : Set<string> =
     | Rem(lhs, rhs)
     | Eq(lhs, rhs)
     | Add(lhs, rhs) -> Set.union (freeVariables lhs) (freeVariables rhs)
+    | AST.If(cond, thenExpr, elseExpr) ->
+        Set.union (freeVariables cond) (Set.union (freeVariables thenExpr) (freeVariables elseExpr))
+    | Seq(exprs) -> List.fold (fun acc (expr) -> Set.union (freeVariables expr) acc) Set.empty exprs
     | _ -> Set.empty
 
 and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) (capturedList) =
@@ -1706,9 +1731,9 @@ let rec localSubst (code: Commented<Instr> list) (var: string) : (Commented<Inst
     match code with
     | [] -> code // end of code
     | (LocalGet(Named(n)), c) :: rest when n = var ->
-        [ (GlobalGet(Named(n)), c + " have been hoisted") ] @ localSubst rest var
+        [ (GlobalGet(Named(n)), c + ", have been hoisted") ] @ localSubst rest var
     | (LocalSet(Named(n)), c) :: rest when n = var ->
-        [ (GlobalSet(Named(n)), c + " have been hoisted") ] @ localSubst rest var
+        [ (GlobalSet(Named(n)), c + ", have been hoisted") ] @ localSubst rest var
 
     // block instructions
     | (Block(l, vt, instrs), c) :: rest -> [ (Block(l, vt, (localSubst instrs var)), c) ] @ localSubst rest var
@@ -1755,8 +1780,24 @@ let hoistingLocals (m: Module) (upgradeList: list<string>) : Module =
                 c)
             funcs
 
+    let allLocals = (List.fold (fun total ( name, (func, c)) -> total @ func.locals) [] funcs)
+
+    // find type of local
+    let findType (name: string) = List.find (fun (n, t) -> match n with
+                                                                                        | Some(n) -> n = name
+                                                                                        | None -> false) allLocals
+    
     // add all vars from upgradeList to global vars
-    let globals = List.map (fun (n) -> (n, (I32, Mutable), (I32Const 0))) upgradeList
+    let globals = List.map (fun (n) -> 
+
+        let t = snd (findType(n))
+
+        let value = match t with
+                    | I32 -> I32Const 0
+                    | F32 -> F32Const 0.0f
+                    | _ -> failwith "not implemented"
+
+        (n, (t, Mutable), value)) upgradeList
 
     let m' = m.AddGlobals(globals).ReplaceFuncs(funcs')
 

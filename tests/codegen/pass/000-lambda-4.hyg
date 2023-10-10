@@ -2,8 +2,10 @@
 fun makeCounter(x: int, y: int): () -> int = {
     let mutable a: int = 1;
     let mutable b: int = 2;
-    fun () ->
-        a <- x + y + a + b
+    fun () -> {
+        a <- x + y + a + b;
+        a
+    }
 };
 
 let c1: () -> int = makeCounter(2, 2);

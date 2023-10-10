@@ -156,7 +156,7 @@ module WFG =
         | I32Store_ of int option * int option
         | I32Store
         | I64Store of int * int
-        | F32Store_ of int * int
+        | F32Store_ of int option * int option
         | F32Store
         | F64Store of int * int
         | I32Store8 of int * int
@@ -468,7 +468,12 @@ module WFG =
                     | None, None -> "i32.store"
                 | I32Store -> "i32.store"
                 | I64Store (align, offset) -> sprintf "i64.store align=%d offset=%d" align offset
-                | F32Store_ (align, offset) -> sprintf "f32.store align=%d offset=%d" align offset
+                | F32Store_ (align, offset) -> 
+                    match align, offset with
+                    | Some align, Some offset -> sprintf "f32.store align=%d offset=%d" align offset
+                    | Some align, None -> sprintf "f32.store align=%d" align
+                    | None, Some offset -> sprintf "f32.store offset=%d" offset
+                    | None, None -> "f32.store"
                 | F32Store -> "f32.store"
                 | F64Store (align, offset) -> sprintf "f64.store align=%d offset=%d" align offset
                 | I32Store8 (align, offset) -> sprintf "i32.store8 align=%d offset=%d" align offset
