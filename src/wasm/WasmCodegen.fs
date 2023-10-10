@@ -1083,20 +1083,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // [(LocalGet(Index(0)), "get env"); (I32Const i, "get var offset"); (I32Add, "get env"); (I32Store, "store value in env")]
 
                 // get correct load and store instruction
-                let (li, si) =
+                let si =
                     match value.Type with
                     | t when (isSubtypeOf value.Env t TInt) ->
-                        ((I32Load_(None, Some(i)), "load value i32 from env"),
-                         (I32Store_(None, Some(i)), "store i32 value in env"))
+                         (I32Store_(None, Some(i)), "store i32 value in env")
                     | t when (isSubtypeOf value.Env t TFloat) ->
-                        ((F32Load_(None, Some(i)), "load value f32 from env"),
-                         (F32Store_(None, Some(i)), "store f32 value in env"))
+                         (F32Store_(None, Some(i)), "store f32 value in env")
                     | _ -> failwith "not implemented"
 
                 let store = [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode() @ [ si ]
-
-                // TODO: Load is wrong!!
-                let load = [ (LocalGet(Index(0)), "get env") ] @ [ li ]
 
                 value'.ResetAccCode().AddCode(store)
             | _ -> failwith "not implemented"
