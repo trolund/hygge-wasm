@@ -63,7 +63,7 @@ type internal CodegenEnv =
     { CurrFunc: string
       CurrFuncArgs: list<string>
       MemoryAllocator: StaticMemoryAllocator
-      VarStorage: Map<string, Storage> } 
+      VarStorage: Map<string, Storage> }
 
 let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) =
     let ptr_label = $"{name}*ptr"
@@ -1761,7 +1761,8 @@ let rec localSubst (code: Commented<Instr> list) (var: string) : (Commented<Inst
         [ (GlobalGet(Named(n)), c + ", have been hoisted") ] @ localSubst rest var
     | (LocalSet(Named(n)), c) :: rest when n = var ->
         [ (GlobalSet(Named(n)), c + ", have been hoisted") ] @ localSubst rest var
-
+    | (LocalTee(Named(n)), c) :: rest when n = var ->
+        [ (GlobalSet(Named(n)), c + ", have been hoisted"); (GlobalGet(Named(n)), c + ", have been hoisted") ] @ localSubst rest var
     // block instructions
     | (Block(l, vt, instrs), c) :: rest -> [ (Block(l, vt, (localSubst instrs var)), c) ] @ localSubst rest var
     | (Loop(l, vt, instrs), c) :: rest -> [ (Loop(l, vt, (localSubst instrs var)), c) ] @ localSubst rest var
@@ -1888,10 +1889,12 @@ let codegen (node: TypedAST) : Module =
 
     let heapBase = "heap_base"
 
+    let locals = m.GetLocals()
+
     let final =
         m
             .AddMemory(("memory", Unbounded(numOfStaticPages)))
-            .AddLocals(env.CurrFunc, m.GetLocals()) // set locals of function
+            .AddLocals(env.CurrFunc, locals) // set locals of function
             .AddInstrs(env.CurrFunc, [ Comment "execution start here:" ])
             .AddInstrs(env.CurrFunc, m.GetAccCode()) // add code of main function
             .AddInstrs(env.CurrFunc, [ Comment "if execution reaches here, the program is successful" ])
@@ -1901,6 +1904,14 @@ let codegen (node: TypedAST) : Module =
             .ResetAccCode() // reset accumulated code
             .ResetLocals() // reset locals
 
-    let h = Set.toList (Set(m.GetHostingList()))
+    let l =
+        (List.map
+            (fun (n, _) ->
+                match n with
+                | Some(n) -> n
+                | None -> failwith "not implemented")
+            locals)
 
-    hoistingLocals final h
+    let h = (Set.toList (Set(m.GetHostingList())))
+
+    hoistingLocals final (h @ l)

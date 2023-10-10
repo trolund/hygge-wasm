@@ -1,3 +1,0 @@
-let x: int = 40;
-let f: () -> int = fun() -> 2 + x;
-assert(f() = 42)
