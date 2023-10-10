@@ -59,20 +59,35 @@ type internal StaticMemoryAllocator() =
 
     member this.GetAllocationPosition() = allocationPosition
 
+type internal TableController() =
+
+    let mutable allocationPosition = 0
+
+    /// get the next free index in the table
+    member this.next() =
+        let startPosition = allocationPosition
+        allocationPosition <- allocationPosition + 1
+        startPosition
+
+    member this.reset() = allocationPosition <- 0
+
+    member this.get() = allocationPosition
+
 type internal CodegenEnv =
     { CurrFunc: string
       CurrFuncArgs: list<string>
       MemoryAllocator: StaticMemoryAllocator
+      TableController: TableController
       VarStorage: Map<string, Storage> }
 
 let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) =
     let ptr_label = $"{name}*ptr"
 
     // get the index of the function
-    let funcindex = m.GetFuncTableSize
+    let funcindex = env.TableController.next()
 
     // add function to function table
-    let m = m.AddFuncRefElement(name)
+    let m = m.AddFuncRefElement(name, funcindex)
 
     // allocate memory for function pointer
     let ptr = env.MemoryAllocator.Allocate(4)
@@ -1085,10 +1100,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // get correct load and store instruction
                 let si =
                     match value.Type with
-                    | t when (isSubtypeOf value.Env t TInt) ->
-                         (I32Store_(None, Some(i)), "store i32 value in env")
-                    | t when (isSubtypeOf value.Env t TFloat) ->
-                         (F32Store_(None, Some(i)), "store f32 value in env")
+                    | t when (isSubtypeOf value.Env t TInt) -> (I32Store_(None, Some(i)), "store i32 value in env")
+                    | t when (isSubtypeOf value.Env t TFloat) -> (F32Store_(None, Some(i)), "store f32 value in env")
                     | _ -> failwith "not implemented"
 
                 let store = [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode() @ [ si ]
@@ -1757,7 +1770,9 @@ let rec localSubst (code: Commented<Instr> list) (var: string) : (Commented<Inst
     | (LocalSet(Named(n)), c) :: rest when n = var ->
         [ (GlobalSet(Named(n)), c + ", have been hoisted") ] @ localSubst rest var
     | (LocalTee(Named(n)), c) :: rest when n = var ->
-        [ (GlobalSet(Named(n)), c + ", have been hoisted"); (GlobalGet(Named(n)), c + ", have been hoisted") ] @ localSubst rest var
+        [ (GlobalSet(Named(n)), c + ", have been hoisted")
+          (GlobalGet(Named(n)), c + ", have been hoisted") ]
+        @ localSubst rest var
     // block instructions
     | (Block(l, vt, instrs), c) :: rest -> [ (Block(l, vt, (localSubst instrs var)), c) ] @ localSubst rest var
     | (Loop(l, vt, instrs), c) :: rest -> [ (Loop(l, vt, (localSubst instrs var)), c) ] @ localSubst rest var
@@ -1856,9 +1871,11 @@ let codegen (node: TypedAST) : Module =
            name = Some(Identifier(funcName)) },
          "entry point of program (main function)")
 
+    /// Environment used during code generation
     let env =
         { CurrFunc = funcName
           MemoryAllocator = StaticMemoryAllocator()
+          TableController = TableController()
           VarStorage = Map.empty
           CurrFuncArgs = [] }
 
@@ -1889,7 +1906,7 @@ let codegen (node: TypedAST) : Module =
     let final =
         m
             .AddMemory(("memory", Unbounded(numOfStaticPages)))
-            .AddLocals(env.CurrFunc, locals) // set locals of function
+            .AddLocals(env.CurrFunc, locals) // set locals of function, TODO: can be deleted?
             .AddInstrs(env.CurrFunc, [ Comment "execution start here:" ])
             .AddInstrs(env.CurrFunc, m.GetAccCode()) // add code of main function
             .AddInstrs(env.CurrFunc, [ Comment "if execution reaches here, the program is successful" ])

@@ -4,7 +4,7 @@
   (memory (export "memory") 1)
   (data (i32.const 0) "\00")
   (data (i32.const 4) "\01")
-  (data (i32.const 8) "\01")
+  (data (i32.const 8) "\02")
   (global $fun_makeCounters*ptr (mut i32) i32.const 0)
   (global $fun_makeCounters/anonymous$2*ptr (mut i32) i32.const 8)
   (global $fun_makeCounters/anonymous*ptr (mut i32) i32.const 4)
@@ -15,7 +15,7 @@
   (table $func_table 3 funcref)
   (elem (i32.const 0) $fun_makeCounters)
   (elem (i32.const 1) $fun_makeCounters/anonymous)
-  (elem (i32.const 1) $fun_makeCounters/anonymous$2)
+  (elem (i32.const 2) $fun_makeCounters/anonymous$2)
   (func $_start  (result i32) ;; entry point of program (main function) 
     ;; execution start here:
     ;; Start of let
@@ -233,7 +233,7 @@
     i32.const 0 ;; push field offset to stack
     i32.add ;; add offset to base address
     ;; init field f
-    i32.const 1 ;; push 1 on stack
+    i32.const 2 ;; push 2 on stack
     i32.store ;; store int field in memory
     local.get $Sptr$4 ;; get struct pointer var
     i32.const 4 ;; push field offset to stack

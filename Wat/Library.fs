@@ -665,7 +665,7 @@ module WFG =
             /// <summary>add func ref element and grow func table</summary>
             /// <param name="label">label of function</param>
             /// <returns>new module</returns>
-            member this.AddFuncRefElement (label: string) =
+            member this.AddFuncRefElement (label: string, index: int) =
                 // is there a tabel named func_table
                 let func_table = this.tables |> List.tryFind (fun (name, _, _) -> name = "func_table")
 
@@ -675,7 +675,7 @@ module WFG =
                     | Some (name, valueType, limits) -> (name, valueType, limits)
                     | None -> ("func_table", Funcref, Unbounded 1)
 
-                let elements: Element = (this.elements.Count, label)
+                let elements: Element = (index, label)
                 Module(this.types, this.functions, table :: this.tables, this.memories, this.globals, this.exports, this.imports, this.start, Set(elements :: Set.toList this.elements), this.data, this.locals, this.tempCode, this.elements.Count + 1, this.hostinglist)
 
             // add temp code
