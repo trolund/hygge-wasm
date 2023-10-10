@@ -165,6 +165,7 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | Pointer(addr) -> [ I32 ]
     | UnionCons(label, expr) -> [ I32 ]
     | Match(expr, cases) -> findReturnType expr
+    | _ -> failwith "not implemented"
 
 
 /// look up variable in var env
@@ -1636,6 +1637,11 @@ and internal compileFunction
 // capture all free variable in expression and a list of var names that
 and freeVariables (node: TypedAST) : Set<string> =
     match node.Expr with
+    | IntVal _ -> Set.empty
+    | FloatVal _ -> Set.empty
+    | BoolVal _ -> Set.empty
+    | StringVal _ -> Set.empty
+    
     | Var v -> Set.singleton v
     | Application(target, args) ->
         List.fold (fun acc (arg) -> Set.union acc (freeVariables arg)) (freeVariables target) args
@@ -1672,7 +1678,7 @@ and freeVariables (node: TypedAST) : Set<string> =
     | AST.If(cond, thenExpr, elseExpr) ->
         Set.union (freeVariables cond) (Set.union (freeVariables thenExpr) (freeVariables elseExpr))
     | Seq(exprs) -> List.fold (fun acc (expr) -> Set.union (freeVariables expr) acc) Set.empty exprs
-    | _ -> Set.empty
+    | _ -> failwith "not implemented"
 
 and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) (capturedList) =
 
