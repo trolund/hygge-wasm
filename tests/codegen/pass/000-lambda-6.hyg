@@ -17,4 +17,5 @@ fun makeCounter(x: float, y: bool): () -> float = {
 let c1: () -> float = makeCounter(2.0f, true);
 let c2: () -> float = makeCounter(2.0f, false);
 assert(c1() = x); // 5.0f
+assert(c1() = y); // 5.0f
 assert(c2() = y)  // 7.0f
