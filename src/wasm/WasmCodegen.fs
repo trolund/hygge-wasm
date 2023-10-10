@@ -1640,8 +1640,8 @@ and freeVariables (node: TypedAST) : Set<string> =
     | FloatVal _ -> Set.empty
     | BoolVal _ -> Set.empty
     | StringVal _ -> Set.empty
-
     | Var v -> Set.singleton v
+    | Seq(exprs) -> List.fold (fun acc (expr) -> Set.union (freeVariables expr) acc) Set.empty exprs
     | Application(target, args) ->
         List.fold (fun acc (arg) -> Set.union acc (freeVariables arg)) (freeVariables target) args
     | Lambda(args, body) ->
@@ -1673,10 +1673,22 @@ and freeVariables (node: TypedAST) : Set<string> =
     | Sub(lhs, rhs)
     | Rem(lhs, rhs)
     | Eq(lhs, rhs)
+    | GreaterOrEq(lhs, rhs)
+    | Greater(lhs, rhs)
+    | LessOrEq(lhs, rhs)
+    | Less(lhs, rhs)
+    | And(lhs, rhs)
+    | Or(lhs, rhs)
+    | Max(lhs, rhs)
+    | Min(lhs, rhs)
     | Add(lhs, rhs) -> Set.union (freeVariables lhs) (freeVariables rhs)
     | AST.If(cond, thenExpr, elseExpr) ->
         Set.union (freeVariables cond) (Set.union (freeVariables thenExpr) (freeVariables elseExpr))
-    | Seq(exprs) -> List.fold (fun acc (expr) -> Set.union (freeVariables expr) acc) Set.empty exprs
+    | While(cond, body) -> Set.union (freeVariables cond) (freeVariables body)
+    | DoWhile(body, cond) -> Set.union (freeVariables cond) (freeVariables body)
+    | Not(expr) -> freeVariables expr
+    | For(init, cond, update, body) ->
+        Set.union (freeVariables init) (Set.union (freeVariables cond) (Set.union (freeVariables update) (freeVariables body)))
     | _ -> failwith "not implemented"
 
 and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) (capturedList) =
