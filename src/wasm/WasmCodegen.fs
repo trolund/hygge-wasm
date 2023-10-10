@@ -1211,7 +1211,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // add each arg to var storage (all local vars)
         // TODO maybe lables should be generated here
-        // TODO: unik-probem-guid:11111+22222+33333
         let env' =
             List.fold
                 (fun env (n, t) ->
@@ -1641,7 +1640,7 @@ and freeVariables (node: TypedAST) : Set<string> =
     | FloatVal _ -> Set.empty
     | BoolVal _ -> Set.empty
     | StringVal _ -> Set.empty
-    
+
     | Var v -> Set.singleton v
     | Application(target, args) ->
         List.fold (fun acc (arg) -> Set.union acc (freeVariables arg)) (freeVariables target) args
