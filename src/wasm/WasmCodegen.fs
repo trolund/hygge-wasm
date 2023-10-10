@@ -63,7 +63,7 @@ type internal CodegenEnv =
     { CurrFunc: string
       CurrFuncArgs: list<string>
       MemoryAllocator: StaticMemoryAllocator
-      VarStorage: Map<string, Storage> } // function refances in table
+      VarStorage: Map<string, Storage> } 
 
 let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) =
     let ptr_label = $"{name}*ptr"
@@ -97,7 +97,7 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | FloatVal _ -> [ F32 ]
     | StringVal _ -> [ I32 ]
     | BoolVal _ -> [ I32 ]
-    | Var v -> 
+    | Var v ->
         match expr.Type with
         | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
         | _ -> [ I32 ]
@@ -212,7 +212,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match env.VarStorage.TryFind v with
             | Some(Storage.local (l)) -> [ LocalGet(Named(l)) ]
-            | Some(Storage.Offset(i)) -> 
+            | Some(Storage.Offset(i)) ->
 
                 // get load instruction based on type
                 let li =
@@ -579,7 +579,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // map captured to list of pairs (name, TypedAST) with env
         // TODO: Add type here!!!
-        let captured = Set.map (fun n -> (n, { node with Expr = Var(n); Type = body.Env.Vars[n] })) captured
+        let captured =
+            Set.map
+                (fun n ->
+                    (n,
+                     { node with
+                         Expr = Var(n)
+                         Type = body.Env.Vars[n] }))
+                captured
 
         let capturedList = List.distinctBy fst (Set.toList captured)
         // add each arg to var storage (all local vars)
@@ -1078,19 +1085,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // get correct load and store instruction
                 let (li, si) =
                     match value.Type with
-                    | t when (isSubtypeOf value.Env t TInt) -> ((I32Load_(None, Some(i)), "load value i32 from env"), (I32Store_(None, Some(i)), "store i32 value in env"))
-                    | t when (isSubtypeOf value.Env t TFloat) -> ((F32Load_(None, Some(i)), "load value f32 from env"), (F32Store_(None, Some(i)), "store f32 value in env"))
+                    | t when (isSubtypeOf value.Env t TInt) ->
+                        ((I32Load_(None, Some(i)), "load value i32 from env"),
+                         (I32Store_(None, Some(i)), "store i32 value in env"))
+                    | t when (isSubtypeOf value.Env t TFloat) ->
+                        ((F32Load_(None, Some(i)), "load value f32 from env"),
+                         (F32Store_(None, Some(i)), "store f32 value in env"))
                     | _ -> failwith "not implemented"
 
-                let store =
-                    [ (LocalGet(Index(0)), "get env") ]
-                    @ value'.GetAccCode()
-                    @ [ si ]
+                let store = [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode() @ [ si ]
 
                 // TODO: Load is wrong!!
-                let load =
-                    [ (LocalGet(Index(0)), "get env") ]
-                    @ [ li ]
+                let load = [ (LocalGet(Index(0)), "get env") ] @ [ li ]
 
                 value'.ResetAccCode().AddCode(store)
             | _ -> failwith "not implemented"
@@ -1229,6 +1235,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let scopeModule: Module =
             (doCodegen { env with VarStorage = varStorage2 } scope funcPointer)
 
+        // Top-Level closure
 
         // let captured = freeVariables node
 
@@ -1688,7 +1695,10 @@ and freeVariables (node: TypedAST) : Set<string> =
     | DoWhile(body, cond) -> Set.union (freeVariables cond) (freeVariables body)
     | Not(expr) -> freeVariables expr
     | For(init, cond, update, body) ->
-        Set.union (freeVariables init) (Set.union (freeVariables cond) (Set.union (freeVariables update) (freeVariables body)))
+        Set.union
+            (freeVariables init)
+            (Set.union (freeVariables cond) (Set.union (freeVariables update) (freeVariables body)))
+    | Assertion(expr) -> freeVariables expr
     | _ -> failwith "not implemented"
 
 and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) (capturedList) =
@@ -1797,24 +1807,33 @@ let hoistingLocals (m: Module) (upgradeList: list<string>) : Module =
                 c)
             funcs
 
-    let allLocals = (List.fold (fun total ( name, (func, c)) -> total @ func.locals) [] funcs)
+    let allLocals =
+        (List.fold (fun total (name, (func, c)) -> total @ func.locals) [] funcs)
 
     // find type of local
-    let findType (name: string) = List.find (fun (n, t) -> match n with
-                                                                                        | Some(n) -> n = name
-                                                                                        | None -> false) allLocals
-    
+    let findType (name: string) =
+        List.find
+            (fun (n, t) ->
+                match n with
+                | Some(n) -> n = name
+                | None -> false)
+            allLocals
+
     // add all vars from upgradeList to global vars
-    let globals = List.map (fun (n) -> 
+    let globals =
+        List.map
+            (fun (n) ->
 
-        let t = snd (findType(n))
+                let t = snd (findType (n))
 
-        let value = match t with
+                let value =
+                    match t with
                     | I32 -> I32Const 0
                     | F32 -> F32Const 0.0f
                     | _ -> failwith "not implemented"
 
-        (n, (t, Mutable), value)) upgradeList
+                (n, (t, Mutable), value))
+            upgradeList
 
     let m' = m.AddGlobals(globals).ReplaceFuncs(funcs')
 
