@@ -1,0 +1,9 @@
+let f_outer: (int, int) -> int = fun(x: int, y: int) -> {
+    let f_inner: (int, int) -> int = fun(x: int, y: int) -> {
+        x + y + 2
+    };
+
+    f_inner(x, y)
+};
+
+assert(f_outer(1, 2) = 5)
