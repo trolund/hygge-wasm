@@ -6,12 +6,10 @@ fun makeCounters(): Counters = {
     let mutable i: int = 0;
     // The lambda terms below capture i twice
     struct { f1 = fun () -> { 
-                                i <- i + 1; 
-                                i         
+                                i <- i + 1;     
                             };
              f2 = fun () -> { 
                                 i <- i + 1;
-                                i
                             } } : Counters
 };
 

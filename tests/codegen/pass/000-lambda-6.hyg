@@ -9,8 +9,7 @@ fun makeCounter(x: float, y: bool): () -> float = {
         } 
         else {
             a <- x + a + 2.0f
-        };
-        a
+        }
     }
 };
 

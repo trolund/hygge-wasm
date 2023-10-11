@@ -3,8 +3,7 @@ fun makeCounter(): () -> int = {
     let mutable x: int = 1;
     let mutable y: int = 2;
     fun () -> {
-        x <- x * y; // x is captured from the surrounding scope
-        x
+        x <- x * y // x is captured from the surrounding scope
     }
 };
 

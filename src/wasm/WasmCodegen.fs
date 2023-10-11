@@ -84,7 +84,7 @@ let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) 
     let ptr_label = $"{name}*ptr"
 
     // get the index of the function
-    let funcindex = env.TableController.next()
+    let funcindex = env.TableController.next ()
 
     // add function to function table
     let m = m.AddFuncRefElement(name, funcindex)
@@ -173,7 +173,7 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | Let(name, tpe, init, scope) -> []
     | LetMut(name, tpe, init, scope) -> []
     | LetRec(name, tpe, init, scope) -> []
-    | Assign(target, expr) -> []
+    | Assign(target, expr) -> findReturnType expr
     | AST.Type(name, def, scope) -> []
     | ArrayElement(target, index) -> findReturnType target
     | ArraySlice(target, start, ending) -> findReturnType target
@@ -1067,44 +1067,27 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         match name.Expr with
         | Var(name) ->
 
-            // is nested? - is multiple assignment
-            let isNested =
-                match value.Expr with
-                | Assign(v, _) ->
-                    let nestedName =
-                        match v.Expr with
-                        | Var(n) ->
-                            match env.VarStorage.TryFind n with
-                            | Some(Storage.local (l)) -> Named(l)
-                            | _ -> failwith "not implemented"
-                        | _ -> failwith "not implemented"
-
-                    [ (LocalGet nestedName, "get local var") ]
-                | _ -> []
-
             match env.VarStorage.TryFind name with
             | Some(Storage.local (l)) ->
-
-                let instrs =
-                    value'.GetAccCode() @ isNested @ [ (LocalSet(Named(l)), "set local var") ]
-
-                value'.ResetAccCode().AddCode(instrs)
-            // TODO: support more types
+                value'
+                    .ResetAccCode()
+                    .AddCode(value'.GetAccCode() @ [ (LocalTee(Named(l)), "set local var") ])
             | Some(Storage.Offset(i)) ->
-                // TODO: support nested assignments
-
-                // [(LocalGet(Index(0)), "get env"); (I32Const i, "get var offset"); (I32Add, "get env"); (I32Store, "store value in env")]
-
                 // get correct load and store instruction
-                let si =
+                let (li, si) =
                     match value.Type with
-                    | t when (isSubtypeOf value.Env t TInt) -> (I32Store_(None, Some(i)), "store i32 value in env")
-                    | t when (isSubtypeOf value.Env t TFloat) -> (F32Store_(None, Some(i)), "store f32 value in env")
+                    | t when (isSubtypeOf value.Env t TInt) ->
+                        ((I32Load_(None, Some(i)), "load value i32 from env"),
+                         (I32Store_(None, Some(i)), "store i32 value in env"))
+                    | t when (isSubtypeOf value.Env t TFloat) ->
+                        ((F32Load_(None, Some(i)), "load value f32 from env"),
+                         (F32Store_(None, Some(i)), "store f32 value in env"))
                     | _ -> failwith "not implemented"
 
                 let store = [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode() @ [ si ]
+                let load = [ (LocalGet(Index(0)), "get env") ] @ [ li ]
 
-                value'.ResetAccCode().AddCode(store)
+                value'.ResetAccCode().AddCode(store @ load)
             | _ -> failwith "not implemented"
 
 

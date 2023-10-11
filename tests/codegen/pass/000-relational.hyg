@@ -4,7 +4,6 @@
 // iv. Greater then
 // v. Greater than or equal
 
-
 let x: int = 10;
 
 assert(x = 10);

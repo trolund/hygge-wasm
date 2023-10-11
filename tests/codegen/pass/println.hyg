@@ -1,5 +1,5 @@
-let s: string = "hygge";
+let s: string = "hygge println test";
 println(s);
 
-let s2: string = "hygge2";
-println(s2)
+let s2: string = "hygge print test";
+print(s2)
