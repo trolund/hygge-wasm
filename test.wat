@@ -273,6 +273,8 @@
     i32.const 1 ;; push 1 on stack
     i32.add
     i32.store offset=0 ;; store i32 value in env
+    local.get 0
+    i32.load offset=0
   )
   (func $fun_makeCounters/anonymous$2 (param $cenv i32) (result i32) ;; function fun_makeCounters/anonymous$2 
     local.get 0 ;; get env
@@ -281,6 +283,8 @@
     i32.const 1 ;; push 1 on stack
     i32.add
     i32.store offset=0 ;; store i32 value in env
+    local.get 0
+    i32.load offset=0
   )
   (export "_start" (func $_start))
   (export "heap_base_ptr" (global $heap_base))
