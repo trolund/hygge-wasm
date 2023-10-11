@@ -180,8 +180,6 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | Pointer(addr) -> [ I32 ]
     | UnionCons(label, expr) -> [ I32 ]
     | Match(expr, cases) -> findReturnType expr
-    | _ -> failwith "not implemented"
-
 
 /// look up variable in var env
 let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
