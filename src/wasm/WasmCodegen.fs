@@ -107,46 +107,50 @@ let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) 
 // TODO: this is not correct
 let rec findReturnType (expr: TypedAST) : ValueType list =
     match expr.Expr with
+    // return type of literals
     | UnitVal -> []
     | IntVal _ -> [ I32 ]
     | FloatVal _ -> [ F32 ]
     | StringVal _ -> [ I32 ]
     | BoolVal _ -> [ I32 ]
+
+    | ReadInt -> [ I32 ]
+    | ReadFloat -> [ F32 ]
     | Var v ->
         match expr.Type with
         | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
         | _ -> [ I32 ]
-    | PreIncr e -> findReturnType e
-    | PostIncr e -> findReturnType e
-    | PreDcr e -> findReturnType e
-    | PostDcr e -> findReturnType e
+    // single expression
+    | PreIncr e 
+    | PostIncr e
+    | PreDcr e 
+    | PostDcr e 
+    | Not e 
+    | Sqrt e
+    | Assertion e -> findReturnType e
+    // double expression
     | MinAsg(lhs, rhs)
     | DivAsg(lhs, rhs)
     | MulAsg(lhs, rhs)
     | RemAsg(lhs, rhs)
-    | AddAsg(lhs, rhs) -> findReturnType lhs
-    | Max(e1, e2)
-    | Min(e1, e2) -> findReturnType e1
-    | Sqrt e -> findReturnType e
+    | AddAsg(lhs, rhs) 
+    | Max(lhs, rhs)
+    | Min(lhs, rhs)   
     | Add(lhs, rhs)
     | Sub(lhs, rhs)
     | Rem(lhs, rhs)
     | Div(lhs, rhs)
-    | Mult(lhs, rhs) -> findReturnType lhs
-    | And(e1, e2)
-    | Or(e1, e2)
-    | Xor(e1, e2)
-    | Less(e1, e2)
-    | LessOrEq(e1, e2)
-    | Greater(e1, e2)
-    | GreaterOrEq(e1, e2)
-    | Eq(e1, e2) -> findReturnType e1
-    | Not e -> findReturnType e
-    | ReadInt -> [ I32 ]
-    | ReadFloat -> [ F32 ]
-    | PrintLn e -> []
+    | Mult(lhs, rhs)
+    | And(lhs, rhs)
+    | Or(lhs, rhs)
+    | Xor(lhs, rhs)
+    | Less(lhs, rhs)
+    | LessOrEq(lhs, rhs)
+    | Greater(lhs, rhs)
+    | GreaterOrEq(lhs, rhs)
+    | Eq(lhs, rhs) -> findReturnType lhs
+    | PrintLn _ -> []
     | AST.If(condition, ifTrue, ifFalse) -> findReturnType ifTrue
-    | Assertion e -> findReturnType e
     | Application(f, args) -> findReturnType f
     | Lambda(args, body) -> findReturnType body
     | Seq(nodes) ->
