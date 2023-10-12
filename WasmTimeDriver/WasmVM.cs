@@ -17,7 +17,7 @@ namespace WasmTimeDriver
         /// The heap size will grow if the VM tries to allocate more memory than the current heap size.
         /// A debug flag can be set to print out when the heap is growing.
         /// </remarks>
-        private readonly MemoryAllocator _allocator = new MemoryAllocator(1);
+        private readonly MemoryAllocator _allocator = new MemoryAllocator(1, true);
         private readonly string main = "_start";
 
         public WasmVM()
@@ -310,12 +310,11 @@ namespace WasmTimeDriver
 
             // run the code
             try{
-                // Thread.Sleep(500);
+                // Thread.Sleep(100);
                 return function.Invoke();
             }catch(Exception e){
                 Console.WriteLine($"program {name} failed: ");
                 Console.WriteLine(e);
-                Console.WriteLine("----------------");
                 return null;    
             }   
         }
