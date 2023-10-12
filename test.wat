@@ -1,6 +1,7 @@
 (module
   (type $i32_=>_i32 (func (param i32) (result i32)))
-  (import "env" "malloc" (func $malloc (param i32) (result i32)))
+  (import "env" "malloc" (func $malloc (param i32) (result i32)
+))
   (memory (export "memory") 1)
   (data (i32.const 0) "\00")
   (data (i32.const 4) "\01")
@@ -16,7 +17,7 @@
   (elem (i32.const 0) $fun_makeCounters)
   (elem (i32.const 1) $fun_makeCounters/anonymous)
   (elem (i32.const 2) $fun_makeCounters/anonymous$3)
-  (func $_start  (result i32) ;; entry point of program (main function) 
+  (func $_start  (result i32) ;; entry point of program (main function)
     ;; execution start here:
     ;; Start of let
     ;; start of application
@@ -144,7 +145,8 @@
     i32.const 0 ;; exit code 0
     return ;; return the exit code
   )
-  (func $fun_makeCounters (param $cenv i32) (result i32) ;; function fun_makeCounters    ;; local variables declarations:
+  (func $fun_makeCounters (param $cenv i32) (result i32) ;; function fun_makeCounters
+    ;; local variables declarations:
     (local $Sptr i32)
     (local $Sptr$0 i32)
     (local $Sptr$1 i32)
@@ -264,7 +266,8 @@
     ;; end of struct contructor
     ;; End of let
   )
-  (func $fun_makeCounters/anonymous (param $cenv i32) (result i32) ;; function fun_makeCounters/anonymous    ;; local variables declarations:
+  (func $fun_makeCounters/anonymous (param $cenv i32) (result i32) ;; function fun_makeCounters/anonymous
+    ;; local variables declarations:
     (local $Sptr i32)
  
     local.get 0 ;; get env pointer
@@ -281,7 +284,8 @@
     i32.load offset=0 ;; load value at offset: 0
     i32.load offset=0 ;; load int from struct
   )
-  (func $fun_makeCounters/anonymous$3 (param $cenv i32) (result i32) ;; function fun_makeCounters/anonymous$3    ;; local variables declarations:
+  (func $fun_makeCounters/anonymous$3 (param $cenv i32) (result i32) ;; function fun_makeCounters/anonymous$3
+    ;; local variables declarations:
     (local $Sptr i32)
  
     local.get 0 ;; get env pointer
