@@ -310,10 +310,12 @@ namespace WasmTimeDriver
 
             // run the code
             try{
+                // Thread.Sleep(500);
                 return function.Invoke();
             }catch(Exception e){
                 Console.WriteLine($"program {name} failed: ");
                 Console.WriteLine(e);
+                Console.WriteLine("----------------");
                 return null;    
             }   
         }

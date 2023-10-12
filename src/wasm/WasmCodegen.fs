@@ -233,13 +233,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // get load instruction based on type
                 let li: Instr =
                     match node.Type with
-                    | t when (isSubtypeOf node.Env t TBool) -> I32Load_(None, Some(i))
-                    | t when (isSubtypeOf node.Env t TInt) -> I32Load_(None, Some(i))
-                    | t when (isSubtypeOf node.Env t TFloat) -> F32Load_(None, Some(i))
-                    | t when (isSubtypeOf node.Env t TString) -> I32Load_(None, Some(i))
-                    | _ -> (I32Load_(None, Some(i)))
+                    | t when (isSubtypeOf node.Env t TBool) -> I32Load_(None, Some(i * 4))
+                    | t when (isSubtypeOf node.Env t TInt) -> I32Load_(None, Some(i * 4))
+                    | t when (isSubtypeOf node.Env t TFloat) -> F32Load_(None, Some(i * 4))
+                    | t when (isSubtypeOf node.Env t TString) -> I32Load_(None, Some(i * 4))
+                    | _ -> (I32Load_(None, Some(i * 4)))
 
-                [ (LocalGet(Index(0)), "get env pointer"); (li, $"load value at offset: {i}") ]
+                [ (LocalGet(Index(0)), "get env pointer"); (li, $"load value at offset: {i * 4}") ]
             | Some(Storage.glob (l)) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ]
             | _ -> failwith "could not find variable in var storage"
 
@@ -626,7 +626,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             List.fold
                 (fun env (index, (n, t)) ->
                     { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.Offset(index * 4)) })
+                        VarStorage = env.VarStorage.Add(n, Storage.Offset(index)) })
                 env'
                 capturedIndexed
 
@@ -1081,11 +1081,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let (li, si) =
                     match value.Type with
                     | t when (isSubtypeOf value.Env t TInt) ->
-                        ((I32Load_(None, Some(i)), "load value i32 from env"),
-                         (I32Store_(None, Some(i)), "store i32 value in env"))
+                        ((I32Load_(None, Some(i * 4)), "load value i32 from env"),
+                         (I32Store_(None, Some(i * 4)), "store i32 value in env"))
                     | t when (isSubtypeOf value.Env t TFloat) ->
-                        ((F32Load_(None, Some(i)), "load value f32 from env"),
-                         (F32Store_(None, Some(i)), "store f32 value in env"))
+                        ((F32Load_(None, Some(i * 4)), "load value f32 from env"),
+                         (F32Store_(None, Some(i * 4)), "store f32 value in env"))
                     | _ -> failwith "not implemented"
 
                 let store = [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode() @ [ si ]
@@ -1118,17 +1118,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     | t when (isSubtypeOf value.Env t TFloat) ->
                             selTargetCode.GetAccCode()
                             @ rhsCode.GetAccCode()
-                            @ [ (F32Store_(None, Some(offset)), "store float in struct") ]
+                            @ [ (F32Store_(None, Some(offset * 4)), "store float in struct") ]
                             // load value just to leave a value on the stack
                             @ selTargetCode.GetAccCode()
-                            @ [ (F32Load_(None, Some(offset)), "load float from struct") ]
+                            @ [ (F32Load_(None, Some(offset * 4)), "load float from struct") ]
                     | x ->
                             selTargetCode.GetAccCode()
                             @ rhsCode.GetAccCode()
-                            @ [ (I32Store_(None, Some(offset)), "store int in struct") ]
+                            @ [ (I32Store_(None, Some(offset * 4)), "store int in struct") ]
                             // load value just to leave a value on the stack
                             @ selTargetCode.GetAccCode()
-                            @ [ (I32Load_(None, Some(offset)), "load int from struct") ]
+                            @ [ (I32Load_(None, Some(offset * 4)), "load int from struct") ]
                             
                 // Put everything together
                 (assignCode) ++ (rhsCode.ResetAccCode() + selTargetCode.ResetAccCode())

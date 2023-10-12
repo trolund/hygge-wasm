@@ -18,6 +18,7 @@
   (elem (i32.const 1) $fun_makeCounters/anonymous)
   (elem (i32.const 2) $fun_makeCounters/anonymous$3)
   (func $_start  (result i32) ;; entry point of program (main function)
+ 
     ;; execution start here:
     ;; Start of let
     ;; start of application
