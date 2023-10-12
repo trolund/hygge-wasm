@@ -139,6 +139,7 @@ module WFG =
         | I32Load_ of int option * int option
         | I32Load
         | I64Load of int * int
+        /// load align and offset
         | F32Load_ of int option * int option
         | F32Load
         | F64Load of int * int

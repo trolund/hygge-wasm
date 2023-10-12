@@ -51,7 +51,7 @@ let internal testWasmCodegen (file: string) (expected: int) =
         match (Typechecker.typecheck ast) with
         | Error(es) -> failwith $"Typing failed: %s{formatErrors es}"
         | Ok(tast) ->
-            runWasmTime tast expected
+            runWasmTime tast expected file
 
 /// Compile a source file and run the resulting assembly code on RARS, checking
 /// whether its return code matches the expected one.
@@ -212,13 +212,13 @@ let tests = testList "tests" [
         testList "pass" (
             getFilesInTestDir ["codegen"; "pass"] |> List.map ( fun file ->
                 testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
-                    testWasmCodegen file 0 file
+                    testWasmCodegen file 0 
             )
         )
         testList "fail" (
             getFilesInTestDir ["codegen"; "fail"] |> List.map ( fun file ->
                 testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
-                    testWasmCodegen file RISCVCodegen.assertExitCode file
+                    testWasmCodegen file RISCVCodegen.assertExitCode
             )
         )
     ]

@@ -121,11 +121,11 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
         | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
         | _ -> [ I32 ]
     // single expression
-    | PreIncr e 
+    | PreIncr e
     | PostIncr e
-    | PreDcr e 
-    | PostDcr e 
-    | Not e 
+    | PreDcr e
+    | PostDcr e
+    | Not e
     | Sqrt e
     | Assertion e -> findReturnType e
     // double expression
@@ -133,9 +133,9 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | DivAsg(lhs, rhs)
     | MulAsg(lhs, rhs)
     | RemAsg(lhs, rhs)
-    | AddAsg(lhs, rhs) 
+    | AddAsg(lhs, rhs)
     | Max(lhs, rhs)
-    | Min(lhs, rhs)   
+    | Min(lhs, rhs)
     | Add(lhs, rhs)
     | Sub(lhs, rhs)
     | Rem(lhs, rhs)
@@ -226,21 +226,21 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | Var v ->
         // load variable
         // TODO
-        let instrs =
+        let instrs: List<Commented<Instr>> =
             match env.VarStorage.TryFind v with
-            | Some(Storage.local (l)) -> [ LocalGet(Named(l)) ]
+            | Some(Storage.local (l)) -> [ (LocalGet(Named(l)), $"get local var: {l}") ]
             | Some(Storage.Offset(i)) ->
-
                 // get load instruction based on type
-                let li =
+                let li: Instr =
                     match node.Type with
-                    | t when (isSubtypeOf node.Env t TBool) -> (I32Load_(None, Some(i)))
-                    | t when (isSubtypeOf node.Env t TInt) -> (I32Load_(None, Some(i)))
-                    | t when (isSubtypeOf node.Env t TFloat) -> (F32Load_(None, Some(i)))
-                    | _ -> failwith "not implemented"
+                    | t when (isSubtypeOf node.Env t TBool) -> I32Load_(None, Some(i))
+                    | t when (isSubtypeOf node.Env t TInt) -> I32Load_(None, Some(i))
+                    | t when (isSubtypeOf node.Env t TFloat) -> F32Load_(None, Some(i))
+                    | t when (isSubtypeOf node.Env t TString) -> I32Load_(None, Some(i))
+                    | _ -> (I32Load_(None, Some(i)))
 
-                [ LocalGet(Index(0)); li ]
-            | Some(Storage.glob (l)) -> [ GlobalGet(Named(l)) ]
+                [ (LocalGet(Index(0)), "get env pointer"); (li, $"load value at offset: {i}") ]
+            | Some(Storage.glob (l)) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ]
             | _ -> failwith "could not find variable in var storage"
 
         m.AddCode(instrs)
@@ -596,16 +596,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // map captured to list of pairs (name, TypedAST) with env
         // TODO: Add type here!!!
-        let captured =
-            Set.map
-                (fun n ->
-                    (n,
-                     { node with
-                         Expr = Var(n)
-                         Type = body.Env.Vars[n] }))
-                captured
+        // let captured =
+        //     Set.map
+        //         (fun n ->
+        //             (n,
+        //              { node with
+        //                  Expr = Var(n)
+        //                  Type = body.Env.Vars[n] }))
+        //         captured
 
-        let capturedList = List.distinctBy fst (Set.toList captured)
+        // let capturedList = List.distinctBy fst (Set.toList captured)
         // add each arg to var storage (all local vars)
         // TODO maybe lables should be generated here
         // TODO: unik-probem-guid:11111+22222+33333
@@ -620,7 +620,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 env
                 args
 
-        let capturedIndexed = (List.indexed capturedList)
+        let capturedIndexed = (List.indexed captured)
 
         let env'' =
             List.fold
@@ -649,7 +649,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let bodyCode: Module =
             compileFunction funLabel argNamesTypes body env'' funcPointer'
 
-        let closure = createClosure env' node body index funcPointer' capturedList
+        let closure = createClosure env' node body index funcPointer' captured
 
         (funcPointer + bodyCode + closure) // .AddCode([ (GlobalGet (Named(funLabel)), "return table index")  ]) // .AddCode([ Call funLabel ]) // .AddCode([ (RefFunc(Named(funLabel)), "return ref to lambda") ])
     | Seq(nodes) ->
@@ -1110,36 +1110,26 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 /// the struct
                 let offset = List.findIndex (fun f -> f = field) fieldNames
 
-                // is literal
-                let isLiteral =
-                    match value.Expr with
-                    | IntVal i -> true
-                    | FloatVal f -> true
-                    | BoolVal b -> true
-                    | _ -> false
-
+                // TODO: nr.1
                 /// Assembly code that performs the field value assignment
                 let assignCode =
                     match name.Type with
                     | t when (isSubtypeOf value.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf value.Env t TFloat) ->
-                        let instrs =
                             selTargetCode.GetAccCode()
-                            @ [ (I32Const(offset * 4), "offset of field"); (I32Add, "add offset") ]
                             @ rhsCode.GetAccCode()
-                            @ [ (F32Store, "store float in struct") ]
-                            @ rhsCode.GetAccCode()
-
-                        instrs
+                            @ [ (F32Store_(None, Some(offset)), "store float in struct") ]
+                            // load value just to leave a value on the stack
+                            @ selTargetCode.GetAccCode()
+                            @ [ (F32Load_(None, Some(offset)), "load float from struct") ]
                     | x ->
-                        let instrs =
                             selTargetCode.GetAccCode()
-                            @ [ (I32Const(offset * 4), "offset of field"); (I32Add, "add offset") ]
                             @ rhsCode.GetAccCode()
-                            @ [ (I32Store, "store int in struct") ]
-                            @ rhsCode.GetAccCode() // TODO possible bug (leave a constant on the stack after execution)
-
-                        instrs
+                            @ [ (I32Store_(None, Some(offset)), "store int in struct") ]
+                            // load value just to leave a value on the stack
+                            @ selTargetCode.GetAccCode()
+                            @ [ (I32Load_(None, Some(offset)), "load int from struct") ]
+                            
                 // Put everything together
                 (assignCode) ++ (rhsCode.ResetAccCode() + selTargetCode.ResetAccCode())
         | ArrayElement(target, index) ->
@@ -1318,7 +1308,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 initCode // inizilize code
                 @ [ (LocalSet varLabel, "set local var") ] // set local var
 
-            let scopeCode = (doCodegen env' scope (m.ResetAccCode()))
+            // let name = Util.genSymbol $"Sptr"
+
+            // let env'' =
+            //     { env' with
+            //         VarStorage = env.VarStorage.Add(name, Storage.local (varName)) }
+
+            let scopeCode = (doCodegen env' scope (m'.ResetAccCode()))
 
             let combi = (instrs ++ scopeCode)
 
@@ -1349,11 +1345,51 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     | LetMut(name, tpe, init, scope) ->
         // The code generation is not different from 'let...', so we recycle it
-        doCodegen
-            env
-            { node with
-                Expr = Let(name, tpe, init, scope) }
-            m
+
+        // check if var is captured
+        let isVarCaptured = List.contains name (List.map fst (freeVariables scope))
+
+        // rewrite let mut to let with struct
+        if isVarCaptured then
+
+            let fieldName = "value"
+
+            // create struct with one field called value
+            let structNode =
+                { node with
+                    Expr = Struct([ (fieldName, init) ])
+                    Type = TStruct([ (fieldName, init.Type) ]) }
+
+            // var node with struct pointer var
+            let varNode =
+                { node with
+                    Expr = Var(name)
+                    Type = TStruct([ (fieldName, init.Type) ]) }
+
+            // select field value from struct every time var is used
+            let selectNode =
+                { node with
+                    Expr = FieldSelect(varNode, fieldName)
+                    Type = init.Type }
+
+            // replace every occurence of the var in scope with the struct FieldSelect
+            let scope' = subst scope name selectNode
+
+            // node with sequence of let and scope
+            let n =
+                { node with
+                    Expr = Let(name, tpe, structNode, scope') }
+
+            let m' = (doCodegen env n m)
+
+            m'
+        else
+            (doCodegen
+                env
+                { node with
+                    Expr = Let(name, tpe, init, scope) }
+                m)
+
     | LetRec(name,
              _,
              { Node.Expr = Lambda(args, body)
@@ -1440,6 +1476,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       (LocalSet(Named(structName)), "set struct pointer var") ]
                 )
 
+        // // create env with struct pointer var
+        // TODO: maybe delete
+        // let env' =
+        //     { env with
+        //         VarStorage = env.VarStorage.Add(structName, Storage.local (structName)) }
+
         // fold over fields and add them to struct with indexes
         let folder =
             fun (acc: Module) (fieldOffset: int, fieldName: string, fieldInit: TypedAST) ->
@@ -1462,7 +1504,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                           (I32Const fieldOffsetBytes, "push field offset to stack")
                           (I32Add, "add offset to base address") ]
                         @ initField'.GetAccCode()
-                        @ [ (F32Store, "store float field in memory") ]
+                        @ [ (F32Store, $"store float field ({fieldName}) in memory") ]
                     | _ ->
                         [ (LocalGet(Named(structName)), "get struct pointer var")
                           (I32Const fieldOffsetBytes, "push field offset to stack")
@@ -1491,24 +1533,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let (fieldNames, fieldTypes) = List.unzip fields
                 let offset = List.findIndex (fun f -> f = field) fieldNames
 
+                // Retrieve value of struct field
                 match fieldTypes.[offset] with
                 | t when (isSubtypeOf node.Env t TUnit) -> [] // Nothing to do
                 | t when (isSubtypeOf node.Env t TFloat) ->
-                    // Retrieve value of struct field
                     selTargetCode.GetAccCode()
-                    @ [ //(I32Const 4, "4 bytes")
-                        //(I32Mul, "multiply offset by 4")
-                        (I32Const(offset * 4), "push field offset to stack")
-                        (I32Add, "add offset to base address")
-                        (F32Load, "load field") ]
+                    @ [ (F32Load_(None, Some(offset * 4)), $"load field: {fieldNames.[offset]}") ]
                 | _ ->
-                    // Retrieve value of struct field
                     selTargetCode.GetAccCode()
-                    @ [ // (I32Const 4, "4 bytes")
-                        // (I32Mul, "multiply offset by 4")
-                        (I32Const(offset * 4), "push field offset to stack")
-                        (I32Add, "add offset to base address")
-                        (I32Load, "load field") ]
+                    @ [ (I32Load_(None, Some(offset * 4)), $"load field: {fieldNames.[offset]}") ]
+
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 
         // Put everything together: compile the target, access the field
@@ -1633,41 +1667,58 @@ and internal compileFunction
         .ResetAccCode() // reset accumulated code
         .ResetLocals() // reset locals
 
-// capture all free variable in expression and a list of var names that
-and freeVariables (node: TypedAST) : Set<string> =
+/// capture all free variable in expression and a list of var names that
+// List.distinctBy fst (Set.toList captured)
+and freeVariables (node: TypedAST) : List<string * TypedAST> =
+    List.distinctBy fst (Set.toList (freeVariables' node))
+and freeVariables' (node: TypedAST) : Set<string * TypedAST> =
+    let diff set1 set2 = // Find the first elements that are unique to set1
+        let firstElements set = set |> Set.map fst
+
+        let differenceSet1 = Set.difference (firstElements set1) (set2)
+
+        // Filter the tuples in set1 based on the first elements found in differenceSet1
+        let result = set1 |> Set.filter (fun (x, _) -> Set.contains x differenceSet1)
+
+        result
+
     match node.Expr with
+    | UnitVal -> Set.empty
     | IntVal _ -> Set.empty
     | FloatVal _ -> Set.empty
     | BoolVal _ -> Set.empty
     | StringVal _ -> Set.empty
-    | Var v -> Set.singleton v
-    | Seq(exprs) -> List.fold (fun acc (expr) -> Set.union (freeVariables expr) acc) Set.empty exprs
+    | Var v -> Set.singleton (v, node)
+    | Seq(exprs) -> List.fold (fun acc (expr) -> Set.union (freeVariables' expr) acc) Set.empty exprs
     | Application(target, args) ->
-        List.fold (fun acc (arg) -> Set.union acc (freeVariables arg)) (freeVariables target) args
+        List.fold (fun acc (arg) -> Set.union acc (freeVariables' arg)) (freeVariables' target) args
     | Lambda(args, body) ->
-        let body' = (freeVariables body)
+        let body' = (freeVariables' body)
         let argsNames = (Set.ofList (List.map fst args))
-        let s = Set.difference body' argsNames
+        let s = diff body' argsNames
         s
     | Match(target, cases) ->
         List.fold
-            (fun acc (label, var, expr) -> (Set.remove var (Set.union (freeVariables expr) acc)))
-            (freeVariables target)
+            (fun acc (label, var, expr) -> Set.filter (fun (x, _) -> x <> var) (Set.union (freeVariables' expr) acc))
+            (freeVariables' target)
             cases
-    | Assign(name, value) -> Set.union (freeVariables name) (freeVariables value)
-    | FieldSelect(target, _) -> freeVariables target
-    | Ascription(_, node) -> freeVariables node
+    | Assign(name, value) -> Set.union (freeVariables' name) (freeVariables' value)
+    | FieldSelect(target, _) -> freeVariables' target
+    | Ascription(_, node) -> freeVariables' node
     | Let(name, _, bindingExpr, bodyExpr) ->
-        let set = Set.union (freeVariables bodyExpr) (freeVariables bindingExpr)
-        Set.remove name set
+        let set = Set.union (freeVariables' bodyExpr) (freeVariables' bindingExpr)
+        // remove name
+        Set.filter (fun (x, _) -> x <> name) set
     | LetMut(name, _, init, scope) ->
-        let set = Set.union (freeVariables scope) (freeVariables init)
-        Set.remove name set
+        let set = Set.union (freeVariables' scope) (freeVariables' init)
+        // remove name
+        Set.filter (fun (x, _) -> x <> name) set
     | LetRec(name, _, lambda, scope) ->
-        let set = Set.union (freeVariables scope) (freeVariables lambda)
-        Set.remove name set
-    | Struct(fields) -> List.fold (fun acc (_, expr) -> Set.union (freeVariables expr) acc) Set.empty fields
-    | ArrayElement(target, index) -> Set.union (freeVariables target) (freeVariables index)
+        let set = Set.union (freeVariables' scope) (freeVariables' lambda)
+        // remove name
+        Set.filter (fun (x, _) -> x <> name) set
+    | Struct(fields) -> List.fold (fun acc (_, expr) -> Set.union (freeVariables' expr) acc) Set.empty fields
+    | ArrayElement(target, index) -> Set.union (freeVariables' target) (freeVariables' index)
     | Mult(lhs, rhs)
     | Div(lhs, rhs)
     | Sub(lhs, rhs)
@@ -1681,31 +1732,35 @@ and freeVariables (node: TypedAST) : Set<string> =
     | Or(lhs, rhs)
     | Max(lhs, rhs)
     | Min(lhs, rhs)
-    | Add(lhs, rhs) -> Set.union (freeVariables lhs) (freeVariables rhs)
+    | Add(lhs, rhs) -> Set.union (freeVariables' lhs) (freeVariables' rhs)
     | AST.If(cond, thenExpr, elseExpr) ->
-        Set.union (freeVariables cond) (Set.union (freeVariables thenExpr) (freeVariables elseExpr))
-    | While(cond, body) -> Set.union (freeVariables cond) (freeVariables body)
-    | DoWhile(body, cond) -> Set.union (freeVariables cond) (freeVariables body)
-    | Not(expr) -> freeVariables expr
+        Set.union (freeVariables' cond) (Set.union (freeVariables' thenExpr) (freeVariables' elseExpr))
+    | While(cond, body) -> Set.union (freeVariables' cond) (freeVariables' body)
+    | DoWhile(body, cond) -> Set.union (freeVariables' cond) (freeVariables' body)
+    | Not(expr) -> freeVariables' expr
     | For(init, cond, update, body) ->
         Set.union
-            (freeVariables init)
-            (Set.union (freeVariables cond) (Set.union (freeVariables update) (freeVariables body)))
-    | Assertion(expr) -> freeVariables expr
-    | _ -> failwith "not implemented"
+            (freeVariables' init)
+            (Set.union (freeVariables' cond) (Set.union (freeVariables' update) (freeVariables' body)))
+    | Assertion(expr) -> freeVariables' expr
+    | ArrayLength(target) -> freeVariables' target
+    | ArraySlice(target, start, _end) ->
+        Set.union (freeVariables' target) (Set.union (freeVariables' start) (freeVariables' _end))
+    | UnionCons(_, expr) -> freeVariables' expr
+    | _ -> failwithf "freeVariables': unhandled case %A" node
 
-and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) (capturedList) =
+and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) (capturedList: (string * TypedAST) list) =
 
     // capture environment in struct, with a field for each captured variable
     let x = List.distinctBy fst capturedList
 
     // map captured to a list of string * TypedAST where the string is the name of the captured variable
-    let capturedStructFields = List.map (fun (n, (x: TypedAST)) -> (n, x)) x
+    //let capturedStructFields = List.map (fun (n, (x: TypedAST)) -> (n, x)) x
 
     // all captured variables are stored in a struct
     let capturedVarsStruct =
         { node with
-            Expr = Struct(capturedStructFields) }
+            Expr = Struct(x) }
 
     // generate code for struct
     let capturedVarsStructCode = doCodegen env capturedVarsStruct m
@@ -1742,6 +1797,185 @@ and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (
 
     combinePointerAndreturnStruct
 
+// substitute all occurences of a variable with a node
+and subst (node) (var: string) (replacement) : Node<'E, 'T> =
+    match node.Expr with
+    | UnitVal
+    | IntVal(_)
+    | BoolVal(_)
+    | FloatVal(_)
+    | StringVal(_) -> node // The substitution has no effect
+
+    | Pointer(_) -> node // The substitution has no effect
+
+    | Var(vname) when vname = var -> replacement // Substitution applied
+    | Var(_) -> node // The substitution has no effect
+
+    | Add(lhs, rhs) ->
+        { node with
+            Expr = Add((subst lhs var replacement), (subst rhs var replacement)) }
+    | Sub(lhs, rhs) ->
+        { node with
+            Expr = Sub((subst lhs var replacement), (subst rhs var replacement)) }
+    | Mult(lhs, rhs) ->
+        { node with
+            Expr = Mult((subst lhs var replacement), (subst rhs var replacement)) }
+    | Div(lhs, rhs) ->
+        { node with
+            Expr = Div((subst lhs var replacement), (subst rhs var replacement)) }
+
+    | Min(lhs, rhs) ->
+        { node with
+            Expr = Min((subst lhs var replacement), (subst rhs var replacement)) }
+    | Max(lhs, rhs) ->
+        { node with
+            Expr = Max((subst lhs var replacement), (subst rhs var replacement)) }
+
+    | And(lhs, rhs) ->
+        { node with
+            Expr = And((subst lhs var replacement), (subst rhs var replacement)) }
+    | Or(lhs, rhs) ->
+        { node with
+            Expr = Or((subst lhs var replacement), (subst rhs var replacement)) }
+    | Not(arg) ->
+        { node with
+            Expr = Not(subst arg var replacement) }
+
+    | Eq(lhs, rhs) ->
+        { node with
+            Expr = Eq((subst lhs var replacement), (subst rhs var replacement)) }
+    | Less(lhs, rhs) ->
+        { node with
+            Expr = Less((subst lhs var replacement), (subst rhs var replacement)) }
+
+    | ReadInt
+    | ReadFloat -> node // The substitution has no effect
+
+    | Print(arg) ->
+        { node with
+            Expr = Print(subst arg var replacement) }
+    | PrintLn(arg) ->
+        { node with
+            Expr = PrintLn(subst arg var replacement) }
+
+    | AST.If(cond, ifTrue, ifFalse) ->
+        { node with
+            Expr = AST.If((subst cond var replacement), (subst ifTrue var replacement), (subst ifFalse var replacement)) }
+
+    | Seq(nodes) ->
+        let substNodes = List.map (fun n -> (subst n var replacement)) nodes
+        { node with Expr = Seq(substNodes) }
+
+    | Ascription(tpe, node) ->
+        { node with
+            Expr = Ascription(tpe, (subst node var replacement)) }
+
+    | Let(vname, tpe, init, scope) when vname = var ->
+        // Do not substitute the variable in the "let" scope
+        { node with
+            Expr = Let(vname, tpe, (subst init var replacement), scope) }
+    | Let(vname, tpe, init, scope) ->
+        { node with
+            Expr = Let(vname, tpe, (subst init var replacement), (subst scope var replacement)) }
+
+    | LetMut(vname, tpe, init, scope) when vname = var ->
+        // Do not substitute the variable in the "let mutable" scope
+        { node with
+            Expr = LetMut(vname, tpe, (subst init var replacement), scope) }
+    | LetMut(vname, tpe, init, scope) ->
+        { node with
+            Expr = LetMut(vname, tpe, (subst init var replacement), (subst scope var replacement)) }
+
+    | Assign(target, expr) ->
+        { node with
+            Expr = Assign((subst target var replacement), (subst expr var replacement)) }
+
+    | While(cond, body) ->
+        let substCond = subst cond var replacement
+        let substBody = subst body var replacement
+
+        { node with
+            Expr = While(substCond, substBody) }
+
+    | DoWhile(body, cond) ->
+        let substCond = subst cond var replacement
+        let substBody = subst body var replacement
+
+        { node with
+            Expr = DoWhile(substBody, substCond) }
+
+    | For(init, cond, update, body) ->
+        let substInit = subst init var replacement
+        let substCond = subst cond var replacement
+        let substUpdate = subst update var replacement
+        let substBody = subst body var replacement
+
+        { node with
+            Expr = For(substInit, substCond, substUpdate, substBody) }
+
+    | Assertion(arg) ->
+        { node with
+            Expr = Assertion(subst arg var replacement) }
+
+    | AST.Type(tname, def, scope) ->
+        { node with
+            Expr = AST.Type(tname, def, (subst scope var replacement)) }
+
+    | Lambda(args, body) ->
+        /// Arguments of this lambda term, without their pretypes
+        let (argVars, _) = List.unzip args
+
+        if (List.contains var argVars) then
+            node // No substitution
+        else
+            { node with
+                Expr = Lambda(args, (subst body var replacement)) }
+
+    | Application(expr, args) ->
+        let substExpr = subst expr var replacement
+        let substArgs = List.map (fun n -> (subst n var replacement)) args
+
+        { node with
+            Expr = Application(substExpr, substArgs) }
+
+    | Struct(fields) ->
+        let (fieldNames, initNodes) = List.unzip fields
+        let substInitNodes = List.map (fun e -> (subst e var replacement)) initNodes
+
+        { node with
+            Expr = Struct(List.zip fieldNames substInitNodes) }
+
+    | FieldSelect(target, field) ->
+        { node with
+            Expr = FieldSelect((subst target var replacement), field) }
+
+    | UnionCons(label, expr) ->
+        { node with
+            Expr = UnionCons(label, (subst expr var replacement)) }
+
+    | Match(expr, cases) ->
+        /// Mapper function to propagate the substitution along a match case
+        let substCase (lab: string, v: string, cont: Node<'E, 'T>) =
+            if (v = var) then
+                (lab, v, cont) // Variable bound, no substitution
+            else
+                (lab, v, (subst cont var replacement))
+
+        let cases2 = List.map substCase cases
+
+        { node with
+            Expr = Match((subst expr var replacement), cases2) }
+    | ArrayLength(target) ->
+        { node with
+            Expr = ArrayLength((subst target var replacement)) }
+    | ArrayElement(target, index) ->
+        { node with
+            Expr = ArrayElement((subst target var replacement), (subst index var replacement)) }
+    | ArraySlice(target, start, _end) ->
+        { node with
+            Expr =
+                ArraySlice((subst target var replacement), (subst start var replacement), (subst _end var replacement)) }
+    | x -> failwithf "subst: unhandled case %A" node
 
 /// function that recursively propagates the AST and substitutes all local get and set instructions of a specific variable
 /// with global get and set instructions

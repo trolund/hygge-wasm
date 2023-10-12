@@ -215,7 +215,7 @@ namespace WasmTimeDriver
             {
                 // load module 
                 using var module = Module.FromText(_engine, name, wat);
-                return ExecModule(module, target);
+                return ExecModule(module, target, name);
             }
             catch (Exception e)
             {
@@ -248,12 +248,12 @@ namespace WasmTimeDriver
             }
         }
 
-        public object? ExecModule(Module m, string target)
+        public object? ExecModule(Module m, string target, string name = "unknown")
         {
             // when the instance will the VM run.
             var instance = _linker.Instantiate(_store, m);
             // run specific target.
-            var res = RunTarget(target, instance);
+            var res = RunTarget(target, instance, name);
 
             return res;
         }
@@ -305,10 +305,17 @@ namespace WasmTimeDriver
             {
                 Console.WriteLine(name);
                 Console.WriteLine($"warn: {target} export is missing");
+                return null;
             }
 
             // run the code
-            return function.Invoke();
+            try{
+                return function.Invoke();
+            }catch(Exception e){
+                Console.WriteLine($"program {name} failed: ");
+                Console.WriteLine(e);
+                return null;    
+            }   
         }
 
     }

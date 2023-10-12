@@ -203,10 +203,10 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
 
             // TODO remove this
             Log.debug $"WASM code: %s{asm}"
-            Log.debug $"Running WASM VM"
+            Console.WriteLine $"Running WASM VM"
             let vm = WasmVM()
-            let res = vm.RunWatString(asm)
-            Console.WriteLine($"WASM VM result: %O{res}")
+            let res = vm.RunWatString(asm, opt.File)
+            Console.WriteLine $"WASM VM result: %O{res}"
             0
 
 
