@@ -150,13 +150,12 @@ let genSymbol (prefix: string): string =
     )
 
 /// return the next symbol without incrementing the counter
-let getNextGenSymbol (prefix: string): string =
-    lock knownSyms (fun _ ->
-        if knownSyms.Contains(prefix) then $"%s{prefix}$%d{nextSymSuffix}"
-        else
-            prefix
-    )
-
+// let getNextGenSymbol (prefix: string): string =
+//     lock knownSyms (fun _ ->
+//         if knownSyms.Contains(prefix) then $"%s{prefix}$%d{nextSymSuffix}"
+//         else
+//             prefix
+//     )
 
 /// List of known symbols used to generate unique ids.  It must be locked before
 /// being used, to avoid errors if multiple threads attempt to generate unique
@@ -178,9 +177,6 @@ let genSymbolId (symbol: string): int =
             // We return the symbol position in 'knownSymsWithIds' as unique id
             id + 1
     )
-
-
-
 
 /// take number as input and convert it to a hex string
 /// e.g. 28 -> "\1c"

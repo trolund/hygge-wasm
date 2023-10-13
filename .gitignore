@@ -33,3 +33,5 @@ wasi-sdk-20.0-linux.tar.gz
 
 test.wat
 test.wasm
+
+temp

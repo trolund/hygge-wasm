@@ -215,6 +215,16 @@ namespace WasmTimeDriver
             {
                 // load module 
                 using var module = Module.FromText(_engine, name, wat);
+                
+                
+                var fileName = Utils.GetFileName(name);
+                var type = Utils.GetFolderName(name);
+                var path = $"./temp/{type}/wat/{fileName}.wat";
+
+                Utils.WriteToFile(path, wat);
+                // Thread.Sleep(100);
+                Utils.Wat2Wasm(path, type);
+
                 return ExecModule(module, target, name);
             }
             catch (Exception e)

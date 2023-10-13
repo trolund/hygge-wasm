@@ -73,11 +73,41 @@ type internal TableController() =
 
     member this.get() = allocationPosition
 
+type internal SymbolController() = 
+
+    /// Set of known uniquely-generated symbols.  It must be locked before being
+    /// used, to avoid errors if multiple threads attempt to generate unique symbols
+    /// at the same time.
+    let mutable knownSyms = System.Collections.Generic.HashSet<string>()
+    let mutable knownSymsWithIds = System.Collections.Generic.List<string>()
+
+    /// Internal counter used to generate suffixes for unique symbols.  This counter
+    /// should only be used after locking 'knownSyms' above.
+    let mutable nextSymSuffix: uint = 0u
+
+    member this.genSymbol (prefix: string): string =
+        if knownSyms.Add(prefix) then prefix
+        else
+            let sym = $"%s{prefix}$%d{nextSymSuffix}"
+            nextSymSuffix <- nextSymSuffix + 1u
+            knownSyms.Add(sym) |> ignore
+            sym
+
+    member this.genSymbolId (symbol: string): int =
+        let id = knownSymsWithIds.IndexOf(symbol)
+        if (id = -1) then
+            knownSymsWithIds.Add(symbol)
+            knownSymsWithIds.Count
+        else
+            // We return the symbol position in 'knownSymsWithIds' as unique id
+            id + 1
+
 type internal CodegenEnv =
     { CurrFunc: string
       CurrFuncArgs: list<string>
       MemoryAllocator: StaticMemoryAllocator
       TableController: TableController
+      SymbolController: SymbolController
       VarStorage: Map<string, Storage> }
 
 let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) =
@@ -582,7 +612,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     | Lambda(args, body) ->
         // Label to mark the position of the lambda term body
-        let funLabel = Util.genSymbol $"{env.CurrFunc}/anonymous"
+        let funLabel = env.SymbolController.genSymbol $"{env.CurrFunc}/anonymous"
 
         let (funcPointer, index, _) = createFunctionPointer funLabel env m
 
@@ -613,7 +643,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             List.fold
                 (fun env (n, t) ->
                     // generate label for local var
-                    let l = Util.genSymbol $"local_{n}"
+                    let l = env.SymbolController.genSymbol $"local_{n}"
 
                     { env with
                         VarStorage = env.VarStorage.Add(n, Storage.local (l)) })
@@ -660,8 +690,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let cond' = doCodegen env cond m
         let body' = doCodegen env body m
 
-        let exitl = Util.genSymbol $"loop_exit"
-        let beginl = Util.genSymbol $"loop_begin"
+        let exitl = env.SymbolController.genSymbol $"loop_exit"
+        let beginl = env.SymbolController.genSymbol $"loop_begin"
 
         let loop =
             C
@@ -724,7 +754,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 m
 
         // pointer to struct in local var
-        let structPointerLabel = Util.genSymbol $"arr_ptr"
+        let structPointerLabel = env.SymbolController.genSymbol $"arr_ptr"
 
         let structPointer =
             structm // pointer to struct on stack
@@ -750,9 +780,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
 
         // loop that runs length times and stores data in allocated memory
-        let exitl = Util.genSymbol $"loop_exit"
-        let beginl = Util.genSymbol $"loop_begin"
-        let i = Util.genSymbol $"i"
+        let exitl = env.SymbolController.genSymbol $"loop_exit"
+        let beginl = env.SymbolController.genSymbol $"loop_begin"
+        let i = env.SymbolController.genSymbol $"i"
 
         // body should set data in allocated memory
         // TODO: optimize loop so i just multiply index with 4 and add it to base address
@@ -944,7 +974,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     Expr = Struct([ ("data", { node with Expr = IntVal 0 }); ("length", length) ]) }
                 m
 
-        let structPointerLabel = Util.genSymbol $"arr_slice_ptr"
+        let structPointerLabel = env.SymbolController.genSymbol $"arr_slice_ptr"
 
         let structm' =
             structm
@@ -976,7 +1006,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             )
     | UnionCons(label, expr) ->
         // compute label id
-        let id = Util.genSymbolId label
+        let id = env.SymbolController.genSymbolId label
         // create node for label
         let idNode = { node with Expr = IntVal id }
 
@@ -1004,16 +1034,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let reusltType = findReturnType (exprs[0])
 
         // let matchResult = Util.genSymbol $"match_result"
-        let matchEndLabel = Util.genSymbol $"match_end"
+        let matchEndLabel = env.SymbolController.genSymbol $"match_end"
         // fold over indexedLabels to generate code for each case
         let folder =
             fun (acc: Module) (i: int * string) ->
                 let (index, label) = i
-                let id = Util.genSymbolId label
+                let id = env.SymbolController.genSymbolId label
                 let expr = exprs.[index]
                 let var = vars.[index]
 
-                let varName = Util.genSymbol $"match_var_{var}"
+                let varName = env.SymbolController.genSymbol $"match_var_{var}"
 
                 // map case var to label address
                 let scopeVarStorage = env.VarStorage.Add(var, Storage.local (varName))
@@ -1189,7 +1219,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
           scope) ->
         /// Assembly label to mark the position of the compiled function body.
         /// For readability, we make the label similar to the function name
-        let funLabel = Util.genSymbol $"fun_%s{name}"
+        let funLabel = env.SymbolController.genSymbol $"fun_%s{name}"
 
         let (funcPointer, index, func_ptr) = createFunctionPointer funLabel env m
 
@@ -1234,7 +1264,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | Let(name, _, init, scope) ->
         let m' = doCodegen env init m
 
-        let varName = Util.genSymbol $"var_%s{name}"
+        let varName = env.SymbolController.genSymbol $"var_%s{name}"
 
         let env' =
             { env with
@@ -1396,7 +1426,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                Node.Type = TFun(targs, _) },
              scope) ->
 
-        let funLabel = Util.genSymbol $"fun_%s{name}"
+        let funLabel = env.SymbolController.genSymbol $"fun_%s{name}"
 
         let (funcPointer, index, ptr_label) = createFunctionPointer funLabel env m
 
@@ -1458,7 +1488,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
 
-        let structName = Util.genSymbol $"Sptr"
+        let structName = env.SymbolController.genSymbol $"Sptr"
 
         // calculate size of struct (each field is 4 bytes)
         let size = List.length fields
@@ -2095,6 +2125,7 @@ let codegen (node: TypedAST) : Module =
         { CurrFunc = funcName
           MemoryAllocator = StaticMemoryAllocator()
           TableController = TableController()
+          SymbolController = SymbolController()
           VarStorage = Map.empty
           CurrFuncArgs = [] }
 
