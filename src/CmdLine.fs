@@ -161,6 +161,9 @@ type TestOptions = {
 
     [<Option('v', "verbose", HelpText="Enable verbose output (including the test names, usable with the '--filter' option).")>]
     Verbose: bool
+
+    [<Option('O', "output", HelpText="Output all .wat and .wasm files in test suite - Only works with Wasm")>]
+    Out: bool
 }
 
 

@@ -17,15 +17,18 @@ namespace WasmTimeDriver
         /// The heap size will grow if the VM tries to allocate more memory than the current heap size.
         /// A debug flag can be set to print out when the heap is growing.
         /// </remarks>
-        private readonly MemoryAllocator _allocator = new MemoryAllocator(1, true);
+        private readonly MemoryAllocator _allocator;
         private readonly string main = "_start";
 
         private readonly bool debug = false;
+        private readonly bool output = false;
 
-        public WasmVM(bool debug = false)
+        public WasmVM(bool debug = false, bool output = false)
         {
 
             this.debug = debug;
+            this.output = output;
+            this._allocator = new MemoryAllocator(1, debug);
 
             var config = new Config()
                 .WithDebugInfo(true)
@@ -222,7 +225,7 @@ namespace WasmTimeDriver
                 using var module = Module.FromText(_engine, name, wat);
 
                 // Createfile
-                if (debug) Utils.Createfile(name, wat);
+                if (output) Utils.Createfile(name, wat);
 
                 return ExecModule(module, target, name);
             }
@@ -304,7 +307,7 @@ namespace WasmTimeDriver
             }
             catch (Exception e)
             {
-                Console.WriteLine("No heap_base_ptr found");
+                if (debug) Console.WriteLine("No heap_base_ptr found");
             }
 
             // get target function
@@ -312,15 +315,16 @@ namespace WasmTimeDriver
 
             if (function is null)
             {
-                Console.WriteLine(name);
-                Console.WriteLine($"warn: {target} export is missing");
+                if (debug) { 
+                    Console.WriteLine(name);
+                    Console.WriteLine($"warn: {target} export is missing");
+                }
                 return null;
             }
 
             // run the code
             try
             {
-                // Thread.Sleep(100);
                 return function.Invoke();
             }
             catch (Exception e)

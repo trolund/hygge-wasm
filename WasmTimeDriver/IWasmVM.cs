@@ -1,7 +1,4 @@
-﻿using System;
-using Wasmtime;
-
-namespace WasmTimeDriver
+﻿namespace WasmTimeDriver
 {
 	public interface IWasmVM
 	{

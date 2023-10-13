@@ -272,7 +272,7 @@ let internal launchRARS (opt: CmdLine.RARSLaunchOptions): int =
 /// options. Return 0 in case of success, and non-zero in case of error.
 let internal launchWasmTime (opt: CmdLine.WasmTimeLaunchOptions): int =
    
-   let vm = WasmVM()
+   let vm = WasmVM(opt.Verbose)
    Console.WriteLine("Running file: " + opt.File)
    let res = vm.RunFile(opt.File)
    Console.WriteLine($"return value {res.ToString()}")

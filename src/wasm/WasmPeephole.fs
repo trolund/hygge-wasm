@@ -41,10 +41,8 @@ let optimize (m: Module) : Module =
     // replace all functions with the new ones that have been optimized
     m.ReplaceFuncs(funcs')
 
-
+/// Count the number of instructions in the given module.
 let CountInstr (m: Module) : int =
-    /// Recursively perform peephole optimization, until the result stops
-    /// changing (i.e. there is nothning more we can optimize).
     // get all functions
     let funcs = m.GetAllFuncs()
 

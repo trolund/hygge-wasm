@@ -20,8 +20,8 @@ public static class Utils
 
     // exstract file name from path
     public static string GetFileName(string path)
-    {
-        var fileName = Path.GetFileName(path);
+    {   
+        var fileName = Path.GetFileNameWithoutExtension(path);
         return fileName;
     }
 

@@ -35,7 +35,8 @@ let internal runWasmTime tast expected name =
     let asm = (hyggec.WASMCodegen.codegen tast).ToString()
     let explainExpected = RARS.explainExitCode expected
     
-    let vm = WasmVM()
+    // TODO: get args from cli input
+    let vm = WasmVM(true, true);
     let exit: int = vm.RunWatString(asm.ToString(), name) :?> int
     Log.debug (sprintf "WasmTime exit code: %d" exit)
     let explainExit = RARS.explainExitCode exit
@@ -228,10 +229,11 @@ let tests = testList "tests" [
 /// Run the tests according to command line options
 let run (opts: CmdLine.TestOptions): int =
     let argsDebug = if opts.Verbose then ["--debug"] else []
+    let output = if opts.Out then ["--output"] else []
     let argsFilter = match opts.Filter with
                      | null -> []
                      | f -> ["--filter"; $"tests.%s{f}"]
-    let args = argsDebug @ argsFilter
+    let args = argsDebug @  output @ argsFilter
     Expecto.Tests.runTestsWithCLIArgs [] (Array.ofList args) tests
 
 /// Run the tests according to command line options

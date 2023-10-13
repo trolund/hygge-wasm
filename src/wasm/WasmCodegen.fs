@@ -1386,7 +1386,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     Type = init.Type }
 
             // replace every occurence of the var in scope with the struct FieldSelect
-            let scope' = subst scope name selectNode
+            let scope' = ASTUtil.subst scope name selectNode
 
             // node with sequence of let and scope
             let n =
@@ -1439,17 +1439,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             compileFunction funLabel argNamesTypes (body) env'' funcPointer
 
         let scopeModule: Module = (doCodegen env' scope funcPointer)
-
-        // TODO: maybe bring back?
-
-        // let captured = freeVariables node
-
-        // // map captured to list of pairs (name, TypedAST) with env
-        // let captured = Set.map (fun n -> (n, {node with Expr = Var(n) })) captured
-
-        // let capturedList = List.distinctBy fst (Set.toList captured)
-
-        // let closure = createClosure env'' node body index funcPointer capturedList
 
         funcPointer + scopeModule + bodyCode // + closure
 
@@ -1811,184 +1800,184 @@ and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (
     combinePointerAndreturnStruct
 
 // substitute all occurences of a variable with a node
-and subst (node) (var: string) (replacement) : Node<'E, 'T> =
-    match node.Expr with
-    | UnitVal
-    | IntVal(_)
-    | BoolVal(_)
-    | FloatVal(_)
-    | StringVal(_) -> node // The substitution has no effect
+// and subst (node) (var: string) (replacement) : Node<'E, 'T> =
+//     match node.Expr with
+//     | UnitVal
+//     | IntVal(_)
+//     | BoolVal(_)
+//     | FloatVal(_)
+//     | StringVal(_) -> node // The substitution has no effect
 
-    | Pointer(_) -> node // The substitution has no effect
+//     | Pointer(_) -> node // The substitution has no effect
 
-    | Var(vname) when vname = var -> replacement // Substitution applied
-    | Var(_) -> node // The substitution has no effect
+//     | Var(vname) when vname = var -> replacement // Substitution applied
+//     | Var(_) -> node // The substitution has no effect
 
-    | Add(lhs, rhs) ->
-        { node with
-            Expr = Add((subst lhs var replacement), (subst rhs var replacement)) }
-    | Sub(lhs, rhs) ->
-        { node with
-            Expr = Sub((subst lhs var replacement), (subst rhs var replacement)) }
-    | Mult(lhs, rhs) ->
-        { node with
-            Expr = Mult((subst lhs var replacement), (subst rhs var replacement)) }
-    | Div(lhs, rhs) ->
-        { node with
-            Expr = Div((subst lhs var replacement), (subst rhs var replacement)) }
+//     | Add(lhs, rhs) ->
+//         { node with
+//             Expr = Add((subst lhs var replacement), (subst rhs var replacement)) }
+//     | Sub(lhs, rhs) ->
+//         { node with
+//             Expr = Sub((subst lhs var replacement), (subst rhs var replacement)) }
+//     | Mult(lhs, rhs) ->
+//         { node with
+//             Expr = Mult((subst lhs var replacement), (subst rhs var replacement)) }
+//     | Div(lhs, rhs) ->
+//         { node with
+//             Expr = Div((subst lhs var replacement), (subst rhs var replacement)) }
 
-    | Min(lhs, rhs) ->
-        { node with
-            Expr = Min((subst lhs var replacement), (subst rhs var replacement)) }
-    | Max(lhs, rhs) ->
-        { node with
-            Expr = Max((subst lhs var replacement), (subst rhs var replacement)) }
+//     | Min(lhs, rhs) ->
+//         { node with
+//             Expr = Min((subst lhs var replacement), (subst rhs var replacement)) }
+//     | Max(lhs, rhs) ->
+//         { node with
+//             Expr = Max((subst lhs var replacement), (subst rhs var replacement)) }
 
-    | And(lhs, rhs) ->
-        { node with
-            Expr = And((subst lhs var replacement), (subst rhs var replacement)) }
-    | Or(lhs, rhs) ->
-        { node with
-            Expr = Or((subst lhs var replacement), (subst rhs var replacement)) }
-    | Not(arg) ->
-        { node with
-            Expr = Not(subst arg var replacement) }
+//     | And(lhs, rhs) ->
+//         { node with
+//             Expr = And((subst lhs var replacement), (subst rhs var replacement)) }
+//     | Or(lhs, rhs) ->
+//         { node with
+//             Expr = Or((subst lhs var replacement), (subst rhs var replacement)) }
+//     | Not(arg) ->
+//         { node with
+//             Expr = Not(subst arg var replacement) }
 
-    | Eq(lhs, rhs) ->
-        { node with
-            Expr = Eq((subst lhs var replacement), (subst rhs var replacement)) }
-    | Less(lhs, rhs) ->
-        { node with
-            Expr = Less((subst lhs var replacement), (subst rhs var replacement)) }
+//     | Eq(lhs, rhs) ->
+//         { node with
+//             Expr = Eq((subst lhs var replacement), (subst rhs var replacement)) }
+//     | Less(lhs, rhs) ->
+//         { node with
+//             Expr = Less((subst lhs var replacement), (subst rhs var replacement)) }
 
-    | ReadInt
-    | ReadFloat -> node // The substitution has no effect
+//     | ReadInt
+//     | ReadFloat -> node // The substitution has no effect
 
-    | Print(arg) ->
-        { node with
-            Expr = Print(subst arg var replacement) }
-    | PrintLn(arg) ->
-        { node with
-            Expr = PrintLn(subst arg var replacement) }
+//     | Print(arg) ->
+//         { node with
+//             Expr = Print(subst arg var replacement) }
+//     | PrintLn(arg) ->
+//         { node with
+//             Expr = PrintLn(subst arg var replacement) }
 
-    | AST.If(cond, ifTrue, ifFalse) ->
-        { node with
-            Expr = AST.If((subst cond var replacement), (subst ifTrue var replacement), (subst ifFalse var replacement)) }
+//     | AST.If(cond, ifTrue, ifFalse) ->
+//         { node with
+//             Expr = AST.If((subst cond var replacement), (subst ifTrue var replacement), (subst ifFalse var replacement)) }
 
-    | Seq(nodes) ->
-        let substNodes = List.map (fun n -> (subst n var replacement)) nodes
-        { node with Expr = Seq(substNodes) }
+//     | Seq(nodes) ->
+//         let substNodes = List.map (fun n -> (subst n var replacement)) nodes
+//         { node with Expr = Seq(substNodes) }
 
-    | Ascription(tpe, node) ->
-        { node with
-            Expr = Ascription(tpe, (subst node var replacement)) }
+//     | Ascription(tpe, node) ->
+//         { node with
+//             Expr = Ascription(tpe, (subst node var replacement)) }
 
-    | Let(vname, tpe, init, scope) when vname = var ->
-        // Do not substitute the variable in the "let" scope
-        { node with
-            Expr = Let(vname, tpe, (subst init var replacement), scope) }
-    | Let(vname, tpe, init, scope) ->
-        { node with
-            Expr = Let(vname, tpe, (subst init var replacement), (subst scope var replacement)) }
+//     | Let(vname, tpe, init, scope) when vname = var ->
+//         // Do not substitute the variable in the "let" scope
+//         { node with
+//             Expr = Let(vname, tpe, (subst init var replacement), scope) }
+//     | Let(vname, tpe, init, scope) ->
+//         { node with
+//             Expr = Let(vname, tpe, (subst init var replacement), (subst scope var replacement)) }
 
-    | LetMut(vname, tpe, init, scope) when vname = var ->
-        // Do not substitute the variable in the "let mutable" scope
-        { node with
-            Expr = LetMut(vname, tpe, (subst init var replacement), scope) }
-    | LetMut(vname, tpe, init, scope) ->
-        { node with
-            Expr = LetMut(vname, tpe, (subst init var replacement), (subst scope var replacement)) }
+//     | LetMut(vname, tpe, init, scope) when vname = var ->
+//         // Do not substitute the variable in the "let mutable" scope
+//         { node with
+//             Expr = LetMut(vname, tpe, (subst init var replacement), scope) }
+//     | LetMut(vname, tpe, init, scope) ->
+//         { node with
+//             Expr = LetMut(vname, tpe, (subst init var replacement), (subst scope var replacement)) }
 
-    | Assign(target, expr) ->
-        { node with
-            Expr = Assign((subst target var replacement), (subst expr var replacement)) }
+//     | Assign(target, expr) ->
+//         { node with
+//             Expr = Assign((subst target var replacement), (subst expr var replacement)) }
 
-    | While(cond, body) ->
-        let substCond = subst cond var replacement
-        let substBody = subst body var replacement
+//     | While(cond, body) ->
+//         let substCond = subst cond var replacement
+//         let substBody = subst body var replacement
 
-        { node with
-            Expr = While(substCond, substBody) }
+//         { node with
+//             Expr = While(substCond, substBody) }
 
-    | DoWhile(body, cond) ->
-        let substCond = subst cond var replacement
-        let substBody = subst body var replacement
+//     | DoWhile(body, cond) ->
+//         let substCond = subst cond var replacement
+//         let substBody = subst body var replacement
 
-        { node with
-            Expr = DoWhile(substBody, substCond) }
+//         { node with
+//             Expr = DoWhile(substBody, substCond) }
 
-    | For(init, cond, update, body) ->
-        let substInit = subst init var replacement
-        let substCond = subst cond var replacement
-        let substUpdate = subst update var replacement
-        let substBody = subst body var replacement
+//     | For(init, cond, update, body) ->
+//         let substInit = subst init var replacement
+//         let substCond = subst cond var replacement
+//         let substUpdate = subst update var replacement
+//         let substBody = subst body var replacement
 
-        { node with
-            Expr = For(substInit, substCond, substUpdate, substBody) }
+//         { node with
+//             Expr = For(substInit, substCond, substUpdate, substBody) }
 
-    | Assertion(arg) ->
-        { node with
-            Expr = Assertion(subst arg var replacement) }
+//     | Assertion(arg) ->
+//         { node with
+//             Expr = Assertion(subst arg var replacement) }
 
-    | AST.Type(tname, def, scope) ->
-        { node with
-            Expr = AST.Type(tname, def, (subst scope var replacement)) }
+//     | AST.Type(tname, def, scope) ->
+//         { node with
+//             Expr = AST.Type(tname, def, (subst scope var replacement)) }
 
-    | Lambda(args, body) ->
-        /// Arguments of this lambda term, without their pretypes
-        let (argVars, _) = List.unzip args
+//     | Lambda(args, body) ->
+//         /// Arguments of this lambda term, without their pretypes
+//         let (argVars, _) = List.unzip args
 
-        if (List.contains var argVars) then
-            node // No substitution
-        else
-            { node with
-                Expr = Lambda(args, (subst body var replacement)) }
+//         if (List.contains var argVars) then
+//             node // No substitution
+//         else
+//             { node with
+//                 Expr = Lambda(args, (subst body var replacement)) }
 
-    | Application(expr, args) ->
-        let substExpr = subst expr var replacement
-        let substArgs = List.map (fun n -> (subst n var replacement)) args
+//     | Application(expr, args) ->
+//         let substExpr = subst expr var replacement
+//         let substArgs = List.map (fun n -> (subst n var replacement)) args
 
-        { node with
-            Expr = Application(substExpr, substArgs) }
+//         { node with
+//             Expr = Application(substExpr, substArgs) }
 
-    | Struct(fields) ->
-        let (fieldNames, initNodes) = List.unzip fields
-        let substInitNodes = List.map (fun e -> (subst e var replacement)) initNodes
+//     | Struct(fields) ->
+//         let (fieldNames, initNodes) = List.unzip fields
+//         let substInitNodes = List.map (fun e -> (subst e var replacement)) initNodes
 
-        { node with
-            Expr = Struct(List.zip fieldNames substInitNodes) }
+//         { node with
+//             Expr = Struct(List.zip fieldNames substInitNodes) }
 
-    | FieldSelect(target, field) ->
-        { node with
-            Expr = FieldSelect((subst target var replacement), field) }
+//     | FieldSelect(target, field) ->
+//         { node with
+//             Expr = FieldSelect((subst target var replacement), field) }
 
-    | UnionCons(label, expr) ->
-        { node with
-            Expr = UnionCons(label, (subst expr var replacement)) }
+//     | UnionCons(label, expr) ->
+//         { node with
+//             Expr = UnionCons(label, (subst expr var replacement)) }
 
-    | Match(expr, cases) ->
-        /// Mapper function to propagate the substitution along a match case
-        let substCase (lab: string, v: string, cont: Node<'E, 'T>) =
-            if (v = var) then
-                (lab, v, cont) // Variable bound, no substitution
-            else
-                (lab, v, (subst cont var replacement))
+//     | Match(expr, cases) ->
+//         /// Mapper function to propagate the substitution along a match case
+//         let substCase (lab: string, v: string, cont: Node<'E, 'T>) =
+//             if (v = var) then
+//                 (lab, v, cont) // Variable bound, no substitution
+//             else
+//                 (lab, v, (subst cont var replacement))
 
-        let cases2 = List.map substCase cases
+//         let cases2 = List.map substCase cases
 
-        { node with
-            Expr = Match((subst expr var replacement), cases2) }
-    | ArrayLength(target) ->
-        { node with
-            Expr = ArrayLength((subst target var replacement)) }
-    | ArrayElement(target, index) ->
-        { node with
-            Expr = ArrayElement((subst target var replacement), (subst index var replacement)) }
-    | ArraySlice(target, start, _end) ->
-        { node with
-            Expr =
-                ArraySlice((subst target var replacement), (subst start var replacement), (subst _end var replacement)) }
-    | x -> failwithf "subst: unhandled case %A" node
+//         { node with
+//             Expr = Match((subst expr var replacement), cases2) }
+//     | ArrayLength(target) ->
+//         { node with
+//             Expr = ArrayLength((subst target var replacement)) }
+//     | ArrayElement(target, index) ->
+//         { node with
+//             Expr = ArrayElement((subst target var replacement), (subst index var replacement)) }
+//     | ArraySlice(target, start, _end) ->
+//         { node with
+//             Expr =
+//                 ArraySlice((subst target var replacement), (subst start var replacement), (subst _end var replacement)) }
+//     | x -> failwithf "subst: unhandled case %A" node
 
 /// function that recursively propagates the AST and substitutes all local get and set instructions of a specific variable
 /// with global get and set instructions

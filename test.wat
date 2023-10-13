@@ -233,7 +233,8 @@
     i32.const 4 ;; 4 bytes
     i32.mul ;; multiply length with 4 to get size
     call $malloc ;; call malloc function
-    local.tee $Sptr ;; set struct pointer varget struct pointer var
+    local.set $Sptr ;; set struct pointer var
+    local.get $Sptr ;; get struct pointer var
     i32.const 0 ;; push field offset to stack
     i32.add ;; add offset to base address
     ;; init field value
@@ -247,7 +248,8 @@
     i32.const 4 ;; 4 bytes
     i32.mul ;; multiply length with 4 to get size
     call $malloc ;; call malloc function
-    local.tee $Sptr$0 ;; set struct pointer varget struct pointer var
+    local.set $Sptr$0 ;; set struct pointer var
+    local.get $Sptr$0 ;; get struct pointer var
     i32.const 0 ;; push field offset to stack
     i32.add ;; add offset to base address
     ;; init field increment
@@ -256,7 +258,8 @@
     i32.const 4 ;; 4 bytes
     i32.mul ;; multiply length with 4 to get size
     call $malloc ;; call malloc function
-    local.tee $Sptr$2 ;; set struct pointer varget struct pointer var
+    local.set $Sptr$2 ;; set struct pointer var
+    local.get $Sptr$2 ;; get struct pointer var
     i32.const 0 ;; push field offset to stack
     i32.add ;; add offset to base address
     ;; init field f
@@ -277,7 +280,8 @@
     i32.const 4 ;; 4 bytes
     i32.mul ;; multiply length with 4 to get size
     call $malloc ;; call malloc function
-    local.tee $Sptr$1 ;; set struct pointer varget struct pointer var
+    local.set $Sptr$1 ;; set struct pointer var
+    local.get $Sptr$1 ;; get struct pointer var
     i32.const 0 ;; push field offset to stack
     i32.add ;; add offset to base address
     ;; init field count
@@ -297,7 +301,8 @@
     i32.const 4 ;; 4 bytes
     i32.mul ;; multiply length with 4 to get size
     call $malloc ;; call malloc function
-    local.tee $Sptr$5 ;; set struct pointer varget struct pointer var
+    local.set $Sptr$5 ;; set struct pointer var
+    local.get $Sptr$5 ;; get struct pointer var
     i32.const 0 ;; push field offset to stack
     i32.add ;; add offset to base address
     ;; init field f
@@ -318,7 +323,8 @@
     i32.const 4 ;; 4 bytes
     i32.mul ;; multiply length with 4 to get size
     call $malloc ;; call malloc function
-    local.tee $Sptr$4 ;; set struct pointer varget struct pointer var
+    local.set $Sptr$4 ;; set struct pointer var
+    local.get $Sptr$4 ;; get struct pointer var
     i32.const 0 ;; push field offset to stack
     i32.add ;; add offset to base address
     ;; init field count
