@@ -523,18 +523,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | PrintLn e
     | Print e ->
         // TODO make print and println different
-        // TODO support more types
         let m' = doCodegen env e m
 
-        // TODO not correct!!!!
         match e.Type with
-        | t when (isSubtypeOf node.Env t TInt) ->
-            // import writeInt function
-            let m'' = m'.AddImport(getImport "writeInt")
+        | t when (isSubtypeOf node.Env t TFloat) -> 
+            // import writeF function
+            let m'' = m'.AddImport(getImport "writeFloat")
             // perform host (system) call
-            m''.AddCode([ (Call "writeInt", "call host function") ])
-        | t when (isSubtypeOf node.Env t TFloat) -> failwith "not implemented"
-        | t when (isSubtypeOf node.Env t TBool) -> failwith "not implemented"
+            m''.AddCode([ (Call "writeFloat", "call host function") ])
         | t when (isSubtypeOf node.Env t TString) ->
             // import writeS function
             let m'' =
@@ -549,10 +545,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                             (I32Add, "add offset to pointer")
                             (I32Load, "Load string length") ]
                     )
-
+        
             // perform host (system) call
             (m'.ResetAccCode() ++ m'').AddCode([ (Call "writeS", "call host function") ])
-        | _ -> failwith "not implemented"
+        | _ ->
+            // import writeInt function
+            let m'' = m'.AddImport(getImport "writeInt")
+            // perform host (system) call
+            m''.AddCode([ (Call "writeInt", "call host function") ])
     | AST.If(condition, ifTrue, ifFalse) ->
         let m' = doCodegen env condition m
         let m'' = doCodegen env ifTrue m

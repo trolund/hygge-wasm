@@ -9,6 +9,7 @@ let si : Map<string, Import> =
     ("readInt", ("env", "readInt", FunctionType("readInt", Some(([], [ I32 ])))))
     ("readFloat", ("env", "readFloat", FunctionType("readFloat", Some(([], [ F32 ])))))
     ("writeInt", ("env", "writeInt", FunctionType("writeInt", Some(([ (None, I32) ], [])))))
+    ("writeFloat", ("env", "writeFloat", FunctionType("writeFloat", Some(([ (None, F32) ], [])))))
     ("writeS", ("env", "writeS", FunctionType("writeS", Some(([ (None, I32); (None, I32) ], [])))))
     ]
 

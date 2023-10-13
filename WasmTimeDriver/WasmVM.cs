@@ -155,7 +155,15 @@ namespace WasmTimeDriver
                 "writeInt",
                 Function.FromCallback(_store, (int i) =>
                 {
-                    var memory = _store.ToString();
+                    Console.WriteLine(i);
+                })
+            );
+
+            _linker.Define(
+                "env",
+                "writeFloat",
+                Function.FromCallback(_store, (float i) =>
+                {
                     Console.WriteLine(i);
                 })
             );
