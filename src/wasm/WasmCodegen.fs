@@ -431,6 +431,36 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m'' = doCodegen env e2 m
         let instrs = [ I32Or ]
         (m' + m'').AddCode(instrs)
+    // | ShortAnd(lhs, rhs)
+    // | ShortOr(lhs, rhs) as expr ->
+    //     // short circuiting And and or operators
+
+    //     let lhs' = doCodegen env lhs m
+    //     let rhs' = doCodegen env rhs m
+
+    //     let opCode =
+    //         match node.Type with
+    //         | t when (isSubtypeOf node.Env t TInt) ->
+    //             match expr with
+    //             | ShortAnd(_, _) -> I32And
+    //             | ShortOr(_, _) -> I32Or
+    //             | _ -> failwith "not implemented"
+    //         | _ -> failwith "not implemented"
+        
+    //     let label = env.SymbolController.genSymbol $"short_circuiting_{env.CurrFunc}"
+
+    //     let instrs =
+    //         match node.Type with
+    //         | t when (isSubtypeOf node.Env t TInt) ->
+    //             lhs'.GetAccCode()
+    //             @ C [ (I32Eqz, "check if lhs is false") ]
+    //             @ [ (If([], rhs'.GetAccCode(), None), "if lhs is false jump to rhs") ]
+    //             @ C [ (LocalGet(Named(label)), "get label") ]
+    //             @ [ (Br(label), "jump to end") ]
+    //             @ rhs'.GetAccCode()
+    //             @ C [ (LocalSet(Named(label)), "set label") ]
+    //         | _ -> failwith "not implemented"
+
     | Not(e) ->
         let m' = doCodegen env e m
         let instrs = [ I32Eqz ]
@@ -624,29 +654,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let captured = freeVariables node
 
-        // map captured to list of pairs (name, TypedAST) with env
-        // TODO: Add type here!!!
-        // let captured =
-        //     Set.map
-        //         (fun n ->
-        //             (n,
-        //              { node with
-        //                  Expr = Var(n)
-        //                  Type = body.Env.Vars[n] }))
-        //         captured
-
-        // let capturedList = List.distinctBy fst (Set.toList captured)
-        // add each arg to var storage (all local vars)
-        // TODO maybe lables should be generated here
-        // TODO: unik-probem-guid:11111+22222+33333
         let env' =
             List.fold
                 (fun env (n, t) ->
-                    // generate label for local var
-                    let l = env.SymbolController.genSymbol $"local_{n}"
-
                     { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.local (l)) })
+                        VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
                 env
                 args
 

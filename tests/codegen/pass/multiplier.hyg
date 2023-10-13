@@ -1,0 +1,8 @@
+fun multiplier(factor: int): (int) -> int = {
+    fun (number: int) -> number * factor
+};
+
+let multiplyByTwo: (int) -> int = multiplier(2);
+let multiplyByThree: (int) -> int = multiplier(3);
+assert(multiplyByTwo(5) = 10);
+assert(multiplyByThree(5) = 15)
