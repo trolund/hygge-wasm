@@ -204,9 +204,9 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | CSDcr(arg) -> [ I32 ]
     | Print(arg) -> []
     | Ascription(tpe, node) -> []
-    | Let(name, tpe, init, scope) -> []
-    | LetMut(name, tpe, init, scope) -> []
-    | LetRec(name, tpe, init, scope) -> []
+    | Let(name, tpe, init, scope)
+    | LetMut(name, tpe, init, scope) 
+    | LetRec(name, tpe, init, scope) -> findReturnType init
     | Assign(target, expr) -> findReturnType expr
     | AST.Type(name, def, scope) -> []
     | ArrayElement(target, index) -> findReturnType target

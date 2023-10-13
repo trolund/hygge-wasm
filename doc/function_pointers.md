@@ -118,3 +118,27 @@ Compile to:
   (export "heap_base_ptr" (global $heap_base))
 )
   ```
+
+```wat
+(module
+  (table $func_table 2 funcref)
+  (elem (i32.const 0) $fun_t)
+  (elem (i32.const 1) $fun_k)
+  (func $_start  (result i32) ;; entry point of program (main function) 
+    ref.func $fun_k ;; push fun_k ref on stack
+    call $fun_t ;; call fun_t
+    i32.const 0 ;; exit code 0
+    return ;; return the exit code
+  )
+  (func $fun_k (param $x i32) (result i32) ;; function fun_f 
+    local.get $x ;; push x on stack
+    local.get $x ;; push x on stack
+    i32.add ;; x + x
+  )
+  (func $fun_t (param $fun_k funcref) (result i32) ;; function fun_t 
+    i32.const 2 ;; push 2 on stack
+    call $fun_k ;; call fun_k
+  )
+  (export "_start" (func $_start))
+)
+```
