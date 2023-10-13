@@ -20,8 +20,13 @@ namespace WasmTimeDriver
         private readonly MemoryAllocator _allocator = new MemoryAllocator(1, true);
         private readonly string main = "_start";
 
-        public WasmVM()
+        private readonly bool debug = false;
+
+        public WasmVM(bool debug = false)
         {
+
+            this.debug = debug;
+
             var config = new Config()
                 .WithDebugInfo(true)
                 .WithCraneliftDebugVerifier(true)
@@ -215,15 +220,9 @@ namespace WasmTimeDriver
             {
                 // load module 
                 using var module = Module.FromText(_engine, name, wat);
-                
-                
-                var fileName = Utils.GetFileName(name);
-                var type = Utils.GetFolderName(name);
-                var path = $"./temp/{type}/wat/{fileName}.wat";
 
-                Utils.WriteToFile(path, wat);
-                // Thread.Sleep(100);
-                Utils.Wat2Wasm(path, type);
+                // Createfile
+                if (debug) Utils.Createfile(name, wat);
 
                 return ExecModule(module, target, name);
             }
@@ -319,14 +318,17 @@ namespace WasmTimeDriver
             }
 
             // run the code
-            try{
+            try
+            {
                 // Thread.Sleep(100);
                 return function.Invoke();
-            }catch(Exception e){
+            }
+            catch (Exception e)
+            {
                 Console.WriteLine($"program {name} failed: ");
                 Console.WriteLine(e);
-                return null;    
-            }   
+                return null;
+            }
         }
 
     }

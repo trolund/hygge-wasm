@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 
 public static class Utils
 {
@@ -39,6 +40,17 @@ public static class Utils
         var wat2wasm = $"wat2wasm --debug-names {path} -o {wasmPath}";
         var process = System.Diagnostics.Process.Start("bash", $"-c \"{wat2wasm}\"");
         process.WaitForExit();
+    }
+
+    public static void Createfile(string name, string wat)
+    {
+        var fileName = Utils.GetFileName(name);
+        var type = Utils.GetFolderName(name);
+        var path = $"./temp/{type}/wat/{fileName}.wat";
+
+        Utils.WriteToFile(path, wat);
+        // Thread.Sleep(100);
+        Utils.Wat2Wasm(path, type);
     }
 
     // get last folder name from path
