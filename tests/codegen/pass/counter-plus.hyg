@@ -1,0 +1,23 @@
+type Counters = struct {increment: () -> int; decrement: () -> int};
+
+// Return a structure with two functions that share a counter.
+// The counter is initialized to 0.
+// can be either increment or decrement
+fun makeCounters(): Counters = {
+    let mutable count: int = 0;
+
+    // The lambda terms below capture 'count' twice
+    struct { increment = fun () -> { count <- count + 1 };
+             decrement = fun () -> { count <- count - 1 } } : Counters
+};
+
+let c1: Counters = makeCounters();
+assert(c1.increment() = 1);
+assert(c1.increment() = 2);
+assert(c1.decrement() = 1);
+
+let c2: Counters = makeCounters();
+assert(c2.increment() = 1); // Output: 1 (independent of c1)
+assert(c2.increment() = 2);
+assert(c2.decrement() = 1);
+assert(c2.decrement() = 0)
