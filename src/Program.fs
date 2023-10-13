@@ -9,6 +9,7 @@ module Main
 open System
 open WasmTimeDriver
 open hyggec
+open System.Threading
 
 /// Tokenize the given file with the given options, and print the result on the
 /// terminal. Return 0 in case of success, non-zero otherwise.
@@ -171,6 +172,18 @@ let compileRISCV (opt: CmdLine.CompilerOptions) tast =
             // reutrn the asm
             asm2
 
+let compileWasm (opt: CmdLine.CompilerOptions) tast =
+    let asm = WASMCodegen.codegen tast
+    if (opt.Optimize = 4u) then 
+        Console.WriteLine("Optimizing WASM")
+        Console.WriteLine($"There was {(WasmPeephole.CountInstr asm).ToString()} instructions before optimization")
+        let op = WasmPeephole.optimize asm
+        Console.WriteLine($"There was {(WasmPeephole.CountInstr op).ToString()} instructions after optimization")
+        Thread.Sleep(2000)
+        op
+    else 
+        asm
+
 /// Run the Hygge compiler with the given options, and return the exit code
 /// (zero in case of success, non-zero in case of error).
 let internal compile (opt: CmdLine.CompilerOptions): int =
@@ -195,18 +208,18 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
                                 (compileRISCV opt tast).ToString()
                             | CmdLine.CompilationTarget.WASM ->
                                 // Compile the AST to WASM assembly
-                                (WASMCodegen.codegen tast).ToString()
+                                (compileWasm opt tast).ToString()
                                 
                 
             // Write the output file (or print to stdout if no output file is given)
             handelOutputFile (opt.OutFile, asm) |> ignore
 
             // TODO remove this
-            Log.debug $"WASM code: %s{asm}"
-            Console.WriteLine $"Running WASM VM"
-            let vm = WasmVM()
-            let res = vm.RunWatString(asm, opt.File)
-            Console.WriteLine $"WASM VM result: %O{res}"
+            // Log.debug $"WASM code: %s{asm}"
+            // Console.WriteLine $"Running WASM VM"
+            // let vm = WasmVM()
+            // let res = vm.RunWatString(asm, opt.File)
+            // Console.WriteLine $"WASM VM result: %O{res}"
             0
 
 

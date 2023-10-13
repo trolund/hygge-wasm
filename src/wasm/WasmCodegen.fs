@@ -431,35 +431,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m'' = doCodegen env e2 m
         let instrs = [ I32Or ]
         (m' + m'').AddCode(instrs)
-    // | ShortAnd(lhs, rhs)
-    // | ShortOr(lhs, rhs) as expr ->
-    //     // short circuiting And and or operators
-
-    //     let lhs' = doCodegen env lhs m
-    //     let rhs' = doCodegen env rhs m
-
-    //     let opCode =
-    //         match node.Type with
-    //         | t when (isSubtypeOf node.Env t TInt) ->
-    //             match expr with
-    //             | ShortAnd(_, _) -> I32And
-    //             | ShortOr(_, _) -> I32Or
-    //             | _ -> failwith "not implemented"
-    //         | _ -> failwith "not implemented"
-        
-    //     let label = env.SymbolController.genSymbol $"short_circuiting_{env.CurrFunc}"
-
-    //     let instrs =
-    //         match node.Type with
-    //         | t when (isSubtypeOf node.Env t TInt) ->
-    //             lhs'.GetAccCode()
-    //             @ C [ (I32Eqz, "check if lhs is false") ]
-    //             @ [ (If([], rhs'.GetAccCode(), None), "if lhs is false jump to rhs") ]
-    //             @ C [ (LocalGet(Named(label)), "get label") ]
-    //             @ [ (Br(label), "jump to end") ]
-    //             @ rhs'.GetAccCode()
-    //             @ C [ (LocalSet(Named(label)), "set label") ]
-    //         | _ -> failwith "not implemented"
 
     | Not(e) ->
         let m' = doCodegen env e m
@@ -2178,6 +2149,7 @@ let codegen (node: TypedAST) : Module =
             .ResetAccCode() // reset accumulated code
             .ResetLocals() // reset locals
 
+    // all top level locals are hoisted to global vars
     let l =
         (List.map
             (fun (n, _) ->
