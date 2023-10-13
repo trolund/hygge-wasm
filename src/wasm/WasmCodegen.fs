@@ -225,6 +225,13 @@ let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
         | _ -> failwith "not implemented"
     | _ -> failwith "not implemented"
 
+/// look up variable in var env
+let internal lookupLabelName (env: CodegenEnv) (name: string) =
+        match env.VarStorage.TryFind name with
+        | Some(Storage.local (l)) -> l
+        | Some(Storage.glob (l)) -> l
+        | _ -> failwith "not implemented"
+
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
     | UnitVal -> m
@@ -628,8 +635,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let env' =
             List.fold
                 (fun env (n, t) ->
+                    let l = env.SymbolController.genSymbol $"arg_{n}"
                     { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
+                        VarStorage = env.VarStorage.Add(n, Storage.local (l)) })
                 env
                 args
 
@@ -1216,8 +1224,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let env' =
             List.fold
                 (fun env (n, t) ->
+                    let l = env.SymbolController.genSymbol $"arg_{n}"
                     { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
+                        VarStorage = env.VarStorage.Add(n, Storage.local (l)) })
                 env
                 args
 
@@ -1424,8 +1433,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let env'' =
             List.fold
                 (fun env (n, t) ->
+                    let l = env.SymbolController.genSymbol $"arg_{n}"
                     { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.local (n)) })
+                        VarStorage = env.VarStorage.Add(n, Storage.local (l)) })
                 env'
                 args
 
@@ -1613,15 +1623,15 @@ and internal compileFunction
         List.map
             (fun (n, t) ->
                 match t with
-                | TUnion _ -> (Some(n), I32)
-                | TVar(_) -> (Some(n), I32)
-                | TFun(_, _) -> (Some(n), I32) // passing function as a index to function table
-                | TStruct(_) -> (Some(n), I32)
-                | TArray(_) -> (Some(n), I32)
-                | TInt -> (Some(n), I32)
-                | TFloat -> (Some(n), F32)
-                | TBool -> (Some(n), I32)
-                | TString -> (Some(n), I32)
+                | TUnion _ -> (Some(lookupLabelName env n), I32)
+                | TVar(_) -> (Some(lookupLabelName env n), I32)
+                | TFun(_, _) -> (Some(lookupLabelName env n), I32) // passing function as a index to function table
+                | TStruct(_) -> (Some(lookupLabelName env n), I32)
+                | TArray(_) -> (Some(lookupLabelName env n), I32)
+                | TInt -> (Some(lookupLabelName env n), I32)
+                | TFloat -> (Some(lookupLabelName env n), F32)
+                | TBool -> (Some(lookupLabelName env n), I32)
+                | TString -> (Some(lookupLabelName env n), I32)
                 | TUnit -> failwith "a function cannot have a unit argument")
             args
 
