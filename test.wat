@@ -263,14 +263,11 @@
   )
   (func $fun_area (param $cenv i32) (param $arg_s i32) (result f32) ;; function fun_area
     ;; local variables declarations:
-    (local $c i32)
     (local $match_var_c i32)
     (local $match_var_r i32)
     (local $match_var_s i32)
-    (local $r i32)
-    (local $s i32)
  
-    (block $match_end$1  (result i32)
+    (block $match_end$1  (result f32)
       ;; case for id: $3, label: Circle
       local.get $arg_s ;; get local var: arg_s
       i32.load ;; load label
@@ -350,10 +347,8 @@
   )
   (func $fun_displayOption (param $cenv i32) (param $arg_o i32)  ;; function fun_displayOption
     ;; local variables declarations:
-    (local $_ i32)
     (local $match_var__ i32)
     (local $match_var_x i32)
-    (local $x i32)
  
     (block $match_end 
       ;; case for id: $1, label: Some

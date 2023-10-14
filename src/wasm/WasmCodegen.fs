@@ -146,9 +146,23 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
 
     | ReadInt -> [ I32 ]
     | ReadFloat -> [ F32 ]
-    | Var v ->
-        match expr.Type with
+    | Var _ ->
+        match (expandType expr.Env expr.Type) with
         | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
+        | t when (isSubtypeOf expr.Env t TInt) -> [ I32 ]
+        | t when (isSubtypeOf expr.Env t TBool) -> [ I32 ]
+        | t when (isSubtypeOf expr.Env t TString) -> [ I32 ]
+        | t when (isSubtypeOf expr.Env t TUnit) -> []
+        | TStruct e ->  
+            // get the type of the field
+            let (_, t) = e.Head
+            match t with
+            | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
+            | t when (isSubtypeOf expr.Env t TInt) -> [ I32 ]
+            | t when (isSubtypeOf expr.Env t TBool) -> [ I32 ]
+            | t when (isSubtypeOf expr.Env t TString) -> [ I32 ]
+            | t when (isSubtypeOf expr.Env t TUnit) -> []
+            | _ -> failwith "not implemented"
         | _ -> [ I32 ]
     // single expression
     | PreIncr e
@@ -1058,7 +1072,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let caseCode =
                     dataPointer
                     ++ scope
-                        .AddLocals([ (Some(Identifier(var)), I32) ])
+                       // .AddLocals([ (Some(Identifier(var)), I32) ])
                         .AddCode([ (Br matchEndLabel, "break out of match") ])
 
                 let condition =
