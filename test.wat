@@ -19,6 +19,7 @@
   (global $Sptr$5 (mut i32) i32.const 0)
   (global $Sptr$6 (mut i32) i32.const 0)
   (global $Sptr$7 (mut i32) i32.const 0)
+  (global $exit_code (mut i32) i32.const 0)
   (global $fun_area*ptr (mut i32) i32.const 20)
   (global $fun_displayOption*ptr (mut i32) i32.const 0)
   (global $heap_base i32 i32.const 24)
@@ -142,7 +143,8 @@
     i32.eqz ;; invert assertion
     (if (then
       i32.const 42 ;; error exit code push to stack
-      return ;; return exit code
+      global.set $exit_code ;; set exit code
+      unreachable ;; exit program
        )
       )
     ;; start of application
@@ -201,7 +203,8 @@
     i32.eqz ;; invert assertion
     (if (then
       i32.const 42 ;; error exit code push to stack
-      return ;; return exit code
+      global.set $exit_code ;; set exit code
+      unreachable ;; exit program
        )
       )
     ;; start of application
@@ -254,7 +257,8 @@
     i32.eqz ;; invert assertion
     (if (then
       i32.const 42 ;; error exit code push to stack
-      return ;; return exit code
+      global.set $exit_code ;; set exit code
+      unreachable ;; exit program
        )
       )
     ;; if execution reaches here, the program is successful
@@ -341,7 +345,8 @@
       )
       ;; no case was matched, therefore return exit error code
       i32.const 42 ;; error exit code push to stack
-      return ;; return exit code
+      global.set $exit_code ;; set exit code
+      unreachable ;; exit program
 
     )
   )
@@ -402,10 +407,12 @@
       )
       ;; no case was matched, therefore return exit error code
       i32.const 42 ;; error exit code push to stack
-      return ;; return exit code
+      global.set $exit_code ;; set exit code
+      unreachable ;; exit program
 
     )
   )
   (export "_start" (func $_start))
+  (export "exit_code" (global $exit_code))
   (export "heap_base_ptr" (global $heap_base))
 )

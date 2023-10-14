@@ -250,7 +250,7 @@ namespace WasmTimeDriver
             try
             {
                 // load module 
-                Console.WriteLine("Loading module from file: " + path);
+                if (debug) Console.WriteLine("Loading module from file: " + path);
                 using var module = Module.FromTextFile(_engine, path);
 
                 if (target is null)
@@ -303,7 +303,7 @@ namespace WasmTimeDriver
             }
 
             if (instance is null)
-            {
+            {   
                 throw new Exception("error: instance was null");
             }
 
@@ -333,14 +333,39 @@ namespace WasmTimeDriver
             // run the code
             try
             {
-                return function.Invoke();
+                function.Invoke();
+
+                // exit code is null if the function does not return anything
+                try
+                {
+                    var exitCode = instance.GetGlobal("exit_code").GetValue();
+                    return exitCode;
+                }
+                catch (Exception e)
+                {
+                    if (debug) Console.WriteLine("No exit code found");
+                }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"program {name} failed: ");
-                Console.WriteLine(e);
-                return null;
+                // if (debug) Console.WriteLine($"program {name} failed");
+                var exitCode = instance.GetGlobal("exit_code").GetValue();
+                return exitCode;
             }
+            return 0;
+        }
+
+        private int GetExitCode(Instance instance) {
+                try
+                {
+                    var exitCode = instance.GetGlobal("exit_code").GetValue();
+                    return Int32.Parse(exitCode.ToString());
+                }
+                catch (Exception e)
+                {
+                    if (debug) Console.WriteLine("No exit code found");
+                    return 100;
+                }
         }
 
     }

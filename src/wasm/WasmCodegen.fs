@@ -73,7 +73,7 @@ type internal TableController() =
 
     member this.get() = allocationPosition
 
-type internal SymbolController() = 
+type internal SymbolController() =
 
     /// Set of known uniquely-generated symbols.  It must be locked before being
     /// used, to avoid errors if multiple threads attempt to generate unique symbols
@@ -85,16 +85,18 @@ type internal SymbolController() =
     /// should only be used after locking 'knownSyms' above.
     let mutable nextSymSuffix: uint = 0u
 
-    member this.genSymbol (prefix: string): string =
-        if knownSyms.Add(prefix) then prefix
+    member this.genSymbol(prefix: string) : string =
+        if knownSyms.Add(prefix) then
+            prefix
         else
             let sym = $"%s{prefix}$%d{nextSymSuffix}"
             nextSymSuffix <- nextSymSuffix + 1u
             knownSyms.Add(sym) |> ignore
             sym
 
-    member this.genSymbolId (symbol: string): int =
+    member this.genSymbolId(symbol: string) : int =
         let id = knownSymsWithIds.IndexOf(symbol)
+
         if (id = -1) then
             knownSymsWithIds.Add(symbol)
             knownSymsWithIds.Count
@@ -153,9 +155,10 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
         | t when (isSubtypeOf expr.Env t TBool) -> [ I32 ]
         | t when (isSubtypeOf expr.Env t TString) -> [ I32 ]
         | t when (isSubtypeOf expr.Env t TUnit) -> []
-        | TStruct e ->  
+        | TStruct e ->
             // get the type of the field
             let (_, t) = e.Head
+
             match t with
             | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
             | t when (isSubtypeOf expr.Env t TInt) -> [ I32 ]
@@ -219,7 +222,7 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | Print(arg) -> []
     | Ascription(tpe, node) -> []
     | Let(name, tpe, init, scope)
-    | LetMut(name, tpe, init, scope) 
+    | LetMut(name, tpe, init, scope)
     | LetRec(name, tpe, init, scope) -> findReturnType init
     | Assign(target, expr) -> findReturnType expr
     | AST.Type(name, def, scope) -> []
@@ -241,10 +244,10 @@ let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
 
 /// look up variable in var env
 let internal lookupLabelName (env: CodegenEnv) (name: string) =
-        match env.VarStorage.TryFind name with
-        | Some(Storage.local (l)) -> l
-        | Some(Storage.glob (l)) -> l
-        | _ -> failwith "not implemented"
+    match env.VarStorage.TryFind name with
+    | Some(Storage.local (l)) -> l
+    | Some(Storage.glob (l)) -> l
+    | _ -> failwith "not implemented"
 
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
@@ -290,7 +293,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     | t when (isSubtypeOf node.Env t TString) -> I32Load_(None, Some(i * 4))
                     | _ -> (I32Load_(None, Some(i * 4)))
 
-                [ (LocalGet(Index(0)), "get env pointer"); (li, $"load value at offset: {i * 4}") ]
+                [ (LocalGet(Index(0)), "get env pointer")
+                  (li, $"load value at offset: {i * 4}") ]
             | Some(Storage.glob (l)) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ]
             | _ -> failwith "could not find variable in var storage"
 
@@ -547,7 +551,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m' = doCodegen env e m
 
         match e.Type with
-        | t when (isSubtypeOf node.Env t TFloat) -> 
+        | t when (isSubtypeOf node.Env t TFloat) ->
             // import writeF function
             let m'' = m'.AddImport(getImport "writeFloat")
             // perform host (system) call
@@ -566,7 +570,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                             (I32Add, "add offset to pointer")
                             (I32Load, "Load string length") ]
                     )
-        
+
             // perform host (system) call
             (m'.ResetAccCode() ++ m'').AddCode([ (Call "writeS", "call host function") ])
         | _ ->
@@ -597,7 +601,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ (If(
                       [],
                       [ (I32Const errorExitCode, "error exit code push to stack")
-                        (Return, "return exit code") ],
+                        (GlobalSet(Named("exit_code")), "set exit code")
+                        (Unreachable, "exit program") ],
                       None
                   )) ]
 
@@ -650,6 +655,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             List.fold
                 (fun env (n, t) ->
                     let l = env.SymbolController.genSymbol $"arg_{n}"
+
                     { env with
                         VarStorage = env.VarStorage.Add(n, Storage.local (l)) })
                 env
@@ -741,7 +747,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (If(
                     [],
                     [ (I32Const errorExitCode, "error exit code push to stack")
-                      (Return, "return exit code") ],
+                      (GlobalSet(Named("exit_code")), "set exit code")
+                      (Unreachable, "exit program") ],
                     None
                  ),
                  "check that length of array is bigger then 1 - if not return 42") ]
@@ -857,7 +864,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (If(
                     [],
                     [ (I32Const errorExitCode, "error exit code push to stack")
-                      (Return, "return exit code") ],
+                      (GlobalSet(Named("exit_code")), "set exit code")
+                      (Unreachable, "exit program") ],
                     None
                  ),
                  "check that index is >= 0 - if not return 42") ]
@@ -870,7 +878,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (If(
                     [],
                     [ (I32Const errorExitCode, "error exit code push to stack")
-                      (Return, "return exit code") ],
+                      (GlobalSet(Named("exit_code")), "set exit code")
+                      (Unreachable, "exit program") ],
                     None
                  ),
                  "check that index is < length - if not return 42") ]
@@ -915,7 +924,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (If(
                     [],
                     [ (I32Const errorExitCode, "error exit code push to stack")
-                      (Return, "return exit code") ],
+                      (GlobalSet(Named("exit_code")), "set exit code")
+                      (Unreachable, "exit program")],
                     None
                  ),
                  "check that start is >= 0 - if not return 42") ]
@@ -928,7 +938,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (If(
                     [],
                     [ (I32Const errorExitCode, "error exit code push to stack")
-                      (Return, "return exit code") ],
+                      (GlobalSet(Named("exit_code")), "set exit code")
+                      (Unreachable, "exit program") ],
                     None
                  ),
                  "check that start is < length - if not return 42") ]
@@ -950,7 +961,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (If(
                     [],
                     [ (I32Const errorExitCode, "error exit code push to stack")
-                      (Return, "return exit code") ],
+                      (GlobalSet(Named("exit_code")), "set exit code")
+                      (Unreachable, "exit program") ],
                     None
                  ),
                  "check that end is < length - if not return 42") ]
@@ -966,7 +978,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (If(
                     [],
                     [ (I32Const errorExitCode, "error exit code push to stack")
-                      (Return, "return exit code") ],
+                      (GlobalSet(Named("exit_code")), "set exit code")
+                      (Unreachable, "exit program") ],
                     None
                  ),
                  "check that difference is <= 1 - if not return 42") ]
@@ -1072,7 +1085,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let caseCode =
                     dataPointer
                     ++ scope
-                       // .AddLocals([ (Some(Identifier(var)), I32) ])
+                        // .AddLocals([ (Some(Identifier(var)), I32) ])
                         .AddCode([ (Br matchEndLabel, "break out of match") ])
 
                 let condition =
@@ -1093,7 +1106,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let defaultCase =
             [ (Comment "no case was matched, therefore return exit error code", "")
               (I32Const errorExitCode, "error exit code push to stack")
-              (Return, "return exit code") ]
+              (GlobalSet(Named("exit_code")), "set exit code")
+              (Unreachable, "exit program") ]
 
         // block that contains all cases
         let block =
@@ -1151,20 +1165,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     match name.Type with
                     | t when (isSubtypeOf value.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf value.Env t TFloat) ->
-                            selTargetCode.GetAccCode()
-                            @ rhsCode.GetAccCode()
-                            @ [ (F32Store_(None, Some(offset * 4)), "store float in struct") ]
-                            // load value just to leave a value on the stack
-                            @ selTargetCode.GetAccCode()
-                            @ [ (F32Load_(None, Some(offset * 4)), "load float from struct") ]
+                        selTargetCode.GetAccCode()
+                        @ rhsCode.GetAccCode()
+                        @ [ (F32Store_(None, Some(offset * 4)), "store float in struct") ]
+                        // load value just to leave a value on the stack
+                        @ selTargetCode.GetAccCode()
+                        @ [ (F32Load_(None, Some(offset * 4)), "load float from struct") ]
                     | x ->
-                            selTargetCode.GetAccCode()
-                            @ rhsCode.GetAccCode()
-                            @ [ (I32Store_(None, Some(offset * 4)), "store int in struct") ]
-                            // load value just to leave a value on the stack
-                            @ selTargetCode.GetAccCode()
-                            @ [ (I32Load_(None, Some(offset * 4)), "load int from struct") ]
-                            
+                        selTargetCode.GetAccCode()
+                        @ rhsCode.GetAccCode()
+                        @ [ (I32Store_(None, Some(offset * 4)), "store int in struct") ]
+                        // load value just to leave a value on the stack
+                        @ selTargetCode.GetAccCode()
+                        @ [ (I32Load_(None, Some(offset * 4)), "load int from struct") ]
+
                 // Put everything together
                 (assignCode) ++ (rhsCode.ResetAccCode() + selTargetCode.ResetAccCode())
         | ArrayElement(target, index) ->
@@ -1181,7 +1195,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     (If(
                         [],
                         [ (I32Const errorExitCode, "error exit code push to stack")
-                          (Return, "return exit code") ],
+                          (GlobalSet(Named("exit_code")), "set exit code")
+                          (Unreachable, "exit program")],
                         None
                      ),
                      "check that index is >= 0 - if not return 42") ]
@@ -1194,7 +1209,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     (If(
                         [],
                         [ (I32Const errorExitCode, "error exit code push to stack")
-                          (Return, "return exit code") ],
+                          (GlobalSet(Named("exit_code")), "set exit code")
+                          (Unreachable, "exit program") ],
                         None
                      ),
                      "check that index is < length - if not return 42") ]
@@ -1239,6 +1255,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             List.fold
                 (fun env (n, t) ->
                     let l = env.SymbolController.genSymbol $"arg_{n}"
+
                     { env with
                         VarStorage = env.VarStorage.Add(n, Storage.local (l)) })
                 env
@@ -1448,6 +1465,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             List.fold
                 (fun env (n, t) ->
                     let l = env.SymbolController.genSymbol $"arg_{n}"
+
                     { env with
                         VarStorage = env.VarStorage.Add(n, Storage.local (l)) })
                 env'
@@ -1697,6 +1715,7 @@ and internal compileFunction
 // List.distinctBy fst (Set.toList captured)
 and freeVariables (node: TypedAST) : List<string * TypedAST> =
     List.distinctBy fst (Set.toList (freeVariables' node))
+
 and freeVariables' (node: TypedAST) : Set<string * TypedAST> =
     let diff set1 set2 = // Find the first elements that are unique to set1
         let firstElements set = set |> Set.map fst
@@ -1775,7 +1794,14 @@ and freeVariables' (node: TypedAST) : Set<string * TypedAST> =
     | UnionCons(_, expr) -> freeVariables' expr
     | _ -> failwithf "freeVariables': unhandled case %A" node
 
-and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (index: int) (m: Module) (capturedList: (string * TypedAST) list) =
+and internal createClosure
+    (env: CodegenEnv)
+    (node: TypedAST)
+    (body: TypedAST)
+    (index: int)
+    (m: Module)
+    (capturedList: (string * TypedAST) list)
+    =
 
     // capture environment in struct, with a field for each captured variable
     let x = List.distinctBy fst capturedList
@@ -1784,9 +1810,7 @@ and internal createClosure (env: CodegenEnv) (node: TypedAST) (body: TypedAST) (
     //let capturedStructFields = List.map (fun (n, (x: TypedAST)) -> (n, x)) x
 
     // all captured variables are stored in a struct
-    let capturedVarsStruct =
-        { node with
-            Expr = Struct(x) }
+    let capturedVarsStruct = { node with Expr = Struct(x) }
 
     // generate code for struct
     let capturedVarsStructCode = doCodegen env capturedVarsStruct m
@@ -2146,6 +2170,7 @@ let codegen (node: TypedAST) : Module =
             env.MemoryAllocator.GetNumPages()
 
     let heapBase = "heap_base"
+    let exitCode = "exit_code"
 
     let locals = m.GetLocals()
 
@@ -2158,7 +2183,9 @@ let codegen (node: TypedAST) : Module =
             .AddInstrs(env.CurrFunc, [ Comment "if execution reaches here, the program is successful" ])
             .AddInstrs(env.CurrFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ]) // return 0 if program is successful
             .AddGlobal((heapBase, (I32, Immutable), (I32Const staticOffset))) // add heap base pointer
+            .AddGlobal((exitCode, (I32, Mutable), (I32Const 0))) // add exit code
             .AddExport(heapBase + "_ptr", GlobalType("heap_base")) // export heap base pointer
+            .AddExport(exitCode, GlobalType("exit_code")) // export exit code pointer
             .ResetAccCode() // reset accumulated code
             .ResetLocals() // reset locals
 

@@ -179,7 +179,6 @@ let compileWasm (opt: CmdLine.CompilerOptions) tast =
         Console.WriteLine($"There was {(WasmPeephole.CountInstr asm).ToString()} instructions before optimization")
         let op = WasmPeephole.optimize asm
         Console.WriteLine($"There was {(WasmPeephole.CountInstr op).ToString()} instructions after optimization")
-        Thread.Sleep(2000)
         op
     else 
         asm
@@ -215,11 +214,11 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
             handelOutputFile (opt.OutFile, asm) |> ignore
 
             // TODO remove this
-            // Log.debug $"WASM code: %s{asm}"
-            // Console.WriteLine $"Running WASM VM"
-            // let vm = WasmVM()
-            // let res = vm.RunWatString(asm, opt.File)
-            // Console.WriteLine $"WASM VM result: %O{res}"
+            Log.debug $"WASM code: %s{asm}"
+            Console.WriteLine $"Running WASM VM"
+            let vm = WasmVM()
+            let res = vm.RunWatString(asm, opt.File)
+            Console.WriteLine $"WASM VM result: %O{res}"
             0
 
 

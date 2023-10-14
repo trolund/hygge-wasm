@@ -49,7 +49,6 @@ public static class Utils
         var path = $"./temp/{type}/wat/{fileName}.wat";
 
         Utils.WriteToFile(path, wat);
-        // Thread.Sleep(100);
         Utils.Wat2Wasm(path, type);
     }
 
