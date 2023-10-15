@@ -104,6 +104,11 @@ type internal SymbolController() =
             // We return the symbol position in 'knownSymsWithIds' as unique id
             id + 1
 
+let trap =
+    [ (I32Const errorExitCode, "error exit code push to stack")
+      (GlobalSet(Named("exit_code")), "set exit code")
+      (Unreachable, "exit program") ]
+
 type internal CodegenEnv =
     { CurrFunc: string
       CurrFuncArgs: list<string>
@@ -597,14 +602,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m'.GetAccCode()
             // invert assertion
             @ [ (I32Eqz, "invert assertion") ]
-            @ C
-                [ (If(
-                      [],
-                      [ (I32Const errorExitCode, "error exit code push to stack")
-                        (GlobalSet(Named("exit_code")), "set exit code")
-                        (Unreachable, "exit program") ],
-                      None
-                  )) ]
+            @ C [ (If([], trap, None)) ]
 
         m'.ResetAccCode().AddCode(instrs)
 
@@ -744,14 +742,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             length'.GetAccCode()
             @ [ (I32Const 1, "put one on stack")
                 (I32LeS, "check if length is <= 1")
-                (If(
-                    [],
-                    [ (I32Const errorExitCode, "error exit code push to stack")
-                      (GlobalSet(Named("exit_code")), "set exit code")
-                      (Unreachable, "exit program") ],
-                    None
-                 ),
-                 "check that length of array is bigger then 1 - if not return 42") ]
+                (If([], trap, None), "check that length of array is bigger then 1 - if not return 42") ]
 
         // node with literal value 0
         // data poiner of struct is first zoro.
@@ -803,18 +794,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
               (LocalGet(Named(structPointerLabel)), "get struct pointer var")
               // (I32Const(8), "byte offset") // SHIFT TO POSITIONS
               // (I32Add, "add offset to base address") // then data pointer + 4 (point to fist elem) is on top of stack = [data, length, fist elem, second elem, ...]
-              (I32Load, "load data pointer 4233")  // TODO: delete this id 
+              (I32Load, "load data pointer 4233") // TODO: delete this id
 
               // find offset to element
               (LocalGet(Named(i)), "get index")
               (I32Const(4), "byte offset")
               (I32Mul, "multiply index with byte offset") // then offset is on top of stack
-              
+
               // apply offset data pointer
               (I32Add, "add offset to base address") ] // then pointer to element is on top of stack
             @ data'.GetAccCode() // get value to store in allocated memory
-            @ [ (I32Store, "store value in elem pos") 
-                (Comment "end of loop body", "")]
+            @ [ (I32Store, "store value in elem pos"); (Comment "end of loop body", "") ]
 
         // loop that runs length times and stores data in allocated memory
         let loop =
@@ -834,7 +824,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                   ) ]
 
         // block that contains loop and provides a way to exit the loop
-        let block: Commented<Instr> list = C [ I32Const 0; LocalSet(Named(i))] @ C [ (Block(exitl, [], loop)) ]
+        let block: Commented<Instr> list =
+            C [ I32Const 0; LocalSet(Named(i)) ] @ C [ (Block(exitl, [], loop)) ]
 
         let loopModule =
             data'.ResetAccCode().AddLocals([ (Some(Identifier(i)), I32) ]).AddCode(block)
@@ -866,28 +857,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m''.GetAccCode() // index on stack
             @ [ (I32Const 0, "put zero on stack")
                 (I32LtS, "check if index is >= 0")
-                (If(
-                    [],
-                    [ (I32Const errorExitCode, "error exit code push to stack")
-                      (GlobalSet(Named("exit_code")), "set exit code")
-                      (Unreachable, "exit program") ],
-                    None
-                 ),
-                 "check that index is >= 0 - if not return 42") ]
+                (If([], trap, None), "check that index is >= 0 - if not return 42") ]
             @ m''.GetAccCode() // index on stack
             @ m'.GetAccCode() // struct pointer on stack
             @ [ (I32Const 4, "offset of length field")
                 (I32Add, "add offset to base address")
                 (I32Load, "load length") ]
             @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
-                (If(
-                    [],
-                    [ (I32Const errorExitCode, "error exit code push to stack")
-                      (GlobalSet(Named("exit_code")), "set exit code")
-                      (Unreachable, "exit program") ],
-                    None
-                 ),
-                 "check that index is < length - if not return 42") ]
+                (If([], trap, None), "check that index is < length - if not return 42") ]
 
 
         let instrs =
@@ -926,28 +903,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             startm.GetAccCode() // start on stack
             @ [ (I32Const 0, "put zero on stack")
                 (I32LtS, "check if start is >= 0")
-                (If(
-                    [],
-                    [ (I32Const errorExitCode, "error exit code push to stack")
-                      (GlobalSet(Named("exit_code")), "set exit code")
-                      (Unreachable, "exit program")],
-                    None
-                 ),
-                 "check that start is >= 0 - if not return 42") ]
+                (If([], trap, None), "check that start is >= 0 - if not return 42") ]
             @ startm.GetAccCode() // start on stack
             @ targetm.GetAccCode() // struct pointer on stack
             @ [ (I32Const 4, "offset of length field")
                 (I32Add, "add offset to base address")
                 (I32Load, "load length") ]
             @ [ (I32GeU, "check if start is < length") // TODO check if this is correct
-                (If(
-                    [],
-                    [ (I32Const errorExitCode, "error exit code push to stack")
-                      (GlobalSet(Named("exit_code")), "set exit code")
-                      (Unreachable, "exit program") ],
-                    None
-                 ),
-                 "check that start is < length - if not return 42") ]
+                (If([], trap, None), "check that start is < length - if not return 42") ]
 
         // TODO: end index check
         // check that end is bigger then 0 - if not return 42
@@ -963,14 +926,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (I32Add, "add offset to base address")
                 (I32Load, "load length") ]
             @ [ (I32GtU, "check if end is < length") // TODO check if this is correct
-                (If(
-                    [],
-                    [ (I32Const errorExitCode, "error exit code push to stack")
-                      (GlobalSet(Named("exit_code")), "set exit code")
-                      (Unreachable, "exit program") ],
-                    None
-                 ),
-                 "check that end is < length - if not return 42") ]
+                (If([], trap, None), "check that end is < length - if not return 42") ]
 
 
         // difference between end and start should be at least 1
@@ -980,14 +936,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ [ (I32Sub, "subtract end from start") ]
             @ [ (I32Const 1, "put one on stack")
                 (I32LtU, "check if difference is < 1")
-                (If(
-                    [],
-                    [ (I32Const errorExitCode, "error exit code push to stack")
-                      (GlobalSet(Named("exit_code")), "set exit code")
-                      (Unreachable, "exit program") ],
-                    None
-                 ),
-                 "check that difference is <= 1 - if not return 42") ]
+                (If([], trap, None), "check that difference is <= 1 - if not return 42") ]
 
         // create struct with length and data
         let structm =
@@ -1109,10 +1058,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let casesCode = List.fold folder (Module()) indexedLabels
 
         let defaultCase =
-            [ (Comment "no case was matched, therefore return exit error code", "")
-              (I32Const errorExitCode, "error exit code push to stack")
-              (GlobalSet(Named("exit_code")), "set exit code")
-              (Unreachable, "exit program") ]
+            C [ Comment "no case was matched, therefore return exit error code" ] @ trap
 
         // block that contains all cases
         let block =
@@ -1199,9 +1145,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     (I32LtS, "check if index is >= 0")
                     (If(
                         [],
-                        [ (I32Const errorExitCode, "error exit code push to stack")
-                          (GlobalSet(Named("exit_code")), "set exit code")
-                          (Unreachable, "exit program")],
+                        trap,
                         None
                      ),
                      "check that index is >= 0 - if not return 42") ]
@@ -1213,9 +1157,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
                     (If(
                         [],
-                        [ (I32Const errorExitCode, "error exit code push to stack")
-                          (GlobalSet(Named("exit_code")), "set exit code")
-                          (Unreachable, "exit program") ],
+                        trap,
                         None
                      ),
                      "check that index is < length - if not return 42") ]
@@ -1799,7 +1741,7 @@ and freeVariables' (node: TypedAST) : Set<string * TypedAST> =
     | UnionCons(_, expr) -> freeVariables' expr
     | Array(length, data) -> Set.union (freeVariables' length) (freeVariables' data)
     | Print(expr) -> freeVariables' expr
-    | PrintLn(expr) -> freeVariables' expr 
+    | PrintLn(expr) -> freeVariables' expr
     | _ -> failwithf "freeVariables': unhandled case %A" node
 
 and internal createClosure
@@ -1854,186 +1796,6 @@ and internal createClosure
             .AddCode(instr) // pointer becomes value to store
 
     combinePointerAndreturnStruct
-
-// substitute all occurences of a variable with a node
-// and subst (node) (var: string) (replacement) : Node<'E, 'T> =
-//     match node.Expr with
-//     | UnitVal
-//     | IntVal(_)
-//     | BoolVal(_)
-//     | FloatVal(_)
-//     | StringVal(_) -> node // The substitution has no effect
-
-//     | Pointer(_) -> node // The substitution has no effect
-
-//     | Var(vname) when vname = var -> replacement // Substitution applied
-//     | Var(_) -> node // The substitution has no effect
-
-//     | Add(lhs, rhs) ->
-//         { node with
-//             Expr = Add((subst lhs var replacement), (subst rhs var replacement)) }
-//     | Sub(lhs, rhs) ->
-//         { node with
-//             Expr = Sub((subst lhs var replacement), (subst rhs var replacement)) }
-//     | Mult(lhs, rhs) ->
-//         { node with
-//             Expr = Mult((subst lhs var replacement), (subst rhs var replacement)) }
-//     | Div(lhs, rhs) ->
-//         { node with
-//             Expr = Div((subst lhs var replacement), (subst rhs var replacement)) }
-
-//     | Min(lhs, rhs) ->
-//         { node with
-//             Expr = Min((subst lhs var replacement), (subst rhs var replacement)) }
-//     | Max(lhs, rhs) ->
-//         { node with
-//             Expr = Max((subst lhs var replacement), (subst rhs var replacement)) }
-
-//     | And(lhs, rhs) ->
-//         { node with
-//             Expr = And((subst lhs var replacement), (subst rhs var replacement)) }
-//     | Or(lhs, rhs) ->
-//         { node with
-//             Expr = Or((subst lhs var replacement), (subst rhs var replacement)) }
-//     | Not(arg) ->
-//         { node with
-//             Expr = Not(subst arg var replacement) }
-
-//     | Eq(lhs, rhs) ->
-//         { node with
-//             Expr = Eq((subst lhs var replacement), (subst rhs var replacement)) }
-//     | Less(lhs, rhs) ->
-//         { node with
-//             Expr = Less((subst lhs var replacement), (subst rhs var replacement)) }
-
-//     | ReadInt
-//     | ReadFloat -> node // The substitution has no effect
-
-//     | Print(arg) ->
-//         { node with
-//             Expr = Print(subst arg var replacement) }
-//     | PrintLn(arg) ->
-//         { node with
-//             Expr = PrintLn(subst arg var replacement) }
-
-//     | AST.If(cond, ifTrue, ifFalse) ->
-//         { node with
-//             Expr = AST.If((subst cond var replacement), (subst ifTrue var replacement), (subst ifFalse var replacement)) }
-
-//     | Seq(nodes) ->
-//         let substNodes = List.map (fun n -> (subst n var replacement)) nodes
-//         { node with Expr = Seq(substNodes) }
-
-//     | Ascription(tpe, node) ->
-//         { node with
-//             Expr = Ascription(tpe, (subst node var replacement)) }
-
-//     | Let(vname, tpe, init, scope) when vname = var ->
-//         // Do not substitute the variable in the "let" scope
-//         { node with
-//             Expr = Let(vname, tpe, (subst init var replacement), scope) }
-//     | Let(vname, tpe, init, scope) ->
-//         { node with
-//             Expr = Let(vname, tpe, (subst init var replacement), (subst scope var replacement)) }
-
-//     | LetMut(vname, tpe, init, scope) when vname = var ->
-//         // Do not substitute the variable in the "let mutable" scope
-//         { node with
-//             Expr = LetMut(vname, tpe, (subst init var replacement), scope) }
-//     | LetMut(vname, tpe, init, scope) ->
-//         { node with
-//             Expr = LetMut(vname, tpe, (subst init var replacement), (subst scope var replacement)) }
-
-//     | Assign(target, expr) ->
-//         { node with
-//             Expr = Assign((subst target var replacement), (subst expr var replacement)) }
-
-//     | While(cond, body) ->
-//         let substCond = subst cond var replacement
-//         let substBody = subst body var replacement
-
-//         { node with
-//             Expr = While(substCond, substBody) }
-
-//     | DoWhile(body, cond) ->
-//         let substCond = subst cond var replacement
-//         let substBody = subst body var replacement
-
-//         { node with
-//             Expr = DoWhile(substBody, substCond) }
-
-//     | For(init, cond, update, body) ->
-//         let substInit = subst init var replacement
-//         let substCond = subst cond var replacement
-//         let substUpdate = subst update var replacement
-//         let substBody = subst body var replacement
-
-//         { node with
-//             Expr = For(substInit, substCond, substUpdate, substBody) }
-
-//     | Assertion(arg) ->
-//         { node with
-//             Expr = Assertion(subst arg var replacement) }
-
-//     | AST.Type(tname, def, scope) ->
-//         { node with
-//             Expr = AST.Type(tname, def, (subst scope var replacement)) }
-
-//     | Lambda(args, body) ->
-//         /// Arguments of this lambda term, without their pretypes
-//         let (argVars, _) = List.unzip args
-
-//         if (List.contains var argVars) then
-//             node // No substitution
-//         else
-//             { node with
-//                 Expr = Lambda(args, (subst body var replacement)) }
-
-//     | Application(expr, args) ->
-//         let substExpr = subst expr var replacement
-//         let substArgs = List.map (fun n -> (subst n var replacement)) args
-
-//         { node with
-//             Expr = Application(substExpr, substArgs) }
-
-//     | Struct(fields) ->
-//         let (fieldNames, initNodes) = List.unzip fields
-//         let substInitNodes = List.map (fun e -> (subst e var replacement)) initNodes
-
-//         { node with
-//             Expr = Struct(List.zip fieldNames substInitNodes) }
-
-//     | FieldSelect(target, field) ->
-//         { node with
-//             Expr = FieldSelect((subst target var replacement), field) }
-
-//     | UnionCons(label, expr) ->
-//         { node with
-//             Expr = UnionCons(label, (subst expr var replacement)) }
-
-//     | Match(expr, cases) ->
-//         /// Mapper function to propagate the substitution along a match case
-//         let substCase (lab: string, v: string, cont: Node<'E, 'T>) =
-//             if (v = var) then
-//                 (lab, v, cont) // Variable bound, no substitution
-//             else
-//                 (lab, v, (subst cont var replacement))
-
-//         let cases2 = List.map substCase cases
-
-//         { node with
-//             Expr = Match((subst expr var replacement), cases2) }
-//     | ArrayLength(target) ->
-//         { node with
-//             Expr = ArrayLength((subst target var replacement)) }
-//     | ArrayElement(target, index) ->
-//         { node with
-//             Expr = ArrayElement((subst target var replacement), (subst index var replacement)) }
-//     | ArraySlice(target, start, _end) ->
-//         { node with
-//             Expr =
-//                 ArraySlice((subst target var replacement), (subst start var replacement), (subst _end var replacement)) }
-//     | x -> failwithf "subst: unhandled case %A" node
 
 /// function that recursively propagates the AST and substitutes all local get and set instructions of a specific variable
 /// with global get and set instructions
