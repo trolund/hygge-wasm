@@ -1,0 +1,32 @@
+let n: int = 10;
+
+// create an array of size n, with all elements initialized to 42
+let arr: array {int} = array(n, 40 + 2);
+
+// counter variable
+let mutable i: int = 0;
+
+// modify the array in place
+while (i < arrayLength(arr)) do {
+    arrayElem(arr, i) <- arrayElem(arr, i) + i;
+    i <- i + 1
+};
+
+// create a new array of size n, with all elements initialized to 42
+let arr2: array {int} = array(n, 40 + 2);
+
+// reset the counter
+i <- 0;
+// assert that the modified array is equal to the values they where canged to
+while (i < arrayLength(arr)) do {
+    assert(arrayElem(arr, i) = 42 + i);
+    i <- i + 1
+};
+
+// reset the counter
+i <- 0;
+// assert that the unmodified array is equal to the values they where initialized to
+while (i < arrayLength(arr2)) do {
+    assert(arrayElem(arr2, i) = 42);
+    i <- i + 1
+}

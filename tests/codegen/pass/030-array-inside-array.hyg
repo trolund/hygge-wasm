@@ -1,0 +1,25 @@
+let n: int = 10;
+let temp: array {int} = array(2, 0);
+let col: array {array {int}} = array(n, temp);
+
+//let mutable i: int = 0;
+// while (i < arrayLength(col)) do {
+//     let row: array {int} = array(n, 33);
+//     arrayElem(col, i) <- row;
+//     i <- i + 1
+// };
+
+let row: array {int} = array(n, 33);
+arrayElem(col, 0) <- row;
+let row2: array {int} = array(n, 34);
+arrayElem(col, 1) <- row;
+
+let res: int = arrayElem(arrayElem(col, 0), 0);
+assert(res = 33);
+// i <- 0;
+// while (i < n) do {
+//     assert(arrayElem(arrayElem(col, i), i) = 33);
+//     i <- i + 1
+// };
+print("Done!");
+print(res)

@@ -799,17 +799,22 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // body should set data in allocated memory
         // TODO: optimize loop so i just multiply index with 4 and add it to base address
         let body =
-            [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
-              (I32Const(8), "byte offset") // SHIFT TO POSITIONS
-              (I32Add, "add offset to base address") // then data pointer + 4 (point to fist elem) is on top of stack = [length, data, fist elem, second elem, ...]
+            [ (Comment "start of loop body", "")
+              (LocalGet(Named(structPointerLabel)), "get struct pointer var")
+              // (I32Const(8), "byte offset") // SHIFT TO POSITIONS
+              // (I32Add, "add offset to base address") // then data pointer + 4 (point to fist elem) is on top of stack = [data, length, fist elem, second elem, ...]
+              (I32Load, "load data pointer 4233")  // TODO: delete this id 
 
+              // find offset to element
               (LocalGet(Named(i)), "get index")
               (I32Const(4), "byte offset")
               (I32Mul, "multiply index with byte offset") // then offset is on top of stack
-
+              
+              // apply offset data pointer
               (I32Add, "add offset to base address") ] // then pointer to element is on top of stack
             @ data'.GetAccCode() // get value to store in allocated memory
-            @ [ (I32Store, "store value in elem pos") ]
+            @ [ (I32Store, "store value in elem pos") 
+                (Comment "end of loop body", "")]
 
         // loop that runs length times and stores data in allocated memory
         let loop =
@@ -829,7 +834,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                   ) ]
 
         // block that contains loop and provides a way to exit the loop
-        let block: Commented<Instr> list = C [ (Block(exitl, [], loop @ C [ Nop ])) ]
+        let block: Commented<Instr> list = C [ I32Const 0; LocalSet(Named(i))] @ C [ (Block(exitl, [], loop)) ]
 
         let loopModule =
             data'.ResetAccCode().AddLocals([ (Some(Identifier(i)), I32) ]).AddCode(block)
@@ -1792,6 +1797,9 @@ and freeVariables' (node: TypedAST) : Set<string * TypedAST> =
     | ArraySlice(target, start, _end) ->
         Set.union (freeVariables' target) (Set.union (freeVariables' start) (freeVariables' _end))
     | UnionCons(_, expr) -> freeVariables' expr
+    | Array(length, data) -> Set.union (freeVariables' length) (freeVariables' data)
+    | Print(expr) -> freeVariables' expr
+    | PrintLn(expr) -> freeVariables' expr 
     | _ -> failwithf "freeVariables': unhandled case %A" node
 
 and internal createClosure
