@@ -8,6 +8,8 @@ module Test
 
 open Expecto // See https://github.com/haf/expecto
 open WasmTimeDriver
+open System
+open System.IO
 
 
 /// Collect and sort the test files in a test directory.
@@ -52,6 +54,8 @@ let internal testWasmCodegen (file: string) (expected: int) =
         match (Typechecker.typecheck ast) with
         | Error(es) -> failwith $"Typing failed: %s{formatErrors es}"
         | Ok(tast) ->
+            let name = Path.GetFileNameWithoutExtension(file)
+            Console.WriteLine($"running test: %s{name}")
             runWasmTime tast expected file
 
 /// Compile a source file and run the resulting assembly code on RARS, checking

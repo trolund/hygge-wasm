@@ -11,6 +11,7 @@ let si : Map<string, Import> =
     ("writeInt", ("env", "writeInt", FunctionType("writeInt", Some(([ (None, I32) ], [])))))
     ("writeFloat", ("env", "writeFloat", FunctionType("writeFloat", Some(([ (None, F32) ], [])))))
     ("writeS", ("env", "writeS", FunctionType("writeS", Some(([ (None, I32); (None, I32) ], [])))))
+    // ("readS", ("env", "readS", FunctionType("readS", Some(([], [ I32 ])))))
     ]
 
 /// provide function to get an import from the system interface 
