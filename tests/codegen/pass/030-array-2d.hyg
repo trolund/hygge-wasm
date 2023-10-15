@@ -5,18 +5,25 @@ let col: array {array {int}} = array(n, temp);
 let mutable i: int = 0;
 while (i < arrayLength(col)) do {
     let row: array {int} = array(n, 42 + i);
-    print(i);
-    print(arrayLength(row));
     arrayElem(col, i) <- row;
     i <- i + 1
 };
 
 i <- 0;
 while (i < arrayLength(col)) do {
-    let outter: array {int} = arrayElem(col, i);
-    let res: int = arrayElem(outter, 0);
-    print(res);
-    assert(res = 42 + i);
+    // get the inner array
+    let innerArray: array {int} = arrayElem(col, i);
+
+    // iterate over the inner array and assert that the values are correct
+    let mutable x: int = 0;
+    while (x < arrayLength(innerArray)) do {
+        let res: int = arrayElem(innerArray, x);
+        // print(x);
+        // print(res);
+        assert(res = 42 + i);
+        x <- x + 1
+    };
+
     i <- i + 1
 };
 

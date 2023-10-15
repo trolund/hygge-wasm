@@ -9,6 +9,7 @@
   (data (i32.const 8) "Done!")
   (global $Sptr (mut i32) i32.const 0)
   (global $Sptr$0 (mut i32) i32.const 0)
+  (global $Sptr$13 (mut i32) i32.const 0)
   (global $Sptr$5 (mut i32) i32.const 0)
   (global $Sptr$6 (mut i32) i32.const 0)
   (global $arr_ptr (mut i32) i32.const 0)
@@ -21,11 +22,12 @@
   (global $i$4 (mut i32) i32.const 0)
   (global $var_col (mut i32) i32.const 0)
   (global $var_i (mut i32) i32.const 0)
+  (global $var_innerArray (mut i32) i32.const 0)
   (global $var_n (mut i32) i32.const 0)
-  (global $var_outter (mut i32) i32.const 0)
   (global $var_res (mut i32) i32.const 0)
   (global $var_row (mut i32) i32.const 0)
   (global $var_temp (mut i32) i32.const 0)
+  (global $var_x (mut i32) i32.const 0)
   (func $_start  (result i32) ;; entry point of program (main function)
  
     ;; execution start here:
@@ -270,18 +272,6 @@
       global.get $var_i ;; get local var: var_i, have been hoisted
       i32.load offset=0 ;; load field: value
       ;; End of field select
-      call $writeInt ;; call host function
-      ;; start array length node
-      global.get $var_row ;; get local var: var_row, have been hoisted
-      i32.const 4 ;; offset of length field
-      i32.add ;; add offset to base address
-      i32.load ;; load length
-      ;; end array length node
-      call $writeInt ;; call host function
-      ;; Start of field select
-      global.get $var_i ;; get local var: var_i, have been hoisted
-      i32.load offset=0 ;; load field: value
-      ;; End of field select
       i32.const 0 ;; put zero on stack
       i32.lt_s ;; check if index is >= 0
       (if (then
@@ -338,8 +328,8 @@
     i32.store offset=0 ;; store int in struct
     global.get $var_i ;; get local var: var_i, have been hoisted
     i32.load offset=0 ;; load int from struct
-    (block $loop_exit$13 
-      (loop $loop_begin$14 
+    (block $loop_exit$16 
+      (loop $loop_begin$17 
       ;; Start of field select
       global.get $var_i ;; get local var: var_i, have been hoisted
       i32.load offset=0 ;; load field: value
@@ -352,7 +342,7 @@
       ;; end array length node
       i32.lt_s
       i32.eqz
-      br_if $loop_exit$13
+      br_if $loop_exit$16
       ;; Start of let
       ;; Start of field select
       global.get $var_i ;; get local var: var_i, have been hoisted
@@ -392,9 +382,43 @@
       i32.add ;; add offset to base address
       i32.load ;; load value
       ;; end array element access node
-      global.set $var_outter ;; set local var, have been hoisted
+      global.set $var_innerArray ;; set local var, have been hoisted
       ;; Start of let
+      ;; start of struct contructor
+      i32.const 1 ;; size of struct
+      i32.const 4 ;; 4 bytes
+      i32.mul ;; multiply length with 4 to get size
+      call $malloc ;; call malloc function
+      global.set $Sptr$13 ;; set struct pointer var, have been hoisted
+      global.get $Sptr$13 ;; get struct pointer var, have been hoisted
+      i32.const 0 ;; push field offset to stack
+      i32.add ;; add offset to base address
+      ;; init field value
       i32.const 0 ;; push 0 on stack
+      i32.store ;; store int field in memory
+      global.get $Sptr$13 ;; push struct address to stack, have been hoisted
+      ;; end of struct contructor
+      global.set $var_x ;; set local var, have been hoisted
+      (block $loop_exit$14 
+      (loop $loop_begin$15 
+      ;; Start of field select
+      global.get $var_x ;; get local var: var_x, have been hoisted
+      i32.load offset=0 ;; load field: value
+      ;; End of field select
+      ;; start array length node
+      global.get $var_innerArray ;; get local var: var_innerArray, have been hoisted
+      i32.const 4 ;; offset of length field
+      i32.add ;; add offset to base address
+      i32.load ;; load length
+      ;; end array length node
+      i32.lt_s
+      i32.eqz
+      br_if $loop_exit$14
+      ;; Start of let
+      ;; Start of field select
+      global.get $var_x ;; get local var: var_x, have been hoisted
+      i32.load offset=0 ;; load field: value
+      ;; End of field select
       i32.const 0 ;; put zero on stack
       i32.lt_s ;; check if index is >= 0
       (if (then
@@ -403,8 +427,11 @@
       unreachable ;; exit program
        )
       ) ;; check that index is >= 0 - if not return 42
-      i32.const 0 ;; push 0 on stack
-      global.get $var_outter ;; get local var: var_outter, have been hoisted
+      ;; Start of field select
+      global.get $var_x ;; get local var: var_x, have been hoisted
+      i32.load offset=0 ;; load field: value
+      ;; End of field select
+      global.get $var_innerArray ;; get local var: var_innerArray, have been hoisted
       i32.const 4 ;; offset of length field
       i32.add ;; add offset to base address
       i32.load ;; load length
@@ -415,15 +442,23 @@
       unreachable ;; exit program
        )
       ) ;; check that index is < length - if not return 42
-      global.get $var_outter ;; get local var: var_outter, have been hoisted
+      global.get $var_innerArray ;; get local var: var_innerArray, have been hoisted
       i32.load ;; load data pointer
-      i32.const 0 ;; push 0 on stack
+      ;; Start of field select
+      global.get $var_x ;; get local var: var_x, have been hoisted
+      i32.load offset=0 ;; load field: value
+      ;; End of field select
       i32.const 4 ;; byte offset
       i32.mul ;; multiply index with byte offset
       i32.add ;; add offset to base address
       i32.load ;; load value
       ;; end array element access node
       global.set $var_res ;; set local var, have been hoisted
+      ;; Start of field select
+      global.get $var_x ;; get local var: var_x, have been hoisted
+      i32.load offset=0 ;; load field: value
+      ;; End of field select
+      call $writeInt ;; call host function
       global.get $var_res ;; get local var: var_res, have been hoisted
       call $writeInt ;; call host function
       global.get $var_res ;; get local var: var_res, have been hoisted
@@ -441,6 +476,23 @@
       unreachable ;; exit program
        )
       )
+      global.get $var_x ;; get local var: var_x, have been hoisted
+      ;; Start of field select
+      global.get $var_x ;; get local var: var_x, have been hoisted
+      i32.load offset=0 ;; load field: value
+      ;; End of field select
+      i32.const 1 ;; push 1 on stack
+      i32.add
+      i32.store offset=0 ;; store int in struct
+      global.get $var_x ;; get local var: var_x, have been hoisted
+      i32.load offset=0 ;; load int from struct
+      ;; End of let
+      br $loop_begin$15
+
+)
+      nop
+
+    )
       global.get $var_i ;; get local var: var_i, have been hoisted
       ;; Start of field select
       global.get $var_i ;; get local var: var_i, have been hoisted
@@ -453,7 +505,7 @@
       i32.load offset=0 ;; load int from struct
       ;; End of let
       ;; End of let
-      br $loop_begin$14
+      br $loop_begin$17
 
 )
       nop
