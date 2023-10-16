@@ -444,28 +444,28 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 Some(env', {node with Expr = Assertion(arg')})
             | None -> None
 
-    | Let(name, tpe, init, scope) ->
+    | Let(name, tpe, init, scope, _) ->
         match (reduce env init) with
         | Some(env', def') ->
-            Some(env', {node with Expr = Let(name, tpe, def', scope)})
+            Some(env', {node with Expr = Let(name, tpe, def', scope, false)})
         | None when (isValue init) ->
             Some(env, {node with Expr = (ASTUtil.subst scope name init).Expr})
         | None -> None
 
-    | LetRec(name, tpe, init, scope) ->
+    | LetRec(name, tpe, init, scope, _) ->
             match init.Expr with
             | Lambda(_) -> 
                 let s = {scope with Expr = Var(name)}
-                let v' = ASTUtil.subst init name {node with Expr = LetRec(name, tpe, init, s)}
+                let v' = ASTUtil.subst init name {node with Expr = LetRec(name, tpe, init, s, false)}
                 Some(env, ASTUtil.subst scope name v')
             | _ -> None
 
-    | LetMut(_, _, _, scope) when (isValue scope) ->
+    | LetMut(_, _, _, scope, _) when (isValue scope) ->
         Some(env, {node with Expr = scope.Expr})
-    | LetMut(name, tpe, init, scope) ->
+    | LetMut(name, tpe, init, scope, _) ->
         match (reduce env init) with
         | Some(env', def') ->
-            Some(env', {node with Expr = LetMut(name, tpe, def', scope)})
+            Some(env', {node with Expr = LetMut(name, tpe, def', scope, false)})
         | None when (isValue init) ->
             /// Runtime environment for reducing the 'let mutable...' scope
             let env' = {env with Mutables = env.Mutables.Add(name, init)}
@@ -485,7 +485,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                                     Mutables = env''.Mutables.Add(name, v)}
                     | None -> {env'' with
                                 Mutables = env''.Mutables.Remove(name)}
-                Some(env''', {node with Expr = LetMut(name, tpe, init', scope')})
+                Some(env''', {node with Expr = LetMut(name, tpe, init', scope', false)})
             | None -> None
         | None -> None
 

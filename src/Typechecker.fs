@@ -759,11 +759,11 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
 
             Error(terrs)
 
-    | Let(name, tpe, init, scope) -> letTyper node.Pos false false env name tpe init scope
+    | Let(name, tpe, init, scope, export) -> letTyper node.Pos false false env name tpe init scope export
 
-    | LetMut(name, tpe, init, scope) -> letTyper node.Pos false true env name tpe init scope
+    | LetMut(name, tpe, init, scope, export) -> letTyper node.Pos false true env name tpe init scope export
 
-    | LetRec(name, tpe, init, scope) ->
+    | LetRec(name, tpe, init, scope, export) ->
         match (resolvePretype env tpe) with
         | Ok(t) ->
             let T' =
@@ -771,7 +771,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                     Vars = env.Vars.Add(name, t)
                     Mutables = env.Mutables }
 
-            letTyper node.Pos true false T' name tpe init scope
+            letTyper node.Pos true false T' name tpe init scope export
         | Error(errorValue) -> Error(errorValue)
 
     | Assign(target, expr) ->
@@ -1335,6 +1335,7 @@ and internal letTyper
     (tpe: PretypeNode)
     (init: UntypedAST)
     (scope: UntypedAST)
+    (export: bool)
     : TypingResult =
     match (resolvePretype env tpe) with
     | Ok(letVariableType) ->
@@ -1384,19 +1385,19 @@ and internal letTyper
                             { Pos = pos
                               Env = env
                               Type = tscope.Type
-                              Expr = LetRec(name, tpe, tinit, tscope) }
+                              Expr = LetRec(name, tpe, tinit, tscope, export) }
                     else if isMutable then
                         Ok
                             { Pos = pos
                               Env = env
                               Type = tscope.Type
-                              Expr = LetMut(name, tpe, tinit, tscope) }
+                              Expr = LetMut(name, tpe, tinit, tscope, export) }
                     else
                         Ok
                             { Pos = pos
                               Env = env
                               Type = tscope.Type
-                              Expr = Let(name, tpe, tinit, tscope) }
+                              Expr = Let(name, tpe, tinit, tscope, export) }
                 else
                     Error(terrs)
             | Error(es) -> Error(terrs @ es)

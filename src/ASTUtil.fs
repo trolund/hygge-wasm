@@ -95,24 +95,24 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | Ascription(tpe, node) ->
         {node with Expr = Ascription(tpe, (subst node var sub))}
 
-    | Let(vname, tpe, init, scope) when vname = var ->
+    | Let(vname, tpe, init, scope, export) when vname = var ->
         // Do not substitute the variable in the "let" scope
-        {node with Expr = Let(vname, tpe, (subst init var sub), scope)}
-    | Let(vname, tpe, init, scope) ->
+        {node with Expr = Let(vname, tpe, (subst init var sub), scope, export)}
+    | Let(vname, tpe, init, scope, export) ->
         {node with Expr = Let(vname, tpe, (subst init var sub),
-                              (subst scope var sub))}
+                              (subst scope var sub), export)}
 
-    | LetMut(vname, tpe, init, scope) when vname = var ->
+    | LetMut(vname, tpe, init, scope, export) when vname = var ->
         // Do not substitute the variable in the "let mutable" scope
-        {node with Expr = LetMut(vname, tpe, (subst init var sub), scope)}
-    | LetMut(vname, tpe, init, scope) ->
+        {node with Expr = LetMut(vname, tpe, (subst init var sub), scope, export)}
+    | LetMut(vname, tpe, init, scope, export) ->
         {node with Expr = LetMut(vname, tpe, (subst init var sub),
-                                 (subst scope var sub))}
+                                 (subst scope var sub), export)}
     
-    | LetRec(vname, _, _, _) when vname = var -> node // No substitution
-    | LetRec(vname, tpe, init, scope) ->
+    | LetRec(vname, _, _, _, _) when vname = var -> node // No substitution
+    | LetRec(vname, tpe, init, scope, export) ->
         {node with Expr = LetRec(vname, tpe, (subst init var sub),
-                              (subst scope var sub))}
+                              (subst scope var sub), export)}
 
     | Assign(target, expr) ->
         {node with Expr = Assign((subst target var sub), (subst expr var sub))}
@@ -211,8 +211,8 @@ let rec freeVars (node: Node<'E,'T>): Set<string> =
                   (Set.union (freeVars ifTrue) (freeVars ifFalse))
     | Seq(nodes) -> freeVarsInList nodes
     | Ascription(_, node) -> freeVars node
-    | Let(name, _, init, scope)
-    | LetMut(name, _, init, scope) ->
+    | Let(name, _, init, scope, _)
+    | LetMut(name, _, init, scope, _) ->
         // All the free variables in the 'let' initialisation, together with all
         // free variables in the scope --- minus the newly-bound variable
         Set.union (freeVars init) (Set.remove name (freeVars scope))
@@ -290,8 +290,8 @@ let rec capturedVars (node: Node<'E,'T>): Set<string> =
                   (Set.union (capturedVars ifTrue) (capturedVars ifFalse))
     | Seq(nodes) -> capturedVarsInList nodes
     | Ascription(_, node) -> capturedVars node
-    | Let(name, _, init, scope)
-    | LetMut(name, _, init, scope) ->
+    | Let(name, _, init, scope, _)
+    | LetMut(name, _, init, scope, _) ->
         // All the captured variables in the 'let' initialisation, together with
         // all captured variables in the scope --- minus the newly-bound var
         Set.union (capturedVars init) (Set.remove name (capturedVars scope))
@@ -329,7 +329,7 @@ let rec capturedVars (node: Node<'E,'T>): Set<string> =
     | Max(lhs, rhs) -> 
         Set.union (capturedVars lhs) (capturedVars rhs)
     | Sqrt(arg) -> (capturedVars arg)
-    | LetRec(name, tpe, init, scope) -> 
+    | LetRec(name, tpe, init, scope, _) -> 
         Set.union (capturedVars init) (Set.remove name (capturedVars scope))
     | DoWhile(body, condition) -> 
         Set.union (capturedVars body) (capturedVars condition)

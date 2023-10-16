@@ -338,7 +338,7 @@ let rec internal doCodegen (env: ANFCodegenEnv)
                         ++ Asm(RV.LW(targetReg, Imm12(env.Frame[vname] * -4), Reg.fp),
                                $"%s{env.TargetVar} <- %s{vname}") }
 
-    | Let(vname, _, init, scope) ->
+    | Let(vname, _, init, scope, export) ->
         /// Cleaned-up codegen environment reduced to the variables that are
         /// actually used in the 'let' init and scope
         let initEnv = cleanupUnusedVars env (Set.union (ASTUtil.freeVars init)
@@ -393,9 +393,9 @@ let rec internal doCodegen (env: ANFCodegenEnv)
         let scopeCodegenResult = doCodegen bodyEnv body
         { Asm = initRes.Asm ++ scopeCodegenResult.Asm
           Env = scopeCodegenResult.Env }
-    | LetMut(name, tpe, init, scope) ->
+    | LetMut(name, tpe, init, scope, export) ->
         // The code generation is not different from 'let...', so we recycle it
-        doCodegen env {node with Expr = Let(name, tpe, init, scope)}
+        doCodegen env {node with Expr = Let(name, tpe, init, scope, export)}
     | _ ->
         failwith ($"BUG: unsupported AST node for 'let' scope, maybe not in ANF:%s{Util.nl}"
                   + $"%s{PrettyPrinter.prettyPrint node}")

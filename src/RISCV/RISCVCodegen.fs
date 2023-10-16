@@ -528,7 +528,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
     // declares 'name' as a Lambda expression with a TFun type
     | Let(name, _,
           {Node.Expr = Lambda(args, body);
-           Node.Type = TFun(targs, _)}, scope) ->
+           Node.Type = TFun(targs, _)}, scope, _) ->
         /// Assembly label to mark the position of the compiled function body.
         /// For readability, we make the label similar to the function name
         let funLabel = Util.genSymbol $"fun_%s{name}"
@@ -557,7 +557,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         (doCodegen {env with VarStorage = varStorage2} scope)
             ++ funCode
 
-    | Let(name, _, init, scope) ->
+    | Let(name, _, init, scope, _) ->
         /// 'let...' initialisation code, which leaves its result in the
         /// 'target' register (which we overwrite at the end of the 'scope'
         /// execution)
@@ -609,13 +609,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
                     .AddText(RV.MV(Reg.r(env.Target), Reg.r(scopeTarget)),
                              "Move 'let' scope result to 'let' target register")
 
-    | LetMut(name, tpe, init, scope) ->
+    | LetMut(name, tpe, init, scope, _) ->
         // The code generation is not different from 'let...', so we recycle it
-        doCodegen env {node with Expr = Let(name, tpe, init, scope)}
+        doCodegen env {node with Expr = Let(name, tpe, init, scope, false)}
 
     | LetRec(name, _,
           {Node.Expr = Lambda(args, body);
-           Node.Type = TFun(targs, _)}, scope) ->
+           Node.Type = TFun(targs, _)}, scope, false) ->
           /// Assembly label to mark the position of the compiled function body.
         /// For readability, we make the label similar to the function name
         let funLabel = Util.genSymbol $"fun_%s{name}"
@@ -644,8 +644,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST): Asm =
         (doCodegen {env with VarStorage = varStorage2} scope)
             ++ funCode
     
-    | LetRec(name, tpe, init, scope) -> 
-        doCodegen env {node with Expr = Let(name, tpe, init, scope)}
+    | LetRec(name, tpe, init, scope, _) -> 
+        doCodegen env {node with Expr = Let(name, tpe, init, scope, false)}
 
     | Assign(lhs, rhs) 
     | AddAsg(lhs, rhs)

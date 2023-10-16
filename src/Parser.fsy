@@ -66,7 +66,7 @@ let mkNode (parseState: IParseState, inputIdx: int, e: UntypedExpr): UntypedAST 
 %token LPAR RPAR LCURLY RCURLY
 
 // Variable and type declarators
-%token LET TYPE MUTABLE REC
+%token LET TYPE MUTABLE REC EXPORT
 
 // Misc tokens
 %token SEMI EOF COLON LARROW RARROW COMMA DOT
@@ -112,19 +112,28 @@ expr:
         mkNode(parseState, 1, Expr.Type($2, $4, $6))
     }
   | LET variable COLON pretype EQ simpleExpr SEMI expr  {
-        mkNode(parseState, 1, Expr.Let($2, $4, $6, $8))
+        mkNode(parseState, 1, Expr.Let($2, $4, $6, $8, false))
     }
   | LET MUTABLE variable COLON pretype EQ simpleExpr SEMI expr  {
-        mkNode(parseState, 1, Expr.LetMut($3, $5, $7, $9))
+        mkNode(parseState, 1, Expr.LetMut($3, $5, $7, $9, false))
     }
   | LET REC variable COLON pretype EQ simpleExpr SEMI expr  {
-        mkNode(parseState, 1, Expr.LetRec($3, $5, $7, $9))
+        mkNode(parseState, 1, Expr.LetRec($3, $5, $7, $9, false))
+    }
+  | EXPORT LET variable COLON pretype EQ simpleExpr SEMI expr  {
+        mkNode(parseState, 1, Expr.Let($3, $5, $7, $9, true))
+    }
+  | EXPORT LET MUTABLE variable COLON pretype EQ simpleExpr SEMI expr  {
+        mkNode(parseState, 1, Expr.LetMut($4, $6, $8, $10, true))
+    }
+  | EXPORT LET REC variable COLON pretype EQ simpleExpr SEMI expr  {
+        mkNode(parseState, 1, Expr.LetRec($4, $6, $8, $10, true))
     }
   | FUN ident parenArgTypesSeq COLON pretype EQ simpleExpr SEMI expr  {
       let (_, argTypes) = List.unzip $3 // Extract argument pretypes
       mkNode(parseState, 1, Expr.LetRec($2, mkPretypeNode(parseState, 5,
                                                        Pretype.TFun(argTypes, $5)),
-                                     mkNode(parseState, 7, Lambda($3, $7)), $9))
+                                     mkNode(parseState, 7, Lambda($3, $7)), $9, false))
     }
   | curlyExpr expr  { mkNode(parseState, 1, Expr.Seq([$1; $2])) }
   | sequenceExpr  {

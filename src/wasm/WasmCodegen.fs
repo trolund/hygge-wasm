@@ -226,9 +226,9 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | CSDcr(arg) -> [ I32 ]
     | Print(arg) -> []
     | Ascription(tpe, node) -> []
-    | Let(name, tpe, init, scope)
-    | LetMut(name, tpe, init, scope)
-    | LetRec(name, tpe, init, scope) -> findReturnType init
+    | Let(name, tpe, init, scope, _)
+    | LetMut(name, tpe, init, scope, _)
+    | LetRec(name, tpe, init, scope, _) -> findReturnType init
     | Assign(target, expr) -> findReturnType expr
     | AST.Type(name, def, scope) -> []
     | ArrayElement(target, index) -> findReturnType target
@@ -1173,10 +1173,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
           _,
           { Node.Expr = Lambda(args, body)
             Node.Type = TFun(targs, _) },
-          scope) ->
+          scope, export) ->
         /// Assembly label to mark the position of the compiled function body.
         /// For readability, we make the label similar to the function name
         let funLabel = env.SymbolController.genSymbol $"fun_%s{name}"
+
+        let m = if export then m.AddExport(name, FunctionType(funLabel, None)) else m
 
         let (funcPointer, index, func_ptr) = createFunctionPointer funLabel env m
 
@@ -1220,7 +1222,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         funcPointer + scopeModule + bodyCode // + closure
 
-    | Let(name, _, init, scope) ->
+    | Let(name, _, init, scope, export) ->
         let m' = doCodegen env init m
 
         let varName = env.SymbolController.genSymbol $"var_%s{name}"
@@ -1332,7 +1334,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 .AddCode([ Comment "End of let" ])
 
 
-    | LetMut(name, tpe, init, scope) ->
+    | LetMut(name, tpe, init, scope, export) ->
         // The code generation is not different from 'let...', so we recycle it
 
         // check if var is captured
@@ -1367,7 +1369,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             // node with sequence of let and scope
             let n =
                 { node with
-                    Expr = Let(name, tpe, structNode, scope') }
+                    Expr = Let(name, tpe, structNode, scope', export) }
 
             let m' = (doCodegen env n m)
 
@@ -1376,16 +1378,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             (doCodegen
                 env
                 { node with
-                    Expr = Let(name, tpe, init, scope) }
+                    Expr = Let(name, tpe, init, scope, export) }
                 m)
 
     | LetRec(name,
              _,
              { Node.Expr = Lambda(args, body)
                Node.Type = TFun(targs, _) },
-             scope) ->
+             scope, export) ->
 
         let funLabel = env.SymbolController.genSymbol $"fun_%s{name}"
+
+        let m = if export then m.AddExport(name, FunctionType(funLabel, None)) else m
 
         let (funcPointer, index, ptr_label) = createFunctionPointer funLabel env m
 
@@ -1420,11 +1424,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         funcPointer + scopeModule + bodyCode // + closure
 
-    | LetRec(name, tpe, init, scope) ->
+    | LetRec(name, tpe, init, scope, export) ->
         doCodegen
             env
             { node with
-                Expr = Let(name, tpe, init, scope) }
+                Expr = Let(name, tpe, init, scope, export) }
             m
     | Pointer(_) -> failwith "BUG: pointers cannot be compiled (by design!)"
 
@@ -1649,6 +1653,7 @@ and internal compileFunction
 
 /// capture all free variable in expression and a list of var names that
 // List.distinctBy fst (Set.toList captured)
+// TODO: maybe use the on in ASTUtil!!
 and freeVariables (node: TypedAST) : List<string * TypedAST> =
     List.distinctBy fst (Set.toList (freeVariables' node))
 
@@ -1686,15 +1691,15 @@ and freeVariables' (node: TypedAST) : Set<string * TypedAST> =
     | Assign(name, value) -> Set.union (freeVariables' name) (freeVariables' value)
     | FieldSelect(target, _) -> freeVariables' target
     | Ascription(_, node) -> freeVariables' node
-    | Let(name, _, bindingExpr, bodyExpr) ->
+    | Let(name, _, bindingExpr, bodyExpr, export) ->
         let set = Set.union (freeVariables' bodyExpr) (freeVariables' bindingExpr)
         // remove name
         Set.filter (fun (x, _) -> x <> name) set
-    | LetMut(name, _, init, scope) ->
+    | LetMut(name, _, init, scope, export) ->
         let set = Set.union (freeVariables' scope) (freeVariables' init)
         // remove name
         Set.filter (fun (x, _) -> x <> name) set
-    | LetRec(name, _, lambda, scope) ->
+    | LetRec(name, _, lambda, scope, export) ->
         let set = Set.union (freeVariables' scope) (freeVariables' lambda)
         // remove name
         Set.filter (fun (x, _) -> x <> name) set

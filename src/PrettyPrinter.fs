@@ -186,16 +186,16 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
     | Ascription(tpe, node) ->
         mkTree $"Ascription" node [("Ascription", formatPretypeNode tpe)
                                    ("node", formatASTRec node)]
-    | Let(name, tpe, init, scope) ->
+    | Let(name, tpe, init, scope, _) ->
         mkTree $"Let %s{name}" node [("Ascription", formatPretypeNode tpe)
                                      ("init", formatASTRec init)
                                      ("scope", formatASTRec scope)]
-    | LetMut(name, tpe, init, scope) ->
+    | LetMut(name, tpe, init, scope, _) ->
         mkTree $"Let mutable %s{name}" node [("Ascription", formatPretypeNode tpe)
                                              ("init", formatASTRec init)
                                              ("scope", formatASTRec scope)]
 
-    | LetRec(name, tpe, init, scope) ->
+    | LetRec(name, tpe, init, scope, _) ->
         mkTree $"Let rec %s{name}" node [("Ascription", formatPretypeNode tpe)
                                          ("init", formatASTRec init)
                                          ("scope", formatASTRec scope)]

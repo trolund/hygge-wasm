@@ -197,17 +197,17 @@ and Expr<'E, 'T> =
     /// Let-binder, used to introduce a variable with the given 'name' and type
     /// ('tpe') in a 'scope'.  The variable is initialised with the result of
     /// the expression in 'init'.
-    | Let of name: string * tpe: PretypeNode * init: Node<'E, 'T> * scope: Node<'E, 'T>
+    | Let of name: string * tpe: PretypeNode * init: Node<'E, 'T> * scope: Node<'E, 'T> * export: bool
 
     /// Let-binder for mutable variables, used to introduce a mutable variable
     /// with the given 'name' and type ('tpe') in a 'scope'.  The variable is
     /// initialised with the result of the expression in 'init'.
-    | LetMut of name: string * tpe: PretypeNode * init: Node<'E, 'T> * scope: Node<'E, 'T>
+    | LetMut of name: string * tpe: PretypeNode * init: Node<'E, 'T> * scope: Node<'E, 'T> * export: bool
 
     /// Let-binder, used to introduce recursive functions with the given 'name' and type
     /// ('tpe') in a 'scope'.  The variable is initialised with the result of
     /// the expression in 'init'.
-    | LetRec of name: string * tpe: PretypeNode * init: Node<'E, 'T> * scope: Node<'E, 'T>
+    | LetRec of name: string * tpe: PretypeNode * init: Node<'E, 'T> * scope: Node<'E, 'T> * export: bool
 
     /// Assignment of a value (computed from 'expr') to a mutable target (e.g. a
     /// variable).
