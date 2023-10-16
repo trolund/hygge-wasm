@@ -271,16 +271,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // store data pointer and length in struct
         // leave pointer to string on stack
+        let dataString = Util.intTo32Hex(daraPtr) + Util.intTo32Hex(stringSizeInBytes)
+
         m
             .AddData(I32Const(daraPtr), s) // store string in memory
-            .AddCode(
-                [ (I32Const ptr, "offset in memory")
-                  (I32Const daraPtr, "data pointer to store")
-                  (I32Store, "store size in bytes")
-                  (I32Const(ptr + 4), "offset in memory")
-                  (I32Const stringSizeInBytes, "length to store")
-                  (I32Store, "store data pointer")
-                  (I32Const(ptr), "leave pointer to string on stack") ]
+            .AddData(I32Const(ptr), dataString)
+            .AddCode( 
+                [ (I32Const(ptr), "leave pointer to string on stack") ]
             )
     | Var v ->
         // load variable

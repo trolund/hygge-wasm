@@ -188,16 +188,19 @@ let intToHex (i: int): string =
     System.String.Concat("\\", paddedHex)
 
 
-/// int to hex with padding so the string is always 32 bits
-/// e.g. 28 -> "\0000001c"
-/// // returns 32 bit hex string
-let intTo32Hex (i: int) = 
-    let hex = System.Convert.ToString(i, 16)
-    let paddedHex = if hex.Length = 1 then "0000000" + hex else hex
-    let paddedHex = if hex.Length = 2 then "000000" + hex else hex
-    let paddedHex = if hex.Length = 3 then "00000" + hex else hex
-    let paddedHex = if hex.Length = 4 then "0000" + hex else hex
-    let paddedHex = if hex.Length = 5 then "000" + hex else hex
-    let paddedHex = if hex.Length = 6 then "00" + hex else hex
-    let paddedHex = if hex.Length = 7 then "0" + hex else hex
-    System.String.Concat("\\", paddedHex)
+/// int to hex where it is split op into 4 bit chunks and the entire string is
+/// 32 bits long
+let intTo32Hex (value: int32) = 
+    let mask = 255 // 8 bits set to 1
+
+    let chunk1 = value &&& mask
+    let chunk2 = (value >>> 8) &&& mask
+    let chunk3 = (value >>> 16) &&& mask
+    let chunk4 = (value >>> 24) &&& mask
+
+    let string = List.fold (fun acc elem -> acc + intToHex elem) "" [chunk1; chunk2; chunk3; chunk4]
+    string
+    
+
+
+
