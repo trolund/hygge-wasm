@@ -322,6 +322,12 @@ module WFG =
         | I64ReinterpretF64
         | F32ReinterpretI32
         | F64ReinterpretI64
+        // memory instr
+        | MemoryInit of int * int * int
+        | DataDrop of int
+        | MemoryCopy of int * int
+        | MemoryFill_ of int * int * int
+        | MemoryFill
         // Block Instr
         | Block of Identifier * ValueType list * list<Commented<Instr>>
         | Loop of Identifier * ValueType list * list<Commented<Instr>>
@@ -513,7 +519,10 @@ module WFG =
                     | None -> sprintf "(if%s (then\n%s       )\n      )" (resultPrint types) (generate_wat_code_ident ifInstrs indent) 
                 // comments
                 | RefFunc label -> sprintf "ref.func %s" (label.ToString())
+                | MemoryFill -> "memory.fill"
+                | MemoryFill_ (offset, value, size) -> sprintf "memory.fill offset=%d value=%d size=%d" offset value size
                 | Comment comment -> sprintf ";; %s" comment
+
                 | x -> sprintf "not implemented: %s" (x.ToString())
 
 

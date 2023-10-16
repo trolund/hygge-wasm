@@ -186,3 +186,18 @@ let intToHex (i: int): string =
     let hex = System.Convert.ToString(i, 16)
     let paddedHex = if hex.Length = 1 then "0" + hex else hex
     System.String.Concat("\\", paddedHex)
+
+
+/// int to hex with padding so the string is always 32 bits
+/// e.g. 28 -> "\0000001c"
+/// // returns 32 bit hex string
+let intTo32Hex (i: int) = 
+    let hex = System.Convert.ToString(i, 16)
+    let paddedHex = if hex.Length = 1 then "0000000" + hex else hex
+    let paddedHex = if hex.Length = 2 then "000000" + hex else hex
+    let paddedHex = if hex.Length = 3 then "00000" + hex else hex
+    let paddedHex = if hex.Length = 4 then "0000" + hex else hex
+    let paddedHex = if hex.Length = 5 then "000" + hex else hex
+    let paddedHex = if hex.Length = 6 then "00" + hex else hex
+    let paddedHex = if hex.Length = 7 then "0" + hex else hex
+    System.String.Concat("\\", paddedHex)
