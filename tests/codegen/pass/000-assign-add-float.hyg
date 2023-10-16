@@ -1,0 +1,7 @@
+let a: float = 5.0f;
+a += 1.0f;
+assert(a = 6.0f);
+a += 1.0f;
+assert(a = 7.0f);
+a += 10.0f;
+assert(a = 17.0f)
