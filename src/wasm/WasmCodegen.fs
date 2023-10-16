@@ -270,17 +270,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let daraPtr = env.MemoryAllocator.Allocate(stringSizeInBytes)
 
         // store data pointer and length in struct like structure
-        let dataString = Util.intTo32Hex(daraPtr) + Util.intTo32Hex(stringSizeInBytes)
+        let dataString = Util.intTo32Hex (daraPtr) + Util.intTo32Hex (stringSizeInBytes)
 
         m
             .AddData(I32Const(daraPtr), s) // store the string it self in memory
             .AddData(I32Const(ptr), dataString) // store pointer an length in memory
-            .AddCode( 
-                [ (I32Const(ptr), "leave pointer to string on stack") ]
-            )
+            .AddCode([ (I32Const(ptr), "leave pointer to string on stack") ])
     | Var v ->
         // load variable
-        // TODO
         let instrs: List<Commented<Instr>> =
             match env.VarStorage.TryFind v with
             | Some(Storage.local (l)) -> [ (LocalGet(Named(l)), $"get local var: {l}") ]
@@ -309,6 +306,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match e.Type with
             | t when (isSubtypeOf e.Env t TInt) -> m'.GetAccCode() @ C [ I32Const 1; I32Add; LocalTee(label) ]
+            | t when (isSubtypeOf e.Env t TFloat) -> m'.GetAccCode() @ C [ F32Const 1.0f; F32Add; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PreIncr" ]
@@ -322,6 +320,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             match e.Type with
             | t when (isSubtypeOf e.Env t TInt) ->
                 m'.GetAccCode() @ C [ LocalGet(label); I32Const 1; I32Add; LocalSet(label) ]
+            | t when (isSubtypeOf e.Env t TFloat) ->
+                m'.GetAccCode() @ C [ LocalGet(label); F32Const 1.0f; F32Add; LocalSet(label) ]    
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PostIncr" ]
@@ -334,6 +334,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match e.Type with
             | t when (isSubtypeOf e.Env t TInt) -> m'.GetAccCode() @ C [ I32Const 1; I32Sub; LocalTee(label) ]
+            | t when (isSubtypeOf e.Env t TFloat) -> m'.GetAccCode() @ C [ F32Const 1.0f; F32Sub; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PreDecr" ]
@@ -347,6 +348,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             match e.Type with
             | t when (isSubtypeOf e.Env t TInt) ->
                 m'.GetAccCode() @ C [ LocalGet(label); I32Const 1; I32Sub; LocalSet(label) ]
+            | t when (isSubtypeOf e.Env t TFloat) ->
+                m'.GetAccCode() @ C [ LocalGet(label); F32Const 1.0f; F32Sub; LocalSet(label) ]    
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PostDecr" ]
@@ -1139,24 +1142,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 indexCode.GetAccCode() // index on stack
                 @ [ (I32Const 0, "put zero on stack")
                     (I32LtS, "check if index is >= 0")
-                    (If(
-                        [],
-                        trap,
-                        None
-                     ),
-                     "check that index is >= 0 - if not return 42") ]
+                    (If([], trap, None), "check that index is >= 0 - if not return 42") ]
                 @ indexCode.GetAccCode() // index on stack
                 @ selTargetCode.GetAccCode() // struct pointer on stack
                 @ [ (I32Const 4, "offset of length field")
                     (I32Add, "add offset to base address")
                     (I32Load, "load length") ]
                 @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
-                    (If(
-                        [],
-                        trap,
-                        None
-                     ),
-                     "check that index is < length - if not return 42") ]
+                    (If([], trap, None), "check that index is < length - if not return 42") ]
 
             let instrs =
                 selTargetCode.GetAccCode() // struct pointer on stack

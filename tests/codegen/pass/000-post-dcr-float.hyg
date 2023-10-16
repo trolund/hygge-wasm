@@ -1,0 +1,4 @@
+let a: float = 5.0f;
+let b: float = a--;
+assert(a = 4.0f);
+assert(b = 5.0f)
