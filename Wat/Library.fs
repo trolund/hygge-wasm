@@ -33,7 +33,7 @@ module WFG =
                         | Some name -> sprintf "(param $%s %s)" name (t.ToString())
                         | None -> sprintf "(param %s)" (t.ToString())) parameters)
                     let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
-                    sprintf "%s %s%s\n" parametersString returnValuesString (commentS comment)
+                    sprintf "%s %s%s" parametersString returnValuesString (commentS comment)
 
     let generate_wat_code instrs =
 
@@ -923,9 +923,6 @@ module WFG =
                 for (name, Limits)  in this.memories do
                     result <- result + sprintf "  (memory (export \"%s\") %s)\n" name (Limits.ToString())                          
 
-                for (instr, data) in this.data do
-                    result <- result + sprintf "  (data (%s) \"%s\")\n" (instr.ToString()) (data.ToString())
-
                 let printGlobal (global_: Global) =
                     let name, (valueType, mutability), instr = global_
                     let valueType = valueType.ToString()
@@ -965,6 +962,9 @@ module WFG =
                 for funcKey in this.functions.Keys do
                     let (f), c = this.functions.[funcKey]
                     result <- result + sprintf "  (func %s %s %s\n%s  )\n" (genrate_name f.name) (generate_signature f.signature c) (generate_local f.locals) (generate_wat_code_ident f.body ((indent/2) + 1)) 
+
+                for (instr, data) in this.data do
+                    result <- result + sprintf "  (data (%s) \"%s\")\n" (instr.ToString()) (data.ToString())
                     
                 // create exports
                 for export in this.exports do
