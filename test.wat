@@ -1,24 +1,24 @@
 (module
-  (type $i32_f32_f32_=> (func (param i32) (param f32) (param f32) ))
-  (type $i32_i32_i32_=> (func (param i32) (param i32) (param i32) ))
-  (import "env" "readFloat" (func $readFloat  (result f32)))
-  (import "env" "readInt" (func $readInt  (result i32)))
-  (import "env" "writeFloat" (func $writeFloat (param f32) ))
-  (import "env" "writeInt" (func $writeInt (param i32) ))
-  (import "env" "writeS" (func $writeS (param i32) (param i32) ))
-  (memory (export "memory") 1)
-  (global $exit_code (mut i32) i32.const 0)
-  (global $fun_printerFloat*ptr (mut i32) i32.const 162)
-  (global $fun_printerInt*ptr (mut i32) i32.const 0)
-  (global $heap_base i32 i32.const 338)
-  (global $var_x (mut i32) i32.const 0)
-  (global $var_x$2 (mut f32) f32.const 0.000000)
-  (global $var_y (mut i32) i32.const 0)
-  (global $var_y$3 (mut f32) f32.const 0.000000)
-  (table $func_table 2 funcref)
-  (elem (i32.const 0) $fun_printerInt)
-  (elem (i32.const 1) $fun_printerFloat)
-  (func $_start  (result i32) ;; entry point of program (main function) 
+  (type $i32_f32_f32_=> (;0;) (func (param i32) (param f32) (param f32) ))
+  (type $i32_i32_i32_=> (;1;) (func (param i32) (param i32) (param i32) ))
+  (import "env" "readFloat" (;0;) (func $readFloat  (result f32)))
+  (import "env" "readInt" (;1;) (func $readInt  (result i32)))
+  (import "env" "writeFloat" (;2;) (func $writeFloat (param f32) ))
+  (import "env" "writeInt" (;3;) (func $writeInt (param i32) ))
+  (import "env" "writeS" (;4;) (func $writeS (param i32) (param i32) ))
+  (memory (;0;) (export "memory") 1)
+  (global $exit_code (;0;) (mut i32) i32.const 0)
+  (global $fun_printerFloat*ptr (;1;) (mut i32) i32.const 162)
+  (global $fun_printerInt*ptr (;2;) (mut i32) i32.const 0)
+  (global $heap_base (;3;) i32 i32.const 338)
+  (global $var_x (;4;) (mut i32) i32.const 0)
+  (global $var_x$2 (;5;) (mut f32) f32.const 0.000000)
+  (global $var_y (;6;) (mut i32) i32.const 0)
+  (global $var_y$3 (;7;) (mut f32) f32.const 0.000000)
+  (table $func_table (;0;) 2 funcref)
+  (elem (i32.const 0) (;0;) $fun_printerInt)
+  (elem (i32.const 1) (;1;) $fun_printerFloat)
+  (func $_start (;0;)  (result i32) ;; entry point of program (main function) 
     ;; execution start here:
     i32.const 60 ;; leave pointer to string on stack
     i32.load ;; Load string pointer
@@ -106,7 +106,7 @@
     i32.const 0 ;; exit code 0
     return ;; return the exit code
   )
-  (func $fun_printerFloat (param $cenv i32) (param $arg_x$0 f32) (param $arg_y$1 f32)  ;; function fun_printerFloat 
+  (func $fun_printerFloat (;0;) (param $cenv i32) (param $arg_x$0 f32) (param $arg_y$1 f32)  ;; function fun_printerFloat 
     i32.const 166 ;; leave pointer to string on stack
     i32.load ;; Load string pointer
     i32.const 166 ;; leave pointer to string on stack
@@ -119,7 +119,7 @@
     f32.add
     call $writeFloat ;; call host function
   )
-  (func $fun_printerInt (param $cenv i32) (param $arg_x i32) (param $arg_y i32)  ;; function fun_printerInt 
+  (func $fun_printerInt (;0;) (param $cenv i32) (param $arg_x i32) (param $arg_y i32)  ;; function fun_printerInt 
     i32.const 4 ;; leave pointer to string on stack
     i32.load ;; Load string pointer
     i32.const 4 ;; leave pointer to string on stack

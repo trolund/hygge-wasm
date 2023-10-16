@@ -863,6 +863,9 @@ module WFG =
             static member ( @ ) (wasm1: Commented<Instrs> list, wasm2: Commented<Instrs> list) = wasm1 @ wasm2
 
             override this.ToString() =
+
+                let ic (i: int) = $"(;{i};)"
+
                 let mutable result = ""
                 
                 let generate_local (locals: Local list) =
@@ -886,7 +889,7 @@ module WFG =
 
                 result <- result + "(module\n" // open module tag
 
-                let printType (t: Type) (withName: bool) =
+                let printType (i: int, t: Type) (withName: bool) =
                     let name, signature = t
                     let parameters, returnValues = signature
                     let parametersString = String.concat " " (List.map (fun (n, t) -> 
@@ -900,17 +903,17 @@ module WFG =
                     let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
                     // name with suffix
                     // let name = sprintf "%s_type" name
-                    sprintf "  (type $%s (func %s %s))\n" name parametersString returnValuesString 
+                    sprintf "  (type $%s %s (func %s %s))\n" name (ic i) parametersString returnValuesString 
 
 
-                for type_ in this.types do // print all types
+                for type_ in List.indexed (Set.toList this.types) do // print all types
                     result <- result + (printType type_ false)
 
-                for import: Import in this.imports do // print all imports
+                for (i: int, import: Import) in List.indexed (Set.toList this.imports) do // print all imports
                 
                     let modu, func_name, func_signature = import
 
-                    result <- result + sprintf "  (import \"%s\" \"%s\" %s)\n" modu func_name (match func_signature with
+                    result <- result + sprintf "  (import \"%s\" \"%s\" %s %s)\n" modu func_name (ic i) (match func_signature with
                                                                                                     | FunctionType (name, signature) -> 
                                                                                                                 match signature with
                                                                                                                 | Some signature -> sprintf "(func $%s %s)" name (generate_signature signature "")
@@ -920,10 +923,10 @@ module WFG =
                                                                                                     | _ -> ""
                                                                                                     )
 
-                for (name, Limits)  in this.memories do
-                    result <- result + sprintf "  (memory (export \"%s\") %s)\n" name (Limits.ToString())                          
+                for i, (name, Limits)  in List.indexed (Set.toList this.memories) do
+                    result <- result + sprintf "  (memory %s (export \"%s\") %s)\n" (ic i) name (Limits.ToString())                          
 
-                let printGlobal (global_: Global) =
+                let printGlobal (i: int, global_: Global) =
                     let name, (valueType, mutability), instr = global_
                     let valueType = valueType.ToString()
                     let gType = 
@@ -933,35 +936,33 @@ module WFG =
                     
                     //let instrs = instrs |> List.map (fun x -> Commented(x, ""))
                     //let instrs = generate_wat_code_ident instrs 0
-                    sprintf "  (global $%s %s%s %s)\n" name gType (commentS "") (instr.ToString())
+                    sprintf "  (global $%s %s %s%s %s)\n" name (ic i) gType (commentS "") (instr.ToString())
 
-                for global_ in this.globals do
+                for global_ in List.indexed (Set.toList this.globals) do
                     result <- result + (printGlobal global_)
 
                 
                 // print tables and elements
 
                 // func table
-                if not elements.IsEmpty then
-                    result <- result + sprintf "  (table $%s %s %s)\n" "func_table" (sprintf "%d" this.elements.Count) (ValueType.Funcref.ToString())
+                result <- result + sprintf "  (table $%s %s %s %s)\n" "func_table" (ic 0) (sprintf "%d" this.elements.Count) (ValueType.Funcref.ToString())
                 
                 // // print rest of tables
                 // for table in this.tables do
                 //     result <- result + sprintf "  (table %s)\n" (table.ToString())
 
-                for element in this.elements do
+                for i, element in List.indexed (Set.toList this.elements) do
                     // unpacked element 
                     let (index, element) = element
-                    result <- result + sprintf "  (elem (i32.const %i) $%s)\n" index (element.ToString())
-
-
-
+                    result <- result + sprintf "  (elem (i32.const %i) %s $%s)\n" index (ic i) (element.ToString())
 
 
                 // create functions
+                let x: int = 0;
                 for funcKey in this.functions.Keys do
                     let (f), c = this.functions.[funcKey]
-                    result <- result + sprintf "  (func %s %s %s\n%s  )\n" (genrate_name f.name) (generate_signature f.signature c) (generate_local f.locals) (generate_wat_code_ident f.body ((indent/2) + 1)) 
+                    result <- result + sprintf "  (func %s %s %s %s\n%s  )\n" (genrate_name f.name) (ic x) (generate_signature f.signature c) (generate_local f.locals) (generate_wat_code_ident f.body ((indent/2) + 1)) 
+                    x = x + 1
 
                 for (instr, data) in this.data do
                     result <- result + sprintf "  (data (%s) \"%s\")\n" (instr.ToString()) (data.ToString())
