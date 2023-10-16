@@ -273,8 +273,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let dataString = Util.intTo32Hex(daraPtr) + Util.intTo32Hex(stringSizeInBytes)
 
         m
-            .AddData(I32Const(daraPtr), s) // store string in memory
-            .AddData(I32Const(ptr), dataString)
+            .AddData(I32Const(daraPtr), s) // store the string it self in memory
+            .AddData(I32Const(ptr), dataString) // store pointer an length in memory
             .AddCode( 
                 [ (I32Const(ptr), "leave pointer to string on stack") ]
             )
