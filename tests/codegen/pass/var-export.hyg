@@ -1,0 +1,2 @@
+export let g: int = 142;
+assert(g = 142)

@@ -1229,6 +1229,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let varName = env.SymbolController.genSymbol $"var_%s{name}"
 
+        let m = if export then m.AddExport(name, GlobalType(varName)).AddToHostingList(varName) else m
+
         let env' =
             { env with
                 VarStorage = env.VarStorage.Add(name, Storage.local (varName)) }
@@ -1309,7 +1311,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let scopeCode = (doCodegen env' scope (m'.ResetAccCode()))
 
-            let combi = (instrs ++ scopeCode)
+            let combi = (instrs ++ scopeCode + m.ResetAccCode())
 
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
@@ -1338,6 +1340,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     | LetMut(name, tpe, init, scope, export) ->
         // The code generation is not different from 'let...', so we recycle it
+
 
         // check if var is captured
         let isVarCaptured = List.contains name (List.map fst (freeVariables scope))
