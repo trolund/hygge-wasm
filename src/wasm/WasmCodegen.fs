@@ -139,6 +139,9 @@ let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) 
 
     (FunctionPointer, funcindex, ptr_label)
 
+let internal isTopLevel (env: CodegenEnv) = 
+    env.CurrFunc = "_start"
+
 // reduce expression to a single value
 // then find the vlaue that is returned
 // TODO: this is not correct
@@ -270,7 +273,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let daraPtr = env.MemoryAllocator.Allocate(stringSizeInBytes)
 
         // store data pointer and length in struct like structure
-        let dataString = Util.dataString [daraPtr; stringSizeInBytes]
+        let dataString = Util.dataString [ daraPtr; stringSizeInBytes ]
 
         m
             .AddData(I32Const(daraPtr), s) // store the string it self in memory
@@ -321,7 +324,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | t when (isSubtypeOf e.Env t TInt) ->
                 m'.GetAccCode() @ C [ LocalGet(label); I32Const 1; I32Add; LocalSet(label) ]
             | t when (isSubtypeOf e.Env t TFloat) ->
-                m'.GetAccCode() @ C [ LocalGet(label); F32Const 1.0f; F32Add; LocalSet(label) ]    
+                m'.GetAccCode() @ C [ LocalGet(label); F32Const 1.0f; F32Add; LocalSet(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PostIncr" ]
@@ -349,7 +352,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | t when (isSubtypeOf e.Env t TInt) ->
                 m'.GetAccCode() @ C [ LocalGet(label); I32Const 1; I32Sub; LocalSet(label) ]
             | t when (isSubtypeOf e.Env t TFloat) ->
-                m'.GetAccCode() @ C [ LocalGet(label); F32Const 1.0f; F32Sub; LocalSet(label) ]    
+                m'.GetAccCode() @ C [ LocalGet(label); F32Const 1.0f; F32Sub; LocalSet(label) ]
             | _ -> failwith "not implemented"
 
         C [ Comment "Start PostDecr" ]
@@ -612,18 +615,26 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// generate code for the expression for the function to be applied
         let exprm: Module = (doCodegen env expr m)
 
-
-
         let appTermCode =
-            Module()
-                .AddCode([ Comment "Load expression to be applied as a function" ])
-                .AddCode(
-                    exprm.GetAccCode() // load closure environment pointer as first argument
-                    @ [ (I32Load_(None, Some(4)), "load closure environment pointer") ]
-                    @ argm.GetAccCode() // load the rest of the arguments
-                    @ exprm.GetAccCode() // load function pointer
-                    @ [ (I32Load, "load table index") ]
-                )
+            if isTopLevel(env) then // check if top-level
+                Module()
+                    .AddCode([ Comment "Load expression to be applied as a function" ])
+                    .AddCode(
+                        [(I32Const 0xFFFFFFFF, "load unused closure environment pointer")]
+                        @ argm.GetAccCode() // load the rest of the arguments
+                        @ exprm.GetAccCode() // load function pointer
+                        @ [ (I32Load, "load table index") ]
+                    )
+            else
+                Module()
+                    .AddCode([ Comment "Load expression to be applied as a function" ])
+                    .AddCode(
+                        exprm.GetAccCode() // load closure environment pointer as first argument
+                        @ [ (I32Load_(None, Some(4)), "load closure environment pointer") ]
+                        @ argm.GetAccCode() // load the rest of the arguments
+                        @ exprm.GetAccCode() // load function pointer
+                        @ [ (I32Load, "load table index") ]
+                    )
 
         // type to function signature
         let s = typeToFuncSiganture expr.Type
@@ -678,8 +689,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                             m
                         else
                             m.AddToHostingList(l)
-                    | Some(Storage.Offset(o)) ->
-                        m
+                    | Some(Storage.Offset(o)) -> m
                     | None -> failwith "failed to find captured var in var storage"
                     | _ -> failwith "failed to find captured var in var storage")
                 funcPointer
@@ -1175,12 +1185,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
           _,
           { Node.Expr = Lambda(args, body)
             Node.Type = TFun(targs, _) },
-          scope, export) ->
+          scope,
+          export) ->
         /// Assembly label to mark the position of the compiled function body.
         /// For readability, we make the label similar to the function name
         let funLabel = env.SymbolController.genSymbol $"fun_%s{name}"
 
-        let m = if export then m.AddExport(name, FunctionType(funLabel, None)) else m
+        let m =
+            if export then
+                m.AddExport(name, FunctionType(funLabel, None))
+            else
+                m
 
         let (funcPointer, index, func_ptr) = createFunctionPointer funLabel env m
 
@@ -1229,7 +1244,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let varName = env.SymbolController.genSymbol $"var_%s{name}"
 
-        let m = if export then m.AddExport(varName, GlobalType(varName)).AddToHostingList(varName) else m
+        let m =
+            if export then
+                m.AddExport(varName, GlobalType(varName)).AddToHostingList(varName)
+            else
+                m
 
         let env' =
             { env with
@@ -1390,11 +1409,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
              _,
              { Node.Expr = Lambda(args, body)
                Node.Type = TFun(targs, _) },
-             scope, export) ->
+             scope,
+             export) ->
 
         let funLabel = env.SymbolController.genSymbol $"fun_%s{name}"
 
-        let m = if export then m.AddExport(name, FunctionType(funLabel, None)) else m
+        let m =
+            if export then
+                m.AddExport(name, FunctionType(funLabel, None))
+            else
+                m
 
         let (funcPointer, index, ptr_label) = createFunctionPointer funLabel env m
 

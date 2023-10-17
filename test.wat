@@ -22,8 +22,7 @@
     global.set $var_x ;; set local var, have been hoisted
     ;; start of application
     ;; Load expression to be applied as a function
-    global.get $fun_f*ptr ;; get global var: fun_f*ptr
-    i32.load offset=4 ;; load closure environment pointer
+    i32.const -1 ;; load unused closure environment pointer
     global.get $fun_f*ptr ;; get global var: fun_f*ptr
     i32.load ;; load table index
     call_indirect (type $i32_=>_i32) ;; call function
@@ -39,8 +38,7 @@
       )
     ;; start of application
     ;; Load expression to be applied as a function
-    global.get $fun_h*ptr ;; get global var: fun_h*ptr
-    i32.load offset=4 ;; load closure environment pointer
+    i32.const -1 ;; load unused closure environment pointer
     global.get $fun_f*ptr ;; get global var: fun_f*ptr
     global.get $fun_h*ptr ;; get global var: fun_h*ptr
     i32.load ;; load table index
@@ -57,12 +55,10 @@
       )
     ;; start of application
     ;; Load expression to be applied as a function
-    global.get $fun_h*ptr ;; get global var: fun_h*ptr
-    i32.load offset=4 ;; load closure environment pointer
+    i32.const -1 ;; load unused closure environment pointer
     ;; start of application
     ;; Load expression to be applied as a function
-    global.get $fun_clos*ptr ;; get global var: fun_clos*ptr
-    i32.load offset=4 ;; load closure environment pointer
+    i32.const -1 ;; load unused closure environment pointer
     i32.const 41 ;; push 41 on stack
     global.get $fun_clos*ptr ;; get global var: fun_clos*ptr
     i32.load ;; load table index
