@@ -1,3 +1,5 @@
+// g that shadow the inner g 
+// is exported with unique name
 export let g: int = 200;
 export let f: (int, int) -> int = fun(x: int, y: int) -> {
     export let g: int = x + y;
