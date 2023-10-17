@@ -202,10 +202,7 @@ let intTo32Hex (value: int32) =
           (value >>> 16) &&& mask
           (value >>> 24) &&& mask ]
 
-
-let dataString l =
-    let rec dataString' l =
+let rec dataString l =
         match l with
         | [] -> ""
-        | x::xs -> intTo32Hex x + dataString' xs
-    dataString' l
+        | x::xs -> intTo32Hex x + dataString xs
