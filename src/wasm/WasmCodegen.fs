@@ -612,14 +612,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// generate code for the expression for the function to be applied
         let exprm: Module = (doCodegen env expr m)
 
+
+
         let appTermCode =
             Module()
                 .AddCode([ Comment "Load expression to be applied as a function" ])
                 .AddCode(
                     exprm.GetAccCode() // load closure environment pointer as first argument
-                    @ [ (I32Const 4, "4 byte offset")
-                        (I32Add, "add offset")
-                        (I32Load, "load closure environment pointer") ]
+                    @ [ (I32Load_(None, Some(4)), "load closure environment pointer") ]
                     @ argm.GetAccCode() // load the rest of the arguments
                     @ exprm.GetAccCode() // load function pointer
                     @ [ (I32Load, "load table index") ]
