@@ -1229,7 +1229,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let varName = env.SymbolController.genSymbol $"var_%s{name}"
 
-        let m = if export then m.AddExport(name, GlobalType(varName)).AddToHostingList(varName) else m
+        let m = if export then m.AddExport(varName, GlobalType(varName)).AddToHostingList(varName) else m
 
         let env' =
             { env with
