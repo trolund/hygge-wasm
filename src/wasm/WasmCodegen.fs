@@ -270,7 +270,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let daraPtr = env.MemoryAllocator.Allocate(stringSizeInBytes)
 
         // store data pointer and length in struct like structure
-        let dataString = Util.intTo32Hex (daraPtr) + Util.intTo32Hex (stringSizeInBytes)
+        let dataString = Util.dataString [daraPtr; stringSizeInBytes]
 
         m
             .AddData(I32Const(daraPtr), s) // store the string it self in memory
