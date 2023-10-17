@@ -678,6 +678,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                             m
                         else
                             m.AddToHostingList(l)
+                    | Some(Storage.Offset(o)) ->
+                        m
                     | None -> failwith "failed to find captured var in var storage"
                     | _ -> failwith "failed to find captured var in var storage")
                 funcPointer

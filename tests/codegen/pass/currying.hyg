@@ -1,0 +1,11 @@
+fun sum(a: int): (int) -> (int) -> int = {
+    fun (b: int) -> {
+        fun (c: int) -> {
+            a + b + c
+        }
+    }
+};
+
+let s: (int) -> (int) -> int = sum(1);
+let s1: (int) -> int = s(2);
+assert(s1(3) = 6)

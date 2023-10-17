@@ -1,0 +1,60 @@
+const rows = 10;
+const cols = 10;
+
+export let createBoard(): () -> Array{Array{int}} {
+    const board = [];
+    for (let i = 0; i < rows; i++) {
+        board[i] = [];
+        for (let j = 0; j < cols; j++) {
+            board[i][j] = Math.random() > 0.7 ? 1 : 0; // Randomly initialize cells
+        }
+    }
+    return board;
+}
+
+function renderBoard(board) {
+    for (let i = 0; i < rows; i++) {
+        console.log(board[i].map(cell => (cell ? '■' : '□')).join(' '));
+    }
+    console.log('\n');
+}
+
+function getNextGeneration(board) {
+    const newBoard = [];
+    for (let i = 0; i < rows; i++) {
+        newBoard[i] = [];
+        for (let j = 0; j < cols; j++) {
+            const neighbors = countNeighbors(board, i, j);
+            if (board[i][j] === 1) {
+                newBoard[i][j] = neighbors === 2 || neighbors === 3 ? 1 : 0;
+            } else {
+                newBoard[i][j] = neighbors === 3 ? 1 : 0;
+            }
+        }
+    }
+    return newBoard;
+}
+
+function countNeighbors(board, row, col) {
+    let count = 0;
+    for (let i = -1; i <= 1; i++) {
+        for (let j = -1; j <= 1; j++) {
+            const newRow = row + i;
+            const newCol = col + j;
+            if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols) {
+                count += board[newRow][newCol];
+            }
+        }
+    }
+    count -= board[row][col];
+    return count;
+}
+
+function updateGame(board) {
+    renderBoard(board);
+    const newBoard = getNextGeneration(board);
+    setTimeout(() => updateGame(newBoard), 500); // Update every 500 milliseconds
+}
+
+const initialBoard = createBoard();
+updateGame(initialBoard);
