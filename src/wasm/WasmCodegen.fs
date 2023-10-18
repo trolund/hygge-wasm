@@ -3,7 +3,7 @@ module hyggec.WASMCodegen
 open AST
 open Type
 open Typechecker
-open Wat.WFG
+open WGF.Module
 open System.Text
 open SI
 

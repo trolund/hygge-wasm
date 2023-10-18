@@ -1,6 +1,6 @@
-﻿namespace Wat
+﻿namespace WGF
 
-module WFG =
+module Module =
 
     let indent = 6;
 

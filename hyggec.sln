@@ -14,7 +14,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "doc", "doc", "{80130B82-A81
 		doc\notes.md = doc\notes.md
 	EndProjectSection
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Wat", "Wat\Wat.fsproj", "{22736767-0826-487F-A926-09236C192171}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "WGF", "WGF\WGF.fsproj", "{22736767-0826-487F-A926-09236C192171}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

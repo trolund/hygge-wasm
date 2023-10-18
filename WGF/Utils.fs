@@ -1,7 +1,5 @@
 module Util
 
-open Wat.WFG
-
     let GenFuncTypeName (t) =
         // generate function type name
         let locals = fst t
