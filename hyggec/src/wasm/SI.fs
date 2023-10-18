@@ -1,6 +1,7 @@
 /// this module defines the system interface for hygge applications
 module hyggec.SI
 open WGF.Module
+open WGF.Types
 
 /// all the imports from the host func that is provided by the system
 let si : Map<string, Import> =

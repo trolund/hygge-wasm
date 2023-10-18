@@ -5,36 +5,6 @@ module Module =
     open WGF.Types
     open WGF.WatGen
 
-    type ValueType =
-        // basic numeric types
-        | I32
-        | I64
-        | F32
-        | F64
-        // reference types
-        | Externref
-        | Funcref
-
-        override this.ToString() =
-            match this with
-            | I32 -> "i32"
-            | I64 -> "i64"
-            | F32 -> "f32"
-            | F64 -> "f64"
-            | Externref -> "externref"
-            | Funcref -> "funcref"
-
-    and BlockType =
-        | Type of ValueType
-        | TypeIndex of int
-        | Empty
-
-        override this.ToString() =
-            match this with
-            | Type t -> t.ToString()
-            | TypeIndex i -> $"type %d{i}"
-            | Empty -> "empty"
-
     /// Instructions are syntactically distinguished into plain (Instr) and structured instructions (BlockInstr).
     /// <summary>All Wasm instructions used</summary>
     type Instr =
@@ -469,19 +439,7 @@ module Module =
     /// The name is optional, and can be used to import the global variable.
     and Global = Identifier * (ValueType * Mutability) * Instr
 
-    and Mutability =
-        | Mutable
-        | Immutable
 
-    and Limits =
-        | Unbounded of int
-        | Bounded of int * int
-
-        // to string
-        override this.ToString() =
-            match this with
-            | Unbounded min -> $"%d{min}"
-            | Bounded(min, max) -> $"%d{min} %d{max}"
 
     and Export = string * ExternalType
 
@@ -529,10 +487,6 @@ module Module =
           body: Commented<Instr> list }
 
     and funcTable = Identifier * ValueType * Limits
-
-    let commentString (a) (b: string) = $"%s{a} ;; %s{b}"
-
-
 
     [<RequireQualifiedAccess>]
     type Module

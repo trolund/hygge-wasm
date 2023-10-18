@@ -1,5 +1,6 @@
 module WGF.WatGen
 
+open WGF.Types
 let indent = 6
 
 let commentS (b: string) =
@@ -137,3 +138,5 @@ let printGlobal (i: int, g) =
     //let instrs = instrs |> List.map (fun x -> Commented(x, ""))
     //let instrs = generate_wat_code_ident instrs 0
     sprintf "  (global $%s %s %s%s %s)\n" name (ic i) gType (commentS "") (instr.ToString())
+
+let commentString (a) (b: string) = $"%s{a} ;; %s{b}"
