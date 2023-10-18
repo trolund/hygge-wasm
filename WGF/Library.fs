@@ -411,24 +411,7 @@ module Module =
 
     and Instrs = Instr list
 
-    and Type = Identifier * FunctionSignature
 
-    // module, name, type
-    and Import = string * string * ExternalType
-
-    and ExternalType =
-        /// type name and function signature
-        | FunctionType of string * FunctionSignature option
-        | TableType of Table
-        | MemoryType of Memory
-        | GlobalType of Identifier
-        | ElementType of ValueType // todo element type and not value type
-        | EmptyType
-
-    and Table = Identifier * ValueType * Limits
-
-    // (memory (export $name) limits)
-    and Memory = string * Limits
 
     /// Global variables are like module-level variables in JavaScript.
     /// They are declared with a type and an initial value.
@@ -455,9 +438,6 @@ module Module =
     // The body is just a linear list of low-level Instrs.
     and Function = string option * FunctionSignature * Variable list * Commented<Instr> list
 
-    /// function parameters and return values.
-    /// The signature declares what the function takes (parameters) and returns (return values)
-    and FunctionSignature = Local list * ValueType list
 
     and Variable = ValueType * Mutability
 
@@ -474,8 +454,6 @@ module Module =
     and DataSegment = int * string
 
     and Code = int * int list * Instr list
-
-    and Local = Identifier option * ValueType
 
     and FunctionInstance =
         {

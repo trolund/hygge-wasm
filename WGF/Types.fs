@@ -58,3 +58,28 @@ type Limits =
             match this with
             | Unbounded min -> $"%d{min}"
             | Bounded(min, max) -> $"%d{min} %d{max}"
+
+type Local = Identifier option * ValueType
+
+/// function parameters and return values.
+/// The signature declares what the function takes (parameters) and returns (return values)
+type FunctionSignature = Local list * ValueType list           
+            
+type Type = Identifier * FunctionSignature
+
+type Table = Identifier * ValueType * Limits
+
+    // (memory (export $name) limits)
+type Memory = string * Limits
+            
+type ExternalType =
+        /// type name and function signature
+        | FunctionType of string * FunctionSignature option
+        | TableType of Table
+        | MemoryType of Memory
+        | GlobalType of Identifier
+        | ElementType of ValueType // todo element type and not value type
+        | EmptyType
+
+// module, name, type      
+type Import = string * string * ExternalType
