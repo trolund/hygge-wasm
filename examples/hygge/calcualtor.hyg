@@ -1,0 +1,47 @@
+type Counters = struct {add: (int) -> int; 
+                        sub: (int) -> int; 
+                        mul: (int) -> int; 
+                        div: (int) -> int};
+
+// Return a structure with two functions that share a counter.
+// The counter is initialized to 0.
+// can be either increment or decrement
+fun makeCal(): Counters = {
+    let mutable count: int = 0;
+
+    struct { add = fun (v: int) -> { count <- count + v };
+             sub = fun (v: int) -> { count <- count - v };
+             mul = fun (v: int) -> { count <- count * v };
+             div = fun (v: int) -> { count <- count / v } } : Counters
+};
+
+let cal: Counters = makeCal();
+let mutable res: int = 1;
+while (res > 0) do {
+    println("Enter a number: ");
+    let input: int = readInt();
+    println("--------------------");
+    println("Enter action: ");
+    println("1. Add");
+    println("2. Sub");
+    println("3. Mul");
+    println("4. Div");
+    println("5. Reset");
+    println("--------------------");
+    let action: int = readInt();
+    println("--------------------");
+
+    if (action = 1) then (res <- cal.add(input)) else {
+        if (action = 2) then (res <- cal.sub(input)) else {
+            if (action = 3) then (res <- cal.mul(input)) else {
+                if (action = 4) then (res <- cal.div(input)) else {
+                    if (action = 5) then (res <- 0) else 0
+                }
+            }
+        }
+    };
+    
+    print("Result: ");
+    print(res);
+    println("--------------------")
+}

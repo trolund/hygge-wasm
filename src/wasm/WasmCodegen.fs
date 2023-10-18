@@ -173,7 +173,7 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
             | t when (isSubtypeOf expr.Env t TBool) -> [ I32 ]
             | t when (isSubtypeOf expr.Env t TString) -> [ I32 ]
             | t when (isSubtypeOf expr.Env t TUnit) -> []
-            | _ -> failwith "not implemented"
+            | _ -> [ I32 ]
         | _ -> [ I32 ]
     // single expression
     | PreIncr e
@@ -616,16 +616,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let exprm: Module = (doCodegen env expr m)
 
         let appTermCode =
-            if isTopLevel(env) then // check if top-level
-                Module()
-                    .AddCode([ Comment "Load expression to be applied as a function" ])
-                    .AddCode(
-                        [(I32Const 0xFFFFFFFF, "load unused closure environment pointer")]
-                        @ argm.GetAccCode() // load the rest of the arguments
-                        @ exprm.GetAccCode() // load function pointer
-                        @ [ (I32Load, "load table index") ]
-                    )
-            else
+            // if isTopLevel(env) then // check if top-level
+            //     Module()
+            //         .AddCode([ Comment "Load expression to be applied as a function" ])
+            //         .AddCode(
+            //             [(I32Const 0xFFFFFFFF, "load unused closure environment pointer")]
+            //             @ argm.GetAccCode() // load the rest of the arguments
+            //             @ exprm.GetAccCode() // load function pointer
+            //             @ [ (I32Load, "load table index") ]
+            //         )
+            // else
                 Module()
                     .AddCode([ Comment "Load expression to be applied as a function" ])
                     .AddCode(
@@ -685,10 +685,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (fun (m: Module) (_, (n, _)) ->
                     match env.VarStorage.TryFind n with
                     | Some(Storage.local (l)) ->
-                        if List.contains n env.CurrFuncArgs then
-                            m
-                        else
-                            m.AddToHostingList(l)
+                        // if List.contains n env.CurrFuncArgs then
+                        //     m
+                        // else
+                        //     m.AddToHostingList(l)
+                        m
                     | Some(Storage.Offset(o)) -> m
                     | None -> failwith "failed to find captured var in var storage"
                     | _ -> failwith "failed to find captured var in var storage")
@@ -1765,6 +1766,7 @@ and freeVariables' (node: TypedAST) : Set<string * TypedAST> =
     | Array(length, data) -> Set.union (freeVariables' length) (freeVariables' data)
     | Print(expr) -> freeVariables' expr
     | PrintLn(expr) -> freeVariables' expr
+    | ReadInt -> Set.empty
     | _ -> failwithf "freeVariables': unhandled case %A" node
 
 and internal createClosure
