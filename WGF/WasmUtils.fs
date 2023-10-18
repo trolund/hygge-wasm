@@ -1,7 +1,7 @@
-module WasmUtil
+module WGF.WasmUtil
 
-open System.Text
-
+    open System.Text
+    
     // write wasm module to file
     let writeWasmFile (wasm: string) (path: string) =
         let file = System.IO.File.Create(path)

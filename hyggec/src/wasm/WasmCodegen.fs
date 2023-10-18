@@ -4,6 +4,8 @@ open AST
 open Type
 open Typechecker
 open WGF.Module
+open WGF.Types
+open WGF.Utils
 open System.Text
 open SI
 

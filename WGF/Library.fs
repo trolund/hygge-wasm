@@ -2,89 +2,8 @@
 
 module Module =
 
-    let indent = 6;
-
-    /// generate function type stirng
-    let GenFuncTypeName (t) =
-        // generate function type name
-        let locals = fst t
-        let ret = snd t
-
-        let l = List.fold (fun str (i, x) -> 
-                        let (_, t) = x
-                        str + (if i > 0 then "_" else "") + t.ToString()
-                    ) "" (List.indexed locals)
-        let r = List.fold (fun str x -> 
-                        str + "_" + x.ToString()
-                    ) "" ret
-
-        $"{l}_=>{r}"
-
-    type Commented<'a> = 
-        'a * string    
-    
-    let commentS (b: string) = if b.Length > 0 then sprintf " ;; %s" b else ""    
-
-    // create functions
-    let generate_signature (signature) (comment: string) =
-                    let parameters, returnValues = signature
-                    let parametersString = String.concat " " (List.map (fun (n, t) -> 
-                        match n with
-                        | Some name -> sprintf "(param $%s %s)" name (t.ToString())
-                        | None -> sprintf "(param %s)" (t.ToString())) parameters)
-                    let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
-                    sprintf "%s %s%s" parametersString returnValuesString (commentS comment)
-
-    let generate_wat_code instrs =
-
-        let rec generate_wat_code_aux instrs watCode =
-            match instrs with
-            | [] -> watCode
-            | instr :: tailInstrs -> generate_wat_code_aux tailInstrs (watCode + (instr.ToString()) + "\n")
-
-        generate_wat_code_aux instrs ""
-
-    // generate_wat_code that handle Commented Instr
-    let generate_wat_code_commented instrs =
-
-        let rec generate_wat_code_aux instrs watCode =
-            match instrs with
-            | [] -> watCode
-            | instr :: tailInstrs -> 
-                match instr with
-                | (instr, comment) -> generate_wat_code_aux tailInstrs (watCode + (instr.ToString()) + " ;; " + comment + "\n")
-
-        generate_wat_code_aux instrs "" 
-        
-    let generate_wat_code_ident instrs ident =
-        
-        let generate_indent i = List.replicate i " " |> String.concat "" in
-
-        let rec generate_wat_code_aux instrs watCode indent =
-            match instrs with
-            | [] -> watCode
-            | head :: tail ->
-                    let (instr, c: string) = head
-
-                    // based on c to generate comment
-                    let watCode = watCode + generate_indent indent + instr.ToString() + if (c.Length > 0) then (sprintf " ;; %s\n" c) else "\n" in
-
-                    generate_wat_code_aux tail watCode indent
-
-        generate_wat_code_aux instrs "" ident
-
-    type Label =  
-        | Named of string
-        | Index of int
-        | Address of int
-
-        override this.ToString() =
-        match this with
-            | Named s -> sprintf "$%s" s
-            | Index i -> i.ToString()
-            | Address i -> sprintf "%d" i
-    
-    type Identifier = string
+    open WGF.Types
+    open WGF.WatGen
 
     type ValueType =
         // basic numeric types
@@ -95,15 +14,15 @@ module Module =
         // reference types
         | Externref
         | Funcref
-        
+
         override this.ToString() =
             match this with
-                | I32 -> "i32"
-                | I64 -> "i64"
-                | F32 -> "f32"
-                | F64 -> "f64"
-                | Externref -> "externref"
-                | Funcref -> "funcref"
+            | I32 -> "i32"
+            | I64 -> "i64"
+            | F32 -> "f32"
+            | F64 -> "f64"
+            | Externref -> "externref"
+            | Funcref -> "funcref"
 
     and BlockType =
         | Type of ValueType
@@ -112,21 +31,13 @@ module Module =
 
         override this.ToString() =
             match this with
-                | Type t -> t.ToString()
-                | Empty -> "empty"
-
-    
-    let resultPrint (x: ValueType list) = 
-        // print all value types as wasm result
-        List.fold (fun acc x -> acc + sprintf " (result %s)" (x.ToString())) "" x
-    
-    // type Instruction =
-    //     | U of Instr
-    //     | C of Commented<Instr> 
+            | Type t -> t.ToString()
+            | TypeIndex i -> $"type %d{i}"
+            | Empty -> "empty"
 
     /// Instructions are syntactically distinguished into plain (Instr) and structured instructions (BlockInstr).
     /// <summary>All Wasm instructions used</summary>
-    type Instr = 
+    type Instr =
         // Control Instrs
         | Unreachable
         | Nop
@@ -294,7 +205,7 @@ module Module =
         /// type label
         | CallIndirect of Label
         | CallIndirect__ of FunctionSignature
-        // ref 
+        // ref
         | RefFunc of Label
         // Conversion Instr
         | I32WrapI64
@@ -333,200 +244,202 @@ module Module =
         | Loop of Identifier * ValueType list * list<Commented<Instr>>
         /// reuslt type of if, then block, else block
         | If of ValueType list * list<Commented<Instr>> * list<Commented<Instr>> option
-
         // comment
         | Comment of string
 
         override this.ToString() =
             match this with
-                | I32Const value -> sprintf "i32.const %i" value
-                | I64Const value -> sprintf "i64.const %i" value
-                | F32Const value -> sprintf "f32.const %f" value
-                | F64Const value -> sprintf "f64.const %f" value
-                | I32Eqz -> "i32.eqz"
-                | I32Eq -> "i32.eq"
-                | I32Ne -> "i32.ne"
-                | I32LtS -> "i32.lt_s"
-                | I32LtU -> "i32.lt_u"
-                | I32GtS -> "i32.gt_s"
-                | I32GtU -> "i32.gt_u"
-                | I32LeS -> "i32.le_s"
-                | I32LeU -> "i32.le_u"
-                | I32GeS -> "i32.ge_s"
-                | I32GeU -> "i32.ge_u"
-                | I32Add -> "i32.add"
-                | I32And -> "i32.and"
-                | I32Clz -> "i32.clz"
-                | I32Ctz -> "i32.ctz"
-                | I32DivS -> "i32.div_s"
-                | I32DivU -> "i32.div_u"
-                | I32Mul -> "i32.mul"
-                | I32Or -> "i32.or"
-                | I32Popcnt -> "i32.popcnt"
-                | I32RemS -> "i32.rem_s"
-                | I32RemU -> "i32.rem_u"
-                | I32Rotl -> "i32.rotl"
-                | I32Rotr -> "i32.rotr"
-                | I32Shl -> "i32.shl"
-                | I32ShrS -> "i32.shr_s"
-                | I32ShrU -> "i32.shr_u"
-                | I32Sub -> "i32.sub"
-                | I32Xor -> "i32.xor"
-                | I64Add -> "i64.add"
-                | I64And -> "i64.and"
-                | I64Clz -> "i64.clz"
-                | I64Ctz -> "i64.ctz"
-                | I64DivS -> "i64.div_s"
-                | I64DivU -> "i64.div_u"
-                | I64Mul -> "i64.mul"
-                | I64Or -> "i64.or"
-                | I64Popcnt -> "i64.popcnt"
-                | I64RemS -> "i64.rem_s"
-                | I64RemU -> "i64.rem_u"
-                | I64Rotl -> "i64.rotl"
-                | I64Rotr -> "i64.rotr"
-                | I64Shl -> "i64.shl"
-                | I64ShrS -> "i64.shr_s"
-                | I64ShrU -> "i64.shr_u"
-                | I64Sub -> "i64.sub"
-                | I64Xor -> "i64.xor"
-                | I64Eqz -> "i64.eqz"
-                | I64Eq -> "i64.eq"
-                | I64Ne -> "i64.ne"
-                | I64LtS -> "i64.lt_s"
-                | I64LtU -> "i64.lt_u"
-                | I64GtS -> "i64.gt_s"
-                | I64GtU -> "i64.gt_u"
-                | I64LeS -> "i64.le_s"
-                | I64LeU -> "i64.le_u"
-                | I64GeS -> "i64.ge_s"
-                | I64GeU -> "i64.ge_u"
-                | F32Eq -> "f32.eq"
-                | F32Ne -> "f32.ne"
-                | F32Lt -> "f32.lt"
-                | F32Gt -> "f32.gt"
-                | F32Le -> "f32.le"
-                | F32Ge -> "f32.ge"
-                | F32Abs -> "f32.abs"
-                | F32Neg -> "f32.neg"
-                | F32Ceil -> "f32.ceil"
-                | F32Floor -> "f32.floor"
-                | F32Trunc -> "f32.trunc"
-                | F32Nearest -> "f32.nearest"
-                | F32Sqrt -> "f32.sqrt"
-                | F32Add -> "f32.add"
-                | F32Sub -> "f32.sub"
-                | F32Mul -> "f32.mul"
-                | F32Div -> "f32.div"
-                | F32Min -> "f32.min"
-                | F32Max -> "f32.max"
-                | F32Copysign -> "f32.copysign"
-                | F64Eq -> "f64.eq"
-                | F64Ne -> "f64.ne"
-                | F64Lt -> "f64.lt"
-                | F64Gt -> "f64.gt"
-                | F64Le -> "f64.le"
-                | F64Ge -> "f64.ge"
-                | F64Abs -> "f64.abs"
-                | F64Neg -> "f64.neg"
-                | F64Ceil -> "f64.ceil"
-                | F64Floor -> "f64.floor"
-                | F64Trunc -> "f64.trunc"
-                | F64Nearest -> "f64.nearest"
-                | F64Sqrt -> "f64.sqrt"
-                | F64Add -> "f64.add"
-                | F64Sub -> "f64.sub"
-                | F64Mul -> "f64.mul"
-                | F64Div -> "f64.div"
-                | F64Min -> "f64.min"
-                | F64Max -> "f64.max"
-                | F64Copysign -> "f64.copysign"
-                | I32Load_ (align, offset) -> 
-                    match align, offset with
-                    | Some align, Some offset -> sprintf "i32.load align=%d offset=%d" align offset
-                    | Some align, None -> sprintf "i32.load align=%d" align
-                    | None, Some offset -> sprintf "i32.load offset=%d" offset
-                    | None, None -> "i32.load"
-                | I32Load -> "i32.load"
-                | I64Load (align, offset) -> sprintf "i64.load align=%d offset=%d" align offset
-                | F32Load_ (align, offset) -> 
-                    match align, offset with
-                    | Some align, Some offset -> sprintf "f32.load align=%d offset=%d" align offset
-                    | Some align, None -> sprintf "f32.load align=%d" align
-                    | None, Some offset -> sprintf "f32.load offset=%d" offset
-                    | None, None -> "f32.load"
-                | F32Load -> "f32.load"
-                | F64Load (align, offset) -> sprintf "f64.load align=%d offset=%d" align offset
-                | I32Load8S (align, offset) -> sprintf "i32.load8_s align=%d offset=%d" align offset
-                | I32Load8U (align, offset) -> sprintf "i32.load8_u align=%d offset=%d" align offset
-                | I32Load16S (align, offset) -> sprintf "i32.load16_s align=%d offset=%d" align offset
-                | I32Load16U (align, offset) -> sprintf "i32.load16_u align=%d offset=%d" align offset
-                | I64Load8S (align, offset) -> sprintf "i64.load8_s align=%d offset=%d" align offset
-                | I64Load8U (align, offset) -> sprintf "i64.load8_u align=%d offset=%d" align offset
-                | I64Load16S (align, offset) -> sprintf "i64.load16_s align=%d offset=%d" align offset
-                | I64Load16U (align, offset) -> sprintf "i64.load16_u align=%d offset=%d" align offset
-                | I64Load32S (align, offset) -> sprintf "i64.load32_s align=%d offset=%d" align offset
-                | I64Load32U (align, offset) -> sprintf "i64.load32_u align=%d offset=%d" align offset
-                | I32Store_ (align, offset) -> 
-                    match align, offset with
-                    | Some align, Some offset -> sprintf "i32.store align=%d offset=%d" align offset
-                    | Some align, None -> sprintf "i32.store align=%d" align
-                    | None, Some offset -> sprintf "i32.store offset=%d" offset
-                    | None, None -> "i32.store"
-                | I32Store -> "i32.store"
-                | I64Store (align, offset) -> sprintf "i64.store align=%d offset=%d" align offset
-                | F32Store_ (align, offset) -> 
-                    match align, offset with
-                    | Some align, Some offset -> sprintf "f32.store align=%d offset=%d" align offset
-                    | Some align, None -> sprintf "f32.store align=%d" align
-                    | None, Some offset -> sprintf "f32.store offset=%d" offset
-                    | None, None -> "f32.store"
-                | F32Store -> "f32.store"
-                | F64Store (align, offset) -> sprintf "f64.store align=%d offset=%d" align offset
-                | I32Store8 (align, offset) -> sprintf "i32.store8 align=%d offset=%d" align offset
-                | I32Store16 (align, offset) -> sprintf "i32.store16 align=%d offset=%d" align offset
-                | I64Store8 (align, offset) -> sprintf "i64.store8 align=%d offset=%d" align offset
-                | I64Store16 (align, offset) -> sprintf "i64.store16 align=%d offset=%d" align offset
-                | I64Store32 (align, offset) -> sprintf "i64.store32 align=%d offset=%d" align offset
-                | MemorySize -> "memory.size"
-                | MemoryGrow -> "memory.grow"
-                // declare variable
-                | LocalGet l -> sprintf "local.get %s" (l.ToString())
-                | LocalSet l -> sprintf "local.set %s" (l.ToString())
-                | LocalTee l -> sprintf "local.tee %s" (l.ToString())
-                | GlobalGet index -> sprintf "global.get %s" (index.ToString())
-                | GlobalSet index -> sprintf "global.set %s" (index.ToString())
-                | Unreachable -> "unreachable"
-                | Nop -> "nop"
-                | Br id -> sprintf "br $%s" id
-                | BrIf id -> sprintf "br_if $%s" id
-                // TODO: br_table
-                // | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
-                | Return -> "return"
-                | Call name -> sprintf "call $%s" name
-                | CallIndirect_ (index, x) -> sprintf "call_indirect %d" index // TODO: add x?? 
-                | CallIndirect label -> sprintf "call_indirect (type %s)" (label.ToString())
-                | CallIndirect__ (signature) -> 
-                        sprintf "call_indirect %s" (generate_signature signature "")
-                | Drop -> "drop"
-                | Select -> "select"
-                // block instructions
-                | Block (label, valueTypes, instrs) -> sprintf "(block $%s %s\n%s\n    )" label (resultPrint valueTypes) (generate_wat_code_ident instrs indent) 
-                | Loop (label, valueTypes, instrs: Commented<Instr> list) -> sprintf "(loop $%s %s\n%s\n)" label (resultPrint valueTypes) (generate_wat_code_ident instrs indent)
-                | If (types, ifInstrs, elseInstrs) -> 
-                    match elseInstrs with
-                    | Some elseInstrs' -> sprintf "(if %s\n     (then\n%s\n     )\n     (else\n%s\n     )\n    )" (resultPrint types) (generate_wat_code_ident ifInstrs indent) (generate_wat_code_ident elseInstrs' indent)
-                    | None -> sprintf "(if%s (then\n%s       )\n      )" (resultPrint types) (generate_wat_code_ident ifInstrs indent) 
-                // comments
-                | RefFunc label -> sprintf "ref.func %s" (label.ToString())
-                | MemoryFill -> "memory.fill"
-                | MemoryFill_ (offset, value, size) -> sprintf "memory.fill offset=%d value=%d size=%d" offset value size
-                | Comment comment -> sprintf ";; %s" comment
+            | I32Const value -> $"i32.const %i{value}"
+            | I64Const value -> $"i64.const %i{value}"
+            | F32Const value -> $"f32.const %f{value}"
+            | F64Const value -> $"f64.const %f{value}"
+            | I32Eqz -> "i32.eqz"
+            | I32Eq -> "i32.eq"
+            | I32Ne -> "i32.ne"
+            | I32LtS -> "i32.lt_s"
+            | I32LtU -> "i32.lt_u"
+            | I32GtS -> "i32.gt_s"
+            | I32GtU -> "i32.gt_u"
+            | I32LeS -> "i32.le_s"
+            | I32LeU -> "i32.le_u"
+            | I32GeS -> "i32.ge_s"
+            | I32GeU -> "i32.ge_u"
+            | I32Add -> "i32.add"
+            | I32And -> "i32.and"
+            | I32Clz -> "i32.clz"
+            | I32Ctz -> "i32.ctz"
+            | I32DivS -> "i32.div_s"
+            | I32DivU -> "i32.div_u"
+            | I32Mul -> "i32.mul"
+            | I32Or -> "i32.or"
+            | I32Popcnt -> "i32.popcnt"
+            | I32RemS -> "i32.rem_s"
+            | I32RemU -> "i32.rem_u"
+            | I32Rotl -> "i32.rotl"
+            | I32Rotr -> "i32.rotr"
+            | I32Shl -> "i32.shl"
+            | I32ShrS -> "i32.shr_s"
+            | I32ShrU -> "i32.shr_u"
+            | I32Sub -> "i32.sub"
+            | I32Xor -> "i32.xor"
+            | I64Add -> "i64.add"
+            | I64And -> "i64.and"
+            | I64Clz -> "i64.clz"
+            | I64Ctz -> "i64.ctz"
+            | I64DivS -> "i64.div_s"
+            | I64DivU -> "i64.div_u"
+            | I64Mul -> "i64.mul"
+            | I64Or -> "i64.or"
+            | I64Popcnt -> "i64.popcnt"
+            | I64RemS -> "i64.rem_s"
+            | I64RemU -> "i64.rem_u"
+            | I64Rotl -> "i64.rotl"
+            | I64Rotr -> "i64.rotr"
+            | I64Shl -> "i64.shl"
+            | I64ShrS -> "i64.shr_s"
+            | I64ShrU -> "i64.shr_u"
+            | I64Sub -> "i64.sub"
+            | I64Xor -> "i64.xor"
+            | I64Eqz -> "i64.eqz"
+            | I64Eq -> "i64.eq"
+            | I64Ne -> "i64.ne"
+            | I64LtS -> "i64.lt_s"
+            | I64LtU -> "i64.lt_u"
+            | I64GtS -> "i64.gt_s"
+            | I64GtU -> "i64.gt_u"
+            | I64LeS -> "i64.le_s"
+            | I64LeU -> "i64.le_u"
+            | I64GeS -> "i64.ge_s"
+            | I64GeU -> "i64.ge_u"
+            | F32Eq -> "f32.eq"
+            | F32Ne -> "f32.ne"
+            | F32Lt -> "f32.lt"
+            | F32Gt -> "f32.gt"
+            | F32Le -> "f32.le"
+            | F32Ge -> "f32.ge"
+            | F32Abs -> "f32.abs"
+            | F32Neg -> "f32.neg"
+            | F32Ceil -> "f32.ceil"
+            | F32Floor -> "f32.floor"
+            | F32Trunc -> "f32.trunc"
+            | F32Nearest -> "f32.nearest"
+            | F32Sqrt -> "f32.sqrt"
+            | F32Add -> "f32.add"
+            | F32Sub -> "f32.sub"
+            | F32Mul -> "f32.mul"
+            | F32Div -> "f32.div"
+            | F32Min -> "f32.min"
+            | F32Max -> "f32.max"
+            | F32Copysign -> "f32.copysign"
+            | F64Eq -> "f64.eq"
+            | F64Ne -> "f64.ne"
+            | F64Lt -> "f64.lt"
+            | F64Gt -> "f64.gt"
+            | F64Le -> "f64.le"
+            | F64Ge -> "f64.ge"
+            | F64Abs -> "f64.abs"
+            | F64Neg -> "f64.neg"
+            | F64Ceil -> "f64.ceil"
+            | F64Floor -> "f64.floor"
+            | F64Trunc -> "f64.trunc"
+            | F64Nearest -> "f64.nearest"
+            | F64Sqrt -> "f64.sqrt"
+            | F64Add -> "f64.add"
+            | F64Sub -> "f64.sub"
+            | F64Mul -> "f64.mul"
+            | F64Div -> "f64.div"
+            | F64Min -> "f64.min"
+            | F64Max -> "f64.max"
+            | F64Copysign -> "f64.copysign"
+            | I32Load_(align, offset) ->
+                match align, offset with
+                | Some align, Some offset -> $"i32.load align=%d{align} offset=%d{offset}"
+                | Some align, None -> $"i32.load align=%d{align}"
+                | None, Some offset -> $"i32.load offset=%d{offset}"
+                | None, None -> "i32.load"
+            | I32Load -> "i32.load"
+            | I64Load(align, offset) -> $"i64.load align=%d{align} offset=%d{offset}"
+            | F32Load_(align, offset) ->
+                match align, offset with
+                | Some align, Some offset -> $"f32.load align=%d{align} offset=%d{offset}"
+                | Some align, None -> $"f32.load align=%d{align}"
+                | None, Some offset -> $"f32.load offset=%d{offset}"
+                | None, None -> "f32.load"
+            | F32Load -> "f32.load"
+            | F64Load(align, offset) -> $"f64.load align=%d{align} offset=%d{offset}"
+            | I32Load8S(align, offset) -> $"i32.load8_s align=%d{align} offset=%d{offset}"
+            | I32Load8U(align, offset) -> $"i32.load8_u align=%d{align} offset=%d{offset}"
+            | I32Load16S(align, offset) -> $"i32.load16_s align=%d{align} offset=%d{offset}"
+            | I32Load16U(align, offset) -> $"i32.load16_u align=%d{align} offset=%d{offset}"
+            | I64Load8S(align, offset) -> $"i64.load8_s align=%d{align} offset=%d{offset}"
+            | I64Load8U(align, offset) -> $"i64.load8_u align=%d{align} offset=%d{offset}"
+            | I64Load16S(align, offset) -> $"i64.load16_s align=%d{align} offset=%d{offset}"
+            | I64Load16U(align, offset) -> $"i64.load16_u align=%d{align} offset=%d{offset}"
+            | I64Load32S(align, offset) -> $"i64.load32_s align=%d{align} offset=%d{offset}"
+            | I64Load32U(align, offset) -> $"i64.load32_u align=%d{align} offset=%d{offset}"
+            | I32Store_(align, offset) ->
+                match align, offset with
+                | Some align, Some offset -> $"i32.store align=%d{align} offset=%d{offset}"
+                | Some align, None -> $"i32.store align=%d{align}"
+                | None, Some offset -> $"i32.store offset=%d{offset}"
+                | None, None -> "i32.store"
+            | I32Store -> "i32.store"
+            | I64Store(align, offset) -> $"i64.store align=%d{align} offset=%d{offset}"
+            | F32Store_(align, offset) ->
+                match align, offset with
+                | Some align, Some offset -> $"f32.store align=%d{align} offset=%d{offset}"
+                | Some align, None -> $"f32.store align=%d{align}"
+                | None, Some offset -> $"f32.store offset=%d{offset}"
+                | None, None -> "f32.store"
+            | F32Store -> "f32.store"
+            | F64Store(align, offset) -> $"f64.store align=%d{align} offset=%d{offset}"
+            | I32Store8(align, offset) -> $"i32.store8 align=%d{align} offset=%d{offset}"
+            | I32Store16(align, offset) -> $"i32.store16 align=%d{align} offset=%d{offset}"
+            | I64Store8(align, offset) -> $"i64.store8 align=%d{align} offset=%d{offset}"
+            | I64Store16(align, offset) -> $"i64.store16 align=%d{align} offset=%d{offset}"
+            | I64Store32(align, offset) -> $"i64.store32 align=%d{align} offset=%d{offset}"
+            | MemorySize -> "memory.size"
+            | MemoryGrow -> "memory.grow"
+            // declare variable
+            | LocalGet l -> $"local.get %s{l.ToString()}"
+            | LocalSet l -> $"local.set %s{l.ToString()}"
+            | LocalTee l -> $"local.tee %s{l.ToString()}"
+            | GlobalGet index -> $"global.get %s{index.ToString()}"
+            | GlobalSet index -> $"global.set %s{index.ToString()}"
+            | Unreachable -> "unreachable"
+            | Nop -> "nop"
+            | Br id -> $"br $%s{id}"
+            | BrIf id -> $"br_if $%s{id}"
+            // TODO: br_table
+            // | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
+            | Return -> "return"
+            | Call name -> $"call $%s{name}"
+            | CallIndirect_(index, x) -> $"call_indirect %d{index}" // TODO: add x??
+            | CallIndirect label -> $"call_indirect (type %s{label.ToString()})"
+            | CallIndirect__(signature) -> sprintf "call_indirect %s" (generate_signature signature "")
+            | Drop -> "drop"
+            | Select -> "select"
+            // block instructions
+            | Block(label, valueTypes, instrs) ->
+                $"(block $%s{label} %s{resultPrint valueTypes}\n%s{generate_wat_code_ident instrs indent}\n    )"
+            | Loop(label, valueTypes, instrs: Commented<Instr> list) ->
+                $"(loop $%s{label} %s{resultPrint valueTypes}\n%s{generate_wat_code_ident instrs indent}\n)"
+            | If(types, ifInstrs, elseInstrs) ->
+                match elseInstrs with
+                | Some elseInstrs' ->
+                    $"(if %s{resultPrint types}\n     (then\n%s{generate_wat_code_ident ifInstrs indent}\n     )\n     (else\n%s{generate_wat_code_ident elseInstrs' indent}\n     )\n    )"
+                | None ->
+                    $"(if%s{resultPrint types} (then\n%s{generate_wat_code_ident ifInstrs indent}       )\n      )"
+            // comments
+            | RefFunc label -> $"ref.func %s{label.ToString()}"
+            | MemoryFill -> "memory.fill"
+            | MemoryFill_(offset, value, size) -> $"memory.fill offset=%d{offset} value=%d{value} size=%d{size}"
+            | Comment comment -> $";; %s{comment}"
 
-                | x -> sprintf "not implemented: %s" (x.ToString())
+            | x -> $"not implemented: %s{x.ToString()}"
 
 
-    and  Instrs = Instr list
+    and Instrs = Instr list
 
     and Type = Identifier * FunctionSignature
 
@@ -539,11 +452,11 @@ module Module =
         | TableType of Table
         | MemoryType of Memory
         | GlobalType of Identifier
-        | ElementType of ValueType  // todo element type and not value type
+        | ElementType of ValueType // todo element type and not value type
         | EmptyType
 
     and Table = Identifier * ValueType * Limits
-    
+
     // (memory (export $name) limits)
     and Memory = string * Limits
 
@@ -567,9 +480,9 @@ module Module =
         // to string
         override this.ToString() =
             match this with
-            | Unbounded min -> sprintf "%d" min
-            | Bounded (min, max) -> sprintf "%d %d" min max
-    
+            | Unbounded min -> $"%d{min}"
+            | Bounded(min, max) -> $"%d{min} %d{max}"
+
     and Export = string * ExternalType
 
 
@@ -607,385 +520,741 @@ module Module =
     and Local = Identifier option * ValueType
 
     and FunctionInstance =
-        { 
+        {
           // moduleInstance : ModuleInstance
-          typeIndex : int
+          typeIndex: int
           name: Identifier option
-          signature : FunctionSignature
-          locals : Local list
-          body : Commented<Instr> list
-        }
+          signature: FunctionSignature
+          locals: Local list
+          body: Commented<Instr> list }
 
     and funcTable = Identifier * ValueType * Limits
 
-    let commentString (a) (b: string) = sprintf "%s ;; %s" a b
-    
+    let commentString (a) (b: string) = $"%s{a} ;; %s{b}"
+
 
 
     [<RequireQualifiedAccess>]
-    type Module private (types: Set<Type>, functions: Map<string, Commented<FunctionInstance>>, tables: list<Table>, memories: Set<Memory>, globals: Set<Global>, exports: Set<Export>, imports: Set<Import>, start: Start, elements: Set<Element>, data: Set<Data>, locals: Set<Local>, tempCode: list<Commented<Instr>>, funcTableSize: int, hostinglist) =
-            member private this.types: Set<Type> = types
-            member private this.functions = functions 
-            member private this.tables = tables
-            member private this.memories: Set<Memory> = memories
-            member private this.globals: Set<Global> = globals
-            member private this.exports: Set<Export> = exports
-            member private this.imports: Set<Import> = imports
-            member private this.start: Start = start
-            member private this.elements: Set<Element> = elements
-            member private this.data: Set<Data> = data
-            // member private this.codes = Code
-            member private this.locals: Set<Local> = locals
+    type Module
+        private
+        (
+            types: Set<Type>,
+            functions: Map<string, Commented<FunctionInstance>>,
+            tables: list<Table>,
+            memories: Set<Memory>,
+            globals: Set<Global>,
+            exports: Set<Export>,
+            imports: Set<Import>,
+            start: Start,
+            elements: Set<Element>,
+            data: Set<Data>,
+            locals: Set<Local>,
+            tempCode: list<Commented<Instr>>,
+            funcTableSize: int,
+            hostinglist
+        ) =
+        member private this.types: Set<Type> = types
+        member private this.functions = functions
+        member private this.tables = tables
+        member private this.memories: Set<Memory> = memories
+        member private this.globals: Set<Global> = globals
+        member private this.exports: Set<Export> = exports
+        member private this.imports: Set<Import> = imports
+        member private this.start: Start = start
+        member private this.elements: Set<Element> = elements
+        member private this.data: Set<Data> = data
+        // member private this.codes = Code
+        member private this.locals: Set<Local> = locals
 
-            member private this.funcTableSize: int = funcTableSize
-            member private this.tempCode: list<Commented<Instr>> = tempCode
-            
-            member private this.hostinglist: string list = hostinglist
+        member private this.funcTableSize: int = funcTableSize
+        member private this.tempCode: list<Commented<Instr>> = tempCode
 
-            // empty constructor
-            new () = 
-                Module(Set.empty, Map.empty, [], Set.empty, Set.empty, Set.empty, Set.empty, None, Set.empty, Set.empty, Set.empty, [], 0, [])
-            
-            // module constructor that take temp code
-            new (tempCode: list<Commented<Instr>>) = 
-                Module(Set.empty, Map.empty, [], Set.empty, Set.empty, Set.empty, Set.empty, None, Set.empty, Set.empty, Set.empty, tempCode, 0, [])
+        member private this.hostinglist: string list = hostinglist
 
-            member this.GetFuncTableSize = 
-                this.elements.Count
-            
-            member this.GetHostingList () =
+        // empty constructor
+        new() =
+            Module(
+                Set.empty,
+                Map.empty,
+                [],
+                Set.empty,
+                Set.empty,
+                Set.empty,
+                Set.empty,
+                None,
+                Set.empty,
+                Set.empty,
+                Set.empty,
+                [],
+                0,
+                []
+            )
+
+        // module constructor that take temp code
+        new(tempCode: list<Commented<Instr>>) =
+            Module(
+                Set.empty,
+                Map.empty,
+                [],
+                Set.empty,
+                Set.empty,
+                Set.empty,
+                Set.empty,
+                None,
+                Set.empty,
+                Set.empty,
+                Set.empty,
+                tempCode,
+                0,
+                []
+            )
+
+        member this.GetFuncTableSize = this.elements.Count
+
+        member this.GetHostingList() = this.hostinglist
+
+        member this.AddToHostingList(name: string) =
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                name :: this.hostinglist
+            )
+
+        member this.GetAllFuncs() = this.functions |> Map.toList
+
+        member this.ReplaceFuncs(list: list<(string * FunctionInstance) * string>) =
+            // map list to map
+            let map = list |> List.map (fun ((name, f), s) -> (name, (f, s))) |> Map.ofList
+
+            Module(
+                this.types,
+                map,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
                 this.hostinglist
+            )
 
-            member this.AddToHostingList (name: string) =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, name :: this.hostinglist)
+        member this.RemoveLocal(name: string) =
+            let locals = this.locals |> Set.filter (fun (n, _) -> n <> Some name)
 
-            member this.GetAllFuncs () =
-                this.functions |> Map.toList               
-            
-            member this.ReplaceFuncs (list: list<(string * FunctionInstance) * string>) = 
-                // map list to map
-                let map = list |> List.map (fun ((name, f), s) -> (name, (f, s))) |> Map.ofList     
-                Module(this.types, map, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, this.hostinglist)
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
 
-            member this.RemoveLocal (name: string) =
-                let locals = this.locals |> Set.filter (fun (n, _) -> n <> Some name)
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, locals, this.tempCode, this.funcTableSize, this.hostinglist)
+        /// add func ref element and grow func table. GetFuncTableSize will be increased by 1
+        /// <summary>add func ref element and grow func table</summary>
+        /// <param name="label">label of function</param>
+        /// <returns>new module</returns>
+        member this.AddFuncRefElement(label: string, index: int) =
+            // is there a tabel named func_table
+            let func_table =
+                this.tables |> List.tryFind (fun (name, _, _) -> name = "func_table")
 
-            /// add func ref element and grow func table. GetFuncTableSize will be increased by 1
-            /// <summary>add func ref element and grow func table</summary>
-            /// <param name="label">label of function</param>
-            /// <returns>new module</returns>
-            member this.AddFuncRefElement (label: string, index: int) =
-                // is there a tabel named func_table
-                let func_table = this.tables |> List.tryFind (fun (name, _, _) -> name = "func_table")
+            // init table if no table named func_table exists
+            let (table: Table) =
+                match func_table with
+                | Some(name, valueType, limits) -> (name, valueType, limits)
+                | None -> ("func_table", Funcref, Unbounded 1)
 
-                // init table if no table named func_table exists
-                let (table: Table) = 
-                    match func_table with
-                    | Some (name, valueType, limits) -> (name, valueType, limits)
-                    | None -> ("func_table", Funcref, Unbounded 1)
+            let elements: Element = (index, label)
 
-                let elements: Element = (index, label)
-                Module(this.types, this.functions, table :: this.tables, this.memories, this.globals, this.exports, this.imports, this.start, Set(elements :: Set.toList this.elements), this.data, this.locals, this.tempCode, this.elements.Count + 1, this.hostinglist)
+            Module(
+                this.types,
+                this.functions,
+                table :: this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                Set(elements :: Set.toList this.elements),
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.elements.Count + 1,
+                this.hostinglist
+            )
 
-            // add temp code
-            member this.AddCode (instrs: Instr list) =
-                // map comment to instrs
-                let instrs = instrs |> List.map (fun x -> Commented(x, ""))
-                let tempCode = this.tempCode @ instrs
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode, this.funcTableSize, this.hostinglist)
+        // add temp code
+        member this.AddCode(instrs: Instr list) =
+            // map comment to instrs
+            let instrs = instrs |> List.map (fun x -> Commented(x, ""))
+            let tempCode = this.tempCode @ instrs
 
-            // add temp code with comment
-            member this.AddCode (instrs: Commented<Instr> list) =
-                let tempCode = this.tempCode @ instrs
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, tempCode, this.funcTableSize, this.hostinglist)
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
 
-            // get temp code
-            member this.GetAccCode () =
-                this.tempCode
+        // add temp code with comment
+        member this.AddCode(instrs: Commented<Instr> list) =
+            let tempCode = this.tempCode @ instrs
 
-            // reset temp code
-            member this.ResetAccCode () =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, [], this.funcTableSize, this.hostinglist)
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
 
-            // reset Locals
-            member this.ResetLocals () =
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, Set.empty, this.tempCode, this.funcTableSize, this.hostinglist)
+        // get temp code
+        member this.GetAccCode() = this.tempCode
 
-            // add locals to module
-            member this.AddLocals (locals: list<Local>) =
-                let locals = locals @ Set.toList this.locals
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, Set(locals), this.tempCode, this.funcTableSize, this.hostinglist)
+        // reset temp code
+        member this.ResetAccCode() =
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                [],
+                this.funcTableSize,
+                this.hostinglist
+            )
 
-            // get locals from module
-            member this.GetLocals () =
-                Set.toList this.locals
+        // reset Locals
+        member this.ResetLocals() =
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                Set.empty,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
 
-            // add locals tp function with name
-            member this.AddLocals (name: string, locals: list<Local>) =
-                let (f), s = this.functions.[name]
-                let newInstance: Commented<FunctionInstance> = ({typeIndex = f.typeIndex
-                                                                 locals = f.locals @ locals
-                                                                 signature = f.signature
-                                                                 body = f.body
-                                                                 name = f.name }, s)
+        // add locals to module
+        member this.AddLocals(locals: list<Local>) =
+            let locals = locals @ Set.toList this.locals
 
-                let functions = this.functions.Add(name, newInstance)
-                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, this.hostinglist)
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                Set(locals),
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
 
-            // Add instructions to function with name
-            member this.AddInstrs (name: string, instrs: Instr list) =
-                let (f), s = this.functions.[name]
-                // add instrs to function f a function instance
-                let newInstance: Commented<FunctionInstance> = ({typeIndex = f.typeIndex
-                                                                 locals = f.locals
-                                                                 signature = f.signature
-                                                                 body = f.body @ (instrs |> List.map (fun x -> Commented(x, "")))
-                                                                 name = f.name }, s)
+        // get locals from module
+        member this.GetLocals() = Set.toList this.locals
 
-                let functions = this.functions.Add(name, newInstance)
-                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, this.hostinglist)
-                
-            member this.AddInstrs (name: string, instrs: Commented<Instr> list) = 
-                let (f), s = this.functions.[name]
-                // add instrs to function f a function instance
-                let newInstance: Commented<FunctionInstance> = ({typeIndex = f.typeIndex
-                                                                 locals = f.locals
-                                                                 signature = f.signature
-                                                                 body = f.body @ instrs 
-                                                                 name = f.name }, s)
+        // add locals tp function with name
+        member this.AddLocals(name: string, locals: list<Local>) =
+            let (f), s = this.functions.[name]
 
-                let functions = this.functions.Add(name, newInstance)
-                Module(this.types, functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, this.hostinglist)
-                
-            // Add an import to the module
-            member this.AddImport (i: Import) =
-                let imports = i :: Set.toList this.imports
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, Set(imports), this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, this.hostinglist)
+            let newInstance: Commented<FunctionInstance> =
+                ({ typeIndex = f.typeIndex
+                   locals = f.locals @ locals
+                   signature = f.signature
+                   body = f.body
+                   name = f.name },
+                 s)
 
+            let functions = this.functions.Add(name, newInstance)
 
-            // Add a function to the module
-            member this.AddFunction (name: string, f: Commented<FunctionInstance>) =
-                this.AddFunction (name, f, false)
+            Module(
+                this.types,
+                functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
 
-            member this.AddFunction (name: string, f: Commented<FunctionInstance>, addTypedef: bool) =
-                // add typedef
-                let (types, f') = 
-                    if addTypedef then
-                        let typeIndex = this.types.Count
-                        
-                        // get instance 
-                        let instance = fst f
-                        // add typeindex to instance
-                        let instance = { instance with typeIndex = typeIndex }
-                        // add instance to function
-                        let f' = (instance, snd f)
-                        let typedef = instance.signature
+        // Add instructions to function with name
+        member this.AddInstrs(name: string, instrs: Instr list) =
+            let (f), s = this.functions.[name]
+            // add instrs to function f a function instance
+            let newInstance: Commented<FunctionInstance> =
+                ({ typeIndex = f.typeIndex
+                   locals = f.locals
+                   signature = f.signature
+                   body = f.body @ (instrs |> List.map (fun x -> Commented(x, "")))
+                   name = f.name },
+                 s)
 
-                        let typeS = GenFuncTypeName typedef
+            let functions = this.functions.Add(name, newInstance)
 
-                        let typedef = (typeS, typedef)
+            Module(
+                this.types,
+                functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
 
-                        let set = Set(List.distinctBy (fun l -> fst l) (typedef :: Set.toList this.types))
+        member this.AddInstrs(name: string, instrs: Commented<Instr> list) =
+            let (f), s = this.functions.[name]
+            // add instrs to function f a function instance
+            let newInstance: Commented<FunctionInstance> =
+                ({ typeIndex = f.typeIndex
+                   locals = f.locals
+                   signature = f.signature
+                   body = f.body @ instrs
+                   name = f.name },
+                 s)
 
-                        set, f'
-                    else
-                        this.types, f
+            let functions = this.functions.Add(name, newInstance)
 
-                Module(types, functions.Add(name, f'), this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, this.hostinglist) 
+            Module(
+                this.types,
+                functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
 
-            // Add a table to the module
-            member this.AddTable (t: Table) =
-                let tables = t :: this.tables
-                Module(this.types, this.functions, tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, this.hostinglist)
+        // Add an import to the module
+        member this.AddImport(i: Import) =
+            let imports = i :: Set.toList this.imports
 
-            // Add a memory to the module
-            member this.AddMemory (m: Memory) =
-                Module(this.types, this.functions, this.tables, Set(m :: (Set.toList memories)), this.globals, this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, this.hostinglist)
-
-            /// <summary>add global to module</summary>
-            /// <param name="g">global</param>
-            /// <returns>module</returns>
-            /// <example>
-            /// let g = ("g", (I32, Mutable), [I32Const 0l])
-            /// let m = m.AddGlobal g
-            /// </example>
-            /// <remarks>add global to module</remarks>
-            member this.AddGlobal (g: Global) =
-                let globals = g :: Set.toList this.globals
-                Module(this.types, this.functions, this.tables, this.memories, Set(globals), this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, this.hostinglist)
-
-            member this.AddGlobals (globals: list<Global>) =
-                let globals = globals @ Set.toList this.globals
-                Module(this.types, this.functions, this.tables, this.memories, Set(globals), this.exports, this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, this.hostinglist)
-
-            // Add an export to the module
-            member this.AddExport (e: Export) =
-                let exports = e :: Set.toList this.exports
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, Set(exports), this.imports, this.start, this.elements, this.data, this.locals, this.tempCode, this.funcTableSize, this.hostinglist)
-
-            //  Add Data to the module
-            member this.AddData (d: Data) =
-                let data = d :: Set.toList this.data
-                Module(this.types, this.functions, this.tables, this.memories, this.globals, this.exports, this.imports, this.start, this.elements, Set(data), this.locals ,this.tempCode, this.funcTableSize, this.hostinglist)
-
-            // combine two wasm modules
-            member this.Combine (m: Module) =
-                let types = Set(List.distinctBy (fun l -> fst l) (Set.toList this.types @ Set.toList m.types))
-                let functions = Map.fold (fun acc key value -> Map.add key value acc) this.functions m.functions
-                let tables = this.tables @ m.tables
-                let memories = Set.toList this.memories @ Set.toList m.memories
-                let globals = Set.toList this.globals @Set.toList m.globals
-                let exports = Set.toList this.exports @ Set.toList m.exports
-                let imports = Set.toList this.imports @ Set.toList m.imports
-                let start = this.start
-                let elements = Set.toList this.elements @ Set.toList m.elements
-                let data = Set.toList this.data @ Set.toList m.data
-                let locals = Set.toList this.locals @ Set.toList m.locals
-                let tempCode = this.tempCode @ m.tempCode
-                let hostinglist = this.hostinglist @ m.hostinglist
-                Module(Set(types), functions, tables, Set(memories), Set(globals), Set(exports), Set(imports), start, Set(elements), Set(data), Set(locals), tempCode, this.funcTableSize + m.funcTableSize, hostinglist)
-
-            static member (+) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
-
-            static member (++) (wasm1: Module, wasm2: Module): Module = wasm1.Combine wasm2
-
-            static member (++) (instr: Commented<Instr> list, wasm2: Module): Module = Module(instr).Combine wasm2
-
-            static member ( @ ) (wasm1: Instrs list, wasm2: Commented<Instrs> list) = 
-                let instrs = wasm1 |> List.map (fun x -> Commented(x, ""))
-                instrs @ wasm2
-            
-            static member ( @ ) (wasm1: Commented<Instrs> list, wasm2: Instrs list) = 
-                let instrs = wasm2 |> List.map (fun x -> Commented(x, ""))
-                wasm1 @ instrs
-
-            static member ( @ ) (wasm1: Commented<Instrs> list, wasm2: Commented<Instrs> list) = wasm1 @ wasm2
-
-            override this.ToString() =
-
-                let ic (i: int) = $"(;{i};)"
-
-                let mutable result = ""
-                
-                let generate_local (locals: Local list) =
-                    if locals.Length > 0 then 
-                        let comment = "local variables declarations:"
-                        let def = String.concat " " (List.map (fun x -> 
-
-                            match x with
-                            | (Some name, t) -> sprintf "   (local $%s %s)\n" name (t.ToString())
-                            | (None, t) -> sprintf "    (local %s)\n" (t.ToString())
-                        ) locals)
-                        
-                        sprintf "  %s\n %s " (commentS comment) def
-                    else ""
-
-                let genrate_name (name: string option) =
-                    match name with
-                    | Some name ->
-                        sprintf "$%s" name
-                    | _ -> ""        
-
-                result <- result + "(module\n" // open module tag
-
-                let printType (i: int, t: Type) (withName: bool) =
-                    let name, signature = t
-                    let parameters, returnValues = signature
-                    let parametersString = String.concat " " (List.map (fun (n, t) -> 
-                        match n with
-                        | Some name -> 
-                            if withName then
-                                sprintf "(param $%s %s)" name (t.ToString())
-                            else
-                                sprintf "(param %s)" (t.ToString())
-                        | None -> sprintf "(param %s)" (t.ToString())) parameters)
-                    let returnValuesString = String.concat " " (List.map (fun x -> (sprintf "(result %s)" (x.ToString()))) returnValues)
-                    // name with suffix
-                    // let name = sprintf "%s_type" name
-                    sprintf "  (type $%s %s (func %s %s))\n" name (ic i) parametersString returnValuesString 
-
-
-                for type_ in List.indexed (Set.toList this.types) do // print all types
-                    result <- result + (printType type_ false)
-
-                for (i: int, import: Import) in List.indexed (Set.toList this.imports) do // print all imports
-                
-                    let modu, func_name, func_signature = import
-
-                    result <- result + sprintf "  (import \"%s\" \"%s\" %s %s)\n" modu func_name (ic i) (match func_signature with
-                                                                                                    | FunctionType (name, signature) -> 
-                                                                                                                match signature with
-                                                                                                                | Some signature -> sprintf "(func $%s %s)" name (generate_signature signature "")
-                                                                                                                | _ -> sprintf "(func $%s)" name
-                                                                                                    | TableType table -> sprintf "(table %s)" (table.ToString())
-                                                                                                    | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
-                                                                                                    | _ -> ""
-                                                                                                    )
-
-                for i, (name, Limits)  in List.indexed (Set.toList this.memories) do
-                    result <- result + sprintf "  (memory %s (export \"%s\") %s)\n" (ic i) name (Limits.ToString())                          
-
-                let printGlobal (i: int, global_: Global) =
-                    let name, (valueType, mutability), instr = global_
-                    let valueType = valueType.ToString()
-                    let gType = 
-                        match mutability with
-                        | Mutable -> sprintf "(mut %s)" valueType
-                        | Immutable -> sprintf "%s" valueType
-                    
-                    //let instrs = instrs |> List.map (fun x -> Commented(x, ""))
-                    //let instrs = generate_wat_code_ident instrs 0
-                    sprintf "  (global $%s %s %s%s %s)\n" name (ic i) gType (commentS "") (instr.ToString())
-
-                for global_ in List.indexed (Set.toList this.globals) do
-                    result <- result + (printGlobal global_)
-
-                
-                // print tables and elements
-
-                // func table
-                result <- result + sprintf "  (table $%s %s %s %s)\n" "func_table" (ic 0) (sprintf "%d" this.elements.Count) (ValueType.Funcref.ToString())
-                
-                // // print rest of tables
-                // for table in this.tables do
-                //     result <- result + sprintf "  (table %s)\n" (table.ToString())
-
-                for i, element in List.indexed (Set.toList this.elements) do
-                    // unpacked element 
-                    let (index, element) = element
-                    result <- result + sprintf "  (elem (i32.const %i) %s $%s)\n" index (ic i) (element.ToString())
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                Set(imports),
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
 
 
-                // create functions
-                let x: int = 0;
-                for funcKey in this.functions.Keys do
-                    let (f), c = this.functions.[funcKey]
-                    result <- result + sprintf "  (func %s %s %s %s\n%s  )\n" (genrate_name f.name) (ic x) (generate_signature f.signature c) (generate_local f.locals) (generate_wat_code_ident f.body ((indent/2) + 1)) 
-                    x = x + 1
+        // Add a function to the module
+        member this.AddFunction(name: string, f: Commented<FunctionInstance>) = this.AddFunction(name, f, false)
 
-                for (instr, data) in this.data do
-                    result <- result + sprintf "  (data (%s) \"%s\")\n" (instr.ToString()) (data.ToString())
-                    
-                // create exports
-                for export in this.exports do
-                    result <- result + sprintf "  (export \"%s\" %s)\n" (fst export) (match snd export with
-                                                                                        | FunctionType (name, _) -> sprintf "(func $%s)" (name)
-                                                                                        | TableType table -> sprintf "(table %s)" (table.ToString())
-                                                                                        | MemoryType memory -> sprintf "(memory %s)" (memory.ToString())
-                                                                                        | GlobalType global_ -> sprintf "(global $%s)" (global_.ToString())
-                                                                                        | _ -> "")
+        member this.AddFunction(name: string, f: Commented<FunctionInstance>, addTypedef: bool) =
+            // add typedef
+            let (types, f') =
+                if addTypedef then
+                    let typeIndex = this.types.Count
 
-                // print start
-                match this.start with
-                | Some index -> result <- result + sprintf "  (start %d)\n" index
-                | None -> ()
+                    // get instance
+                    let instance = fst f
+                    // add typeindex to instance
+                    let instance = { instance with typeIndex = typeIndex }
+                    // add instance to function
+                    let f' = (instance, snd f)
+                    let typedef = instance.signature
 
-                result <- result + ")" // close module tag
+                    let typeS = Utils.GenFuncTypeName typedef
+
+                    let typedef = (typeS, typedef)
+
+                    let set = Set(List.distinctBy (fun l -> fst l) (typedef :: Set.toList this.types))
+
+                    set, f'
+                else
+                    this.types, f
+
+            Module(
+                types,
+                functions.Add(name, f'),
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
+
+        // Add a table to the module
+        member this.AddTable(t: Table) =
+            let tables = t :: this.tables
+
+            Module(
+                this.types,
+                this.functions,
+                tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
+
+        // Add a memory to the module
+        member this.AddMemory(m: Memory) =
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                Set(m :: (Set.toList memories)),
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
+
+        /// <summary>add global to module</summary>
+        /// <param name="g">global</param>
+        /// <returns>module</returns>
+        /// <example>
+        /// let g = ("g", (I32, Mutable), [I32Const 0l])
+        /// let m = m.AddGlobal g
+        /// </example>
+        /// <remarks>add global to module</remarks>
+        member this.AddGlobal(g: Global) =
+            let globals = g :: Set.toList this.globals
+
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                Set(globals),
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
+
+        member this.AddGlobals(globals: list<Global>) =
+            let globals = globals @ Set.toList this.globals
+
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                Set(globals),
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
+
+        // Add an export to the module
+        member this.AddExport(e: Export) =
+            let exports = e :: Set.toList this.exports
+
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                Set(exports),
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
+
+        //  Add Data to the module
+        member this.AddData(d: Data) =
+            let data = d :: Set.toList this.data
+
+            Module(
+                this.types,
+                this.functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                Set(data),
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
+
+        // combine two wasm modules
+        member this.Combine(m: Module) =
+            let types =
+                Set(List.distinctBy (fun l -> fst l) (Set.toList this.types @ Set.toList m.types))
+
+            let functions =
+                Map.fold (fun acc key value -> Map.add key value acc) this.functions m.functions
+
+            let tables = this.tables @ m.tables
+            let memories = Set.toList this.memories @ Set.toList m.memories
+            let globals = Set.toList this.globals @ Set.toList m.globals
+            let exports = Set.toList this.exports @ Set.toList m.exports
+            let imports = Set.toList this.imports @ Set.toList m.imports
+            let start = this.start
+            let elements = Set.toList this.elements @ Set.toList m.elements
+            let data = Set.toList this.data @ Set.toList m.data
+            let locals = Set.toList this.locals @ Set.toList m.locals
+            let tempCode = this.tempCode @ m.tempCode
+            let hostinglist = this.hostinglist @ m.hostinglist
+
+            Module(
+                Set(types),
+                functions,
+                tables,
+                Set(memories),
+                Set(globals),
+                Set(exports),
+                Set(imports),
+                start,
+                Set(elements),
+                Set(data),
+                Set(locals),
+                tempCode,
+                this.funcTableSize + m.funcTableSize,
+                hostinglist
+            )
+
+        static member (+)(wasm1: Module, wasm2: Module) : Module = wasm1.Combine wasm2
+
+        static member (++)(wasm1: Module, wasm2: Module) : Module = wasm1.Combine wasm2
+
+        static member (++)(instr: Commented<Instr> list, wasm2: Module) : Module = Module(instr).Combine wasm2
+
+        static member (@)(wasm1: Instrs list, wasm2: Commented<Instrs> list) =
+            let instrs = wasm1 |> List.map (fun x -> Commented(x, ""))
+            instrs @ wasm2
+
+        static member (@)(wasm1: Commented<Instrs> list, wasm2: Instrs list) =
+            let instrs = wasm2 |> List.map (fun x -> Commented(x, ""))
+            wasm1 @ instrs
+
+        static member (@)(wasm1: Commented<Instrs> list, wasm2: Commented<Instrs> list) = wasm1 @ wasm2
+
+        override this.ToString() =
+            let mutable result = ""
+
+            // open module tag
+            result <- result + "(module\n"
+
+            // print all types
+            for type_ in List.indexed (Set.toList this.types) do
+                result <- result + (printType type_ false)
+
+            // print all imports
+            for (i: int, import: Import) in List.indexed (Set.toList this.imports) do
+
+                let modu, func_name, func_signature = import
+
+                result <-
+                    result
+                    + sprintf
+                        "  (import \"%s\" \"%s\" %s %s)\n"
+                        modu
+                        func_name
+                        (ic i)
+                        (match func_signature with
+                         | FunctionType(name, signature) ->
+                             match signature with
+                             | Some signature -> sprintf "(func $%s %s)" name (generate_signature signature "")
+                             | _ -> $"(func $%s{name})"
+                         | TableType table -> $"(table %s{table.ToString()})"
+                         | MemoryType memory -> $"(memory %s{memory.ToString()})"
+                         | _ -> "")
+            // print all memories
+            for i, (name, Limits) in List.indexed (Set.toList this.memories) do
+                result <- result + $"  (memory %s{ic i} (export \"%s{name}\") %s{Limits.ToString()})\n"
+
+            // print all globals
+            for global_ in List.indexed (Set.toList this.globals) do
+                result <- result + (printGlobal global_)
+
+
+            // print tables and elements
+
+            // func table
+            result <-
                 result
+                + sprintf
+                    "  (table $%s %s %s %s)\n"
+                    "func_table"
+                    (ic 0)
+                    $"%d{this.elements.Count}"
+                    (ValueType.Funcref.ToString())
 
-    let C instrs  = 
-        instrs |> List.map (fun x -> Commented(x, ""))
-    
-    let I instrs: Commented<Instr> list  = 
-        instrs |> List.map (fun x -> fst x)
+            // // print rest of tables
+            // for table in this.tables do
+            //     result <- result + sprintf "  (table %s)\n" (table.ToString())
+
+            for i, element in List.indexed (Set.toList this.elements) do
+                // unpacked element
+                let (index, element) = element
+                result <- result + $"  (elem (i32.const %i{index}) %s{ic i} $%s{element.ToString()})\n"
+
+
+            // create functions
+            let mutable x: int = 0
+
+            for funcKey in this.functions.Keys do
+                let (f), c = this.functions.[funcKey]
+
+                result <-
+                    result
+                    + $"  (func %s{genrate_name f.name} %s{ic x} %s{generate_signature f.signature c} %s{generate_local f.locals}\n%s{generate_wat_code_ident f.body ((indent / 2) + 1)}  )\n"
+
+                // increase x
+                x <- x + 1
+
+            for (instr, data) in this.data do
+                result <- result + $"  (data (%s{instr.ToString()}) \"%s{data.ToString()}\")\n"
+
+            // create exports
+            for export in this.exports do
+                result <-
+                    result
+                    + sprintf
+                        "  (export \"%s\" %s)\n"
+                        (fst export)
+                        (match snd export with
+                         | FunctionType(name, _) -> $"(func $%s{name})"
+                         | TableType table -> $"(table %s{table.ToString()})"
+                         | MemoryType memory -> $"(memory %s{memory.ToString()})"
+                         | GlobalType global_ -> $"(global $%s{global_.ToString()})"
+                         | _ -> "")
+            // print start
+            match this.start with
+            | Some index -> result <- result + $"  (start %d{index})\n"
+            | None -> ()
+
+            // close module tag
+            result <- result + ")"
+
+            // return module represented in WAT format as string
+            result

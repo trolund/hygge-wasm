@@ -8,9 +8,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="Library.fs"/>
-        <Compile Include="WasmUtils.fs"/>
+        <Compile Include="Types.fs"/>
+        <Compile Include="WatGen.fs"/>
         <Compile Include="Utils.fs"/>
+
+        <Compile Include="Library.fs"/>
+
+
     </ItemGroup>
 
 </Project>

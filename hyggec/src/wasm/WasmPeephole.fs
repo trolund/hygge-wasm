@@ -1,6 +1,7 @@
 module WasmPeephole
 
 open WGF.Module
+open WGF.Types
 
 /// Optimize a list of Text segment statements.
 let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr> list) =
