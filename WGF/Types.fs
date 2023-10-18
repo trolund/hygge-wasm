@@ -83,3 +83,17 @@ type ExternalType =
 
 // module, name, type      
 type Import = string * string * ExternalType
+
+type Export = string * ExternalType
+
+// offset and type identifier
+type Element = int * Identifier
+
+type Start = int option
+
+type Variable = ValueType * Mutability
+
+type TableSegment = int * int list
+
+type MemorySegment = int * string
+

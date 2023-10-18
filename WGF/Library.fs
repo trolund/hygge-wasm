@@ -424,13 +424,10 @@ module Module =
 
 
 
-    and Export = string * ExternalType
-
-
-    // offset and type identifier
-    and Element = int * Identifier
-
     and Data = Instr * string
+
+
+
 
     // ( func name <signature> <locals> <body> )
     // The signature declares what the function takes (parameters) and returns (return values).
@@ -438,22 +435,7 @@ module Module =
     // The body is just a linear list of low-level Instrs.
     and Function = string option * FunctionSignature * Variable list * Commented<Instr> list
 
-
-    and Variable = ValueType * Mutability
-
-    and TableSegment = int * int list
-
-    and MemorySegment = int * string
-
     and GlobalSegment = int * Instr list
-
-    and Start = int option
-
-    and ElementSegment = int * int list
-
-    and DataSegment = int * string
-
-    and Code = int * int list * Instr list
 
     and FunctionInstance =
         {
