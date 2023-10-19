@@ -2,13 +2,13 @@ module WGF.WatGen
 
 open WGF.Types
 
-/// generate the right indentation 
+/// generate the right indentation
 /// create a number of tabs equal to the ident
 let gIndent i =
-    List.replicate i "\t" |> String.concat "" in
+    List.replicate i "  " |> String.concat ""
 
 let commentS (b: string) =
-    if b.Length > 0 then $" ;; %s{b}" else ""
+    if b.Length > 0 then $";; %s{b}" else ""
 
 let resultPrint (x) =
     // print all value types as wasm result
@@ -31,7 +31,7 @@ let generate_signature (signature) (comment: string) =
     let returnValuesString =
         String.concat " " (List.map (fun x -> $"(result %s{x.ToString()})") returnValues)
 
-    $"%s{parametersString} %s{returnValuesString}%s{commentS comment}"
+    $"{parametersString} {returnValuesString}{gIndent 1}{commentS comment}\n"
 
 let ic (i: int) = $"(;{i};)"
 
@@ -46,16 +46,15 @@ let generate_local (locals: (string option * 'a) list) =
 
         let def =
             String.concat
-                " "
+                ""
                 (List.map
                     (fun x ->
-
                         match x with
-                        | (Some name, t) -> $"   (local $%s{name} %s{t.ToString()})\n"
-                        | (None, t) -> $"    (local %s{t.ToString()})\n")
+                        | (Some name, t) -> $"{gIndent 2}(local $%s{name} %s{t.ToString()})\n"
+                        | (None, t) -> $"{gIndent 2}(local %s{t.ToString()})\n")
                     locals)
 
-        $"  %s{commentS comment}\n %s{def} "
+        $"{gIndent 2}{commentS comment}\n{def}"
     else
         ""
 
@@ -80,9 +79,9 @@ let printType (i: int, t) (withName: bool) =
 
     let returnValuesString =
         String.concat " " (List.map (fun x -> $"(result %s{x.ToString()})") returnValues)
-        
+
     // name with suffix
-    $"  (type $%s{name} %s{ic i} (func %s{parametersString} %s{returnValuesString}))\n"
+    $"{gIndent 1}(type $%s{name} %s{ic i} (func %s{parametersString} %s{returnValuesString}))\n"
 
 /// format global as a string
 let printGlobal (i: int, g) =
@@ -94,5 +93,4 @@ let printGlobal (i: int, g) =
         | Mutable -> $"(mut %s{valueType})"
         | Immutable -> $"%s{valueType}"
 
-    sprintf "  (global $%s %s %s%s %s)\n" name (ic i) gType (commentS "") (instr.ToString())
-
+    sprintf "%s(global $%s %s %s%s %s)\n" (gIndent 1) name (ic i) gType (commentS "") (instr.ToString())

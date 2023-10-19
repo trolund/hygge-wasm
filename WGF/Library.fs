@@ -1127,7 +1127,8 @@ module Module =
                 result <-
                     result
                     + sprintf
-                        "  (import \"%s\" \"%s\" %s %s)\n"
+                        "%s(import \"%s\" \"%s\" %s %s)\n"
+                        (gIndent 1)
                         modu
                         func_name
                         (ic i)
@@ -1141,7 +1142,7 @@ module Module =
                          | _ -> "")
             // print all memories
             for i, (name, Limits) in List.indexed (Set.toList this.memories) do
-                result <- result + $"  (memory %s{ic i} (export \"%s{name}\") %s{Limits.ToString()})\n"
+                result <- result + $"{gIndent 1}(memory %s{ic i} (export \"%s{name}\") %s{Limits.ToString()})\n"
 
             // print all globals
             for global_ in List.indexed (Set.toList this.globals) do
@@ -1153,7 +1154,8 @@ module Module =
             result <-
                 result
                 + sprintf
-                    "  (table $%s %s %s %s)\n"
+                    "%s(table $%s %s %s %s)\n"
+                    (gIndent 1)
                     "func_table"
                     (ic 0)
                     $"%d{this.elements.Count}"
@@ -1166,7 +1168,7 @@ module Module =
             for i, element in List.indexed (Set.toList this.elements) do
                 // unpacked element
                 let (index, element) = element
-                result <- result + $"  (elem (i32.const %i{index}) %s{ic i} $%s{element.ToString()})\n"
+                result <- result + $"{gIndent 1}(elem (i32.const %i{index}) %s{ic i} $%s{element.ToString()})\n"
 
 
             // create functions
@@ -1177,20 +1179,21 @@ module Module =
 
                 result <-
                     result
-                    + $"  (func %s{genrate_name f.name} %s{ic x} %s{generate_signature f.signature c} %s{generate_local f.locals}\n%s{genWat f.body 2}  )\n"
+                    + $"{gIndent 1}(func %s{genrate_name f.name} %s{ic x} %s{generate_signature f.signature c} %s{generate_local f.locals}\n%s{genWat f.body 2}  )\n"
 
                 // increase x
                 x <- x + 1
 
             for (instr, data) in this.data do
-                result <- result + $"  (data (%s{instr.ToString()}) \"%s{data.ToString()}\")\n"
+                result <- result + $"{gIndent 1}(data (%s{instr.ToString()}) \"%s{data.ToString()}\")\n"
 
             // create exports
             for export in this.exports do
                 result <-
                     result
                     + sprintf
-                        "  (export \"%s\" %s)\n"
+                        "%s(export \"%s\" %s)\n"
+                        (gIndent 1)
                         (fst export)
                         (match snd export with
                          | FunctionType(name, _) -> $"(func $%s{name})"
@@ -1200,7 +1203,7 @@ module Module =
                          | _ -> "")
             // print start
             match this.start with
-            | Some index -> result <- result + $"  (start %d{index})\n"
+            | Some index -> result <- result + $"{gIndent 1}(start %d{index})\n"
             | None -> ()
 
             // close module tag
