@@ -3,6 +3,11 @@ module WGF.WatGen
 open WGF.Types
 let indent = 6
 
+/// generate the right indentation 
+/// create a number of tabs equal to the ident
+let gIndent i =
+    List.replicate i "\t" |> String.concat "" in
+
 let commentS (b: string) =
     if b.Length > 0 then $" ;; %s{b}" else ""
 
@@ -50,7 +55,6 @@ let generate_wat_code_commented instrs =
                 generate_wat_code_aux tailInstrs (watCode + (instr.ToString()) + " ;; " + comment + "\n")
 
     generate_wat_code_aux instrs ""
-
 
 let ic (i: int) = $"(;{i};)"
 
@@ -117,4 +121,3 @@ let printGlobal (i: int, g) =
     //let instrs = generate_wat_code_ident instrs 0
     sprintf "  (global $%s %s %s%s %s)\n" name (ic i) gType (commentS "") (instr.ToString())
 
-let commentString (a) (b: string) = $"%s{a} ;; %s{b}"

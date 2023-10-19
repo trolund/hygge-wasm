@@ -441,11 +441,6 @@ module Module =
     /// generate the wat instruction for a list of instructions
     /// indent is the number of tabs to add before each instruction
     let genWat instrs ident =
-        
-        /// generate the right indentation 
-        /// create a number of tabs equal to the ident
-        let gIndent i =
-            List.replicate i "\t" |> String.concat "" in
 
         let rec aux (instrs: Commented<Instr> list) (watCode: string) (indent: int) =
             match instrs with
