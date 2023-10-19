@@ -54,7 +54,7 @@ let generate_local (locals: (string option * 'a) list) =
                         | (None, t) -> $"{gIndent 2}(local %s{t.ToString()})\n")
                     locals)
 
-        $"{gIndent 2}{commentS comment}\n{def}"
+        $"\n{gIndent 2}{commentS comment}\n{def}"
     else
         ""
 
