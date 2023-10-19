@@ -575,9 +575,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         m'.GetAccCode()
                         @ [ (I32Load, "Load string pointer") ]
                         @ m'.GetAccCode()
-                        @ [ (I32Const 4, "length offset")
-                            (I32Add, "add offset to pointer")
-                            (I32Load, "Load string length") ]
+                        @ [ 
+                            // (I32Const 4, "length offset")
+                            // (I32Add, "add offset to pointer")
+                            (I32Load_(None, Some(4)), "Load string length") ]
                     )
 
             // perform host (system) call
@@ -852,9 +853,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             m'.GetAccCode()
-            @ [ (I32Const 4, "offset of length field")
-                (I32Add, "add offset to base address")
-                (I32Load, "load length") ]
+            @ [ 
+                // (I32Const 4, "offset of length field")
+                // (I32Add, "add offset to base address")
+                (I32Load_(None, Some(4)), "load length") ]
 
         C [ Comment "start array length node" ]
         ++ m'.ResetAccCode().AddCode(instrs @ C [ Comment "end array length node" ])
@@ -872,9 +874,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (If([], trap, None), "check that index is >= 0 - if not return 42") ]
             @ m''.GetAccCode() // index on stack
             @ m'.GetAccCode() // struct pointer on stack
-            @ [ (I32Const 4, "offset of length field")
-                (I32Add, "add offset to base address")
-                (I32Load, "load length") ]
+            @ [ 
+                // (I32Const 4, "offset of length field")
+                // (I32Add, "add offset to base address")
+                (I32Load_(None, Some(4)), "load length") ]
             @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
                 (If([], trap, None), "check that index is < length - if not return 42") ]
 
@@ -1038,9 +1041,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // address to data
                 let dataPointer =
                     targetm.GetAccCode()
-                    @ [ (I32Const 4, "offset of data field")
-                        (I32Add, "add offset to base address")
-                        (I32Load, "load data pointer")
+                    @ [ 
+                        // (I32Const 4, "offset of data field")
+                        // (I32Add, "add offset to base address")
+                        (I32Load_(None, Some(4)), "load data pointer")
                         (LocalSet(Named(varName)), "set local var") ]
 
                 let caseCode =
@@ -1153,9 +1157,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     (If([], trap, None), "check that index is >= 0 - if not return 42") ]
                 @ indexCode.GetAccCode() // index on stack
                 @ selTargetCode.GetAccCode() // struct pointer on stack
-                @ [ (I32Const 4, "offset of length field")
-                    (I32Add, "add offset to base address")
-                    (I32Load, "load length") ]
+                @ [ 
+                    // (I32Const 4, "offset of length field")
+                    // (I32Add, "add offset to base address")
+                    (I32Load_(None, Some(4)), "load length") ]
                 @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
                     (If([], trap, None), "check that index is < length - if not return 42") ]
 
