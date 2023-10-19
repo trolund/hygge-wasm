@@ -806,9 +806,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let body =
             [ (Comment "start of loop body", "")
               (LocalGet(Named(structPointerLabel)), "get struct pointer var")
-              // (I32Const(8), "byte offset") // SHIFT TO POSITIONS
-              // (I32Add, "add offset to base address") // then data pointer + 4 (point to fist elem) is on top of stack = [data, length, fist elem, second elem, ...]
-              (I32Load, "load data pointer 4233") // TODO: delete this id
+              (I32Load, "load data pointer")
 
               // find offset to element
               (LocalGet(Named(i)), "get index")
@@ -905,9 +903,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // compile target
         let targetm = doCodegen env target m
-        // compile start
+        // compile start index
         let startm = doCodegen env start m
-
+        // compile end index
         let endingm = doCodegen env ending m
 
         // check of indecies are valid
@@ -920,9 +918,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (If([], trap, None), "check that start is >= 0 - if not return 42") ]
             @ startm.GetAccCode() // start on stack
             @ targetm.GetAccCode() // struct pointer on stack
-            @ [ (I32Const 4, "offset of length field")
-                (I32Add, "add offset to base address")
-                (I32Load, "load length") ]
+            @ [ (I32Load_(None, Some(4)), "load length") ]
             @ [ (I32GeU, "check if start is < length") // TODO check if this is correct
                 (If([], trap, None), "check that start is < length - if not return 42") ]
 
@@ -936,12 +932,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let endCheck =
             endingm.GetAccCode() // end index on stack
             @ targetm.GetAccCode() // struct pointer on stack
-            @ [ (I32Const 4, "offset of length field")
-                (I32Add, "add offset to base address")
-                (I32Load, "load length") ]
+            @ [ (I32Load_(None, Some(4)), "load length") ] // 4 is the offset to length field
             @ [ (I32GtU, "check if end is < length") // TODO check if this is correct
                 (If([], trap, None), "check that end is < length - if not return 42") ]
-
 
         // difference between end and start should be at least 1
         let atleastOne =
