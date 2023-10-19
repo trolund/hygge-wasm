@@ -1,7 +1,6 @@
 (module
   (type $i32_i32_=>_i32 (;0;) (func (param i32) (param i32) (result i32)))
-  (import "env" "malloc" (;0;) (func $malloc (param i32) (result i32)  
-))
+  (import "env" "malloc" (;0;) (func $malloc (param i32) (result i32)  ))
   (memory (;0;) (export "memory") 1)
   (global $Sptr (;0;) (mut i32) i32.const 0)
   (global $Sptr$0 (;1;) (mut i32) i32.const 0)
@@ -14,8 +13,7 @@
   (global $var_y (;8;) (mut i32) i32.const 0)
   (table $func_table (;0;) 1 funcref)
   (elem (i32.const 0) (;0;) $fun_matcher)
-  (func $_start (;0;)  (result i32)  ;; entry point of program (main function)
- 
+  (func $_start (;0;)  (result i32)  ;; entry point of program (main function) 
     ;; execution start here:
     ;; Start of let
     ;; Start of union contructor
@@ -151,8 +149,7 @@
     i32.const 0 ;; exit code 0
     return ;; return the exit code
   )
-  (func $fun_matcher (;1;) (param $cenv i32) (param $arg_x i32) (result i32)  ;; function fun_matcher
-     ;; local variables declarations:
+  (func $fun_matcher (;1;) (param $cenv i32) (param $arg_x i32) (result i32)  ;; function fun_matcher     ;; local variables declarations:
     (local $match_var_x i32)
     (local $match_var_z i32)
 

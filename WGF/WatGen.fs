@@ -29,9 +29,9 @@ let generate_signature (signature) (comment: string) =
                 parameters)
 
     let returnValuesString =
-        String.concat " " (List.map (fun x -> $"(result %s{x.ToString()})") returnValues)
+        String.concat "" (List.map (fun x -> $"(result {x.ToString()})") returnValues)
 
-    $"{parametersString} {returnValuesString}{gIndent 1}{commentS comment}\n"
+    $"{parametersString} {returnValuesString}"
 
 let ic (i: int) = $"(;{i};)"
 
