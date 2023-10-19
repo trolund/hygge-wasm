@@ -390,16 +390,16 @@ module Module =
             | Drop -> "drop"
             | Select -> "select"
             // block instructions
-            | Block(label, valueTypes, instrs) ->
-                $"(block $%s{label} %s{resultPrint valueTypes}\n%s{generate_wat_code_ident instrs indent}\n    )"
-            | Loop(label, valueTypes, instrs: Commented<Instr> list) ->
-                $"(loop $%s{label} %s{resultPrint valueTypes}\n%s{generate_wat_code_ident instrs indent}\n)"
-            | If(types, ifInstrs, elseInstrs) ->
-                match elseInstrs with
-                | Some elseInstrs' ->
-                    $"(if %s{resultPrint types}\n     (then\n%s{generate_wat_code_ident ifInstrs indent}\n     )\n     (else\n%s{generate_wat_code_ident elseInstrs' indent}\n     )\n    )"
-                | None ->
-                    $"(if%s{resultPrint types} (then\n%s{generate_wat_code_ident ifInstrs indent}       )\n      )"
+            // | Block(label, valueTypes, instrs) ->
+            //     $"(block $%s{label} %s{resultPrint valueTypes}\n%s{generate_wat_code_ident instrs indent}\n    )"
+            // | Loop(label, valueTypes, instrs: Commented<Instr> list) ->
+            //     $"(loop $%s{label} %s{resultPrint valueTypes}\n%s{generate_wat_code_ident instrs indent}\n)"
+            // | If(types, ifInstrs, elseInstrs) ->
+            //     match elseInstrs with
+            //     | Some elseInstrs' ->
+            //         $"(if %s{resultPrint types}\n     (then\n%s{generate_wat_code_ident ifInstrs indent}\n     )\n     (else\n%s{generate_wat_code_ident elseInstrs' indent}\n     )\n    )"
+            //     | None ->
+            //         $"(if%s{resultPrint types} (then\n%s{generate_wat_code_ident ifInstrs indent}       )\n      )"
             // comments
             | RefFunc label -> $"ref.func %s{label.ToString()}"
             | MemoryFill -> "memory.fill"
@@ -408,10 +408,7 @@ module Module =
 
             | x -> $"not implemented: %s{x.ToString()}"
 
-
     and Instrs = Instr list
-
-
 
     /// Global variables are like module-level variables in JavaScript.
     /// They are declared with a type and an initial value.
@@ -422,12 +419,7 @@ module Module =
     /// The name is optional, and can be used to import the global variable.
     and Global = Identifier * (ValueType * Mutability) * Instr
 
-
-
     and Data = Instr * string
-
-
-
 
     // ( func name <signature> <locals> <body> )
     // The signature declares what the function takes (parameters) and returns (return values).
@@ -446,8 +438,58 @@ module Module =
           locals: Local list
           body: Commented<Instr> list }
 
-    and funcTable = Identifier * ValueType * Limits
+    /// generate the wat instruction for a list of instructions
+    /// indent is the number of tabs to add before each instruction
+    let genWat instrs ident =
+        
+        /// generate the right indentation 
+        /// create a number of tabs equal to the ident
+        let gIndent i =
+            List.replicate i "\t" |> String.concat "" in
 
+        let rec aux (instrs: Commented<Instr> list) (watCode: string) (indent: int) =
+            match instrs with
+            | [] -> watCode
+            | head :: tail ->
+                // deconstruct instr and comment
+                let (instr, c: string) = head
+            
+                // compute indent
+                let is = gIndent indent
+
+                match instr with
+                // block instructions
+                | Block(label, valueTypes, instrs: Commented<Instr> list) ->
+                    let innerWat = aux instrs "" (indent + 1)
+                    let s = watCode + is + $"(block ${label} {resultPrint valueTypes}\n{innerWat}{gIndent (indent)})\n"
+                    aux tail s indent
+                | Loop(label, valueTypes, instrs: Commented<Instr> list) ->
+                    let innerWat = aux instrs "" (indent + 1)
+                    let s = watCode + is + $"(loop ${label} {resultPrint valueTypes}\n{innerWat}{gIndent (indent)})\n" 
+                    aux tail s indent
+                | If(types, ifInstrs, elseInstrs) ->
+                    match elseInstrs with
+                    | Some elseInstrs' ->
+                        let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
+                        let innerWatFalse = aux elseInstrs' "" (indent + 2)
+
+                        let s = watCode + is + $"(if {resultPrint types}\n{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent + 1)}(else\n{innerWatFalse}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
+                        aux tail s indent
+                    | None ->
+                        let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
+                        let s = watCode + is + $"(if {resultPrint types}\n{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
+                        aux tail s indent
+                | _ ->
+                    // generate wat code for plain instr
+                    let instrAsString = instr.ToString() + if (c.Length > 0) then $" ;; %s{c}\n" else "\n" in
+
+                    let watCode = watCode + is + instrAsString
+
+                    aux tail watCode indent
+
+        aux instrs "" ident  
+    
+    /// def of module
     [<RequireQualifiedAccess>]
     type Module
         private
@@ -1112,7 +1154,6 @@ module Module =
 
 
             // print tables and elements
-
             // func table
             result <-
                 result
@@ -1141,7 +1182,7 @@ module Module =
 
                 result <-
                     result
-                    + $"  (func %s{genrate_name f.name} %s{ic x} %s{generate_signature f.signature c} %s{generate_local f.locals}\n%s{generate_wat_code_ident f.body ((indent / 2) + 1)}  )\n"
+                    + $"  (func %s{genrate_name f.name} %s{ic x} %s{generate_signature f.signature c} %s{generate_local f.locals}\n%s{genWat f.body 2}  )\n"
 
                 // increase x
                 x <- x + 1

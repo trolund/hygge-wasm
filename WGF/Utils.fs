@@ -1,6 +1,7 @@
 module WGF.Utils
 
 open WGF.Types
+open System.Text
 
 /// generate function type string
 let GenFuncTypeName (t) =
@@ -24,3 +25,11 @@ let C instrs =
     instrs |> List.map (fun x -> Commented(x, ""))
 
 let I instrs : Commented<'a> list = instrs |> List.map (fun x -> fst x)
+
+
+// write wasm module to file
+let writeWasmFile (wasm: string) (path: string) =
+        let file = System.IO.File.Create(path)
+        let bytes = wasm |> Encoding.UTF8.GetBytes
+        file.Write(bytes, 0, bytes.Length)
+        file.Close()

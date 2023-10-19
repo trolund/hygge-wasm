@@ -12,8 +12,6 @@
         <Compile Include="Utils.fs"/>
         <Compile Include="WatGen.fs"/>
         <Compile Include="Library.fs"/>
-
-
     </ItemGroup>
 
 </Project>

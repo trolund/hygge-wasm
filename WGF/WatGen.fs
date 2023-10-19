@@ -8,7 +8,7 @@ let commentS (b: string) =
 
 let resultPrint (x) =
     // print all value types as wasm result
-    List.fold (fun acc x -> acc + $" (result %s{x.ToString()})") "" x
+    List.fold (fun acc x -> acc + $"(result %s{x.ToString()})") "" x
 
 // create functions
 let generate_signature (signature) (comment: string) =
@@ -51,29 +51,7 @@ let generate_wat_code_commented instrs =
 
     generate_wat_code_aux instrs ""
 
-let generate_wat_code_ident instrs ident =
 
-    let generate_indent i =
-        List.replicate i " " |> String.concat "" in
-
-    let rec generate_wat_code_aux instrs watCode indent =
-        match instrs with
-        | [] -> watCode
-        | head :: tail ->
-            let (instr, c: string) = head
-
-            // based on c to generate comment
-            let watCode =
-                watCode
-                + generate_indent indent
-                + instr.ToString()
-                + if (c.Length > 0) then $" ;; %s{c}\n" else "\n" in
-
-            generate_wat_code_aux tail watCode indent
-
-    generate_wat_code_aux instrs "" ident
-
-// sp
 let ic (i: int) = $"(;{i};)"
 
 let genrate_name (name: string option) =
