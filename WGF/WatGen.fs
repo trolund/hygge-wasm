@@ -1,7 +1,6 @@
 module WGF.WatGen
 
 open WGF.Types
-let indent = 6
 
 /// generate the right indentation 
 /// create a number of tabs equal to the ident
@@ -33,28 +32,6 @@ let generate_signature (signature) (comment: string) =
         String.concat " " (List.map (fun x -> $"(result %s{x.ToString()})") returnValues)
 
     $"%s{parametersString} %s{returnValuesString}%s{commentS comment}"
-
-let generate_wat_code instrs =
-
-    let rec generate_wat_code_aux instrs watCode =
-        match instrs with
-        | [] -> watCode
-        | instr :: tailInstrs -> generate_wat_code_aux tailInstrs (watCode + (instr.ToString()) + "\n")
-
-    generate_wat_code_aux instrs ""
-
-// generate_wat_code that handle Commented Instr
-let generate_wat_code_commented instrs =
-
-    let rec generate_wat_code_aux instrs watCode =
-        match instrs with
-        | [] -> watCode
-        | instr :: tailInstrs ->
-            match instr with
-            | (instr, comment) ->
-                generate_wat_code_aux tailInstrs (watCode + (instr.ToString()) + " ;; " + comment + "\n")
-
-    generate_wat_code_aux instrs ""
 
 let ic (i: int) = $"(;{i};)"
 
@@ -103,8 +80,8 @@ let printType (i: int, t) (withName: bool) =
 
     let returnValuesString =
         String.concat " " (List.map (fun x -> $"(result %s{x.ToString()})") returnValues)
+        
     // name with suffix
-    // let name = sprintf "%s_type" name
     $"  (type $%s{name} %s{ic i} (func %s{parametersString} %s{returnValuesString}))\n"
 
 /// format global as a string
@@ -117,7 +94,5 @@ let printGlobal (i: int, g) =
         | Mutable -> $"(mut %s{valueType})"
         | Immutable -> $"%s{valueType}"
 
-    //let instrs = instrs |> List.map (fun x -> Commented(x, ""))
-    //let instrs = generate_wat_code_ident instrs 0
     sprintf "  (global $%s %s %s%s %s)\n" name (ic i) gType (commentS "") (instr.ToString())
 
