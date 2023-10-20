@@ -651,7 +651,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// List of pairs associating each function argument to its type
         let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
 
-        let captured = freeVariables node
+        let captured = Set.toList (ASTUtil.capturedVars node)
 
         let env' =
             List.fold
@@ -667,7 +667,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let env'' =
             List.fold
-                (fun env (index, (n, t)) ->
+                (fun env (index, (n)) ->
                     { env with
                         VarStorage = env.VarStorage.Add(n, Storage.Offset(index)) })
                 env'
@@ -676,7 +676,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // added captured vars to module hosting list
         let funcPointer' =
             List.fold
-                (fun (m: Module) (_, (n, _)) ->
+                (fun (m: Module) (_, (n)) ->
                     match env.VarStorage.TryFind n with
                     | Some(Storage.local (l)) ->
                         // if List.contains n env.CurrFuncArgs then
@@ -1354,7 +1354,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
 
         // check if var is captured
-        let isVarCaptured = List.contains name (List.map fst (freeVariables scope))
+        let isVarCaptured = List.contains name (Set.toList (ASTUtil.capturedVars scope))
 
         // rewrite let mut to let with struct
         if isVarCaptured then
@@ -1478,12 +1478,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       (Call "malloc", "call malloc function")
                       (LocalSet(Named(structName)), "set struct pointer var") ]
                 )
-
-        // // create env with struct pointer var
-        // TODO: maybe delete
-        // let env' =
-        //     { env with
-        //         VarStorage = env.VarStorage.Add(structName, Storage.local (structName)) }
 
         // fold over fields and add them to struct with indexes
         let folder =
@@ -1676,17 +1670,23 @@ and internal createClosure
     (body: TypedAST)
     (index: int)
     (m: Module)
-    (capturedList: (string * TypedAST) list)
+    (capturedList: string list)
     =
 
-    // capture environment in struct, with a field for each captured variable
-    let x = List.distinctBy fst capturedList
+    let resovleNode n = 
+        let t = if (Set.contains n node.Env.Mutables) 
+                    then
+                        TStruct([ ("value", node.Env.Vars[n]) ])
+                    else 
+                        node.Env.Vars[n]
+        
+        { node with Expr = Var(n); Type = t }
 
     // map captured to a list of string * TypedAST where the string is the name of the captured variable
-    //let capturedStructFields = List.map (fun (n, (x: TypedAST)) -> (n, x)) x
+    let capturedStructFields = List.map (fun n -> (n, resovleNode n)) capturedList
 
     // all captured variables are stored in a struct
-    let capturedVarsStruct = { node with Expr = Struct(x) }
+    let capturedVarsStruct = { node with Expr = Struct(capturedStructFields) }
 
     // generate code for struct
     let capturedVarsStructCode = doCodegen env capturedVarsStruct m
