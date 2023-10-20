@@ -10,12 +10,12 @@ let gIndent i =
 let commentS (b: string) =
     if b.Length > 0 then $";; %s{b}" else ""
 
-let resultPrint (x) =
+let resultPrint x =
     // print all value types as wasm result
     List.fold (fun acc x -> acc + $"(result %s{x.ToString()})") "" x
 
 // create functions
-let generate_signature (signature) (comment: string) =
+let generate_signature signature (comment: string) =
     let parameters, returnValues = signature
 
     let parametersString =

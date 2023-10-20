@@ -491,7 +491,7 @@ module Module =
         (
             types: Set<Type>,
             functions: Map<string, Commented<FunctionInstance>>,
-            tables: list<Table>,
+            tables: seq<Table>,
             memories: Set<Memory>,
             globals: Set<Global>,
             exports: Set<Export>,
@@ -632,7 +632,7 @@ module Module =
         member this.AddFuncRefElement(label: string, index: int) =
             // is there a tabel named func_table
             let func_table =
-                this.tables |> List.tryFind (fun (name, _, _) -> name = "func_table")
+                this.tables |> Seq.tryFind (fun (name, _, _) -> name = "func_table")
 
             // init table if no table named func_table exists
             let (table: Table) =
@@ -645,7 +645,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                table :: this.tables,
+                Seq.append this.tables (seq { table }),
                 this.memories,
                 this.globals,
                 this.exports,
@@ -928,7 +928,7 @@ module Module =
 
         // Add a table to the module
         member this.AddTable(t: Table) =
-            let tables = t :: this.tables
+            let tables = Seq.append this.tables (seq { t })
 
             Module(
                 this.types,
@@ -1058,39 +1058,21 @@ module Module =
 
         // combine two wasm modules
         member this.Combine(m: Module) =
-            let types =
-                Set(List.distinctBy (fun l -> fst l) (Set.toList this.types @ Set.toList m.types))
-
-            let functions =
-                Map.fold (fun acc key value -> Map.add key value acc) this.functions m.functions
-
-            let tables = this.tables @ m.tables
-            let memories = Set.toList this.memories @ Set.toList m.memories
-            let globals = Set.toList this.globals @ Set.toList m.globals
-            let exports = Set.toList this.exports @ Set.toList m.exports
-            let imports = Set.toList this.imports @ Set.toList m.imports
-            let start = this.start
-            let elements = Set.toList this.elements @ Set.toList m.elements
-            let data = Set.toList this.data @ Set.toList m.data
-            let locals = Set.toList this.locals @ Set.toList m.locals
-            let tempCode = this.tempCode @ m.tempCode
-            let hostinglist = this.hostinglist @ m.hostinglist
-
             Module(
-                Set(types),
-                functions,
-                tables,
-                Set(memories),
-                Set(globals),
-                Set(exports),
-                Set(imports),
-                start,
-                Set(elements),
-                Set(data),
-                Set(locals),
-                tempCode,
+                Set.ofSeq (Seq.distinctBy (fun l -> fst l) (Set.union this.types m.types)),
+                Map.fold (fun acc key value -> Map.add key value acc) this.functions m.functions,
+                Seq.append this.tables m.tables,
+                Set.union this.memories m.memories,
+                Set.union this.globals m.globals,
+                Set.union this.exports m.exports,
+                Set.union this.imports m.imports,
+                this.start,
+                Set.union this.elements m.elements,
+                Set.union this.data m.data,
+                Set.union this.locals m.locals,
+                m.tempCode |> List.append this.tempCode,
                 this.funcTableSize + m.funcTableSize,
-                hostinglist
+                this.hostinglist |> List.append m.hostinglist
             )
 
         static member (+)(wasm1: Module, wasm2: Module) : Module = wasm1.Combine wasm2

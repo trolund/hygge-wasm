@@ -1,0 +1,60 @@
+let x: int = 1;
+
+// return pre and post increment
+fun f(x: int): int = x++;
+fun g(x: int): int = ++x;
+assert(x = 1);
+assert(f(41) = 41);
+assert(g(41) = 42);
+
+// return pre and post decrement
+fun f1(x: int): int = x--;
+fun g1(x: int): int = --x;
+assert(x = 1);
+assert(f1(41) = 41);
+assert(g1(41) = 40);
+
+// return pre and post increment
+fun f2(x: int): int = x -= 1;
+fun g2(x: int): int = x += 1;
+assert(x = 1);
+assert(f2(41) = 40);
+assert(g2(41) = 42);
+
+// return max min
+fun ma(x: int, y:int): int = max(x, y);
+fun mi(x: int, y:int): int = min(x, y);
+assert(ma(1, 2) = 2);
+assert(mi(1, 2) = 1);
+
+
+// // return max min
+fun gr(x: int, y:int): bool = x > y;
+fun less(x: int, y:int): bool = x < y;
+
+assert(not(gr(1, 2)));
+assert(less(1, 2));
+assert(not(less(2, 2)));
+assert(not(gr(2, 2)));
+assert(gr(2, 1));
+
+// relational operators in function call
+fun f3(x: bool, y: bool): bool = x or y;
+assert(f3(true, false));
+assert(not(f3(false, false)));
+assert(f3(true, true));
+assert(f3(false, true));
+
+// and
+fun f4(x: bool, y: bool): bool = x and y;
+assert(not(f4(true, false)));
+assert(not(f4(false, false)));
+assert(f4(true, true));
+assert(not(f4(false, true)));
+
+
+fun f5(x: bool): bool = not(x);
+assert(not(f5(true)));
+assert(f5(false));
+
+print("done!")

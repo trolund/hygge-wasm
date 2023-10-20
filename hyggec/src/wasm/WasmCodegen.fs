@@ -8,6 +8,7 @@ open WGF.Types
 open WGF.Utils
 open System.Text
 open SI
+open ASTUtil
 
 let errorExitCode = 42
 let successExitCode = 0
@@ -619,16 +620,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let exprm: Module = (doCodegen env expr m)
 
         let appTermCode =
-            // if isTopLevel(env) then // check if top-level
-            //     Module()
-            //         .AddCode([ Comment "Load expression to be applied as a function" ])
-            //         .AddCode(
-            //             [(I32Const 0xFFFFFFFF, "load unused closure environment pointer")]
-            //             @ argm.GetAccCode() // load the rest of the arguments
-            //             @ exprm.GetAccCode() // load function pointer
-            //             @ [ (I32Load, "load table index") ]
-            //         )
-            // else
                 Module()
                     .AddCode([ Comment "Load expression to be applied as a function" ])
                     .AddCode(
@@ -1429,8 +1420,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let env' = { env with VarStorage = funcref }
 
         // add each arg to var storage (all local vars)
-        // TODO maybe lables should be generated here
-        // TODO: unik-probem-guid:11111+22222+33333
         let env'' =
             List.fold
                 (fun env (n, t) ->
@@ -1680,94 +1669,6 @@ and internal compileFunction
         .AddLocals(name, m''.GetLocals()) // set locals of function
         .ResetAccCode() // reset accumulated code
         .ResetLocals() // reset locals
-
-/// capture all free variable in expression and a list of var names that
-// List.distinctBy fst (Set.toList captured)
-// TODO: maybe use the on in ASTUtil!!
-and freeVariables (node: TypedAST) : List<string * TypedAST> =
-    List.distinctBy fst (Set.toList (freeVariables' node))
-
-and freeVariables' (node: TypedAST) : Set<string * TypedAST> =
-    let diff set1 set2 = // Find the first elements that are unique to set1
-        let firstElements set = set |> Set.map fst
-
-        let differenceSet1 = Set.difference (firstElements set1) (set2)
-
-        // Filter the tuples in set1 based on the first elements found in differenceSet1
-        let result = set1 |> Set.filter (fun (x, _) -> Set.contains x differenceSet1)
-
-        result
-
-    match node.Expr with
-    | UnitVal -> Set.empty
-    | IntVal _ -> Set.empty
-    | FloatVal _ -> Set.empty
-    | BoolVal _ -> Set.empty
-    | StringVal _ -> Set.empty
-    | Var v -> Set.singleton (v, node)
-    | Seq(exprs) -> List.fold (fun acc (expr) -> Set.union (freeVariables' expr) acc) Set.empty exprs
-    | Application(target, args) ->
-        List.fold (fun acc (arg) -> Set.union acc (freeVariables' arg)) (freeVariables' target) args
-    | Lambda(args, body) ->
-        let body' = (freeVariables' body)
-        let argsNames = (Set.ofList (List.map fst args))
-        let s = diff body' argsNames
-        s
-    | Match(target, cases) ->
-        List.fold
-            (fun acc (label, var, expr) -> Set.filter (fun (x, _) -> x <> var) (Set.union (freeVariables' expr) acc))
-            (freeVariables' target)
-            cases
-    | Assign(name, value) -> Set.union (freeVariables' name) (freeVariables' value)
-    | FieldSelect(target, _) -> freeVariables' target
-    | Ascription(_, node) -> freeVariables' node
-    | Let(name, _, bindingExpr, bodyExpr, export) ->
-        let set = Set.union (freeVariables' bodyExpr) (freeVariables' bindingExpr)
-        // remove name
-        Set.filter (fun (x, _) -> x <> name) set
-    | LetMut(name, _, init, scope, export) ->
-        let set = Set.union (freeVariables' scope) (freeVariables' init)
-        // remove name
-        Set.filter (fun (x, _) -> x <> name) set
-    | LetRec(name, _, lambda, scope, export) ->
-        let set = Set.union (freeVariables' scope) (freeVariables' lambda)
-        // remove name
-        Set.filter (fun (x, _) -> x <> name) set
-    | Struct(fields) -> List.fold (fun acc (_, expr) -> Set.union (freeVariables' expr) acc) Set.empty fields
-    | ArrayElement(target, index) -> Set.union (freeVariables' target) (freeVariables' index)
-    | Mult(lhs, rhs)
-    | Div(lhs, rhs)
-    | Sub(lhs, rhs)
-    | Rem(lhs, rhs)
-    | Eq(lhs, rhs)
-    | GreaterOrEq(lhs, rhs)
-    | Greater(lhs, rhs)
-    | LessOrEq(lhs, rhs)
-    | Less(lhs, rhs)
-    | And(lhs, rhs)
-    | Or(lhs, rhs)
-    | Max(lhs, rhs)
-    | Min(lhs, rhs)
-    | Add(lhs, rhs) -> Set.union (freeVariables' lhs) (freeVariables' rhs)
-    | AST.If(cond, thenExpr, elseExpr) ->
-        Set.union (freeVariables' cond) (Set.union (freeVariables' thenExpr) (freeVariables' elseExpr))
-    | While(cond, body) -> Set.union (freeVariables' cond) (freeVariables' body)
-    | DoWhile(body, cond) -> Set.union (freeVariables' cond) (freeVariables' body)
-    | Not(expr) -> freeVariables' expr
-    | For(init, cond, update, body) ->
-        Set.union
-            (freeVariables' init)
-            (Set.union (freeVariables' cond) (Set.union (freeVariables' update) (freeVariables' body)))
-    | Assertion(expr) -> freeVariables' expr
-    | ArrayLength(target) -> freeVariables' target
-    | ArraySlice(target, start, _end) ->
-        Set.union (freeVariables' target) (Set.union (freeVariables' start) (freeVariables' _end))
-    | UnionCons(_, expr) -> freeVariables' expr
-    | Array(length, data) -> Set.union (freeVariables' length) (freeVariables' data)
-    | Print(expr) -> freeVariables' expr
-    | PrintLn(expr) -> freeVariables' expr
-    | ReadInt -> Set.empty
-    | _ -> failwithf "freeVariables': unhandled case %A" node
 
 and internal createClosure
     (env: CodegenEnv)
