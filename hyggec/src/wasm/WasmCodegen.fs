@@ -263,7 +263,7 @@ let internal lookupLabelName (env: CodegenEnv) (name: string) =
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
     | UnitVal -> m
-    | IntVal i -> m.AddCode([ (I32Const i, (sprintf "push %i on stack" (i))) ])
+    | IntVal i -> m.AddCode([ (I32Const i, $"push %i{i} on stack") ])
     | BoolVal b -> m.AddCode([ I32Const(if b then 1 else 0) ])
     | FloatVal f -> m.AddCode([ F32Const f ])
     | StringVal s ->
@@ -373,19 +373,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             match node.Type with
             | t when (isSubtypeOf node.Env t TInt) ->
                 match node.Expr with
-                | AddAsg(_, _) -> I32Add
-                | MinAsg(_, _) -> I32Sub
-                | MulAsg(_, _) -> I32Mul
-                | DivAsg(_, _) -> I32DivS
-                | RemAsg(_, _) -> I32RemS
-                | _ -> failwith "not implemented"
+                | AddAsg _ -> I32Add
+                | MinAsg _ -> I32Sub
+                | MulAsg _ -> I32Mul
+                | DivAsg _ -> I32DivS
+                | RemAsg _ -> I32RemS
+                | _ -> failwith "failed to find numeric int operation"
             | t when (isSubtypeOf node.Env t TFloat) ->
                 match node.Expr with
-                | AddAsg(_, _) -> F32Add
-                | MinAsg(_, _) -> F32Sub
-                | MulAsg(_, _) -> F32Mul
-                | DivAsg(_, _) -> F32Div
-                | _ -> failwith "not implemented"
+                | AddAsg _ -> F32Add
+                | MinAsg _ -> F32Sub
+                | MulAsg _ -> F32Mul
+                | DivAsg _ -> F32Div
+                | _ -> failwith "failed to find numeric float operation"
+            | _ -> failwith "failed to find numeric operation"
 
         let label = lookupLabel env lhs
 
@@ -412,13 +413,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             match node.Type with
             | t when (isSubtypeOf node.Env t TFloat) ->
                 match node.Expr with
-                | Max(_, _) -> C [ F32Max ]
-                | Min(_, _) -> C [ F32Min ]
+                | Max _ -> C [ F32Max ]
+                | Min _ -> C [ F32Min ]
                 | _ -> failwith "not implemented"
             | t when (isSubtypeOf node.Env t TInt) ->
                 match node.Expr with
-                | Max(_, _) -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32GtS; Select ]
-                | Min(_, _) -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32LtS; Select ]
+                | Max _ -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32GtS; Select ]
+                | Min _ -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32LtS; Select ]
                 | _ -> failwith "not implemented"
             | _ -> failwith "failed type of max/min"
 
@@ -441,19 +442,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             match node.Type with
             | t when (isSubtypeOf node.Env t TInt) ->
                 match expr with
-                | Add(_, _) -> I32Add
-                | Sub(_, _) -> I32Sub
-                | Rem(_, _) -> I32RemS
-                | Div(_, _) -> I32DivS
-                | Mult(_, _) -> I32Mul
-                | _ -> failwith "not implemented"
+                | Add _ -> I32Add
+                | Sub _ -> I32Sub
+                | Rem _ -> I32RemS
+                | Div _ -> I32DivS
+                | Mult _ -> I32Mul
+                | _ -> failwith "failed to find numeric int operation"
             | t when (isSubtypeOf node.Env t TFloat) ->
                 match expr with
-                | Add(_, _) -> F32Add
-                | Sub(_, _) -> F32Sub
-                | Div(_, _) -> F32Div
-                | Mult(_, _) -> F32Mul
-                | _ -> failwith "not implemented"
+                | Add _ -> F32Add
+                | Sub _ -> F32Sub
+                | Div _ -> F32Div
+                | Mult _ -> F32Mul
+                | _ -> failwith "failed to find numeric float operation"
+            | _ -> failwith "failed to find numeric operation"
 
         (lhs' + rhs').AddCode([ opCode ])
     | And(e1, e2) ->
@@ -478,9 +480,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // find type of e1 and e2 and check if they are equal
         let opcode =
             match e1.Type, e2.Type with
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) & (isSubtypeOf e1.Env t2 TInt)) -> [ I32GtS ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) & (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Gt ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [ I32GtS ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) && (isSubtypeOf e1.Env t2 TInt)) -> [ I32GtS ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) && (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Gt ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) && (isSubtypeOf e1.Env t2 TBool)) -> [ I32GtS ]
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
@@ -491,9 +493,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // find type of e1 and e2 and check if they are equal
         let opcode =
             match e1.Type, e2.Type with
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) & (isSubtypeOf e1.Env t2 TInt)) -> [ I32Eq ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) & (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Eq ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [ I32Eq ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) && (isSubtypeOf e1.Env t2 TInt)) -> [ I32Eq ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) && (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Eq ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) && (isSubtypeOf e1.Env t2 TBool)) -> [ I32Eq ]
             | _ -> failwith "type mismatch"
 
         let instrs = m'.GetAccCode() @ m''.GetAccCode() @ C opcode
@@ -510,9 +512,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // find type of e1 and e2 and check if they are equal
         let opcode =
             match e1.Type, e2.Type with
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) & (isSubtypeOf e1.Env t2 TInt)) -> [ I32LtS ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) & (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Lt ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [ I32LtS ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) && (isSubtypeOf e1.Env t2 TInt)) -> [ I32LtS ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) && (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Lt ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) && (isSubtypeOf e1.Env t2 TBool)) -> [ I32LtS ]
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
@@ -524,9 +526,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // find type of e1 and e2 and check if they are equal
         let opcode =
             match e1.Type, e2.Type with
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) & (isSubtypeOf e1.Env t2 TInt)) -> [ I32LeS ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) & (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Le ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [ I32LeS ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) && (isSubtypeOf e1.Env t2 TInt)) -> [ I32LeS ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) && (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Le ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) && (isSubtypeOf e1.Env t2 TBool)) -> [ I32LeS ]
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
@@ -538,9 +540,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // find type of e1 and e2 and check if they are equal
         let opcode =
             match e1.Type, e2.Type with
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) & (isSubtypeOf e1.Env t2 TInt)) -> [ I32GeS ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) & (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Ge ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) & (isSubtypeOf e1.Env t2 TBool)) -> [ I32GeS ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) && (isSubtypeOf e1.Env t2 TInt)) -> [ I32GeS ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) && (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Ge ]
+            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) && (isSubtypeOf e1.Env t2 TBool)) -> [ I32GeS ]
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
@@ -694,7 +696,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let bodyCode: Module =
             compileFunction funLabel argNamesTypes body env'' funcPointer'
 
-        let closure = createClosure env' node body index funcPointer' captured
+        let closure = createClosure env' node index funcPointer' captured
 
         (funcPointer + bodyCode + closure) // .AddCode([ (GlobalGet (Named(funLabel)), "return table index")  ]) // .AddCode([ Call funLabel ]) // .AddCode([ (RefFunc(Named(funLabel)), "return ref to lambda") ])
     | Seq(nodes) ->
@@ -1282,7 +1284,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             ++ combi
                 .AddLocals([ (Some(Identifier(varName)), F32) ])
                 .AddCode([ Comment "End of let" ])
-        | TFun(_, _) ->
+        | TFun _ ->
             // todo make function pointer
             let varLabel = Named(varName)
 
@@ -1563,7 +1565,7 @@ and typeToFuncSiganture (t: Type.Type) =
                     match t with
                     | TUnion _ -> (None, I32)
                     | TVar(_) -> (None, I32)
-                    | TFun(_, _) -> (None, I32) // passing function as a index to function table
+                    | TFun _ -> (None, I32) // passing function as a index to function table
                     | TStruct(_) -> (None, I32)
                     | TArray(_) -> (None, I32)
                     | TInt -> (None, I32)
@@ -1578,7 +1580,7 @@ and typeToFuncSiganture (t: Type.Type) =
             match ret with
             | TUnion _ -> [ I32 ]
             | TVar(_) -> [ I32 ]
-            | TFun(_, _) -> [ I32 ] // passing function as a index to function table
+            | TFun _ -> [ I32 ] // passing function as a index to function table
             | TStruct(_) -> [ I32 ]
             | TArray(_) -> [ I32 ]
             | TInt -> [ I32 ]
@@ -1610,7 +1612,7 @@ and internal compileFunction
                 match t with
                 | TUnion _ -> (Some(lookupLabelName env n), I32)
                 | TVar(_) -> (Some(lookupLabelName env n), I32)
-                | TFun(_, _) -> (Some(lookupLabelName env n), I32) // passing function as a index to function table
+                | TFun _ -> (Some(lookupLabelName env n), I32) // passing function as a index to function table
                 | TStruct(_) -> (Some(lookupLabelName env n), I32)
                 | TArray(_) -> (Some(lookupLabelName env n), I32)
                 | TInt -> (Some(lookupLabelName env n), I32)
@@ -1625,7 +1627,7 @@ and internal compileFunction
         match body.Type with
         | TUnion _ -> [ I32 ]
         | TVar(_) -> [ I32 ]
-        | TFun(_, _) -> [ I32 ] // passing function as a index to function table
+        | TFun _ -> [ I32 ] // passing function as a index to function table
         | TStruct(_) -> [ I32 ]
         | TArray(_) -> [ I32 ]
         | TInt -> [ I32 ]
@@ -1667,13 +1669,12 @@ and internal compileFunction
 and internal createClosure
     (env: CodegenEnv)
     (node: TypedAST)
-    (body: TypedAST)
     (index: int)
     (m: Module)
     (capturedList: string list)
     =
 
-    let resovleNode n = 
+    let resolveNode n = 
         let t = if (Set.contains n node.Env.Mutables) 
                     then
                         TStruct([ ("value", node.Env.Vars[n]) ])
@@ -1683,7 +1684,7 @@ and internal createClosure
         { node with Expr = Var(n); Type = t }
 
     // map captured to a list of string * TypedAST where the string is the name of the captured variable
-    let capturedStructFields = List.map (fun n -> (n, resovleNode n)) capturedList
+    let capturedStructFields = List.map (fun n -> (n, resolveNode n)) capturedList
 
     // all captured variables are stored in a struct
     let capturedVarsStruct = { node with Expr = Struct(capturedStructFields) }
@@ -1708,7 +1709,9 @@ and internal createClosure
     let returnStructCode = doCodegen env returnStruct m
 
     // get name local var that stores pointer to struct
-    let (Some(n), _) = List.last (returnStructCode.GetLocals())
+    let n = match List.last (returnStructCode.GetLocals()) with
+                      | (Some(n), _) -> n
+                      | (None, n) -> failwith "failed to find name of local var"
 
     let instr =
         returnStructCode.GetAccCode()
