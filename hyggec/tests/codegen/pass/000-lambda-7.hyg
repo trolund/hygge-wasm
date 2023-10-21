@@ -1,0 +1,69 @@
+let x: int = 5;
+
+fun f0(x: int): () -> int = {
+    let mutable a: int = 3;
+    fun () -> {
+        x + a // capture x and a
+    }
+};
+
+fun f1(x: int): () -> int = {
+    fun () -> {
+        x
+    }
+};
+
+fun f2(x: int): () -> int = {
+    fun () -> {
+        10
+    }
+};
+
+fun f3(x: int): (int) -> int = {
+    fun (y: int) -> {
+        x + y
+    }
+};
+
+fun f4(x: int): (int) -> int = {
+    let mutable a: int = 3;
+    fun (y: int) -> {
+        x + y + a 
+    }
+};
+
+fun f5(x: int, y: int): int = {
+    
+    fun g(x: int): (int) -> int = {
+        let mutable a: int = 3;
+        fun (y: int) -> {
+            x + y + a 
+        }
+    };
+
+    fun k(x: int): (int) -> int = {
+        let mutable a: int = 4;
+        fun (y: int) -> {
+            x + y + a 
+        }
+    };
+
+    let f0: (int) -> int = g(x);
+    let f1: (int) -> int = k(y);
+
+    f0(x) + f1(y) + 2
+};
+
+let c1: () -> int = f0(3);
+let c2: () -> int = f1(3);
+let c3: () -> int = f2(3);
+let c4: (int) -> int = f3(3);
+let c5: (int) -> int = f4(3);
+let c6: int = f5(1, 2);
+
+assert(c1() = 6);
+assert(c2() = 3);
+assert(c3() = 10);
+assert(c4(3) = 6);
+assert(c5(3) = 9);
+assert(c6 = 15)
