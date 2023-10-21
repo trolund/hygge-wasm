@@ -54,16 +54,39 @@ fun f5(x: int, y: int): int = {
     f0(x) + f1(y) + 2
 };
 
+fun f6(x: int, y: int, z: int): int = {
+    
+    fun g(m: int): (int) -> (int) -> (int) -> int = {
+        let a: int = 3;
+        fun (x: int) -> {
+            let b: int = 3;
+            fun (y: int) -> {
+                let c: int = 3;
+                fun (z: int) -> {
+                    x + y + z + a + b + c + m
+                }
+            }
+        }
+    };
+
+    let f0: (int) -> (int) -> (int) -> int = g(10);
+    let f1: (int) -> (int) -> int = f0(x);
+    let f2: (int) -> int = f1(y);
+    f2(z)
+};
+
 let c1: () -> int = f0(3);
 let c2: () -> int = f1(3);
 let c3: () -> int = f2(3);
 let c4: (int) -> int = f3(3);
 let c5: (int) -> int = f4(3);
 let c6: int = f5(1, 2);
+let c7: int = f6(1, 2, 3);
 
 assert(c1() = 6);
 assert(c2() = 3);
 assert(c3() = 10);
 assert(c4(3) = 6);
 assert(c5(3) = 9);
-assert(c6 = 15)
+assert(c6 = 15);
+assert(c7 = 25)

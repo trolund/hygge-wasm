@@ -2,6 +2,7 @@
   (type $i32_=>_i32 (;0;) (func (param i32) (result i32)))
   (type $i32_i32_=>_i32 (;1;) (func (param i32) (param i32) (result i32)))
   (type $i32_i32_i32_=>_i32 (;2;) (func (param i32) (param i32) (param i32) (result i32)))
+  (type $i32_i32_i32_i32_=>_i32 (;3;) (func (param i32) (param i32) (param i32) (param i32) (result i32)))
   (import "env" "malloc" (;0;) (func $malloc (param i32) (result i32)))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) i32.const 0)
@@ -16,19 +17,25 @@
   (global $fun_f4*ptr (;9;) (mut i32) i32.const 32)
   (global $fun_f4/anonymous*ptr (;10;) (mut i32) i32.const 36)
   (global $fun_f5*ptr (;11;) (mut i32) i32.const 40)
-  (global $fun_g*ptr (;12;) (mut i32) i32.const 44)
-  (global $fun_g/anonymous*ptr (;13;) (mut i32) i32.const 48)
-  (global $fun_k*ptr (;14;) (mut i32) i32.const 52)
-  (global $fun_k/anonymous*ptr (;15;) (mut i32) i32.const 56)
-  (global $heap_base (;16;) i32 i32.const 60)
-  (global $var_c1 (;17;) (mut i32) i32.const 0)
-  (global $var_c2 (;18;) (mut i32) i32.const 0)
-  (global $var_c3 (;19;) (mut i32) i32.const 0)
-  (global $var_c4 (;20;) (mut i32) i32.const 0)
-  (global $var_c5 (;21;) (mut i32) i32.const 0)
-  (global $var_c6 (;22;) (mut i32) i32.const 0)
-  (global $var_x (;23;) (mut i32) i32.const 0)
-  (table $func_table (;0;) 15 funcref)
+  (global $fun_f6*ptr (;12;) (mut i32) i32.const 60)
+  (global $fun_g$33*ptr (;13;) (mut i32) i32.const 64)
+  (global $fun_g$33/anonymous*ptr (;14;) (mut i32) i32.const 68)
+  (global $fun_g$33/anonymous/anonymous*ptr (;15;) (mut i32) i32.const 72)
+  (global $fun_g$33/anonymous/anonymous/anonymous*ptr (;16;) (mut i32) i32.const 76)
+  (global $fun_g*ptr (;17;) (mut i32) i32.const 44)
+  (global $fun_g/anonymous*ptr (;18;) (mut i32) i32.const 48)
+  (global $fun_k*ptr (;19;) (mut i32) i32.const 52)
+  (global $fun_k/anonymous*ptr (;20;) (mut i32) i32.const 56)
+  (global $heap_base (;21;) i32 i32.const 80)
+  (global $var_c1 (;22;) (mut i32) i32.const 0)
+  (global $var_c2 (;23;) (mut i32) i32.const 0)
+  (global $var_c3 (;24;) (mut i32) i32.const 0)
+  (global $var_c4 (;25;) (mut i32) i32.const 0)
+  (global $var_c5 (;26;) (mut i32) i32.const 0)
+  (global $var_c6 (;27;) (mut i32) i32.const 0)
+  (global $var_c7 (;28;) (mut i32) i32.const 0)
+  (global $var_x (;29;) (mut i32) i32.const 0)
+  (table $func_table (;0;) 20 funcref)
   (elem (i32.const 0) (;0;) $fun_f0)
   (elem (i32.const 1) (;1;) $fun_f0/anonymous)
   (elem (i32.const 2) (;2;) $fun_f1)
@@ -44,6 +51,11 @@
   (elem (i32.const 12) (;12;) $fun_g/anonymous)
   (elem (i32.const 13) (;13;) $fun_k)
   (elem (i32.const 14) (;14;) $fun_k/anonymous)
+  (elem (i32.const 15) (;15;) $fun_f6)
+  (elem (i32.const 16) (;16;) $fun_g$33)
+  (elem (i32.const 17) (;17;) $fun_g$33/anonymous)
+  (elem (i32.const 18) (;18;) $fun_g$33/anonymous/anonymous)
+  (elem (i32.const 19) (;19;) $fun_g$33/anonymous/anonymous/anonymous)
   (func $_start (;0;)  (result i32) 
     ;; execution start here:
     ;; Start of let
@@ -116,6 +128,19 @@
     call_indirect (type $i32_i32_i32_=>_i32) ;; call function
     ;; end of application
     global.set $var_c6 ;; set local var, have been hoisted
+    ;; Start of let
+    ;; start of application
+    ;; Load expression to be applied as a function
+    global.get $fun_f6*ptr ;; get global var: fun_f6*ptr
+    i32.load offset=4 ;; load closure environment pointer
+    i32.const 1 ;; push 1 on stack
+    i32.const 2 ;; push 2 on stack
+    i32.const 3 ;; push 3 on stack
+    global.get $fun_f6*ptr ;; get global var: fun_f6*ptr
+    i32.load ;; load table index
+    call_indirect (type $i32_i32_i32_i32_=>_i32) ;; call function
+    ;; end of application
+    global.set $var_c7 ;; set local var, have been hoisted
     ;; start of application
     ;; Load expression to be applied as a function
     global.get $var_c1 ;; get local var: var_c1, have been hoisted
@@ -219,6 +244,18 @@
         unreachable ;; exit program
       )
     )
+    global.get $var_c7 ;; get local var: var_c7, have been hoisted
+    i32.const 25 ;; push 25 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    ;; End of let
     ;; End of let
     ;; End of let
     ;; End of let
@@ -586,7 +623,59 @@
     ;; End of let
     ;; End of let
   )
-  (func $fun_g (;12;) (param $cenv i32) (param $arg_x$19 i32) (result i32) 
+  (func $fun_f6 (;12;) (param $cenv i32) (param $arg_x$31 i32) (param $arg_y$32 i32) (param $arg_z i32) (result i32) 
+    ;; local variables declarations:
+    (local $var_f0$44 i32)
+    (local $var_f1$45 i32)
+    (local $var_f2 i32)
+
+    ;; Start of let
+    ;; start of application
+    ;; Load expression to be applied as a function
+    global.get $fun_g$33*ptr ;; get global var: fun_g$33*ptr
+    i32.load offset=4 ;; load closure environment pointer
+    i32.const 10 ;; push 10 on stack
+    global.get $fun_g$33*ptr ;; get global var: fun_g$33*ptr
+    i32.load ;; load table index
+    call_indirect (type $i32_i32_=>_i32) ;; call function
+    ;; end of application
+    local.set $var_f0$44 ;; set local var
+    ;; Start of let
+    ;; start of application
+    ;; Load expression to be applied as a function
+    local.get $var_f0$44 ;; get local var: var_f0$44
+    i32.load offset=4 ;; load closure environment pointer
+    local.get $arg_x$31 ;; get local var: arg_x$31
+    local.get $var_f0$44 ;; get local var: var_f0$44
+    i32.load ;; load table index
+    call_indirect (type $i32_i32_=>_i32) ;; call function
+    ;; end of application
+    local.set $var_f1$45 ;; set local var
+    ;; Start of let
+    ;; start of application
+    ;; Load expression to be applied as a function
+    local.get $var_f1$45 ;; get local var: var_f1$45
+    i32.load offset=4 ;; load closure environment pointer
+    local.get $arg_y$32 ;; get local var: arg_y$32
+    local.get $var_f1$45 ;; get local var: var_f1$45
+    i32.load ;; load table index
+    call_indirect (type $i32_i32_=>_i32) ;; call function
+    ;; end of application
+    local.set $var_f2 ;; set local var
+    ;; start of application
+    ;; Load expression to be applied as a function
+    local.get $var_f2 ;; get local var: var_f2
+    i32.load offset=4 ;; load closure environment pointer
+    local.get $arg_z ;; get local var: arg_z
+    local.get $var_f2 ;; get local var: var_f2
+    i32.load ;; load table index
+    call_indirect (type $i32_i32_=>_i32) ;; call function
+    ;; end of application
+    ;; End of let
+    ;; End of let
+    ;; End of let
+  )
+  (func $fun_g (;13;) (param $cenv i32) (param $arg_x$19 i32) (result i32) 
     ;; local variables declarations:
     (local $Sptr$20 i32)
     (local $Sptr$23 i32)
@@ -655,7 +744,235 @@
     local.get $Sptr$24 ;; get pointer to return struct
     ;; End of let
   )
-  (func $fun_g/anonymous (;13;) (param $cenv i32) (param $arg_y$22 i32) (result i32) 
+  (func $fun_g$33 (;14;) (param $cenv i32) (param $arg_m i32) (result i32) 
+    ;; local variables declarations:
+    (local $Sptr$42 i32)
+    (local $Sptr$43 i32)
+    (local $var_a$34 i32)
+
+    ;; Start of let
+    i32.const 3 ;; push 3 on stack
+    local.set $var_a$34 ;; set local var
+    ;; start of struct contructor
+    i32.const 2 ;; size of struct
+    i32.const 4 ;; 4 bytes
+    i32.mul ;; multiply length with 4 to get size
+    call $malloc ;; call malloc function
+    local.set $Sptr$43 ;; set struct pointer var
+    local.get $Sptr$43 ;; get struct pointer var
+    i32.const 0 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field f
+    i32.const 17 ;; push 17 on stack
+    i32.store ;; store int field in memory
+    local.get $Sptr$43 ;; get struct pointer var
+    i32.const 4 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field env
+    i32.const 0 ;; push 0 on stack
+    i32.store ;; store int field in memory
+    local.get $Sptr$43 ;; push struct address to stack
+    ;; end of struct contructor
+    i32.const 4 ;; 4 byte offset
+    i32.add ;; add offset
+    ;; start of struct contructor
+    i32.const 2 ;; size of struct
+    i32.const 4 ;; 4 bytes
+    i32.mul ;; multiply length with 4 to get size
+    call $malloc ;; call malloc function
+    local.set $Sptr$42 ;; set struct pointer var
+    local.get $Sptr$42 ;; get struct pointer var
+    i32.const 0 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field a
+    local.get $var_a$34 ;; get local var: var_a$34
+    i32.store ;; store int field in memory
+    local.get $Sptr$42 ;; get struct pointer var
+    i32.const 4 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field m
+    local.get $arg_m ;; get local var: arg_m
+    i32.store ;; store int field in memory
+    local.get $Sptr$42 ;; push struct address to stack
+    ;; end of struct contructor
+    i32.store ;; store poninter in return struct
+    local.get $Sptr$43 ;; get pointer to return struct
+    ;; End of let
+  )
+  (func $fun_g$33/anonymous (;15;) (param $cenv i32) (param $arg_x$35 i32) (result i32) 
+    ;; local variables declarations:
+    (local $Sptr$40 i32)
+    (local $Sptr$41 i32)
+    (local $var_b i32)
+
+    ;; Start of let
+    i32.const 3 ;; push 3 on stack
+    local.set $var_b ;; set local var
+    ;; start of struct contructor
+    i32.const 2 ;; size of struct
+    i32.const 4 ;; 4 bytes
+    i32.mul ;; multiply length with 4 to get size
+    call $malloc ;; call malloc function
+    local.set $Sptr$41 ;; set struct pointer var
+    local.get $Sptr$41 ;; get struct pointer var
+    i32.const 0 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field f
+    i32.const 18 ;; push 18 on stack
+    i32.store ;; store int field in memory
+    local.get $Sptr$41 ;; get struct pointer var
+    i32.const 4 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field env
+    i32.const 0 ;; push 0 on stack
+    i32.store ;; store int field in memory
+    local.get $Sptr$41 ;; push struct address to stack
+    ;; end of struct contructor
+    i32.const 4 ;; 4 byte offset
+    i32.add ;; add offset
+    ;; start of struct contructor
+    i32.const 4 ;; size of struct
+    i32.const 4 ;; 4 bytes
+    i32.mul ;; multiply length with 4 to get size
+    call $malloc ;; call malloc function
+    local.set $Sptr$40 ;; set struct pointer var
+    local.get $Sptr$40 ;; get struct pointer var
+    i32.const 0 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field a
+    local.get 0 ;; get env pointer
+    i32.load offset=0 ;; load value at offset: 0
+    i32.store ;; store int field in memory
+    local.get $Sptr$40 ;; get struct pointer var
+    i32.const 4 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field b
+    local.get $var_b ;; get local var: var_b
+    i32.store ;; store int field in memory
+    local.get $Sptr$40 ;; get struct pointer var
+    i32.const 8 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field m
+    local.get 0 ;; get env pointer
+    i32.load offset=4 ;; load value at offset: 4
+    i32.store ;; store int field in memory
+    local.get $Sptr$40 ;; get struct pointer var
+    i32.const 12 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field x
+    local.get $arg_x$35 ;; get local var: arg_x$35
+    i32.store ;; store int field in memory
+    local.get $Sptr$40 ;; push struct address to stack
+    ;; end of struct contructor
+    i32.store ;; store poninter in return struct
+    local.get $Sptr$41 ;; get pointer to return struct
+    ;; End of let
+  )
+  (func $fun_g$33/anonymous/anonymous (;16;) (param $cenv i32) (param $arg_y$36 i32) (result i32) 
+    ;; local variables declarations:
+    (local $Sptr$38 i32)
+    (local $Sptr$39 i32)
+    (local $var_c i32)
+
+    ;; Start of let
+    i32.const 3 ;; push 3 on stack
+    local.set $var_c ;; set local var
+    ;; start of struct contructor
+    i32.const 2 ;; size of struct
+    i32.const 4 ;; 4 bytes
+    i32.mul ;; multiply length with 4 to get size
+    call $malloc ;; call malloc function
+    local.set $Sptr$39 ;; set struct pointer var
+    local.get $Sptr$39 ;; get struct pointer var
+    i32.const 0 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field f
+    i32.const 19 ;; push 19 on stack
+    i32.store ;; store int field in memory
+    local.get $Sptr$39 ;; get struct pointer var
+    i32.const 4 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field env
+    i32.const 0 ;; push 0 on stack
+    i32.store ;; store int field in memory
+    local.get $Sptr$39 ;; push struct address to stack
+    ;; end of struct contructor
+    i32.const 4 ;; 4 byte offset
+    i32.add ;; add offset
+    ;; start of struct contructor
+    i32.const 6 ;; size of struct
+    i32.const 4 ;; 4 bytes
+    i32.mul ;; multiply length with 4 to get size
+    call $malloc ;; call malloc function
+    local.set $Sptr$38 ;; set struct pointer var
+    local.get $Sptr$38 ;; get struct pointer var
+    i32.const 0 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field a
+    local.get 0 ;; get env pointer
+    i32.load offset=0 ;; load value at offset: 0
+    i32.store ;; store int field in memory
+    local.get $Sptr$38 ;; get struct pointer var
+    i32.const 4 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field b
+    local.get 0 ;; get env pointer
+    i32.load offset=4 ;; load value at offset: 4
+    i32.store ;; store int field in memory
+    local.get $Sptr$38 ;; get struct pointer var
+    i32.const 8 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field c
+    local.get $var_c ;; get local var: var_c
+    i32.store ;; store int field in memory
+    local.get $Sptr$38 ;; get struct pointer var
+    i32.const 12 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field m
+    local.get 0 ;; get env pointer
+    i32.load offset=8 ;; load value at offset: 8
+    i32.store ;; store int field in memory
+    local.get $Sptr$38 ;; get struct pointer var
+    i32.const 16 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field x
+    local.get 0 ;; get env pointer
+    i32.load offset=12 ;; load value at offset: 12
+    i32.store ;; store int field in memory
+    local.get $Sptr$38 ;; get struct pointer var
+    i32.const 20 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field y
+    local.get $arg_y$36 ;; get local var: arg_y$36
+    i32.store ;; store int field in memory
+    local.get $Sptr$38 ;; push struct address to stack
+    ;; end of struct contructor
+    i32.store ;; store poninter in return struct
+    local.get $Sptr$39 ;; get pointer to return struct
+    ;; End of let
+  )
+  (func $fun_g$33/anonymous/anonymous/anonymous (;17;) (param $cenv i32) (param $arg_z$37 i32) (result i32) 
+    local.get 0 ;; get env pointer
+    i32.load offset=16 ;; load value at offset: 16
+    local.get 0 ;; get env pointer
+    i32.load offset=20 ;; load value at offset: 20
+    i32.add
+    local.get $arg_z$37 ;; get local var: arg_z$37
+    i32.add
+    local.get 0 ;; get env pointer
+    i32.load offset=0 ;; load value at offset: 0
+    i32.add
+    local.get 0 ;; get env pointer
+    i32.load offset=4 ;; load value at offset: 4
+    i32.add
+    local.get 0 ;; get env pointer
+    i32.load offset=8 ;; load value at offset: 8
+    i32.add
+    local.get 0 ;; get env pointer
+    i32.load offset=12 ;; load value at offset: 12
+    i32.add
+  )
+  (func $fun_g/anonymous (;18;) (param $cenv i32) (param $arg_y$22 i32) (result i32) 
     ;; local variables declarations:
     (local $Sptr$20 i32)
 
@@ -670,7 +987,7 @@
     ;; End of field select
     i32.add
   )
-  (func $fun_k (;14;) (param $cenv i32) (param $arg_x$25 i32) (result i32) 
+  (func $fun_k (;19;) (param $cenv i32) (param $arg_x$25 i32) (result i32) 
     ;; local variables declarations:
     (local $Sptr$26 i32)
     (local $Sptr$29 i32)
@@ -739,7 +1056,7 @@
     local.get $Sptr$30 ;; get pointer to return struct
     ;; End of let
   )
-  (func $fun_k/anonymous (;15;) (param $cenv i32) (param $arg_y$28 i32) (result i32) 
+  (func $fun_k/anonymous (;20;) (param $cenv i32) (param $arg_y$28 i32) (result i32) 
     ;; local variables declarations:
     (local $Sptr$26 i32)
 
@@ -769,6 +1086,11 @@
   (data (i32.const 48) "\0c")
   (data (i32.const 52) "\0d")
   (data (i32.const 56) "\0e")
+  (data (i32.const 60) "\0f")
+  (data (i32.const 64) "\10")
+  (data (i32.const 68) "\11")
+  (data (i32.const 72) "\12")
+  (data (i32.const 76) "\13")
   (export "_start" (func $_start))
   (export "exit_code" (global $exit_code))
   (export "heap_base_ptr" (global $heap_base))
