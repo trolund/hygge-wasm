@@ -15,7 +15,7 @@ let successExitCode = 0
 /// Storage information for variables.
 [<RequireQualifiedAccess; StructuralComparison; StructuralEquality>]
 type internal Storage =
-    /// label of local
+    /// local variable
     | local of label: string
     /// global variable
     | glob of label: string
@@ -61,6 +61,7 @@ type internal StaticMemoryAllocator() =
 
     member this.GetAllocationPosition() = allocationPosition
 
+/// A table controller that keeps track of the current position in the table.
 type internal TableController() =
 
     let mutable allocationPosition = 0
@@ -106,6 +107,7 @@ type internal SymbolController() =
             // We return the symbol position in 'knownSymsWithIds' as unique id
             id + 1
 
+/// code that is executed when an error occurs
 let trap =
     [ (I32Const errorExitCode, "error exit code push to stack")
       (GlobalSet(Named("exit_code")), "set exit code")
@@ -113,7 +115,7 @@ let trap =
 
 type internal CodegenEnv =
     { CurrFunc: string
-      CurrFuncArgs: list<string>
+      // CurrFuncArgs: list<string>
       MemoryAllocator: StaticMemoryAllocator
       TableController: TableController
       SymbolController: SymbolController
@@ -125,23 +127,17 @@ let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) 
     // get the index of the function
     let funcindex = env.TableController.next ()
 
-    // add function to function table
-    let m = m.AddFuncRefElement(name, funcindex)
-
     // allocate memory for function pointer
     let ptr = env.MemoryAllocator.Allocate(4)
 
-    // index to hex
-    let funcindexhex = Util.intToHex funcindex
-
     let FunctionPointer =
         m
-            .AddData(I32Const ptr, funcindexhex)
+            .AddFuncRefElement(name, funcindex) // add function to function table
+            .AddData(I32Const ptr, Util.intToHex funcindex) // index as hex string
             .AddGlobal((ptr_label, (I32, Mutable), (I32Const ptr)))
 
+    // return compontents needed to create a function pointer
     (FunctionPointer, funcindex, ptr_label)
-
-let internal isTopLevel (env: CodegenEnv) = env.CurrFunc = "_start"
 
 // reduce expression to a single value
 // then find the vlaue that is returned
@@ -247,6 +243,7 @@ let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
     | Var v ->
         match env.VarStorage.TryFind v with
         | Some(Storage.local l) -> Named(l)
+        | Some(Storage.glob l) -> Named(l)
         | Some(Storage.Offset(o)) -> Index(o)
         | _ -> failwith "not implemented"
     | _ -> failwith "not implemented"
@@ -268,6 +265,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // allocate for struct like structure
         let ptr = env.MemoryAllocator.Allocate(2 * 4)
 
+        // compute size of string in bytes
         let stringSizeInBytes = Encoding.BigEndianUnicode.GetByteCount(s)
 
         // allocate string in memory
@@ -284,8 +282,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // load variable
         let instrs: List<Commented<Instr>> =
             match env.VarStorage.TryFind v with
-            | Some(Storage.local l) -> [ (LocalGet(Named(l)), $"get local var: {l}") ]
-            | Some(Storage.Offset(i)) ->
+            | Some(Storage.local l) -> [ (LocalGet(Named(l)), $"get local var: {l}") ] // push local variable on stack
+            | Some(Storage.glob l) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ] // push global variable on stack
+            | Some(Storage.Offset(i)) -> // push variable from offset on stack
                 // get load instruction based on type
                 let li: Instr =
                     match node.Type with
@@ -297,11 +296,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
                 [ (LocalGet(Index(0)), "get env pointer")
                   (li, $"load value at offset: {i * 4}") ]
-            | Some(Storage.glob l) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ]
             | _ -> failwith "could not find variable in var storage"
 
         m.AddCode(instrs)
-
     | PreIncr(e) ->
         let m' = doCodegen env e m
 
@@ -313,8 +310,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | t when (isSubtypeOf e.Env t TFloat) -> m'.GetAccCode() @ C [ F32Const 1.0f; F32Add; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
-        C [ Comment "Start PreIncr" ]
-        ++ m'.ResetAccCode().AddCode(instrs @ (C [ Comment "End PreIncr" ]))
+        m'.ResetAccCode().AddCode(instrs)
     | PostIncr(e) ->
         let m' = doCodegen env e m
 
@@ -328,8 +324,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 m'.GetAccCode() @ C [ LocalGet(label); F32Const 1.0f; F32Add; LocalSet(label) ]
             | _ -> failwith "not implemented"
 
-        C [ Comment "Start PostIncr" ]
-        ++ m'.ResetAccCode().AddCode(instrs @ (C [ Comment "End PostIncr" ]))
+        m'.ResetAccCode().AddCode(instrs)
     | PreDcr(e) ->
         let m' = doCodegen env e m
 
@@ -341,8 +336,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | t when (isSubtypeOf e.Env t TFloat) -> m'.GetAccCode() @ C [ F32Const 1.0f; F32Sub; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
-        C [ Comment "Start PreDecr" ]
-        ++ m'.ResetAccCode().AddCode(instrs @ (C [ Comment "End PreDecr" ]))
+        m'.ResetAccCode().AddCode(instrs)
     | PostDcr(e) ->
         let m' = doCodegen env e m
 
@@ -356,9 +350,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 m'.GetAccCode() @ C [ LocalGet(label); F32Const 1.0f; F32Sub; LocalSet(label) ]
             | _ -> failwith "not implemented"
 
-        C [ Comment "Start PostDecr" ]
-        ++ m'.ResetAccCode().AddCode(instrs @ (C [ Comment "End PostDecr" ]))
-
+        m'.ResetAccCode().AddCode(instrs)
     | MinAsg(lhs, rhs)
     | DivAsg(lhs, rhs)
     | MulAsg(lhs, rhs)
@@ -396,14 +388,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 lhs'.GetAccCode() @ rhs'.GetAccCode() @ C [ opCode; LocalTee(label) ]
             | _ -> failwith "not implemented"
 
-        C [ Comment "Start AddAsgn/MinAsgn" ]
-        ++ (lhs' + rhs')
-            .ResetAccCode()
-            .AddCode(instrs @ (C [ Comment "End AddAsgn/MinAsgn" ]))
-
+        (lhs' + rhs').ResetAccCode().AddCode(instrs)
     | Max(e1, e2)
     | Min(e1, e2) ->
-
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
 
@@ -421,9 +408,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | _ -> failwith "not implemented"
             | _ -> failwith "failed type of max/min"
 
-        C [ Comment "Max/min start" ]
-        ++ (m' + m'').AddCode(instrs @ C [ Comment "Max/min end" ])
-
+        (m' + m'').AddCode(instrs)
     | Sqrt e ->
         let m' = doCodegen env e m
         let instrs = m'.GetAccCode() @ C [ F32Sqrt ]
@@ -459,18 +444,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | And(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
-        let instrs = [ I32And ]
-        (m' + m'').AddCode(instrs)
+        (m' + m'').AddCode([ I32And ])
     | Or(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
-        let instrs = [ I32Or ]
-        (m' + m'').AddCode(instrs)
-
-    | Not(e) ->
-        let m' = doCodegen env e m
-        let instrs = [ I32Eqz ]
-        m'.AddCode(instrs)
+        (m' + m'').AddCode([ I32Or ])
+    | Not(e) -> (doCodegen env e m).AddCode([ I32Eqz ])
     | Greater(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
@@ -516,7 +495,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
-
     | LessOrEq(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
@@ -530,7 +508,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
-
     | GreaterOrEq(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
@@ -544,17 +521,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
-
     | ReadInt ->
-        // import readInt function
-        let m' = m.AddImport(getImport "readInt")
         // perform host (system) call
-        m'.AddCode([ (Call "readInt", "call host function") ])
+        m
+            .AddImport(getImport "readInt") // import readInt function
+            .AddCode([ (Call "readInt", "call host function") ]) // call host function
     | ReadFloat ->
-        // import readFloat function
-        let m' = m.AddImport(getImport "readFloat")
         // perform host (system) call
-        m'.AddCode([ (Call "readFloat", "call host function") ])
+        m
+            .AddImport(getImport "readFloat") // import readFloat function
+            .AddCode([ (Call "readFloat", "call host function") ]) // call host function
     | PrintLn e
     | Print e ->
         // TODO make print and println different
@@ -562,10 +538,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         match e.Type with
         | t when (isSubtypeOf node.Env t TFloat) ->
-            // import writeF function
-            let m'' = m'.AddImport(getImport "writeFloat")
             // perform host (system) call
-            m''.AddCode([ (Call "writeFloat", "call host function") ])
+            m'
+                .AddImport(getImport "writeFloat") // import writeF function
+                .AddCode([ (Call "writeFloat", "call host function") ])
         | t when (isSubtypeOf node.Env t TString) ->
             // import writeS function
             let m'' =
@@ -611,7 +587,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ C [ (If([], trap, None)) ]
 
         m'.ResetAccCode().AddCode(instrs)
-
     | Application(expr, args) ->
         /// compile arguments
         let argm = List.fold (fun m arg -> m + doCodegen env arg (m.ResetAccCode())) m args
@@ -678,12 +653,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             List.fold
                 (fun (m: Module) (_, n) ->
                     match env.VarStorage.TryFind n with
-                    | Some(Storage.local _) ->
-                        // if List.contains n env.CurrFuncArgs then
-                        //     m
-                        // else
-                        //     m.AddToHostingList(l)
-                        m
+                    | Some(Storage.local _) -> m
                     | Some(Storage.Offset _) -> m
                     | None -> failwith "failed to find captured var in var storage"
                     | _ -> failwith "failed to find captured var in var storage")
@@ -1054,7 +1024,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let case = condition @ C [ (If([], caseCode.GetAccCode(), None)) ]
 
                 acc
-                ++ caseCode.ResetAccCode()
+                ++ caseCode
+                    .ResetAccCode()
                     .AddCode(C [ Comment $"case for id: ${id}, label: {label}" ] @ case)
 
         let casesCode = List.fold folder (Module()) indexedLabels
@@ -1437,8 +1408,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let argNamesTypes = List.zip argNames targs
 
         /// Compiled function body
-        let bodyCode: Module =
-            compileFunction funLabel argNamesTypes body env'' funcPointer
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
 
         let scopeModule: Module = (doCodegen env' scope funcPointer)
 
@@ -1654,7 +1624,8 @@ and internal compileFunction
         doCodegen
             { env with
                 CurrFunc = name
-                CurrFuncArgs = List.map (fun (n, _) -> n) args }
+            // CurrFuncArgs = List.map (fun (n, _) -> n) args
+            }
             body
             m'
 
@@ -1809,9 +1780,7 @@ let hoistingLocals (m: Module) (upgradeList: list<string>) : Module =
                 (n, (t, Mutable), value))
             upgradeList
 
-    let m' = m.AddGlobals(globals).ReplaceFuncs(funcs')
-
-    m'
+    m.AddGlobals(globals).ReplaceFuncs(funcs')
 
 /// add special implicit main function
 /// as the entry point of the program
@@ -1841,7 +1810,8 @@ let codegen (node: TypedAST) : Module =
           TableController = TableController()
           SymbolController = SymbolController()
           VarStorage = Map.empty
-          CurrFuncArgs = [] }
+        // CurrFuncArgs = []
+        }
 
     // add function to module and export it
     let m' =
