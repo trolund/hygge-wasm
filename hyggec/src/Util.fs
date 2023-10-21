@@ -206,3 +206,13 @@ let rec dataString l =
         match l with
         | [] -> ""
         | x::xs -> intTo32Hex x + dataString xs
+
+
+// Check if x is a power of 2
+let isPowerOfTwo (x: int): bool =
+    let rec isPowerOfTwoRec (x: int): bool =
+        if x = 1 then true
+                 else if x % 2 = 0 then isPowerOfTwoRec (x / 2)
+                                    else false
+    if x > 0 then isPowerOfTwoRec x
+              else false

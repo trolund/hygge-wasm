@@ -2,6 +2,7 @@ module WasmPeephole
 
 open WGF.Module
 open WGF.Types
+open Util
 
 /// Optimize a list of Text segment statements.
 let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr> list) =
@@ -10,7 +11,13 @@ let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr>
     // of the same local variable. This is a common pattern when using local
     // variables as temporaries.
     | (LocalSet(l1), c1) :: (LocalGet(l2), c2) :: rest when l1 = l2 -> (LocalTee(l1), c1 + c2) :: optimizeInstr rest
+    | (I32Const x, c1) :: (I32Mul, c2) :: rest when isPowerOfTwo x -> 
 
+        let log2 x = log x / log 2.0
+        let shamt = int(log2 x)
+
+        (I32Const shamt, c1) :: (I32Shl, c2) :: optimizeInstr rest
+    
     // no optimization case matched: continue with the rest
     | stmt :: rest ->
         // If we are here, we did not find any pattern to optimize: we skip the
