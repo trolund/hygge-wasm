@@ -432,7 +432,7 @@ module Module =
     and FunctionInstance =
         {
           // moduleInstance : ModuleInstance
-          typeIndex: int
+          // typeIndex: int
           name: Identifier option
           signature: FunctionSignature
           locals: Local list
@@ -773,7 +773,7 @@ module Module =
             let (f), s = this.functions.[name]
 
             let newInstance: Commented<FunctionInstance> =
-                ({ typeIndex = f.typeIndex
+                ({ 
                    locals = f.locals @ locals
                    signature = f.signature
                    body = f.body
@@ -804,7 +804,7 @@ module Module =
             let (f), s = this.functions.[name]
             // add instrs to function f a function instance
             let newInstance: Commented<FunctionInstance> =
-                ({ typeIndex = f.typeIndex
+                ({ 
                    locals = f.locals
                    signature = f.signature
                    body = f.body @ (instrs |> List.map (fun x -> Commented(x, "")))
@@ -834,7 +834,7 @@ module Module =
             let (f), s = this.functions.[name]
             // add instrs to function f a function instance
             let newInstance: Commented<FunctionInstance> =
-                ({ typeIndex = f.typeIndex
+                ({ 
                    locals = f.locals
                    signature = f.signature
                    body = f.body @ instrs
@@ -893,8 +893,7 @@ module Module =
 
                     // get instance
                     let instance = fst f
-                    // add typeindex to instance
-                    let instance = { instance with typeIndex = typeIndex }
+
                     // add instance to function
                     let f' = (instance, snd f)
                     let typedef = instance.signature

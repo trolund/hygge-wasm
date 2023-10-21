@@ -1604,8 +1604,7 @@ and internal compileFunction
 
     // create function instance
     let f: Commented<FunctionInstance> =
-        ({ typeIndex = 0
-           locals = []
+        ({ locals = []
            signature = signature
            body = []
            name = Some(Identifier(name)) },
@@ -1790,8 +1789,7 @@ let codegen (node: TypedAST) : Module =
     let signature = ([], [ I32 ])
 
     let f: Commented<FunctionInstance> =
-        ({ typeIndex = 0
-           locals = []
+        ({ locals = []
            signature = signature
            body = []
            name = Some(Identifier(funcName)) },
