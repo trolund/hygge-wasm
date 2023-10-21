@@ -1322,13 +1322,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
 
     | LetMut(name, tpe, init, scope, export) ->
-        // The code generation is not different from 'let...', so we recycle it
-
-
         // check if var is captured
         let isVarCaptured = List.contains name (Set.toList (ASTUtil.capturedVars scope))
 
-        // rewrite let mut to let with struct
+        // rewrite let mut to let with struct to support mutabul closures
         if isVarCaptured then
 
             let fieldName = "value"
@@ -1363,6 +1360,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             m'
         else
+            // The code generation is not different from 'let...', so we recycle it
             (doCodegen
                 env
                 { node with
@@ -1421,13 +1419,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 Expr = Let(name, tpe, init, scope, export) }
             m
     | Pointer _ -> failwith "BUG: pointers cannot be compiled (by design!)"
-
     | AST.Type(_, _, scope) ->
         // A type alias does not produce any code --- but its scope does
         doCodegen env scope m
-
-    // data strctures
-
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
@@ -1558,7 +1552,7 @@ and typeToFuncSiganture (t: Type.Type) =
             | TString -> [ I32 ]
             | TUnit -> []
 
-        // added env var to args
+        // added cenv var to args to pass closure env
         let argTypes' = (None, I32) :: argTypes
         let signature: FunctionSignature = (argTypes', retType)
 
