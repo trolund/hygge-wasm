@@ -37,12 +37,13 @@ type internal StaticMemoryAllocator() =
 
     // get number of pages needed to allocate size bytes
     member this.GetNumPages() =
-        let numPages = allocationPosition / pageSize
+        let neededPages = int(ceil(float allocationPosition / float pageSize))
 
-        if allocationPosition % pageSize <> 0 then
-            numPages + 1
+        // in case of 0 pages i needed for static data allways have 1 page for dynamic data
+        if neededPages = 0 then
+            1
         else
-            numPages
+            neededPages
 
     /// function that call the dynamic allocator with the number of bytes needed and return the start position
     /// Allocate in linear memory a block of 'size' bytes.
@@ -1819,11 +1820,7 @@ let codegen (node: TypedAST) : Module =
     // before this offset only static data is allocated
     let staticOffset: int = env.MemoryAllocator.GetAllocationPosition()
     // TODO: move this logic to the memory allocator
-    let numOfStaticPages: int =
-        if env.MemoryAllocator.GetNumPages() <= 0 then
-            1
-        else
-            env.MemoryAllocator.GetNumPages()
+    let numOfStaticPages: int = env.MemoryAllocator.GetNumPages()
 
     let heapBase = "heap_base"
     let exitCode = "exit_code"
