@@ -7,7 +7,7 @@
   (global $arr_ptr (;3;) (mut i32) i32.const 0)
   (global $arr_ptr$2 (;4;) (mut i32) i32.const 0)
   (global $exit_code (;5;) (mut i32) i32.const 0)
-  (global $heap_base (;6;) i32 i32.const 26)
+  (global $heap_base (;6;) i32 i32.const 130)
   (global $i (;7;) (mut i32) i32.const 0)
   (global $i$5 (;8;) (mut i32) i32.const 0)
   (global $var_arr (;9;) (mut i32) i32.const 0)
@@ -185,6 +185,607 @@
     global.get $arr_ptr$2 ;; leave pointer to allocated array struct on stack, have been hoisted
     global.set $var_arr2 ;; set local var, have been hoisted
     i32.const 1
+    (if (result i32)
+      (then
+        i32.const 1
+      )
+      (else
+        i32.const 0
+      )
+    )
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 1
+    (if (result i32)
+      (then
+        ;; Start of field select
+        global.get $var_s ;; get local var: var_s, have been hoisted
+        i32.load offset=0 ;; load field: name
+        ;; End of field select
+      )
+      (else
+        i32.const 26 ;; leave pointer to string on stack
+      )
+    )
+    i32.load offset=4 ;; load string length
+    i32.const 1 ;; push 1 on stack
+    i32.shr_s ;; divide by 2
+    i32.const 9 ;; push 9 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 1
+    (if (result i32)
+      (then
+        i32.const 48 ;; leave pointer to string on stack
+        i32.load offset=4 ;; load string length
+        i32.const 1 ;; push 1 on stack
+        i32.shr_s ;; divide by 2
+      )
+      (else
+        i32.const 94 ;; leave pointer to string on stack
+        i32.load offset=4 ;; load string length
+        i32.const 1 ;; push 1 on stack
+        i32.shr_s ;; divide by 2
+      )
+    )
+    i32.const 19 ;; push 19 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 1
+    (if (result f32)
+      (then
+        ;; Start of field select
+        global.get $var_s ;; get local var: var_s, have been hoisted
+        f32.load offset=4 ;; load field: area
+        ;; End of field select
+      )
+      (else
+        f32.const 0.000000
+      )
+    )
+    f32.const 12.000000
+    f32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 1
+    (if (result i32)
+      (then
+        ;; Start of field select
+        global.get $var_s ;; get local var: var_s, have been hoisted
+        i32.load offset=8 ;; load field: width
+        ;; End of field select
+      )
+      (else
+        i32.const 0 ;; push 0 on stack
+      )
+    )
+    i32.const 100 ;; push 100 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 0
+    (if (result i32)
+      (then
+        ;; Start of field select
+        global.get $var_s ;; get local var: var_s, have been hoisted
+        i32.load offset=12 ;; load field: height
+        ;; End of field select
+      )
+      (else
+        i32.const 0 ;; push 0 on stack
+      )
+    )
+    i32.const 0 ;; push 0 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    ;; Start of field select
+    i32.const 0
+    (if (result i32)
+      (then
+        global.get $var_s ;; get local var: var_s, have been hoisted
+      )
+      (else
+        global.get $var_s ;; get local var: var_s, have been hoisted
+      )
+    )
+    i32.load offset=8 ;; load field: width
+    ;; End of field select
+    i32.const 100 ;; push 100 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 0 ;; push 0 on stack
+    i32.const 0 ;; put zero on stack
+    i32.lt_s ;; check if index is >= 0
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 0 ;; push 0 on stack
+    i32.const 1
+    (if (result i32)
+      (then
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+      )
+      (else
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+      )
+    )
+    i32.load offset=4 ;; load length
+    i32.ge_u ;; check if index is < length
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 1
+    (if (result i32)
+      (then
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+      )
+      (else
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+      )
+    )
+    i32.load ;; load data pointer
+    i32.const 0 ;; push 0 on stack
+    i32.const 4 ;; byte offset
+    i32.mul ;; multiply index with byte offset
+    i32.add ;; add offset to base address
+    i32.load ;; load value
+    ;; end array element access node
+    i32.const 42 ;; push 42 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 1
+    (if (result i32)
+      (then
+        i32.const 0 ;; push 0 on stack
+        i32.const 0 ;; put zero on stack
+        i32.lt_s ;; check if index is >= 0
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        i32.const 0 ;; push 0 on stack
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load offset=4 ;; load length
+        i32.ge_u ;; check if index is < length
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 0 ;; push 0 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        i32.load ;; load value
+        ;; end array element access node
+      )
+      (else
+        i32.const 0 ;; push 0 on stack
+        i32.const 0 ;; put zero on stack
+        i32.lt_s ;; check if index is >= 0
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        i32.const 0 ;; push 0 on stack
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load offset=4 ;; load length
+        i32.ge_u ;; check if index is < length
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 0 ;; push 0 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        i32.load ;; load value
+        ;; end array element access node
+      )
+    )
+    i32.const 42 ;; push 42 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 1
+    (if (result i32)
+      (then
+        i32.const 0 ;; push 0 on stack
+        i32.const 0 ;; put zero on stack
+        i32.lt_s ;; check if index is >= 0
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        i32.const 0 ;; push 0 on stack
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load offset=4 ;; load length
+        i32.ge_u ;; check if index is < length
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 0 ;; push 0 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        i32.const 21 ;; push 21 on stack
+        i32.store ;; store value in elem pos
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 0 ;; push 0 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        i32.load ;; load int from elem pos
+      )
+      (else
+        i32.const 1 ;; push 1 on stack
+        i32.const 0 ;; put zero on stack
+        i32.lt_s ;; check if index is >= 0
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        i32.const 1 ;; push 1 on stack
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load offset=4 ;; load length
+        i32.ge_u ;; check if index is < length
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 1 ;; push 1 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        i32.load ;; load value
+        ;; end array element access node
+      )
+    )
+    i32.const 21 ;; push 21 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 0
+    (if (result i32)
+      (then
+        i32.const 0 ;; push 0 on stack
+        i32.const 0 ;; put zero on stack
+        i32.lt_s ;; check if index is >= 0
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        i32.const 0 ;; push 0 on stack
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load offset=4 ;; load length
+        i32.ge_u ;; check if index is < length
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 0 ;; push 0 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        i32.const 21 ;; push 21 on stack
+        i32.store ;; store value in elem pos
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 0 ;; push 0 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        i32.load ;; load int from elem pos
+      )
+      (else
+        i32.const 1 ;; push 1 on stack
+        i32.const 0 ;; put zero on stack
+        i32.lt_s ;; check if index is >= 0
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        i32.const 1 ;; push 1 on stack
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load offset=4 ;; load length
+        i32.ge_u ;; check if index is < length
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 1 ;; push 1 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        i32.load ;; load value
+        ;; end array element access node
+      )
+    )
+    i32.const 42 ;; push 42 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 0
+    (if (result i32)
+      (then
+        i32.const 21 ;; push 21 on stack
+      )
+      (else
+        ;; start array length node
+        global.get $var_arr ;; get local var: var_arr, have been hoisted
+        i32.load offset=4 ;; load length
+        ;; end array length node
+      )
+    )
+    i32.const 10 ;; push 10 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 0 ;; push 0 on stack
+    i32.const 0 ;; put zero on stack
+    i32.lt_s ;; check if index is >= 0
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 0 ;; push 0 on stack
+    i32.const 1
+    (if (result i32)
+      (then
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+      )
+      (else
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+      )
+    )
+    i32.load offset=4 ;; load length
+    i32.ge_u ;; check if index is < length
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 1
+    (if (result i32)
+      (then
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+      )
+      (else
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+      )
+    )
+    i32.load ;; load data pointer
+    i32.const 0 ;; push 0 on stack
+    i32.const 4 ;; byte offset
+    i32.mul ;; multiply index with byte offset
+    i32.add ;; add offset to base address
+    f32.load ;; load value
+    ;; end array element access node
+    f32.const 100.000000
+    f32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 1
+    (if (result f32)
+      (then
+        i32.const 0 ;; push 0 on stack
+        i32.const 0 ;; put zero on stack
+        i32.lt_s ;; check if index is >= 0
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        i32.const 0 ;; push 0 on stack
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load offset=4 ;; load length
+        i32.ge_u ;; check if index is < length
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 0 ;; push 0 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        f32.load ;; load value
+        ;; end array element access node
+      )
+      (else
+        i32.const 0 ;; push 0 on stack
+        i32.const 0 ;; put zero on stack
+        i32.lt_s ;; check if index is >= 0
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        i32.const 0 ;; push 0 on stack
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load offset=4 ;; load length
+        i32.ge_u ;; check if index is < length
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 0 ;; push 0 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        f32.load ;; load value
+        ;; end array element access node
+      )
+    )
+    f32.const 100.000000
+    f32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 1
     (if (result f32)
       (then
         i32.const 0 ;; push 0 on stack
@@ -266,6 +867,110 @@
         unreachable ;; exit program
       )
     )
+    i32.const 0
+    (if (result f32)
+      (then
+        i32.const 0 ;; push 0 on stack
+        i32.const 0 ;; put zero on stack
+        i32.lt_s ;; check if index is >= 0
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        i32.const 0 ;; push 0 on stack
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load offset=4 ;; load length
+        i32.ge_u ;; check if index is < length
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 0 ;; push 0 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        f32.const 21.000000
+        f32.store ;; store value in elem pos
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 0 ;; push 0 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        f32.load ;; load int from elem pos
+      )
+      (else
+        i32.const 1 ;; push 1 on stack
+        i32.const 0 ;; put zero on stack
+        i32.lt_s ;; check if index is >= 0
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        i32.const 1 ;; push 1 on stack
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load offset=4 ;; load length
+        i32.ge_u ;; check if index is < length
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 1 ;; push 1 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        f32.load ;; load value
+        ;; end array element access node
+      )
+    )
+    f32.const 100.000000
+    f32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    i32.const 0
+    (if (result i32)
+      (then
+        i32.const 21 ;; push 21 on stack
+      )
+      (else
+        ;; start array length node
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load offset=4 ;; load length
+        ;; end array length node
+      )
+    )
+    i32.const 11 ;; push 11 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
     ;; End of let
     ;; End of let
     ;; End of let
@@ -275,6 +980,12 @@
   )
   (data (i32.const 0) "\08\00\00\00\12\00\00\00")
   (data (i32.const 8) "Rectangle")
+  (data (i32.const 26) "\22\00\00\00\0e\00\00\00")
+  (data (i32.const 34) "unknown")
+  (data (i32.const 48) "\38\00\00\00\26\00\00\00")
+  (data (i32.const 56) "This is a test....!")
+  (data (i32.const 94) "\66\00\00\00\1c\00\00\00")
+  (data (i32.const 102) "This is hygge!")
   (export "_start" (func $_start))
   (export "exit_code" (global $exit_code))
   (export "heap_base_ptr" (global $heap_base))

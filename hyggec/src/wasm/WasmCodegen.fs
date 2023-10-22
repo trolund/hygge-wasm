@@ -47,7 +47,7 @@ type internal StaticMemoryAllocator() =
     /// will return the start position and size of the allocated memory
     member this.Allocate(size: int) =
         if size < 0 then
-            failwith "Size must be positive"
+            failwith "Size must be positive or zero"
 
         let startPosition = allocationPosition
 
@@ -234,7 +234,12 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | LetRec(_, _, init, _, _) -> findReturnType init
     | Assign(_, expr) -> findReturnType expr
     | AST.Type _ -> []
-    | ArrayElement(target, _) -> findReturnType target
+    | ArrayElement(target, _) ->
+        // find type of elements
+        let t = match target.Type with
+                | TArray t -> t
+                | _ -> failwith "not implemented"
+        findType t
     | ArraySlice(target, _, _) -> findReturnType target
     | Pointer _ -> [ I32 ]
     | UnionCons _ -> [ I32 ]
