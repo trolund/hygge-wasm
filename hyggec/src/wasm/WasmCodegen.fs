@@ -1121,14 +1121,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     (If([], trap, None), "check that index is >= 0 - if not return 42") ]
                 @ indexCode.GetAccCode() // index on stack
                 @ selTargetCode.GetAccCode() // struct pointer on stack
-                @ [
-                    // (I32Const 4, "offset of length field")
-                    // (I32Add, "add offset to base address")
-                    (I32Load_(None, Some(4)), "load length") ]
+                @ [ (I32Load_(None, Some(4)), "load length") ]
                 @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
                     (If([], trap, None), "check that index is < length - if not return 42") ]
 
             let instrs =
+                // store value in allocated memory
                 selTargetCode.GetAccCode() // struct pointer on stack
                 @ [ (I32Load, "load data pointer") ]
                 @ indexCode.GetAccCode() // index on stack
@@ -1137,6 +1135,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     (I32Add, "add offset to base address") ]
                 @ rhsCode.GetAccCode()
                 @ [ (I32Store, "store value in elem pos") ]
+                // load value just to leave a value on the stack
+                @ selTargetCode.GetAccCode() // struct pointer on stack
+                @ [ (I32Load, "load data pointer") ]
+                @ indexCode.GetAccCode() // index on stack
+                @ [ (I32Const 4, "byte offset")
+                    (I32Mul, "multiply index with byte offset")
+                    (I32Add, "add offset to base address") ]
+                @ [ (I32Load, "load int from elem pos") ]
 
             (rhsCode.ResetAccCode() + indexCode.ResetAccCode() + selTargetCode.ResetAccCode())
                 .AddCode(indexCheck @ instrs)

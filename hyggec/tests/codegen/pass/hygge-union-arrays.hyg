@@ -1,0 +1,24 @@
+// An optional integer value.
+type OptionalInt = union {
+    Index: int;
+    Length: array {int};
+    Assign: int;
+    None: unit
+};
+
+let n: int = 10;
+let x: int = 12;
+let arr: array {int} = array(n, 1994);
+
+fun toString(o: OptionalInt, arr: array {int}): int  =
+    match o with {
+        Index{i} -> arrayElem(arr, i);
+        Length{a} -> arrayLength(a);
+        Assign{i} -> arrayElem(arr, i) <- x;
+        None{_} -> 0
+    };
+
+assert(toString(Index{5}, arr) = 1994);
+assert(toString(None{()}, arr) = 0);
+assert(toString(Length{arr}, arr) = 10);
+assert(toString(Assign{5}, arr) = x)

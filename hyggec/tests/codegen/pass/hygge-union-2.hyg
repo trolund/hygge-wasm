@@ -1,0 +1,14 @@
+// An optional integer value.
+type OptionalInt = union {
+    Some: int;
+    None: unit
+};
+
+fun toString(o: OptionalInt): string =
+    match o with {
+        Some{x} -> "Some";
+        None{_} -> "None"
+    };
+
+print(toString(Some{42}));
+print(toString(None{()}))
