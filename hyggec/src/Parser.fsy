@@ -90,6 +90,7 @@ let mkNode (parseState: IParseState, inputIdx: int, e: UntypedExpr): UntypedAST 
 %token ARRAYE
 %token ARRAYL
 %token ARRAYS
+%token STRINGL
 
 // Generic identifier (might result in a variable, pretype, etc.)
 %token <string> IDENT
@@ -268,6 +269,7 @@ primary:
   | ARRAYL LPAR simpleExpr RPAR                 { mkNode(parseState, 2, Expr.ArrayLength($3)) }
   | ARRAYE LPAR simpleExpr COMMA simpleExpr RPAR { mkNode(parseState, 2, Expr.ArrayElement($3, $5)) }
   | ARRAYS LPAR simpleExpr COMMA simpleExpr COMMA simpleExpr RPAR { mkNode(parseState, 2, Expr.ArraySlice($3, $5, $7)) }
+  | STRINGL LPAR simpleExpr RPAR                 { mkNode(parseState, 2, Expr.StringLength($3)) }
   | primary DOT field                  { mkNode(parseState, 2, Expr.FieldSelect($1, $3))}
   | ident LCURLY expr RCURLY           { mkNode(parseState, 1, Expr.UnionCons($1, $3)) }
 

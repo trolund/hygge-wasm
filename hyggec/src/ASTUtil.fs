@@ -249,7 +249,41 @@ let rec freeVars (node: Node<'E,'T>): Set<string> =
         /// Free variables in all match continuations
         let fvConts = List.fold folder Set[] cases
         Set.union (freeVars expr) fvConts
-     | x -> failwith (sprintf "BUG: unhandled node in ANF conversion: %A" node)
+    | Rem(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | Xor(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | ShortAnd(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | ShortOr(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | LessOrEq(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | Greater(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | GreaterOrEq(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | CSIncr(arg) ->
+        freeVars arg
+    | CSDcr(arg) ->
+        freeVars arg
+    | AddAsg(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | MinAsg(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | Sqrt(arg) ->
+        freeVars arg
+    | Array(length, data) -> 
+        Set.union (freeVars length) (freeVars data)
+    | ArrayElement(arr, index) ->
+        Set.union (freeVars arr) (freeVars index)
+    | ArrayLength(arr) ->
+        freeVars arr
+    | ArraySlice(arr, start, ending) ->
+        Set.union (freeVars arr) (Set.union (freeVars start) (freeVars ending))
+    | StringLength(arg) ->
+        freeVars arg
+    | x -> failwith (sprintf "BUG: unhandled node in ANF conversion: %A" node)
 
 /// Compute the union of the free variables in a list of AST nodes.
 and internal freeVarsInList (nodes: List<Node<'E,'T>>): Set<string> =
@@ -343,6 +377,21 @@ let rec capturedVars (node: Node<'E,'T>): Set<string> =
         capturedVars target
     | ArraySlice(target, start, ending) -> 
         Set.union (capturedVars target) (Set.union (capturedVars start) (capturedVars ending))
+    | CSIncr(arg) -> capturedVars arg
+    | CSDcr(arg) -> capturedVars arg
+    | AddAsg(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
+    | MinAsg(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
+    | MulAsg(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
+    | DivAsg(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
+    | RemAsg(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
+    | PostIncr(arg) -> capturedVars arg
+    | PreIncr(arg) -> capturedVars arg
+    | PostDcr(arg) ->  capturedVars arg
+    | PreDcr(arg) -> capturedVars arg
+    | LessOrEq(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
+    | Greater(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
+    | GreaterOrEq(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
+    | StringLength(target) -> capturedVars target
 
 /// Compute the union of the captured variables in a list of AST nodes.
 and internal capturedVarsInList (nodes: List<Node<'E,'T>>): Set<string> =

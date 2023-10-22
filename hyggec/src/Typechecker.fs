@@ -271,7 +271,18 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
               Env = env
               Type = TString
               Expr = StringVal(v) }
-
+              
+    | StringLength(arg) ->
+        match (typer env arg) with
+        | Ok(targ) when (isSubtypeOf env targ.Type TString) ->
+            Ok
+                { Pos = node.Pos
+                  Env = env
+                  Type = TInt
+                  Expr = StringLength(targ) }
+        | Ok(targ) ->
+            Error([ (node.Pos, $"string length: expected argument of type %O{TString}, " + $"found %O{targ.Type}") ])
+        | Error(es) -> Error(es)
 
     | Var(name) ->
         match (env.Vars.TryFind name) with

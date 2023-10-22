@@ -220,11 +220,8 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
                         | _ -> failwith "not implemented"
 
         match (expandType expr.Env fieldType) with
-        | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
-        | t when (isSubtypeOf expr.Env t TInt) -> [ I32 ]
-        | t when (isSubtypeOf expr.Env t TBool) -> [ I32 ]
-        | t when (isSubtypeOf expr.Env t TString) -> [ I32 ]
         | t when (isSubtypeOf expr.Env t TUnit) -> []
+        | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
         | _ -> [ I32 ]
     | ShortAnd _ -> [ I32 ]
     | ShortOr _ -> [ I32 ]
@@ -242,6 +239,7 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | Pointer _ -> [ I32 ]
     | UnionCons _ -> [ I32 ]
     | Match(expr, _) -> findReturnType expr
+    | StringLength _ -> [ I32 ]
 
 /// look up variable in var env
 let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
@@ -284,6 +282,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             .AddData(I32Const(daraPtr), s) // store the string it self in memory
             .AddData(I32Const(ptr), dataString) // store pointer an length in memory
             .AddCode([ (I32Const(ptr), "leave pointer to string on stack") ])
+    | StringLength e ->
+        let m' = doCodegen env e m
+
+        let instrs =
+            m'.GetAccCode()
+            @ [ (I32Load_(None, Some(4)), "load string length") 
+                // divide by 2 to get the number of characters
+                (I32Const 2, "push 2 on stack")
+                (I32DivS, "divide by 2") ]
+
+        m'.ResetAccCode().AddCode(instrs)
     | Var v ->
         // load variable
         let instrs: List<Commented<Instr>> =

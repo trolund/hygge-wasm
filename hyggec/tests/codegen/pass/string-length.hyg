@@ -1,0 +1,4 @@
+let s: string = "hello world";
+let s0: string = "hello";
+assert(stringLength(s0) = 5);
+assert(stringLength(s) = 11)

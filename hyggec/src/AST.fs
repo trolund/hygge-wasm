@@ -256,6 +256,9 @@ and Expr<'E, 'T> =
     /// Slice an array
     | ArraySlice of target: Node<'E, 'T> * start: Node<'E, 'T> * ending: Node<'E, 'T>
 
+    /// Get length of a string
+    | StringLength of target: Node<'E, 'T>
+
     /// Pointer to a location in the heap, with its address.  This is a runtime
     /// value that is only used by the Hygge interpreter as an intermediate
     /// result; it has no syntax in the parser, so it cannot be written in Hygge
