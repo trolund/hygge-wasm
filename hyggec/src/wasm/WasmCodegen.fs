@@ -203,7 +203,7 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | While(_, body) -> findReturnType body
     | DoWhile(_, body) -> findReturnType body
     | For(_, _, _, body) -> findReturnType body
-    | Array(length, _) -> findReturnType length
+    | Array(_, data) -> findReturnType data
     | ArrayLength _ -> [ I32 ]
     | Struct _ -> [ I32 ]
     | FieldSelect(target, fieldName) -> 
@@ -767,8 +767,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // set data pointer of struct
         let instr =
             [ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]
-            // (I32Const 4, "offset of data field")
-            // (I32Add, "add offset to base address to get data pointer field") ]
             @ allocation.GetAccCode() // get pointer to allocated memory - value to store in data pointer field
             @ [ (I32Store, "store pointer to data") ]
 
@@ -777,6 +775,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let exitl = env.SymbolController.genSymbol $"loop_exit"
         let beginl = env.SymbolController.genSymbol $"loop_begin"
         let i = env.SymbolController.genSymbol $"i"
+
+        let storeInstr =
+            match data.Type with
+            | t when (isSubtypeOf data.Env t TInt) -> I32Store
+            | t when (isSubtypeOf data.Env t TFloat) -> F32Store
+            | _ -> I32Store
 
         // body should set data in allocated memory
         // TODO: optimize loop so i just multiply index with 4 and add it to base address
@@ -793,7 +797,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
               // apply offset data pointer
               (I32Add, "add offset to base address") ] // then pointer to element is on top of stack
             @ data'.GetAccCode() // get value to store in allocated memory
-            @ [ (I32Store, "store value in elem pos"); (Comment "end of loop body", "") ]
+            @ [ (storeInstr, "store value in elem pos"); (Comment "end of loop body", "") ]
 
         // loop that runs length times and stores data in allocated memory
         let loop =
@@ -851,12 +855,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ m''.GetAccCode() // index on stack
             @ m'.GetAccCode() // struct pointer on stack
             @ [
-                // (I32Const 4, "offset of length field")
-                // (I32Add, "add offset to base address")
                 (I32Load_(None, Some(4)), "load length") ]
-            @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
+            @ [ (I32GeU, "check if index is < length")
                 (If([], trap, None), "check that index is < length - if not return 42") ]
 
+        // resolve load and store instruction based on type
+        let loadInstr =
+            match node.Type with
+            | t when (isSubtypeOf node.Env t TInt) -> I32Load
+            | t when (isSubtypeOf node.Env t TFloat) -> F32Load
+            | _ -> I32Load
 
         let instrs =
             m'.GetAccCode() // struct pointer on stack
@@ -865,7 +873,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ [ (I32Const 4, "byte offset")
                 (I32Mul, "multiply index with byte offset")
                 (I32Add, "add offset to base address") ]
-            @ [ (I32Load, "load value") ]
+            @ [ (loadInstr, "load value") ]
 
         indexCheck
         ++ (m' + m'')
