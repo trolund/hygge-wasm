@@ -289,8 +289,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m'.GetAccCode()
             @ [ (I32Load_(None, Some(4)), "load string length") 
                 // divide by 2 to get the number of characters
-                (I32Const 2, "push 2 on stack")
-                (I32DivS, "divide by 2") ]
+                (I32Const 1, "push 1 on stack") // or i32.const 2
+                (I32ShrS, "divide by 2") ] // or i32.div_s 
 
         m'.ResetAccCode().AddCode(instrs)
     | Var v ->
