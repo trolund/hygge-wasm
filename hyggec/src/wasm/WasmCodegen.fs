@@ -37,13 +37,10 @@ type internal StaticMemoryAllocator() =
 
     // get number of pages needed to allocate size bytes
     member this.GetNumPages() =
-        let neededPages = int(ceil(float allocationPosition / float pageSize))
+        let neededPages = int (ceil (float allocationPosition / float pageSize))
 
         // in case of 0 pages i needed for static data allways have 1 page for dynamic data
-        if neededPages = 0 then
-            1
-        else
-            neededPages
+        if neededPages = 0 then 1 else neededPages
 
     /// function that call the dynamic allocator with the number of bytes needed and return the start position
     /// Allocate in linear memory a block of 'size' bytes.
@@ -154,24 +151,13 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
 
     | ReadInt -> [ I32 ]
     | ReadFloat -> [ F32 ]
-    | Var _ ->
+    | Var name ->
         match (expandType expr.Env expr.Type) with
         | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
         | t when (isSubtypeOf expr.Env t TInt) -> [ I32 ]
         | t when (isSubtypeOf expr.Env t TBool) -> [ I32 ]
         | t when (isSubtypeOf expr.Env t TString) -> [ I32 ]
         | t when (isSubtypeOf expr.Env t TUnit) -> []
-        | TStruct e ->
-            // get the type of the field
-            let _, t = e.Head
-
-            match t with
-            | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
-            | t when (isSubtypeOf expr.Env t TInt) -> [ I32 ]
-            | t when (isSubtypeOf expr.Env t TBool) -> [ I32 ]
-            | t when (isSubtypeOf expr.Env t TString) -> [ I32 ]
-            | t when (isSubtypeOf expr.Env t TUnit) -> []
-            | _ -> [ I32 ]
         | _ -> [ I32 ]
     // single expression
     | PreIncr e
@@ -220,11 +206,30 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | Array(length, _) -> findReturnType length
     | ArrayLength _ -> [ I32 ]
     | Struct _ -> [ I32 ]
-    | FieldSelect(target, _) -> findReturnType target
+    | FieldSelect(target, fieldName) -> 
+        let varName =  match target.Expr with
+                            | Var n -> n
+                            | _ -> failwith "not implemented"
+        let sName = target.Env.Vars[varName]
+
+        let fieldType = match (expandType expr.Env sName) with
+                        | TStruct structType -> 
+                            match List.tryFind (fun f -> fst f = fieldName) structType with
+                            | Some (_, t) -> t
+                            | None -> failwith "did not find field type"
+                        | _ -> failwith "not implemented"
+
+        match (expandType expr.Env fieldType) with
+        | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
+        | t when (isSubtypeOf expr.Env t TInt) -> [ I32 ]
+        | t when (isSubtypeOf expr.Env t TBool) -> [ I32 ]
+        | t when (isSubtypeOf expr.Env t TString) -> [ I32 ]
+        | t when (isSubtypeOf expr.Env t TUnit) -> []
+        | _ -> [ I32 ]
     | ShortAnd _ -> [ I32 ]
     | ShortOr _ -> [ I32 ]
-    | CSIncr _ -> [ I32 ]
-    | CSDcr _ -> [ I32 ]
+    | CSIncr e -> findReturnType e
+    | CSDcr e -> findReturnType e
     | Print _ -> []
     | Ascription _ -> []
     | Let(_, _, init, _, _)

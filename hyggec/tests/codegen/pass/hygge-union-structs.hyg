@@ -1,0 +1,43 @@
+// Three type aliases for structure types
+type Shape = struct { name: string;
+                      area: float };
+type Circle = struct { name: string;
+                       area: float;
+                       radius: float };
+type Square = struct { name: string;
+                       area: float;
+                       side: float };
+
+// Structure constructors
+let c: Circle = struct { name = "Circle";
+                         area = 10.0f * 10.0f * 3.14f;
+                         radius = 10.0f };
+let s: Square = struct { name = "Square";
+                         area = 2.0f * 2.0f;
+                         side = 2.0f };
+let r: struct {name: string; area: float} =
+    struct { name = "Rectangle";
+             area = 3.0f * 4.0f;
+             width = 3.0f;
+             height = 4.0f };
+
+// An optional integer value.
+type OptionalShape = union {
+    Shape: Shape;
+    Circle: Circle;
+    Square: Square;
+    None: unit
+};
+
+fun toString(o: OptionalShape): float  =
+    match o with {
+        Shape{s} -> s.area;
+        Circle{s} -> s.radius;
+        Square{s} -> s.side;
+        None{_} -> 0.0f
+    };
+
+assert(toString(Shape{c}) = 10.0f * 10.0f * 3.14f)
+// assert(toString(None{()}, arr) = 0);
+// assert(toString(Length{arr}, arr) = 10);
+// assert(toString(Assign{5}, arr) = x)
