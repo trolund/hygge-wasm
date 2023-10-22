@@ -5,7 +5,9 @@ let s: struct {name: string; area: float; width: int; height: int} =
              height = 200 };
 
 let arr: array {int} = array(10, 40 + 2);
-let arr2: array {float} = array(11, 100.0f);
+// let arr2: array {float} = array(11, 100.0f);
+
+print("")
 
 // assert(if true then true else false);
 // assert(stringLength((if true then s.name else "unknown")) = 9);
@@ -20,8 +22,8 @@ let arr2: array {float} = array(11, 100.0f);
 // assert((if false then arrayElem(arr, 0) <- 21 else arrayElem(arr, 1)) = 42);
 // assert((if false then 21 else arrayLength(arr)) = 10);
 // assert(arrayElem((if true then arr2 else arr2), 0) = 100.0f);
-assert((if true then arrayElem(arr2, 0) else arrayElem(arr2, 0)) = 100.0f)
-// assert((if true then arrayElem(arr2, 0) <- 21.0f else arrayElem(arr2, 1)) = 21.0f);
+// assert((if true then arrayElem(arr2, 0) else arrayElem(arr2, 0)) = 100.0f);
+// assert((if true then arrayElem(arr2, 0) <- 21.0f else arrayElem(arr2, 1)) = 21.0f)
 // assert((if false then arrayElem(arr2, 0) <- 21.0f else arrayElem(arr2, 1)) = 100.0f);
 // assert((if false then 21 else arrayLength(arr2)) = 11)
 

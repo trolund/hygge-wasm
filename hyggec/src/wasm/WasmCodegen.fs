@@ -46,7 +46,7 @@ type internal StaticMemoryAllocator() =
     /// Allocate in linear memory a block of 'size' bytes.
     /// will return the start position and size of the allocated memory
     member this.Allocate(size: int) =
-        if size <= 0 then
+        if size < 0 then
             failwith "Size must be positive"
 
         let startPosition = allocationPosition
@@ -240,6 +240,20 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | UnionCons _ -> [ I32 ]
     | Match(expr, _) -> findReturnType expr
     | StringLength _ -> [ I32 ]
+and findType t = 
+    match t with
+    | TUnit -> []
+    | TInt -> [ I32 ]
+    | TFloat -> [ F32 ]
+    | TBool -> [ I32 ]
+    | TString -> [ I32 ]
+    | TStruct _ -> [ I32 ]
+    | TUnion _ -> [ I32 ]
+    | TArray _ -> [ I32 ]
+    | TFun _ -> [ I32 ]
+    | _ -> failwith "could not find type"
+
+
 
 /// look up variable in var env
 let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
@@ -1147,6 +1161,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
                     (If([], trap, None), "check that index is < length - if not return 42") ]
 
+            let storeInstr =
+                match value.Type with
+                | t when (isSubtypeOf value.Env t TInt) -> I32Store
+                | t when (isSubtypeOf value.Env t TFloat) -> F32Store
+                | _ -> I32Store
+            
+            let loadInstr =
+                match value.Type with
+                | t when (isSubtypeOf value.Env t TInt) -> I32Load
+                | t when (isSubtypeOf value.Env t TFloat) -> F32Load
+                | _ -> I32Load
+
             let instrs =
                 // store value in allocated memory
                 selTargetCode.GetAccCode() // struct pointer on stack
@@ -1156,7 +1182,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     (I32Mul, "multiply index with byte offset")
                     (I32Add, "add offset to base address") ]
                 @ rhsCode.GetAccCode()
-                @ [ (I32Store, "store value in elem pos") ]
+                @ [ (storeInstr, "store value in elem pos") ]
                 // load value just to leave a value on the stack
                 @ selTargetCode.GetAccCode() // struct pointer on stack
                 @ [ (I32Load, "load data pointer") ]
@@ -1164,7 +1190,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 @ [ (I32Const 4, "byte offset")
                     (I32Mul, "multiply index with byte offset")
                     (I32Add, "add offset to base address") ]
-                @ [ (I32Load, "load int from elem pos") ]
+                @ [ (loadInstr, "load int from elem pos") ]
 
             (rhsCode.ResetAccCode() + indexCode.ResetAccCode() + selTargetCode.ResetAccCode())
                 .AddCode(indexCheck @ instrs)

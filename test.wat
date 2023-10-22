@@ -185,7 +185,7 @@
     global.get $arr_ptr$2 ;; leave pointer to allocated array struct on stack, have been hoisted
     global.set $var_arr2 ;; set local var, have been hoisted
     i32.const 1
-    (if (result i32)
+    (if (result f32)
       (then
         i32.const 0 ;; push 0 on stack
         i32.const 0 ;; put zero on stack
@@ -214,11 +214,18 @@
         i32.const 4 ;; byte offset
         i32.mul ;; multiply index with byte offset
         i32.add ;; add offset to base address
-        f32.load ;; load value
-        ;; end array element access node
+        f32.const 21.000000
+        f32.store ;; store value in elem pos
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load ;; load data pointer
+        i32.const 0 ;; push 0 on stack
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        f32.load ;; load int from elem pos
       )
       (else
-        i32.const 0 ;; push 0 on stack
+        i32.const 1 ;; push 1 on stack
         i32.const 0 ;; put zero on stack
         i32.lt_s ;; check if index is >= 0
         (if 
@@ -228,7 +235,7 @@
             unreachable ;; exit program
           )
         )
-        i32.const 0 ;; push 0 on stack
+        i32.const 1 ;; push 1 on stack
         global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
         i32.load offset=4 ;; load length
         i32.ge_u ;; check if index is < length
@@ -241,7 +248,7 @@
         )
         global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
         i32.load ;; load data pointer
-        i32.const 0 ;; push 0 on stack
+        i32.const 1 ;; push 1 on stack
         i32.const 4 ;; byte offset
         i32.mul ;; multiply index with byte offset
         i32.add ;; add offset to base address
@@ -249,7 +256,7 @@
         ;; end array element access node
       )
     )
-    f32.const 100.000000
+    f32.const 21.000000
     f32.eq
     i32.eqz ;; invert assertion
     (if 
