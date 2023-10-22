@@ -29,7 +29,7 @@ type OptionalShape = union {
     None: unit
 };
 
-fun toString(o: OptionalShape): float  =
+fun getField(o: OptionalShape): float  =
     match o with {
         Shape{s} -> s.area;
         Circle{s} -> s.radius;
@@ -37,7 +37,7 @@ fun toString(o: OptionalShape): float  =
         None{_} -> 0.0f
     };
 
-assert(toString(Shape{c}) = 10.0f * 10.0f * 3.14f)
-// assert(toString(None{()}, arr) = 0);
-// assert(toString(Length{arr}, arr) = 10);
-// assert(toString(Assign{5}, arr) = x)
+assert(getField(Shape{c}) = 10.0f * 10.0f * 3.14f);
+assert(getField(None{()}) = 0.0f);
+assert(getField(Circle{c}) = 10.0f);
+assert(getField(Square{s}) = 2.0f)

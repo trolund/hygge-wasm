@@ -6,14 +6,17 @@
   (global $Sptr$0 (;1;) (mut i32) i32.const 0)
   (global $Sptr$1 (;2;) (mut i32) i32.const 0)
   (global $Sptr$4 (;3;) (mut i32) i32.const 0)
-  (global $exit_code (;4;) (mut i32) i32.const 0)
-  (global $fun_toString*ptr (;5;) (mut i32) i32.const 66)
-  (global $heap_base (;6;) i32 i32.const 70)
-  (global $var_c (;7;) (mut i32) i32.const 0)
-  (global $var_r (;8;) (mut i32) i32.const 0)
-  (global $var_s (;9;) (mut i32) i32.const 0)
+  (global $Sptr$5 (;4;) (mut i32) i32.const 0)
+  (global $Sptr$6 (;5;) (mut i32) i32.const 0)
+  (global $Sptr$7 (;6;) (mut i32) i32.const 0)
+  (global $exit_code (;7;) (mut i32) i32.const 0)
+  (global $fun_getField*ptr (;8;) (mut i32) i32.const 66)
+  (global $heap_base (;9;) i32 i32.const 70)
+  (global $var_c (;10;) (mut i32) i32.const 0)
+  (global $var_r (;11;) (mut i32) i32.const 0)
+  (global $var_s (;12;) (mut i32) i32.const 0)
   (table $func_table (;0;) 1 funcref)
-  (elem (i32.const 0) (;0;) $fun_toString)
+  (elem (i32.const 0) (;0;) $fun_getField)
   (func $_start (;0;)  (result i32) 
     ;; execution start here:
     ;; Start of let
@@ -116,7 +119,7 @@
     global.set $var_r ;; set local var, have been hoisted
     ;; start of application
     ;; Load expression to be applied as a function
-    global.get $fun_toString*ptr ;; get global var: fun_toString*ptr
+    global.get $fun_getField*ptr ;; get global var: fun_getField*ptr
     i32.load offset=4 ;; load closure environment pointer
     ;; Start of union contructor
     ;; start of struct contructor
@@ -140,7 +143,7 @@
     global.get $Sptr$4 ;; push struct address to stack, have been hoisted
     ;; end of struct contructor
     ;; End of union contructor
-    global.get $fun_toString*ptr ;; get global var: fun_toString*ptr
+    global.get $fun_getField*ptr ;; get global var: fun_getField*ptr
     i32.load ;; load table index
     call_indirect (type $i32_i32_=>_f32) ;; call function
     ;; end of application
@@ -158,6 +161,126 @@
         unreachable ;; exit program
       )
     )
+    ;; start of application
+    ;; Load expression to be applied as a function
+    global.get $fun_getField*ptr ;; get global var: fun_getField*ptr
+    i32.load offset=4 ;; load closure environment pointer
+    ;; Start of union contructor
+    ;; start of struct contructor
+    i32.const 2 ;; size of struct
+    i32.const 4 ;; 4 bytes
+    i32.mul ;; multiply length with 4 to get size
+    call $malloc ;; call malloc function
+    global.set $Sptr$5 ;; set struct pointer var, have been hoisted
+    global.get $Sptr$5 ;; get struct pointer var, have been hoisted
+    i32.const 0 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field id
+    i32.const 4 ;; push 4 on stack
+    i32.store ;; store int field in memory
+    global.get $Sptr$5 ;; get struct pointer var, have been hoisted
+    i32.const 4 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field data
+    i32.const 0 ;; push 0 on stack
+    i32.store ;; store int field in memory
+    global.get $Sptr$5 ;; push struct address to stack, have been hoisted
+    ;; end of struct contructor
+    ;; End of union contructor
+    global.get $fun_getField*ptr ;; get global var: fun_getField*ptr
+    i32.load ;; load table index
+    call_indirect (type $i32_i32_=>_f32) ;; call function
+    ;; end of application
+    f32.const 0.000000
+    f32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    ;; start of application
+    ;; Load expression to be applied as a function
+    global.get $fun_getField*ptr ;; get global var: fun_getField*ptr
+    i32.load offset=4 ;; load closure environment pointer
+    ;; Start of union contructor
+    ;; start of struct contructor
+    i32.const 2 ;; size of struct
+    i32.const 4 ;; 4 bytes
+    i32.mul ;; multiply length with 4 to get size
+    call $malloc ;; call malloc function
+    global.set $Sptr$6 ;; set struct pointer var, have been hoisted
+    global.get $Sptr$6 ;; get struct pointer var, have been hoisted
+    i32.const 0 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field id
+    i32.const 2 ;; push 2 on stack
+    i32.store ;; store int field in memory
+    global.get $Sptr$6 ;; get struct pointer var, have been hoisted
+    i32.const 4 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field data
+    global.get $var_c ;; get local var: var_c, have been hoisted
+    i32.store ;; store int field in memory
+    global.get $Sptr$6 ;; push struct address to stack, have been hoisted
+    ;; end of struct contructor
+    ;; End of union contructor
+    global.get $fun_getField*ptr ;; get global var: fun_getField*ptr
+    i32.load ;; load table index
+    call_indirect (type $i32_i32_=>_f32) ;; call function
+    ;; end of application
+    f32.const 10.000000
+    f32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    ;; start of application
+    ;; Load expression to be applied as a function
+    global.get $fun_getField*ptr ;; get global var: fun_getField*ptr
+    i32.load offset=4 ;; load closure environment pointer
+    ;; Start of union contructor
+    ;; start of struct contructor
+    i32.const 2 ;; size of struct
+    i32.const 4 ;; 4 bytes
+    i32.mul ;; multiply length with 4 to get size
+    call $malloc ;; call malloc function
+    global.set $Sptr$7 ;; set struct pointer var, have been hoisted
+    global.get $Sptr$7 ;; get struct pointer var, have been hoisted
+    i32.const 0 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field id
+    i32.const 3 ;; push 3 on stack
+    i32.store ;; store int field in memory
+    global.get $Sptr$7 ;; get struct pointer var, have been hoisted
+    i32.const 4 ;; push field offset to stack
+    i32.add ;; add offset to base address
+    ;; init field data
+    global.get $var_s ;; get local var: var_s, have been hoisted
+    i32.store ;; store int field in memory
+    global.get $Sptr$7 ;; push struct address to stack, have been hoisted
+    ;; end of struct contructor
+    ;; End of union contructor
+    global.get $fun_getField*ptr ;; get global var: fun_getField*ptr
+    i32.load ;; load table index
+    call_indirect (type $i32_i32_=>_f32) ;; call function
+    ;; end of application
+    f32.const 2.000000
+    f32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
     ;; End of let
     ;; End of let
     ;; End of let
@@ -165,7 +288,7 @@
     i32.const 0 ;; exit code 0
     return ;; return the exit code
   )
-  (func $fun_toString (;1;) (param $cenv i32) (param $arg_o i32) (result f32) 
+  (func $fun_getField (;1;) (param $cenv i32) (param $arg_o i32) (result f32) 
     ;; local variables declarations:
     (local $match_var__ i32)
     (local $match_var_s i32)
