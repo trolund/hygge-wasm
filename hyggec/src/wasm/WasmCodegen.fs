@@ -137,117 +137,10 @@ let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) 
     // return compontents needed to create a function pointer
     (FunctionPointer, funcindex, ptr_label)
 
-// reduce expression to a single value
-// then find the vlaue that is returned
-// TODO: this is not correct
-let rec findReturnType (expr: TypedAST) : ValueType list =
-    match expr.Expr with
-    // return type of literals
-    | UnitVal -> []
-    | IntVal _ -> [ I32 ]
-    | FloatVal _ -> [ F32 ]
-    | StringVal _ -> [ I32 ]
-    | BoolVal _ -> [ I32 ]
-
-    | ReadInt -> [ I32 ]
-    | ReadFloat -> [ F32 ]
-    | Var name ->
-        match (expandType expr.Env expr.Type) with
-        | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
-        | t when (isSubtypeOf expr.Env t TInt) -> [ I32 ]
-        | t when (isSubtypeOf expr.Env t TBool) -> [ I32 ]
-        | t when (isSubtypeOf expr.Env t TString) -> [ I32 ]
-        | t when (isSubtypeOf expr.Env t TUnit) -> []
-        | _ -> [ I32 ]
-    // single expression
-    | PreIncr e
-    | PostIncr e
-    | PreDcr e
-    | PostDcr e
-    | Not e
-    | Sqrt e
-    | Assertion e -> findReturnType e
-    // double expression
-    | MinAsg(lhs, _)
-    | DivAsg(lhs, _)
-    | MulAsg(lhs, _)
-    | RemAsg(lhs, _)
-    | AddAsg(lhs, _)
-    | Max(lhs, _)
-    | Min(lhs, _)
-    | Add(lhs, _)
-    | Sub(lhs, _)
-    | Rem(lhs, _)
-    | Div(lhs, _)
-    | Mult(lhs, _)
-    | And(lhs, _)
-    | Or(lhs, _)
-    | Xor(lhs, _)
-    | Less(lhs, _)
-    | LessOrEq(lhs, _)
-    | Greater(lhs, _)
-    | GreaterOrEq(lhs, _)
-    | Eq(lhs, _) -> findReturnType lhs
-    | PrintLn _ -> []
-    | AST.If(_, ifTrue, _) -> findReturnType ifTrue
-    | Application(f, _) -> findReturnType f
-    | Lambda(_, body) -> findReturnType body
-    | Seq(nodes) ->
-        // fold over all nodes and find the return type of the last node
-        let rec findReturnType' (typesAcc: ValueType list) (nodes: TypedAST list) : ValueType list =
-            match nodes with
-            | [] -> typesAcc
-            | x :: xs -> findReturnType x @ (findReturnType' typesAcc xs)
-
-        findReturnType' [] nodes
-    | While(_, body) -> findReturnType body
-    | DoWhile(_, body) -> findReturnType body
-    | For(_, _, _, body) -> findReturnType body
-    | Array(_, data) -> findReturnType data
-    | ArrayLength _ -> [ I32 ]
-    | Struct _ -> [ I32 ]
-    | FieldSelect(target, fieldName) -> 
-        let varName =  match target.Expr with
-                            | Var n -> n
-                            | _ -> failwith "not implemented"
-        let sName = target.Env.Vars[varName]
-
-        let fieldType = match (expandType expr.Env sName) with
-                        | TStruct structType -> 
-                            match List.tryFind (fun f -> fst f = fieldName) structType with
-                            | Some (_, t) -> t
-                            | None -> failwith "did not find field type"
-                        | _ -> failwith "not implemented"
-
-        match (expandType expr.Env fieldType) with
-        | t when (isSubtypeOf expr.Env t TUnit) -> []
-        | t when (isSubtypeOf expr.Env t TFloat) -> [ F32 ]
-        | _ -> [ I32 ]
-    | ShortAnd _ -> [ I32 ]
-    | ShortOr _ -> [ I32 ]
-    | CSIncr e -> findReturnType e
-    | CSDcr e -> findReturnType e
-    | Print _ -> []
-    | Ascription _ -> []
-    | Let(_, _, init, _, _)
-    | LetMut(_, _, init, _, _)
-    | LetRec(_, _, init, _, _) -> findReturnType init
-    | Assign(_, expr) -> findReturnType expr
-    | AST.Type _ -> []
-    | ArrayElement(target, _) ->
-        // find type of elements
-        let t = match target.Type with
-                | TArray t -> t
-                | _ -> failwith "not implemented"
-        findType t
-    | ArraySlice(target, _, _) -> findReturnType target
-    | Pointer _ -> [ I32 ]
-    | UnionCons _ -> [ I32 ]
-    | Match(expr, _) -> findReturnType expr
-    | StringLength _ -> [ I32 ]
-and findType t = 
+// map a hygge type to a wasm type
+let mapType t =
     match t with
-    | TUnit -> [ ]
+    | TUnit -> []
     | TInt -> [ I32 ]
     | TFloat -> [ F32 ]
     | TBool -> [ I32 ]
@@ -255,10 +148,9 @@ and findType t =
     | TStruct _ -> [ I32 ]
     | TUnion _ -> [ I32 ]
     | TArray _ -> [ I32 ]
-    | TFun _ -> [ I32 ]
+    | TFun _ -> [ I32 ] // passing function as a index to function table
+    | TVar _ -> [ I32 ]
     | _ -> failwith "could not find type"
-
-
 
 /// look up variable in var env
 let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
@@ -306,10 +198,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             m'.GetAccCode()
-            @ [ (I32Load_(None, Some(4)), "load string length") 
+            @ [ (I32Load_(None, Some(4)), "load string length")
                 // divide by 2 to get the number of characters
                 (I32Const 1, "push 1 on stack") // or i32.const 2
-                (I32ShrS, "divide by 2") ] // or i32.div_s 
+                (I32ShrS, "divide by 2") ] // or i32.div_s
 
         m'.ResetAccCode().AddCode(instrs)
     | Var v ->
@@ -321,7 +213,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | Some(Storage.Offset(i)) -> // push variable from offset on stack
                 // get load instruction based on type
                 let li: Instr =
-                    match node.Type with
+                    match (expandType node.Env node.Type) with
                     | t when (isSubtypeOf node.Env t TBool) -> I32Load_(None, Some(i * 4))
                     | t when (isSubtypeOf node.Env t TInt) -> I32Load_(None, Some(i * 4))
                     | t when (isSubtypeOf node.Env t TFloat) -> F32Load_(None, Some(i * 4))
@@ -339,7 +231,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let label = lookupLabel env e
 
         let instrs =
-            match e.Type with
+            match (expandType e.Env e.Type) with
             | t when (isSubtypeOf e.Env t TInt) -> m'.GetAccCode() @ C [ I32Const 1; I32Add; LocalTee(label) ]
             | t when (isSubtypeOf e.Env t TFloat) -> m'.GetAccCode() @ C [ F32Const 1.0f; F32Add; LocalTee(label) ]
             | _ -> failwith "not implemented"
@@ -351,7 +243,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let label = lookupLabel env e
 
         let instrs =
-            match e.Type with
+            match (expandType e.Env e.Type) with
             | t when (isSubtypeOf e.Env t TInt) ->
                 m'.GetAccCode() @ C [ LocalGet(label); I32Const 1; I32Add; LocalSet(label) ]
             | t when (isSubtypeOf e.Env t TFloat) ->
@@ -365,7 +257,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let label = lookupLabel env e
 
         let instrs =
-            match e.Type with
+            match (expandType e.Env e.Type) with
             | t when (isSubtypeOf e.Env t TInt) -> m'.GetAccCode() @ C [ I32Const 1; I32Sub; LocalTee(label) ]
             | t when (isSubtypeOf e.Env t TFloat) -> m'.GetAccCode() @ C [ F32Const 1.0f; F32Sub; LocalTee(label) ]
             | _ -> failwith "not implemented"
@@ -377,7 +269,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let label = lookupLabel env e
 
         let instrs =
-            match e.Type with
+            match (expandType e.Env e.Type) with
             | t when (isSubtypeOf e.Env t TInt) ->
                 m'.GetAccCode() @ C [ LocalGet(label); I32Const 1; I32Sub; LocalSet(label) ]
             | t when (isSubtypeOf e.Env t TFloat) ->
@@ -394,7 +286,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let rhs' = doCodegen env rhs m
 
         let opCode =
-            match node.Type with
+            match (expandType node.Env node.Type) with
             | t when (isSubtypeOf node.Env t TInt) ->
                 match node.Expr with
                 | AddAsg _ -> I32Add
@@ -415,7 +307,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let label = lookupLabel env lhs
 
         let instrs =
-            match node.Type with
+            match (expandType node.Env node.Type) with
             | t when (isSubtypeOf node.Env t TInt) ->
                 lhs'.GetAccCode() @ rhs'.GetAccCode() @ C [ opCode; LocalTee(label) ]
             | t when (isSubtypeOf node.Env t TFloat) ->
@@ -429,7 +321,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m'' = doCodegen env e2 m
 
         let instrs =
-            match node.Type with
+            match (expandType node.Env node.Type) with
             | t when (isSubtypeOf node.Env t TFloat) ->
                 match node.Expr with
                 | Max _ -> C [ F32Max ]
@@ -456,7 +348,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let rhs' = doCodegen env rhs m
 
         let opCode =
-            match node.Type with
+            match (expandType node.Env node.Type) with
             | t when (isSubtypeOf node.Env t TInt) ->
                 match expr with
                 | Add _ -> I32Add
@@ -490,10 +382,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // find type of e1 and e2 and check if they are equal
         let opcode =
-            match e1.Type, e2.Type with
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) && (isSubtypeOf e1.Env t2 TInt)) -> [ I32GtS ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) && (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Gt ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) && (isSubtypeOf e1.Env t2 TBool)) -> [ I32GtS ]
+            match (expandType e1.Env e1.Type) with
+            | t1 when (isSubtypeOf e1.Env t1 TInt) -> [ I32GtS ]
+            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> [ F32Gt ]
+            | t1 when (isSubtypeOf e1.Env t1 TBool) -> [ I32GtS ]
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
@@ -503,10 +395,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // find type of e1 and e2 and check if they are equal
         let opcode =
-            match e1.Type, e2.Type with
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) && (isSubtypeOf e1.Env t2 TInt)) -> [ I32Eq ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) && (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Eq ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) && (isSubtypeOf e1.Env t2 TBool)) -> [ I32Eq ]
+            match (expandType e1.Env e1.Type) with
+            | t1 when (isSubtypeOf e1.Env t1 TInt) -> [ I32Eq ]
+            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> [ F32Eq ]
+            | t1 when (isSubtypeOf e1.Env t1 TBool) -> [ I32Eq ]
             | _ -> failwith "type mismatch"
 
         let instrs = m'.GetAccCode() @ m''.GetAccCode() @ C opcode
@@ -522,10 +414,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // find type of e1 and e2 and check if they are equal
         let opcode =
-            match e1.Type, e2.Type with
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) && (isSubtypeOf e1.Env t2 TInt)) -> [ I32LtS ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) && (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Lt ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) && (isSubtypeOf e1.Env t2 TBool)) -> [ I32LtS ]
+            match (expandType e1.Env e1.Type) with
+            | t1 when (isSubtypeOf e1.Env t1 TInt) -> [ I32LtS ]
+            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> [ F32Lt ]
+            | t1 when (isSubtypeOf e1.Env t1 TBool) -> [ I32LtS ]
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
@@ -535,10 +427,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // find type of e1 and e2 and check if they are equal
         let opcode =
-            match e1.Type, e2.Type with
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) && (isSubtypeOf e1.Env t2 TInt)) -> [ I32LeS ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) && (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Le ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) && (isSubtypeOf e1.Env t2 TBool)) -> [ I32LeS ]
+            match (expandType e1.Env e1.Type) with
+            | t1 when (isSubtypeOf e1.Env t1 TInt) -> [ I32LeS ]
+            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> [ F32Le ]
+            | t1 when (isSubtypeOf e1.Env t1 TBool) -> [ I32LeS ]
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
@@ -548,10 +440,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // find type of e1 and e2 and check if they are equal
         let opcode =
-            match e1.Type, e2.Type with
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TInt) && (isSubtypeOf e1.Env t2 TInt)) -> [ I32GeS ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TFloat) && (isSubtypeOf e1.Env t2 TFloat)) -> [ F32Ge ]
-            | t1, t2 when ((isSubtypeOf e1.Env t1 TBool) && (isSubtypeOf e1.Env t2 TBool)) -> [ I32GeS ]
+            match (expandType e1.Env e1.Type) with
+            | t1 when (isSubtypeOf e1.Env t1 TInt) -> [ I32GeS ]
+            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> [ F32Ge ]
+            | t1 when (isSubtypeOf e1.Env t1 TBool) -> [ I32GeS ]
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
@@ -570,7 +462,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // TODO make print and println different
         let m' = doCodegen env e m
 
-        match e.Type with
+        match (expandType e.Env e.Type) with
         | t when (isSubtypeOf node.Env t TFloat) ->
             // perform host (system) call
             m'
@@ -605,10 +497,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m''' = doCodegen env ifFalse m
 
         // get the return type of the ifTrue branch and subsequently the ifFalse branch
-        let t = (expandType node.Env node.Type)
+        let resultType = (expandType node.Env node.Type)
 
         let instrs =
-            m'.GetAccCode() @ C [ (If(findType t, m''.GetAccCode(), Some(m'''.GetAccCode()))) ]
+            m'.GetAccCode()
+            @ C [ (If(mapType resultType, m''.GetAccCode(), Some(m'''.GetAccCode()))) ]
 
         (m' + m'' + m''').ResetAccCode().AddCode(instrs)
     | Assertion(e) ->
@@ -640,7 +533,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 )
 
         // type to function signature
-        let s = typeToFuncSiganture expr.Type
+        let s = typeToFuncSiganture (expandType expr.Env expr.Type)
         let name = GenFuncTypeName s
 
         let instrs = [ (CallIndirect(Named(name)), "call function") ]
@@ -796,7 +689,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let i = env.SymbolController.genSymbol $"i"
 
         let storeInstr =
-            match data.Type with
+            match (expandType data.Env data.Type) with
             | t when (isSubtypeOf data.Env t TInt) -> I32Store
             | t when (isSubtypeOf data.Env t TFloat) -> F32Store
             | _ -> I32Store
@@ -823,7 +716,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C
                 [ Loop(
                       beginl,
-                      [],
+                      [], // loops does not return anything
                       length'.GetAccCode()
                       @ [ (LocalGet(Named i), "get i") ]
                       @ C [ I32Eq; BrIf exitl ]
@@ -852,10 +745,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             m'.GetAccCode()
-            @ [
-                // (I32Const 4, "offset of length field")
-                // (I32Add, "add offset to base address")
-                (I32Load_(None, Some(4)), "load length") ]
+            @ [ (I32Load_(None, Some(4)), "load length") ]
 
         C [ Comment "start array length node" ]
         ++ m'.ResetAccCode().AddCode(instrs @ C [ Comment "end array length node" ])
@@ -873,14 +763,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (If([], trap, None), "check that index is >= 0 - if not return 42") ]
             @ m''.GetAccCode() // index on stack
             @ m'.GetAccCode() // struct pointer on stack
-            @ [
-                (I32Load_(None, Some(4)), "load length") ]
+            @ [ (I32Load_(None, Some(4)), "load length") ]
             @ [ (I32GeU, "check if index is < length")
                 (If([], trap, None), "check that index is < length - if not return 42") ]
 
         // resolve load and store instruction based on type
         let loadInstr =
-            match node.Type with
+            match (expandType node.Env node.Type) with
             | t when (isSubtypeOf node.Env t TInt) -> I32Load
             | t when (isSubtypeOf node.Env t TFloat) -> F32Load
             | _ -> I32Load
@@ -997,7 +886,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // in case there is no data aka a unit - we need to add a zero
         let data =
-            match expr.Type with
+            match (expandType expr.Env expr.Type) with
             | TUnit -> { node with Expr = IntVal 0 } // unitvalue
             | _ -> expr
 
@@ -1015,8 +904,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let labels, vars, exprs = List.unzip3 cases
         let indexedLabels = List.indexed labels
 
-        // TODO: is this correct?
-        let reusltType = findType (expandType exprs[0].Env exprs[0].Type)
+        // resolve result type of match expression
+        let reusltType = mapType (expandType exprs[0].Env exprs[0].Type)
 
         // let matchResult = Util.genSymbol $"match_result"
         let matchEndLabel = env.SymbolController.genSymbol $"match_end"
@@ -1027,7 +916,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let id = env.SymbolController.genSymbolId label
                 let expr = exprs[index]
                 let var = vars[index]
-                let varNode = { node with Expr = Var var; Type = expr.Env.Vars[var] }
+
+                let varNode =
+                    { node with
+                        Expr = Var var
+                        Type = expr.Env.Vars[var] }
 
                 let varName = env.SymbolController.genSymbol $"match_var_{var}"
 
@@ -1039,10 +932,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     { env with
                         VarStorage = scopeVarStorage }
 
-                let t = findType (expandType varNode.Env varNode.Type)
+                // resolve type of var
+                let t = mapType (expandType varNode.Env varNode.Type)
 
                 let scope =
-                    (doCodegen scopeEnv expr m).AddLocals([ (Some(Identifier(varName)), if t.IsEmpty then I32 else (t)[0]) ])
+                    (doCodegen scopeEnv expr m)
+                        .AddLocals([ (Some(Identifier(varName)), (if t.IsEmpty then I32 else (t)[0])) ])
 
                 // resolve load and store instruction based on type
                 let loadInstr =
@@ -1054,7 +949,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // address to data
                 let dataPointer =
                     targetm.GetAccCode()
-                    @ [ (loadInstr(None, Some(4)), "load data pointer")
+                    @ [ (loadInstr (None, Some(4)), "load data pointer")
                         (LocalSet(Named(varName)), "set local var") ]
 
                 let caseCode =
@@ -1101,7 +996,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | Some(Storage.Offset(i)) ->
                 // get correct load and store instruction
                 let li, si =
-                    match value.Type with
+                    match (expandType value.Env value.Type) with
                     | t when (isSubtypeOf value.Env t TInt) ->
                         ((I32Load_(None, Some(i * 4)), "load value i32 from env"),
                          (I32Store_(None, Some(i * 4)), "store i32 value in env"))
@@ -1132,10 +1027,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 /// the struct
                 let offset = List.findIndex (fun f -> f = field) fieldNames
 
-                // TODO: nr.1
                 /// Assembly code that performs the field value assignment
                 let assignCode =
-                    match name.Type with
+                    match (expandType name.Env name.Type) with
                     | t when (isSubtypeOf value.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf value.Env t TFloat) ->
                         selTargetCode.GetAccCode()
@@ -1174,13 +1068,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     (If([], trap, None), "check that index is < length - if not return 42") ]
 
             let storeInstr =
-                match value.Type with
+                match (expandType value.Env value.Type) with
                 | t when (isSubtypeOf value.Env t TInt) -> I32Store
                 | t when (isSubtypeOf value.Env t TFloat) -> F32Store
                 | _ -> I32Store
-            
+
             let loadInstr =
-                match value.Type with
+                match (expandType value.Env value.Type) with
                 | t when (isSubtypeOf value.Env t TInt) -> I32Load
                 | t when (isSubtypeOf value.Env t TFloat) -> F32Load
                 | _ -> I32Load
@@ -1285,7 +1179,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             { env with
                 VarStorage = env.VarStorage.Add(name, Storage.local varName) }
 
-        match init.Type with
+        match (expandType init.Env init.Type) with
         | t when (isSubtypeOf init.Env t TUnit) -> m' ++ (doCodegen env scope m)
         | t when (isSubtypeOf init.Env t TInt) ->
             let varLabel = Named(varName)
@@ -1526,7 +1420,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // instr based on type of field
                 // store field in memory
                 let instr =
-                    match (expandType node.Env fieldInit.Type) with
+                    match (expandType fieldInit.Env fieldInit.Type) with
                     | t when (isSubtypeOf fieldInit.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf fieldInit.Env t TFloat) ->
                         [ (LocalGet(Named(structName)), "get struct pointer var")
@@ -1557,15 +1451,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let selTargetCode = doCodegen env target m
 
         let fieldAccessCode =
-            match (expandType node.Env target.Type) with
+            match (expandType target.Env target.Type) with
             | TStruct(fields) ->
                 let fieldNames, fieldTypes = List.unzip fields
                 let offset = List.findIndex (fun f -> f = field) fieldNames
 
                 // Retrieve value of struct field
                 match fieldTypes[offset] with
-                | t when (isSubtypeOf node.Env t TUnit) -> [] // Nothing to do
-                | t when (isSubtypeOf node.Env t TFloat) ->
+                | t when (isSubtypeOf target.Env t TUnit) -> [] // Nothing to do
+                | t when (isSubtypeOf target.Env t TFloat) ->
                     selTargetCode.GetAccCode()
                     @ [ (F32Load_(None, Some(offset * 4)), $"load field: {fieldNames[offset]}") ]
                 | _ ->
@@ -1605,23 +1499,10 @@ and typeToFuncSiganture (t: Type.Type) =
                     | TUnit -> failwith "a function cannot have a unit argument")
                 args
 
-        // extract return type
-        let retType =
-            match ret with
-            | TUnion _ -> [ I32 ]
-            | TVar _ -> [ I32 ]
-            | TFun _ -> [ I32 ] // passing function as a index to function table
-            | TStruct _ -> [ I32 ]
-            | TArray _ -> [ I32 ]
-            | TInt -> [ I32 ]
-            | TFloat -> [ F32 ]
-            | TBool -> [ I32 ]
-            | TString -> [ I32 ]
-            | TUnit -> []
 
         // added cenv var to args to pass closure env
         let argTypes' = (None, I32) :: argTypes
-        let signature: FunctionSignature = (argTypes', retType)
+        let signature: FunctionSignature = (argTypes', mapType ret)
 
         signature
     | _ -> failwith "type is not a function"
