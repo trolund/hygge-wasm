@@ -209,10 +209,15 @@ module Module =
         | MemoryCopy of int * int
         | MemoryFill_ of int * int * int
         | MemoryFill
-        // Block Instr
+        /// Block Instruction
+        /// label * result type * instrs
         | Block of Identifier * ValueType list * list<Commented<Instr>>
+        /// Loop Instruction
+        /// label * result type * instrs
         | Loop of Identifier * ValueType list * list<Commented<Instr>>
+        /// If Instruction
         /// reuslt type of if, then block, else block
+        /// if (result type) then (instrs) else (instrs)
         | If of ValueType list * list<Commented<Instr>> * list<Commented<Instr>> option
         // comment
         | Comment of string

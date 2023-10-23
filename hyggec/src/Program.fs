@@ -207,8 +207,9 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
                                 (compileRISCV opt tast).ToString()
                             | CmdLine.CompilationTarget.WASM ->
                                 // Compile the AST to WASM assembly
-                                (compileWasm opt tast).ToString()
-                                
+                                let m = (compileWasm opt tast)
+                                // let m' = Analisys.trimStack m
+                                m.ToString()
                 
             // Write the output file (or print to stdout if no output file is given)
             handelOutputFile (opt.OutFile, asm) |> ignore

@@ -170,20 +170,17 @@ namespace WasmTimeDriver
 
             _linker.Define(
                 "env",
-                "writeTwoInts",
-                Function.FromCallback(_store, (int a, int b) =>
-                {
-                    Console.WriteLine(@"{0} {1}", a, b);
-                })
-            );
-
-            _linker.Define(
-                "env",
                 "writeS",
                 Function.FromCallback(_store, (Caller caller, int address, int length) =>
                 {
                     // memory == export name
-                    var message = caller.GetMemory("memory").ReadString(address, length / 2);
+                    var memory = caller.GetMemory("memory");
+                    if (memory == null)
+                    {
+                        Console.WriteLine("Error: Memory not found.");
+                        return;
+                    }
+                    var message = memory.ReadString(address, length / 2);
                     Console.WriteLine(message);
                 })
             );
@@ -361,7 +358,7 @@ namespace WasmTimeDriver
                     var exitCode = instance.GetGlobal("exit_code").GetValue();
                     return Int32.Parse(exitCode.ToString());
                 }
-                catch (Exception e)
+                catch (Exception _)
                 {
                     if (debug) Console.WriteLine("No exit code found");
                     return 100;

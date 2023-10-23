@@ -14,7 +14,10 @@ fun toString(o: OptionalInt, arr: array {int}): int  =
     match o with {
         Index{i} -> arrayElem(arr, i);
         Length{a} -> arrayLength(a);
-        Assign{i} -> arrayElem(arr, i) <- x;
+        Assign{i} -> { 
+            arrayElem(arr, i) <- x; 
+            arrayElem(arr, i)
+            };
         None{_} -> 0
     };
 

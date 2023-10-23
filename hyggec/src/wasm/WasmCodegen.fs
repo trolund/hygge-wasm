@@ -1536,21 +1536,21 @@ and internal compileFunction
             args
 
     // extract return type
-    let retType =
-        match body.Type with
-        | TUnion _ -> [ I32 ]
-        | TVar _ -> [ I32 ]
-        | TFun _ -> [ I32 ] // passing function as a index to function table
-        | TStruct _ -> [ I32 ]
-        | TArray _ -> [ I32 ]
-        | TInt -> [ I32 ]
-        | TFloat -> [ F32 ]
-        | TBool -> [ I32 ]
-        | TString -> [ I32 ]
-        | TUnit -> []
+    // let retType =
+    //     match body.Type with
+    //     | TUnion _ -> [ I32 ]
+    //     | TVar _ -> [ I32 ]
+    //     | TFun _ -> [ I32 ] // passing function as a index to function table
+    //     | TStruct _ -> [ I32 ]
+    //     | TArray _ -> [ I32 ]
+    //     | TInt -> [ I32 ]
+    //     | TFloat -> [ F32 ]
+    //     | TBool -> [ I32 ]
+    //     | TString -> [ I32 ]
+    //     | TUnit -> []
 
     let argTypes' = (Some("cenv"), I32) :: argTypes
-    let signature: FunctionSignature = (argTypes', retType)
+    let signature: FunctionSignature = (argTypes', mapType body.Type)
 
     // create function instance
     let f: Commented<FunctionInstance> =
