@@ -150,10 +150,9 @@ let mapType t =
     | TArray _ -> [ I32 ]
     | TFun _ -> [ I32 ] // passing function as a index to function table
     | TVar _ -> [ I32 ]
-    | _ -> failwith "could not find type"
 
 /// look up variable in var env
-let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
+let internal lookupVar (env: CodegenEnv) (e: TypedAST) =
     match e.Expr with
     | Var v ->
         match env.VarStorage.TryFind v with
@@ -164,7 +163,7 @@ let internal lookupLabel (env: CodegenEnv) (e: TypedAST) =
     | _ -> failwith "not implemented"
 
 /// look up variable in var env
-let internal lookupLabelName (env: CodegenEnv) (name: string) =
+let internal lookupLabel (env: CodegenEnv) (name: string) =
     match env.VarStorage.TryFind name with
     | Some(Storage.local l) -> l
     | Some(Storage.glob l) -> l
@@ -228,7 +227,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | PreIncr(e) ->
         let m' = doCodegen env e m
 
-        let label = lookupLabel env e
+        let label = lookupVar env e
 
         let instrs =
             match (expandType e.Env e.Type) with
@@ -240,7 +239,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | PostIncr(e) ->
         let m' = doCodegen env e m
 
-        let label = lookupLabel env e
+        let label = lookupVar env e
 
         let instrs =
             match (expandType e.Env e.Type) with
@@ -254,7 +253,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | PreDcr(e) ->
         let m' = doCodegen env e m
 
-        let label = lookupLabel env e
+        let label = lookupVar env e
 
         let instrs =
             match (expandType e.Env e.Type) with
@@ -266,7 +265,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | PostDcr(e) ->
         let m' = doCodegen env e m
 
-        let label = lookupLabel env e
+        let label = lookupVar env e
 
         let instrs =
             match (expandType e.Env e.Type) with
@@ -304,7 +303,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | _ -> failwith "failed to find numeric float operation"
             | _ -> failwith "failed to find numeric operation"
 
-        let label = lookupLabel env lhs
+        let label = lookupVar env lhs
 
         let instrs =
             match (expandType node.Env node.Type) with
@@ -743,9 +742,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | ArrayLength(target) ->
         let m' = doCodegen env target m
 
-        let instrs =
-            m'.GetAccCode()
-            @ [ (I32Load_(None, Some(4)), "load length") ]
+        let instrs = m'.GetAccCode() @ [ (I32Load_(None, Some(4)), "load length") ]
 
         C [ Comment "start array length node" ]
         ++ m'.ResetAccCode().AddCode(instrs @ C [ Comment "end array length node" ])
@@ -1521,15 +1518,15 @@ and internal compileFunction
         List.map
             (fun (n, t) ->
                 match t with
-                | TUnion _ -> (Some(lookupLabelName env n), I32)
-                | TVar _ -> (Some(lookupLabelName env n), I32)
-                | TFun _ -> (Some(lookupLabelName env n), I32) // passing function as a index to function table
-                | TStruct _ -> (Some(lookupLabelName env n), I32)
-                | TArray _ -> (Some(lookupLabelName env n), I32)
-                | TInt -> (Some(lookupLabelName env n), I32)
-                | TFloat -> (Some(lookupLabelName env n), F32)
-                | TBool -> (Some(lookupLabelName env n), I32)
-                | TString -> (Some(lookupLabelName env n), I32)
+                | TUnion _ -> (Some(lookupLabel env n), I32)
+                | TVar _ -> (Some(lookupLabel env n), I32)
+                | TFun _ -> (Some(lookupLabel env n), I32) // passing function as a index to function table
+                | TStruct _ -> (Some(lookupLabel env n), I32)
+                | TArray _ -> (Some(lookupLabel env n), I32)
+                | TInt -> (Some(lookupLabel env n), I32)
+                | TFloat -> (Some(lookupLabel env n), F32)
+                | TBool -> (Some(lookupLabel env n), I32)
+                | TString -> (Some(lookupLabel env n), I32)
                 | TUnit -> failwith "a function cannot have a unit argument")
             args
 
