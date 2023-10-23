@@ -169,6 +169,11 @@ let internal lookupLabel (env: CodegenEnv) (name: string) =
     | Some(Storage.glob l) -> l
     | _ -> failwith "not implemented"
 
+let internal lookupLatestLocal (m: Module) =
+        match List.last (m.GetLocals()) with
+        | Some(n), _ -> n
+        | None, _ -> failwith "failed to find name of the lastest local var"
+
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
     | UnitVal -> m
@@ -1611,23 +1616,20 @@ and internal createClosure (env: CodegenEnv) (node: TypedAST) (index: int) (m: M
                            Type = TInt }) ]
                 ) }
 
-    let returnStructCode = doCodegen env returnStruct m
+    let returnStructModule = doCodegen env returnStruct m
 
     // get name local var that stores pointer to struct
-    let n =
-        match List.last (returnStructCode.GetLocals()) with
-        | Some(n), _ -> n
-        | None, _ -> failwith "failed to find name of local var"
+    let localVarID = lookupLatestLocal returnStructModule
 
     let instr =
-        returnStructCode.GetAccCode()
+        returnStructModule.GetAccCode()
         @ [ (I32Const 4, "4 byte offset"); (I32Add, "add offset") ]
         @ capturedVarsStructCode.GetAccCode()
         @ [ (I32Store, "store poninter in return struct") ]
-        @ [ (LocalGet(Named(n)), "get pointer to return struct") ]
+        @ [ (LocalGet(Named(localVarID)), "get pointer to return struct") ]
 
 
-    (returnStructCode.ResetAccCode() + capturedVarsStructCode.ResetAccCode())
+    (returnStructModule.ResetAccCode() + capturedVarsStructCode.ResetAccCode())
         .AddCode(instr) // pointer becomes value to store
 
 /// function that recursively propagates the AST and substitutes all local get and set instructions of a specific variable
