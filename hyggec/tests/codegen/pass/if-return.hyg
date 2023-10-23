@@ -23,5 +23,5 @@ assert(arrayElem((if true then arr2 else arr2), 0) = 100.0f);
 assert((if true then arrayElem(arr2, 0) else arrayElem(arr2, 0)) = 100.0f);
 assert((if true then arrayElem(arr2, 0) <- 21.0f else arrayElem(arr2, 1)) = 21.0f);
 assert((if false then arrayElem(arr2, 0) <- 21.0f else arrayElem(arr2, 1)) = 100.0f);
-assert((if false then 21 else arrayLength(arr2)) = 11)
-
+assert((if false then 21 else arrayLength(arr2)) = 11);
+assert((if false then (if false then (if false then (if false then 21 else arrayLength(arr2)) else arrayLength(arr2)) else arrayLength(arr2)) else arrayLength(arr2)) = 11)

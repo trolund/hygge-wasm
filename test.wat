@@ -971,6 +971,61 @@
         unreachable ;; exit program
       )
     )
+    i32.const 0
+    (if (result i32)
+      (then
+        i32.const 0
+        (if (result i32)
+          (then
+            i32.const 0
+            (if (result i32)
+              (then
+                i32.const 0
+                (if (result i32)
+                  (then
+                    i32.const 21 ;; push 21 on stack
+                  )
+                  (else
+                    ;; start array length node
+                    global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+                    i32.load offset=4 ;; load length
+                    ;; end array length node
+                  )
+                )
+              )
+              (else
+                ;; start array length node
+                global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+                i32.load offset=4 ;; load length
+                ;; end array length node
+              )
+            )
+          )
+          (else
+            ;; start array length node
+            global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+            i32.load offset=4 ;; load length
+            ;; end array length node
+          )
+        )
+      )
+      (else
+        ;; start array length node
+        global.get $var_arr2 ;; get local var: var_arr2, have been hoisted
+        i32.load offset=4 ;; load length
+        ;; end array length node
+      )
+    )
+    i32.const 11 ;; push 11 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
     ;; End of let
     ;; End of let
     ;; End of let

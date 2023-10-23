@@ -247,7 +247,7 @@ let rec findReturnType (expr: TypedAST) : ValueType list =
     | StringLength _ -> [ I32 ]
 and findType t = 
     match t with
-    | TUnit -> []
+    | TUnit -> [ ]
     | TInt -> [ I32 ]
     | TFloat -> [ F32 ]
     | TBool -> [ I32 ]
@@ -605,10 +605,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m''' = doCodegen env ifFalse m
 
         // get the return type of the ifTrue branch and subsequently the ifFalse branch
-        let t = findReturnType ifTrue
+        let t = (expandType node.Env node.Type)
 
         let instrs =
-            m'.GetAccCode() @ C [ (If(t, m''.GetAccCode(), Some(m'''.GetAccCode()))) ]
+            m'.GetAccCode() @ C [ (If(findType t, m''.GetAccCode(), Some(m'''.GetAccCode()))) ]
 
         (m' + m'' + m''').ResetAccCode().AddCode(instrs)
     | Assertion(e) ->
@@ -1016,7 +1016,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let indexedLabels = List.indexed labels
 
         // TODO: is this correct?
-        let reusltType = findReturnType (exprs[0])
+        let reusltType = findType (expandType exprs[0].Env exprs[0].Type)
 
         // let matchResult = Util.genSymbol $"match_result"
         let matchEndLabel = env.SymbolController.genSymbol $"match_end"
@@ -1027,6 +1027,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let id = env.SymbolController.genSymbolId label
                 let expr = exprs[index]
                 let var = vars[index]
+                let varNode = { node with Expr = Var var; Type = expr.Env.Vars[var] }
 
                 let varName = env.SymbolController.genSymbol $"match_var_{var}"
 
@@ -1038,16 +1039,22 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     { env with
                         VarStorage = scopeVarStorage }
 
+                let t = findType (expandType varNode.Env varNode.Type)
+
                 let scope =
-                    (doCodegen scopeEnv expr m).AddLocals([ (Some(Identifier(varName)), I32) ])
+                    (doCodegen scopeEnv expr m).AddLocals([ (Some(Identifier(varName)), if t.IsEmpty then I32 else (t)[0]) ])
+
+                // resolve load and store instruction based on type
+                let loadInstr =
+                    match (expandType varNode.Env varNode.Type) with
+                    | t when (isSubtypeOf expr.Env t TInt) -> I32Load_
+                    | t when (isSubtypeOf expr.Env t TFloat) -> F32Load_
+                    | _ -> I32Load_
 
                 // address to data
                 let dataPointer =
                     targetm.GetAccCode()
-                    @ [
-                        // (I32Const 4, "offset of data field")
-                        // (I32Add, "add offset to base address")
-                        (I32Load_(None, Some(4)), "load data pointer")
+                    @ [ (loadInstr(None, Some(4)), "load data pointer")
                         (LocalSet(Named(varName)), "set local var") ]
 
                 let caseCode =
@@ -1878,7 +1885,6 @@ let codegen (node: TypedAST) : Module =
     // the offset is the current position of the memory allocator
     // before this offset only static data is allocated
     let staticOffset: int = env.MemoryAllocator.GetAllocationPosition()
-    // TODO: move this logic to the memory allocator
     let numOfStaticPages: int = env.MemoryAllocator.GetNumPages()
 
     let heapBase = "heap_base"
