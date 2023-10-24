@@ -614,14 +614,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         (funcPointer + bodyCode + closure) // .AddCode([ (GlobalGet (Named(funLabel)), "return table index")  ]) // .AddCode([ Call funLabel ]) // .AddCode([ (RefFunc(Named(funLabel)), "return ref to lambda") ])
     | Seq(nodes) ->
         // We collect the code of each sequence node by folding over all nodes
-        // index nodex
         let idn = List.indexed nodes
         let lastIndex = (List.length nodes) - 1
 
         List.fold
             (fun m (i, node) ->
+                // when values is push to the stack but is not needed
+                // we drop them to keep the stack clean
 
                 // if it is last node
+                // the last node is the return value of the sequence
+                // this may be a unit value
                 if (i = lastIndex) then
                     // return last node
                     m + doCodegen env node (m.ResetAccCode())
