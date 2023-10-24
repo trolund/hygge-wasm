@@ -177,6 +177,14 @@ let internal lookupLatestLocal (m: Module) =
 let internal argsToLocals env args =
     List.map (fun (n, t) -> (Some(lookupLabel env n), (mapType t)[0])) args
 
+let internal addCapturedToEnv env captured =
+    List.fold
+        (fun env (index, n) ->
+            { env with
+                VarStorage = env.VarStorage.Add(n, Storage.Offset(index)) })
+        env
+        (List.indexed captured)
+
 let internal localsToID (locals: Local list) =
     (List.map
         (fun (n, _) ->
@@ -579,23 +587,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// List of pairs associating each function argument to its type
         let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
 
-        let captured = Set.toList (ASTUtil.capturedVars node)
-
         let env' = addArgsToEnv env args
 
-        let capturedIndexed = (List.indexed captured)
+        let captured = Set.toList (ASTUtil.capturedVars node)
 
-        let env'' =
-            List.fold
-                (fun env (index, n) ->
-                    { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.Offset(index)) })
-                env'
-                capturedIndexed
+        let env'' = addCapturedToEnv env' captured
 
         /// Compiled function body
-        let bodyCode: Module =
-            compileFunction funLabel argNamesTypes body env'' funcPointer
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
 
         let closure = createClosure env' node index funcPointer captured
 
