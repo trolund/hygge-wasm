@@ -1147,7 +1147,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let argNamesTypes = List.zip argNames targs
 
         // add each arg to var storage (all local vars)
-        // TODO maybe lables should be generated here
         let env' =
             List.fold
                 (fun env (n, _) ->
@@ -1162,24 +1161,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env' funcPointer
 
         /// Storage info where the name of the compiled function points to the
-
         let varStorage2 = env.VarStorage.Add(name, Storage.glob func_ptr)
 
         let scopeModule: Module =
             (doCodegen { env with VarStorage = varStorage2 } scope funcPointer)
-
-        // Top-Level closure
-
-        // let captured = freeVariables node
-
-        // // map captured to list of pairs (name, TypedAST) with env
-        // let captured = Set.map (fun n -> (n, {node with Expr = Var(n) })) captured
-
-        // let capturedList = List.distinctBy fst (Set.toList captured)
-
-        // let closure = createClosure env' node body index funcPointer capturedList
-
-        funcPointer + scopeModule + bodyCode // + closure
+            
+        funcPointer + scopeModule + bodyCode 
 
     | Let(name, _, init, scope, export) ->
         let m' = doCodegen env init m
