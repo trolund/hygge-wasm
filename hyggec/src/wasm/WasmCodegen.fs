@@ -568,7 +568,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let funcPointer, index, _ = createFunctionPointer funLabel env m
 
-        /// TODO: add env as argument to function
         /// Names of the lambda term arguments
         let argNames, _ = List.unzip args
         /// List of pairs associating each function argument to its type
@@ -836,7 +835,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ [ (I32GeU, "check if start is < length") // TODO check if this is correct
                 (If([], trap, None), "check that start is < length - if not return 42") ]
 
-        // TODO: end index check
         // check that end is bigger then 0 - if not return 42
         // and that end is smaller then length of the original array - if not return 42
         // and end is bigger then start - if not return 42
@@ -1653,7 +1651,7 @@ let hoistingLocals (m: Module) (upgradeList: list<string>) : Module =
                 // get all instructions
                 let instrs = func.body
 
-                // TODO: use upgradelist to upgrade all local vars to global vars in instrs
+                // substitute all local get and set instructions with global get and set instructions
                 let instrs' = List.fold (fun acc n -> localSubst acc n) instrs upgradeList
 
                 // remove all locals in upgradelist from module
@@ -1730,7 +1728,6 @@ let codegen (node: TypedAST) : Module =
           TableController = TableController()
           SymbolController = SymbolController()
           VarStorage = Map.empty
-        // CurrFuncArgs = []
         }
 
     // add function to module and export it
@@ -1753,10 +1750,10 @@ let codegen (node: TypedAST) : Module =
 
     let locals = m.GetLocals()
 
-    let final =
+    let topLevelModule =
         m
-            .AddMemory(("memory", Unbounded(numOfStaticPages)))
-            .AddLocals(env.CurrFunc, locals) // set locals of function, TODO: can be deleted?
+            .AddMemory(("memory", Unbounded(numOfStaticPages))) // allocate memory need as unbounded memory
+            .AddLocals(env.CurrFunc, locals) // set locals of function
             .AddInstrs(env.CurrFunc, [ Comment "execution start here:" ])
             .AddInstrs(env.CurrFunc, m.GetAccCode()) // add code of main function
             .AddInstrs(env.CurrFunc, [ Comment "if execution reaches here, the program is successful" ])
@@ -1779,4 +1776,5 @@ let codegen (node: TypedAST) : Module =
 
     let h = (Set.toList (Set(m.GetHostingList())))
 
-    hoistingLocals final (h @ l)
+    // hoist all top level locals to global vars
+    hoistingLocals topLevelModule (h @ l)
