@@ -1711,13 +1711,13 @@ let codegen (node: TypedAST) : Module =
     let funcName = "_start"
 
     // signature of main function
-    // the main function has no arguments and returns an 32 bit int (exit code)
+    // the main function has no arguments and returns an 32 bit integer
     let signature = ([], [ I32 ])
 
     let f: Commented<FunctionInstance> =
-        ({ locals = []
+        ({ locals = List.Empty
            signature = signature
-           body = []
+           body = List.Empty
            name = Some(Identifier(funcName)) },
          "entry point of program (main function)")
 
