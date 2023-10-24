@@ -175,21 +175,7 @@ let internal lookupLatestLocal (m: Module) =
     | None, _ -> failwith "failed to find name of the lastest local var"
 
 let internal argsToLocals env args =
-    // map args to there types
-    List.map
-        (fun (n, t) ->
-            match t with
-            | TUnion _ -> (Some(lookupLabel env n), I32)
-            | TVar _ -> (Some(lookupLabel env n), I32)
-            | TFun _ -> (Some(lookupLabel env n), I32) // passing function as a index to function table
-            | TStruct _ -> (Some(lookupLabel env n), I32)
-            | TArray _ -> (Some(lookupLabel env n), I32)
-            | TInt -> (Some(lookupLabel env n), I32)
-            | TFloat -> (Some(lookupLabel env n), F32)
-            | TBool -> (Some(lookupLabel env n), I32)
-            | TString -> (Some(lookupLabel env n), I32)
-            | TUnit -> failwith "a function cannot have a unit argument")
-        args
+    List.map (fun (n, t) -> (Some(lookupLabel env n), (mapType t)[0])) args
 
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
@@ -1165,8 +1151,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let scopeModule: Module =
             (doCodegen { env with VarStorage = varStorage2 } scope funcPointer)
-            
-        funcPointer + scopeModule + bodyCode 
+
+        funcPointer + scopeModule + bodyCode
 
     | Let(name, _, init, scope, export) ->
         let m' = doCodegen env init m
@@ -1714,8 +1700,7 @@ let codegen (node: TypedAST) : Module =
           MemoryAllocator = StaticMemoryAllocator()
           TableController = TableController()
           SymbolController = SymbolController()
-          VarStorage = Map.empty
-        }
+          VarStorage = Map.empty }
 
     // add function to module and export it
     let m' =
