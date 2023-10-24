@@ -126,7 +126,15 @@ let rec internal analyseStack (instrs: Commented<Instr> list) (stackSize: int) :
         | I32Load ->
             // load pops 1 and pushes 1
             let instrs', size = analyseStack rest stackSize
-            (instr, c) :: instrs', size
+            // if the stack is not balanced
+            if size <> 0 then
+                // insert drop instructions
+                let instrs' = (repeatDrop size) @ instrs'
+                // the stack is now balanced
+                let size = 0
+                (instr, c) :: instrs', size
+            else
+                (instr, c) :: instrs', size
         | I32Store ->
             // store pops 2 and pushes 0
             let stackSize' = stackSize - 2
@@ -180,32 +188,100 @@ let rec internal analyseStack (instrs: Commented<Instr> list) (stackSize: int) :
             let stackSize' = stackSize - 2
             let instrs', size = analyseStack rest stackSize'
             (instr, c) :: instrs', size
-       // block instr
-       // here we need to check if the block is balanced
+        | Comment c ->
+            // leave comments alone
+            let instrs', size = analyseStack rest stackSize
+            (instr, c) :: instrs', size
+        | Call _ ->
+            // call pops 1 and pushes 1
+            let instrs', size = analyseStack rest stackSize
+            (instr, c) :: instrs', size 
+        | CallIndirect _ ->
+            // call pops 1 and pushes 1
+            let instrs', size = analyseStack rest stackSize
+            (instr, c) :: instrs', size
+        | LocalGet _ ->
+            // local.get pops 0 and pushes 1
+            let instrs', size = analyseStack rest stackSize
+            (instr, c) :: instrs', size
+        | LocalSet _ ->
+            // local.set pops 1 and pushes 0
+            let stackSize' = stackSize - 1
+            let instrs', size = analyseStack rest stackSize'
+            (instr, c) :: instrs', size
+        | LocalTee _ ->
+            // local.tee pops 1 and pushes 1
+            let instrs', size = analyseStack rest stackSize
+            (instr, c) :: instrs', size
+        | GlobalGet _ ->
+            // global.get pops 0 and pushes 1
+            let instrs', size = analyseStack rest stackSize
+            (instr, c) :: instrs', size
+        | GlobalSet _ ->
+            // global.set pops 1 and pushes 0
+            let stackSize' = stackSize - 1
+            let instrs', size = analyseStack rest stackSize'
+            (instr, c) :: instrs', size
+        | Nop ->
+            // nop pops 0 and pushes 0
+            let instrs', size = analyseStack rest stackSize
+            (instr, c) :: instrs', size
+        | Unreachable ->
+            // unreachable pops 0 and pushes 0
+            let instrs', size = analyseStack rest stackSize
+            (instr, c) :: instrs', size
+        | Return ->
+            // return pops 1 and pushes 0
+            let stackSize' = stackSize - 1
+            let instrs', size = analyseStack rest stackSize'
+            (instr, c) :: instrs', size
+        | Drop ->
+            // drop pops 1 and pushes 0
+            let stackSize' = stackSize - 1
+            let instrs', size = analyseStack rest stackSize'
+            (instr, c) :: instrs', size
+        | I32Load_ _ ->
+            // load pops 1 and pushes 1
+            let instrs', size = analyseStack rest stackSize
+            (instr, c) :: instrs', size
+        | I32Store_ _ ->
+            // store pops 2 and pushes 0
+            let stackSize' = stackSize - 2
+            let instrs', size = analyseStack rest stackSize'
+            (instr, c) :: instrs', size
+        | BrIf _ ->
+            // br_if pops 1 and pushes 0
+            let stackSize' = stackSize - 1
+            let instrs', size = analyseStack rest stackSize'
+            (instr, c) :: instrs', size
+        | Br _ ->
+            // br pops 0 and pushes 0
+            let instrs', size = analyseStack rest stackSize
+            (instr, c) :: instrs', size
+               // block instr
         | Block (l, t, instrs') ->
             let instrs', size = analyseStack instrs' stackSize
-            let instrs'', size' = analyseStack rest (stackSize + size)
-            let instrs''' = repeatDrop (size' - size)
-            (Block (l, t, instrs'), c) :: instrs''' @ instrs'', size
+            let instrs', size = analyseStack rest size
+            (Block (l, t, instrs'), c) :: instrs', size
         | Loop (l, t, instrs') ->
             let instrs', size = analyseStack instrs' stackSize
-            let instrs'', size' = analyseStack rest (stackSize + size)
-            let instrs''' = repeatDrop (size' - size)
-            (Loop (l, t, instrs'), c) :: instrs''' @ instrs'', size
+            let instrs', size = analyseStack rest size
+            (Loop (l, t, instrs'), c) :: instrs', size
         | If (t, instrs1, instrs2) ->
-            match instrs2  with
-            | Some(instrs2') -> 
-                let instrs1', size1 = analyseStack instrs1 stackSize
-                let instrs2', size2 = analyseStack instrs2' stackSize
-                let instrs'', size' = analyseStack rest (stackSize + size1 + size2)
-                let instrs''' = repeatDrop (size' - size1 - size2)
-                (If (t, instrs1', Some(instrs2')), c) :: instrs''' @ instrs'', size1 + size2
+            match instrs2 with
+            | Some(instrs2') ->
+                let instrs', size = analyseStack instrs1 stackSize
+                let instrs', size = analyseStack instrs2' size
+                let instrs', size = analyseStack rest size
+                (If (t, instrs1, Some(instrs2')), c) :: instrs', size
             | None ->
-                let instrs1', size1 = analyseStack instrs1 stackSize
-                let instrs'', size' = analyseStack rest (stackSize + size1)
-                let instrs''' = repeatDrop (size' - size1)
-                (If (t, instrs1', None), c) :: instrs''' @ instrs'', size1
+                let instrs', size = analyseStack instrs1 stackSize
+                let instrs', size = analyseStack rest size
+                (If (t, instrs1, None), c) :: instrs', size
+        | x ->
+            failwith (sprintf "analyseStack: %A" x)
     | [] -> ([], stackSize)
+
 
 // this function will trim the stack
 let trimStack (m: Module): Module = 

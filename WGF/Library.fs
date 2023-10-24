@@ -435,10 +435,7 @@ module Module =
     and GlobalSegment = int * Instr list
 
     and FunctionInstance =
-        {
-          // moduleInstance : ModuleInstance
-          // typeIndex: int
-          name: Identifier option
+        { name: Identifier option
           signature: FunctionSignature
           locals: Local list
           body: Commented<Instr> list }
@@ -453,7 +450,7 @@ module Module =
             | head :: tail ->
                 // deconstruct instr and comment
                 let (instr, c: string) = head
-            
+
                 // compute indent
                 let is = gIndent indent
 
@@ -461,11 +458,21 @@ module Module =
                 // block instructions
                 | Block(label, valueTypes, instrs: Commented<Instr> list) ->
                     let innerWat = aux instrs "" (indent + 1)
-                    let s = watCode + is + $"(block ${label} {resultPrint valueTypes}\n{innerWat}{gIndent (indent)})\n"
+
+                    let s =
+                        watCode
+                        + is
+                        + $"(block ${label} {resultPrint valueTypes}\n{innerWat}{gIndent (indent)})\n"
+
                     aux tail s indent
                 | Loop(label, valueTypes, instrs: Commented<Instr> list) ->
                     let innerWat = aux instrs "" (indent + 1)
-                    let s = watCode + is + $"(loop ${label} {resultPrint valueTypes}\n{innerWat}{gIndent (indent)})\n" 
+
+                    let s =
+                        watCode
+                        + is
+                        + $"(loop ${label} {resultPrint valueTypes}\n{innerWat}{gIndent (indent)})\n"
+
                     aux tail s indent
                 | If(types, ifInstrs, elseInstrs) ->
                     match elseInstrs with
@@ -473,22 +480,32 @@ module Module =
                         let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
                         let innerWatFalse = aux elseInstrs' "" (indent + 2)
 
-                        let s = watCode + is + $"(if {resultPrint types}\n{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent + 1)}(else\n{innerWatFalse}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
+                        let s =
+                            watCode
+                            + is
+                            + $"(if {resultPrint types}\n{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent + 1)}(else\n{innerWatFalse}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
+
                         aux tail s indent
                     | None ->
                         let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
-                        let s = watCode + is + $"(if {resultPrint types}\n{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
+
+                        let s =
+                            watCode
+                            + is
+                            + $"(if {resultPrint types}\n{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
+
                         aux tail s indent
                 | _ ->
                     // generate wat code for plain instr
-                    let instrAsString = instr.ToString() + if (c.Length > 0) then $" ;; %s{c}\n" else "\n" in
+                    let instrAsString =
+                        instr.ToString() + if (c.Length > 0) then $" ;; %s{c}\n" else "\n" in
 
                     let watCode = watCode + is + instrAsString
 
                     aux tail watCode indent
 
-        aux instrs "" ident  
-    
+        aux instrs "" ident
+
     /// def of module
     [<RequireQualifiedAccess>]
     type Module
@@ -778,8 +795,7 @@ module Module =
             let (f), s = this.functions.[name]
 
             let newInstance: Commented<FunctionInstance> =
-                ({ 
-                   locals = f.locals @ locals
+                ({ locals = f.locals @ locals
                    signature = f.signature
                    body = f.body
                    name = f.name },
@@ -809,8 +825,7 @@ module Module =
             let (f), s = this.functions.[name]
             // add instrs to function f a function instance
             let newInstance: Commented<FunctionInstance> =
-                ({ 
-                   locals = f.locals
+                ({ locals = f.locals
                    signature = f.signature
                    body = f.body @ (instrs |> List.map (fun x -> Commented(x, "")))
                    name = f.name },
@@ -839,8 +854,7 @@ module Module =
             let (f), s = this.functions.[name]
             // add instrs to function f a function instance
             let newInstance: Commented<FunctionInstance> =
-                ({ 
-                   locals = f.locals
+                ({ locals = f.locals
                    signature = f.signature
                    body = f.body @ instrs
                    name = f.name },
@@ -1128,7 +1142,9 @@ module Module =
                          | _ -> "")
             // print all memories
             for i, (name, Limits) in List.indexed (Set.toList this.memories) do
-                result <- result + $"{gIndent 1}(memory %s{ic i} (export \"%s{name}\") %s{Limits.ToString()})\n"
+                result <-
+                    result
+                    + $"{gIndent 1}(memory %s{ic i} (export \"%s{name}\") %s{Limits.ToString()})\n"
 
             // print all globals
             for global_ in List.indexed (Set.toList this.globals) do
@@ -1154,7 +1170,10 @@ module Module =
             for i, element in List.indexed (Set.toList this.elements) do
                 // unpacked element
                 let (index, element) = element
-                result <- result + $"{gIndent 1}(elem (i32.const %i{index}) %s{ic i} $%s{element.ToString()})\n"
+
+                result <-
+                    result
+                    + $"{gIndent 1}(elem (i32.const %i{index}) %s{ic i} $%s{element.ToString()})\n"
 
 
             // create functions

@@ -513,6 +513,7 @@
         i32.mul ;; multiply index with byte offset
         i32.add ;; add offset to base address
         i32.load ;; load int from elem pos
+        drop
         ;; start of application
         ;; Load expression to be applied as a function
         global.get $fun_f*ptr ;; get global var: fun_f*ptr

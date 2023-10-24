@@ -170,9 +170,26 @@ let internal lookupLabel (env: CodegenEnv) (name: string) =
     | _ -> failwith "not implemented"
 
 let internal lookupLatestLocal (m: Module) =
-        match List.last (m.GetLocals()) with
-        | Some(n), _ -> n
-        | None, _ -> failwith "failed to find name of the lastest local var"
+    match List.last (m.GetLocals()) with
+    | Some(n), _ -> n
+    | None, _ -> failwith "failed to find name of the lastest local var"
+
+let internal argsToLocals env args =
+    // map args to there types
+    List.map
+        (fun (n, t) ->
+            match t with
+            | TUnion _ -> (Some(lookupLabel env n), I32)
+            | TVar _ -> (Some(lookupLabel env n), I32)
+            | TFun _ -> (Some(lookupLabel env n), I32) // passing function as a index to function table
+            | TStruct _ -> (Some(lookupLabel env n), I32)
+            | TArray _ -> (Some(lookupLabel env n), I32)
+            | TInt -> (Some(lookupLabel env n), I32)
+            | TFloat -> (Some(lookupLabel env n), F32)
+            | TBool -> (Some(lookupLabel env n), I32)
+            | TString -> (Some(lookupLabel env n), I32)
+            | TUnit -> failwith "a function cannot have a unit argument")
+        args
 
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
@@ -1210,11 +1227,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let scopeCode = (doCodegen env' scope (m.ResetAccCode()))
 
-            let combi = (instrs ++ scopeCode)
-
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
-            ++ combi
+            ++ (instrs ++ scopeCode)
                 .AddLocals([ (Some(Identifier(varName)), F32) ])
                 .AddCode([ Comment "End of let" ])
         | TFun _ ->
@@ -1248,12 +1263,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let instrs =
                 initCode // inizilize code
                 @ [ (LocalSet varLabel, "set local var") ] // set local var
-
-            // let name = Util.genSymbol $"Sptr"
-
-            // let env'' =
-            //     { env' with
-            //         VarStorage = env.VarStorage.Add(name, Storage.local (varName)) }
 
             let scopeCode = (doCodegen env' scope (m'.ResetAccCode()))
 
@@ -1519,51 +1528,23 @@ and internal compileFunction
     : Module =
 
     // map args to there types
-    let argTypes: Local list =
-        List.map
-            (fun (n, t) ->
-                match t with
-                | TUnion _ -> (Some(lookupLabel env n), I32)
-                | TVar _ -> (Some(lookupLabel env n), I32)
-                | TFun _ -> (Some(lookupLabel env n), I32) // passing function as a index to function table
-                | TStruct _ -> (Some(lookupLabel env n), I32)
-                | TArray _ -> (Some(lookupLabel env n), I32)
-                | TInt -> (Some(lookupLabel env n), I32)
-                | TFloat -> (Some(lookupLabel env n), F32)
-                | TBool -> (Some(lookupLabel env n), I32)
-                | TString -> (Some(lookupLabel env n), I32)
-                | TUnit -> failwith "a function cannot have a unit argument")
-            args
-
-    // extract return type
-    // let retType =
-    //     match body.Type with
-    //     | TUnion _ -> [ I32 ]
-    //     | TVar _ -> [ I32 ]
-    //     | TFun _ -> [ I32 ] // passing function as a index to function table
-    //     | TStruct _ -> [ I32 ]
-    //     | TArray _ -> [ I32 ]
-    //     | TInt -> [ I32 ]
-    //     | TFloat -> [ F32 ]
-    //     | TBool -> [ I32 ]
-    //     | TString -> [ I32 ]
-    //     | TUnit -> []
-
-    let argTypes' = (Some("cenv"), I32) :: argTypes
+    let argTypes: Local list = argsToLocals env args
+    let argTypes': Local list = (Some("cenv"), I32) :: argTypes
     let signature: FunctionSignature = (argTypes', mapType body.Type)
 
     // create function instance
     let f: Commented<FunctionInstance> =
-        ({ locals = []
+        ({ locals = List.empty // locals are added later
            signature = signature
-           body = []
+           body = List.empty // body is added later
            name = Some(Identifier(name)) },
-         sprintf "function %s" name)
+         $"function {name}")
 
-    let m' = m.AddFunction(name, f, true)
+    // add function to module
+    let m': Module = m.AddFunction(name, f, true)
 
     // compile function body
-    let m'' =
+    let m'': Module =
         doCodegen
             { env with
                 CurrFunc = name
