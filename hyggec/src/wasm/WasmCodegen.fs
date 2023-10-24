@@ -177,13 +177,25 @@ let internal lookupLatestLocal (m: Module) =
 let internal argsToLocals env args =
     List.map (fun (n, t) -> (Some(lookupLabel env n), (mapType t)[0])) args
 
-let internal localsToID (locals: Local list) = 
-            (List.map
-                (fun (n, _) ->
-                    match n with
-                    | Some(n) -> n
-                    | None -> failwith "not implemented")
-                locals)
+let internal localsToID (locals: Local list) =
+    (List.map
+        (fun (n, _) ->
+            match n with
+            | Some(n) -> n
+            | None -> failwith "not implemented")
+        locals)
+
+/// add each arg to var storage (all local vars)
+let internal addArgsToEnv env args =
+    List.fold
+        (fun env (n, _) ->
+            let l = env.SymbolController.genSymbol $"arg_{n}"
+
+            { env with
+                VarStorage = env.VarStorage.Add(n, Storage.local l) })
+        env
+        args
+
 
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
@@ -569,15 +581,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let captured = Set.toList (ASTUtil.capturedVars node)
 
-        let env' =
-            List.fold
-                (fun env (n, _) ->
-                    let l = env.SymbolController.genSymbol $"arg_{n}"
-
-                    { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.local l) })
-                env
-                args
+        let env' = addArgsToEnv env args
 
         let capturedIndexed = (List.indexed captured)
 
@@ -1141,15 +1145,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let argNamesTypes = List.zip argNames targs
 
         // add each arg to var storage (all local vars)
-        let env' =
-            List.fold
-                (fun env (n, _) ->
-                    let l = env.SymbolController.genSymbol $"arg_{n}"
-
-                    { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.local l) })
-                env
-                args
+        let env' = addArgsToEnv env args
 
         /// Compiled function body
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env' funcPointer
@@ -1341,15 +1337,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let env' = { env with VarStorage = funcref }
 
         // add each arg to var storage (all local vars)
-        let env'' =
-            List.fold
-                (fun env (n, _) ->
-                    let l = env.SymbolController.genSymbol $"arg_{n}"
-
-                    { env with
-                        VarStorage = env.VarStorage.Add(n, Storage.local l) })
-                env'
-                args
+        let env'' = addArgsToEnv env' args
 
         /// Names of the lambda term arguments
         let argNames, _ = List.unzip args
