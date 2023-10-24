@@ -17,7 +17,11 @@ let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr>
         let shamt = int(log2 x)
 
         (I32Const shamt, c1) :: (I32Shl, c2) :: optimizeInstr rest
-    
+
+    // if a value is pushed on the stack and then dropped, we can remove both
+    | (I32Const x, c1) :: (Drop, c2) :: rest -> 
+        optimizeInstr rest
+        
     // no optimization case matched: continue with the rest
     | stmt :: rest ->
         // If we are here, we did not find any pattern to optimize: we skip the
