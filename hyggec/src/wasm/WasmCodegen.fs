@@ -593,23 +593,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 env'
                 capturedIndexed
 
-        // added captured vars to module hosting list
-        let funcPointer' =
-            List.fold
-                (fun (m: Module) (_, n) ->
-                    match env.VarStorage.TryFind n with
-                    | Some(Storage.local _) -> m
-                    | Some(Storage.Offset _) -> m
-                    | None -> failwith "failed to find captured var in var storage"
-                    | _ -> failwith "failed to find captured var in var storage")
-                funcPointer
-                capturedIndexed
-
         /// Compiled function body
         let bodyCode: Module =
-            compileFunction funLabel argNamesTypes body env'' funcPointer'
+            compileFunction funLabel argNamesTypes body env'' funcPointer
 
-        let closure = createClosure env' node index funcPointer' captured
+        let closure = createClosure env' node index funcPointer captured
 
         (funcPointer + bodyCode + closure) // .AddCode([ (GlobalGet (Named(funLabel)), "return table index")  ]) // .AddCode([ Call funLabel ]) // .AddCode([ (RefFunc(Named(funLabel)), "return ref to lambda") ])
     | Seq(nodes) ->
