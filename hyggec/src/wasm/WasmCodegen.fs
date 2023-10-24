@@ -177,6 +177,14 @@ let internal lookupLatestLocal (m: Module) =
 let internal argsToLocals env args =
     List.map (fun (n, t) -> (Some(lookupLabel env n), (mapType t)[0])) args
 
+let internal localsToID (locals: Local list) = 
+            (List.map
+                (fun (n, _) ->
+                    match n with
+                    | Some(n) -> n
+                    | None -> failwith "not implemented")
+                locals)
+
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
     | UnitVal -> m
@@ -1720,12 +1728,10 @@ let codegen (node: TypedAST) : Module =
     let heapBase = "heap_base"
     let exitCode = "exit_code"
 
-    let locals = m.GetLocals()
-
     let topLevelModule =
         m
             .AddMemory(("memory", Unbounded(numOfStaticPages))) // allocate memory need as unbounded memory
-            .AddLocals(env.CurrFunc, locals) // set locals of function
+            .AddLocals(env.CurrFunc, m.GetLocals()) // set locals of function
             .AddInstrs(env.CurrFunc, [ Comment "execution start here:" ])
             .AddInstrs(env.CurrFunc, m.GetAccCode()) // add code of main function
             .AddInstrs(env.CurrFunc, [ Comment "if execution reaches here, the program is successful" ])
@@ -1738,13 +1744,7 @@ let codegen (node: TypedAST) : Module =
             .ResetLocals() // reset locals
 
     // all top-level locals (in _start) are transformed to global vars
-    let l =
-        (List.map
-            (fun (n, _) ->
-                match n with
-                | Some(n) -> n
-                | None -> failwith "not implemented")
-            locals)
+    let l = localsToID (m.GetLocals())
 
     let h = (Set.toList (Set(m.GetHostingList())))
 
