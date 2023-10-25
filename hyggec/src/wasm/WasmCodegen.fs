@@ -648,7 +648,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       @ C [ Br beginl ]
                   ) ]
 
-        let block = C [ (Block(exitl, [], loop @ C [ Nop ])) ]
+        let block = C [ (Block(exitl, [], loop)) ]
 
         (cond'.ResetAccCode() + body'.ResetAccCode()).AddCode(block)
 
