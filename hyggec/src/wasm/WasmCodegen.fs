@@ -1132,6 +1132,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // AST node does
         doCodegen env node m
 
+    // special case for function definitions
     | Let(name,
           _,
           { Node.Expr = Lambda(args, body)
@@ -1163,7 +1164,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// Compiled function body
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
-
+        
         let closure = createClosure env' node index funcPointer captured
 
         /// Storage info where the name of the compiled function points to the
@@ -1174,9 +1175,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // 'scope' code leaves its result in the the 'let...' on the stack
         let scopeModule: Module = (doCodegen { env with VarStorage = varStorage2 } scope m)
 
-        // set the function pointer to the closure struct
-        funcPointer
-        + bodyCode
+        // Set the function pointer to the closure struct
+        bodyCode
         + closure.AddCode([ GlobalSet(Named(func_ptr)) ])
         + scopeModule
 
