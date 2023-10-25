@@ -1,0 +1,18 @@
+let countdown: (int) -> unit = fun(start: int) -> {
+    let x: int = 10;
+    let rec countdownRec: (int) -> unit = fun(curr: int) -> {
+        if (curr < 0) then {
+            println("Go!")
+        } 
+        else {
+            println("Countdown: ");
+            println(curr + x);
+            countdownRec(curr - 1)
+        }
+    };
+
+    countdownRec(start)
+};
+
+
+countdown(20)

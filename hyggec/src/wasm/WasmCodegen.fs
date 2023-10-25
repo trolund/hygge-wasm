@@ -204,6 +204,8 @@ let internal addArgsToEnv env args =
         env
         args
 
+let internal isTopLevel env =
+    env.CurrFunc = "_start"
 
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
@@ -1351,7 +1353,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             else
                 m
 
-        let funcPointer, _, ptr_label = createFunctionPointer funLabel env m
+        let funcPointer, index, ptr_label = createFunctionPointer funLabel env m
 
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
@@ -1366,12 +1368,21 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// List of pairs associating each function argument to its type
         let argNamesTypes = List.zip argNames targs
 
+        let captured = Set.toList (ASTUtil.capturedVars node)
+
+        let env'' = if isTopLevel env then env'' else addCapturedToEnv env'' captured
+
         /// Compiled function body
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
 
+        let closure = createClosure env'' node index funcPointer captured
+
         let scopeModule: Module = (doCodegen env' scope funcPointer)
 
-        funcPointer + scopeModule + bodyCode // + closure
+        // Set the function pointer to the closure struct
+        bodyCode
+        + if isTopLevel env then Module() else closure.AddCode([ GlobalSet(Named(ptr_label)) ])
+        + scopeModule
 
     | LetRec(name, tpe, init, scope, export) ->
         doCodegen

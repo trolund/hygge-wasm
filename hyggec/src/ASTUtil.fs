@@ -346,7 +346,7 @@ let rec capturedVars (node: Node<'E,'T>): Set<string> =
         // all captured variables in the scope --- minus the newly-bound var
         Set.union (capturedVars init) (Set.remove name (capturedVars scope))
     | LetRec(name, tpe, init, scope, _) -> 
-        Set.union (Set.remove name (capturedVars scope)) (Set.remove name (capturedVars scope))
+        Set.union (Set.remove name (capturedVars init)) (Set.remove name (capturedVars scope))
     | Assign(target, expr) ->
         // Union of the captured vars of the lhs and the rhs of the assignment
         Set.union (capturedVars target) (capturedVars expr)
