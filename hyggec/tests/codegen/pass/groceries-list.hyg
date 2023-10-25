@@ -1,0 +1,55 @@
+type Shopping = struct { apple: int;
+                         milk: int;
+                         pizza: int };
+
+type ShoppingList = struct {f1: (int) -> int; f2: (int) -> int; f3: (int) -> int; theList: Shopping};
+
+
+fun makeShoppingList(): ShoppingList = {
+    let list: Shopping = struct { apple = 0;
+                                  milk = 0;
+                                  pizza = 0 };
+
+    let app: (int) -> int = fun(x: int) -> {
+        list.apple <- list.apple + x
+    };
+
+    let mil: (int) -> int = fun(x: int) -> {
+        list.milk <- list.milk + x
+    };
+
+    let piz: (int) -> int = fun(x: int) -> {
+        list.pizza <- list.pizza + x
+    };
+
+    struct { f1 = app;
+             f2 = mil;
+             f3 = piz;
+             theList = list } : ShoppingList
+};
+
+let c1: ShoppingList = makeShoppingList();
+
+c1.f1(2); // add 2 apples
+c1.f2(3); // add 3 milk
+c1.f3(4); // add 4 pizza
+
+let l: Shopping = c1.theList;
+
+assert(l.apple = 2); // c1.f1 and c2.f2 should share the same counter
+assert(l.milk = 3);
+assert(l.pizza = 4);
+
+
+let c2: ShoppingList = makeShoppingList();
+
+c2.f1(5); // add 5 apples
+c2.f1(2); // add 2 apples
+c2.f2(6); // add 6 milk
+c2.f3(7); // add 7 pizza
+
+let l2: Shopping = c2.theList;
+
+assert(l2.apple = 7); // c1.f1 and c2.f2 should share the same counter
+assert(l2.milk = 6);
+assert(l2.pizza = 7)
