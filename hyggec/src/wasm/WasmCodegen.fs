@@ -11,6 +11,7 @@ open SI
 
 let errorExitCode = 42
 let successExitCode = 0
+let mainFunctionName = "_start"
 
 /// Storage information for variables.
 [<RequireQualifiedAccess; StructuralComparison; StructuralEquality>]
@@ -205,7 +206,7 @@ let internal addArgsToEnv env args =
         args
 
 let internal isTopLevel env =
-    env.CurrFunc = "_start"
+    env.CurrFunc = mainFunctionName
 
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
@@ -1375,13 +1376,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// Compiled function body
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
 
-        let closure = createClosure env'' node index funcPointer captured
+        let closure = if isTopLevel env then Module() else (createClosure env'' node index funcPointer captured).AddCode([ GlobalSet(Named(ptr_label)) ])
 
         let scopeModule: Module = (doCodegen env' scope funcPointer)
 
         // Set the function pointer to the closure struct
         bodyCode
-        + if isTopLevel env then Module() else closure.AddCode([ GlobalSet(Named(ptr_label)) ])
+        + closure
         + scopeModule
 
     | LetRec(name, tpe, init, scope, export) ->
@@ -1710,7 +1711,7 @@ let codegen (node: TypedAST) : Module =
     // _start function is the entry point of the program
     // _start name is a special name that is part of the WASI ABI.
     // https://github.com/WebAssembly/WASI/blob/main/legacy/application-abi.md
-    let funcName = "_start"
+    let funcName = mainFunctionName
 
     // signature of main function
     // the main function has no arguments and returns an 32 bit integer
