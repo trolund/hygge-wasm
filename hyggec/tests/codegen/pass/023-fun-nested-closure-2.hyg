@@ -1,0 +1,12 @@
+let f_outer: (float) -> (float, float) -> float = fun(z: float) -> {
+    let mutable a: float = 3.0f;
+    let f_inner: (float, float) -> float = fun(x: float, y: float) -> {
+        x + y + 2.0f + a + z
+    }; 
+
+    f_inner
+};
+
+let inner: (float, float) -> float = f_outer(2.0f);
+
+assert(inner(1.0f, 2.0f) = 10.0f)
