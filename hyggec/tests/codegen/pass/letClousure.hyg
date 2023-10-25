@@ -1,7 +1,7 @@
 type Counters = struct {f1: (int) -> int; f2: (int) -> int};
 
-fun makeCounters(): Counters = {
-    let mutable res: int = 0;
+fun makeCounters(init: int): Counters = {
+    let mutable res: int = init;
 
     let add: (int) -> int = fun(x: int) -> {
         res <- res + x
@@ -15,11 +15,11 @@ fun makeCounters(): Counters = {
              f2 = sub } : Counters
 };
 
-let c1: Counters = makeCounters();
-assert(c1.f1(2) = 2); // c1.f1 and c2.f2 should share the same counter
-assert(c1.f1(5) = 7);
-assert(c1.f2(1) = 6);
+let c1: Counters = makeCounters(0);
+assert(c1.f1(2) = 2); // add - c1.f1 and c2.f2 should share the same counter
+assert(c1.f1(5) = 7); // add
+assert(c1.f2(1) = 6); // sub
 
-let c2: Counters = makeCounters();
-assert(c2.f1(10) = 10); // c2.f1 and c2.f2 should share another counter
-assert(c2.f2(5) = 5)
+let c2: Counters = makeCounters(2);
+assert(c2.f1(10) = 12); // add - c2.f1 and c2.f2 should share another counter
+assert(c2.f2(5) = 7) // sub
