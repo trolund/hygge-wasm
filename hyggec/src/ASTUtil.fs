@@ -219,7 +219,7 @@ let rec freeVars (node: Node<'E,'T>): Set<string> =
     | LetRec(name, _, init, scope, _) ->
         // All the free variables in the 'let rec' initialisation, together with
         // all free variables in the scope --- minus the newly-bound variable
-        Set.union (freeVars init) (Set.remove name (freeVars scope))
+        Set.union (Set.remove name (freeVars init)) (Set.remove name (freeVars scope))
     | Assign(target, expr) ->
         // Union of the free names of the lhs and the rhs of the assignment
         Set.union (freeVars target) (freeVars expr)
@@ -345,6 +345,8 @@ let rec capturedVars (node: Node<'E,'T>): Set<string> =
         // All the captured variables in the 'let' initialisation, together with
         // all captured variables in the scope --- minus the newly-bound var
         Set.union (capturedVars init) (Set.remove name (capturedVars scope))
+    | LetRec(name, tpe, init, scope, _) -> 
+        Set.union (Set.remove name (capturedVars scope)) (Set.remove name (capturedVars scope))
     | Assign(target, expr) ->
         // Union of the captured vars of the lhs and the rhs of the assignment
         Set.union (capturedVars target) (capturedVars expr)
@@ -379,8 +381,6 @@ let rec capturedVars (node: Node<'E,'T>): Set<string> =
     | Max(lhs, rhs) -> 
         Set.union (capturedVars lhs) (capturedVars rhs)
     | Sqrt(arg) -> (capturedVars arg)
-    | LetRec(name, tpe, init, scope, _) -> 
-        Set.union (capturedVars init) (Set.remove name (capturedVars scope))
     | DoWhile(body, condition) -> 
         Set.union (capturedVars body) (capturedVars condition)
     | For(init, cond, update, body) ->
