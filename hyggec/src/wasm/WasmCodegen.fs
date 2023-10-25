@@ -1172,10 +1172,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // Finally, compile the 'let...'' scope with the newly-defined function
         // label in the variables storage, and append the 'funCode' above. The
         // 'scope' code leaves its result in the the 'let...' on the stack
-        let scopeModule: Module =
-            (doCodegen { env with VarStorage = varStorage2 } scope m)
+        let scopeModule: Module = (doCodegen { env with VarStorage = varStorage2 } scope m)
 
-        funcPointer + bodyCode + closure.AddCode([GlobalSet(Named(func_ptr))]) + scopeModule
+        // set the function pointer to the closure struct
+        funcPointer
+        + bodyCode
+        + closure.AddCode([ GlobalSet(Named(func_ptr)) ])
+        + scopeModule
 
     | Let(name, _, init, scope, export) ->
         let m' = doCodegen env init m
