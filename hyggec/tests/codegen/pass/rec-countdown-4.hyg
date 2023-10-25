@@ -1,0 +1,25 @@
+let h: (int) -> int = fun(y: int) -> {
+    let sumsum: (int) -> int = fun(start: int) -> {
+        let x: int = 10;
+
+        let rec sum: (int, int) -> int = fun(curr: int, acc: int) -> {
+            if (curr < 0) then {
+                print(acc);
+                acc + x
+            } 
+            else {
+                print(curr);
+                print(acc);
+                sum((curr - 1), (acc + curr))
+            }
+        };
+
+        sum(start, 0)
+    };
+
+    let res: int = sumsum(y);
+    assert(res = 25);
+    res
+};
+
+assert(h(5) = 25)

@@ -1,0 +1,12 @@
+let m: int = 200;
+
+let rec count: (int) -> int = fun(curr: int) -> {
+        if (curr < m) then {
+            count(curr + 1)
+        } 
+        else {
+            curr
+        }
+    };
+
+assert(count(10) = m)
