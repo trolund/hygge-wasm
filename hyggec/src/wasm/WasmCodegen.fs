@@ -598,7 +598,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let closure = createClosure env' node index funcPointer captured
 
-        (funcPointer + bodyCode + closure) // .AddCode([ (GlobalGet (Named(funLabel)), "return table index")  ]) // .AddCode([ Call funLabel ]) // .AddCode([ (RefFunc(Named(funLabel)), "return ref to lambda") ])
+        (funcPointer + bodyCode + closure)
     | Seq(nodes) ->
         // We collect the code of each sequence node by folding over all nodes
         let lastIndex = (List.length nodes) - 1
@@ -1148,26 +1148,34 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             else
                 m
 
-        let funcPointer, _, func_ptr = createFunctionPointer funLabel env m
+        let funcPointer, index, func_ptr = createFunctionPointer funLabel env m
 
         /// Names of the lambda term arguments
         let argNames, _ = List.unzip args
         /// List of pairs associating each function argument to its type
-        let argNamesTypes = List.zip argNames targs
+        let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
 
-        // add each arg to var storage (all local vars)
         let env' = addArgsToEnv env args
 
+        let captured = Set.toList (ASTUtil.capturedVars node)
+
+        let env'' = addCapturedToEnv env' captured
+
         /// Compiled function body
-        let bodyCode: Module = compileFunction funLabel argNamesTypes body env' funcPointer
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
+
+        let closure = createClosure env' node index funcPointer captured
 
         /// Storage info where the name of the compiled function points to the
         let varStorage2 = env.VarStorage.Add(name, Storage.glob func_ptr)
 
+        // Finally, compile the 'let...'' scope with the newly-defined function
+        // label in the variables storage, and append the 'funCode' above. The
+        // 'scope' code leaves its result in the the 'let...' on the stack
         let scopeModule: Module =
-            (doCodegen { env with VarStorage = varStorage2 } scope funcPointer)
+            (doCodegen { env with VarStorage = varStorage2 } scope m)
 
-        funcPointer + scopeModule + bodyCode
+        funcPointer + bodyCode + closure.AddCode([GlobalSet(Named(func_ptr))]) + scopeModule
 
     | Let(name, _, init, scope, export) ->
         let m' = doCodegen env init m

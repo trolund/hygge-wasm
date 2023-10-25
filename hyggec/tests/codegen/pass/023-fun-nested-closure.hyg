@@ -1,0 +1,12 @@
+let f_outer: (int) -> (int, int) -> int = fun(z: int) -> {
+    let mutable a: int = 3;
+    let f_inner: (int, int) -> int = fun(x: int, y: int) -> {
+        x + y + 2 + a + z
+    }; 
+
+    f_inner
+};
+
+let inner: (int, int) -> int = f_outer(2);
+
+assert(inner(1, 2) = 10)

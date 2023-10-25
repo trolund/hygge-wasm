@@ -216,6 +216,10 @@ let rec freeVars (node: Node<'E,'T>): Set<string> =
         // All the free variables in the 'let' initialisation, together with all
         // free variables in the scope --- minus the newly-bound variable
         Set.union (freeVars init) (Set.remove name (freeVars scope))
+    | LetRec(name, _, init, scope, _) ->
+        // All the free variables in the 'let rec' initialisation, together with
+        // all free variables in the scope --- minus the newly-bound variable
+        Set.union (freeVars init) (Set.remove name (freeVars scope))
     | Assign(target, expr) ->
         // Union of the free names of the lhs and the rhs of the assignment
         Set.union (freeVars target) (freeVars expr)
@@ -283,6 +287,18 @@ let rec freeVars (node: Node<'E,'T>): Set<string> =
         Set.union (freeVars arr) (Set.union (freeVars start) (freeVars ending))
     | StringLength(arg) ->
         freeVars arg
+    | DoWhile(body, condition) ->
+        Set.union (freeVars body) (freeVars condition)
+    | PostIncr(arg) ->
+        freeVars arg
+    | PreIncr(arg) ->   
+        freeVars arg
+    | PostDcr(arg) ->
+        freeVars arg
+    | PreDcr(arg) ->
+        freeVars arg
+
+    
     | x -> failwith (sprintf "BUG: unhandled node in ANF conversion: %A" node)
 
 /// Compute the union of the free variables in a list of AST nodes.
