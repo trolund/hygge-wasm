@@ -604,6 +604,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         (funcPointer + bodyCode + closure)
     | Seq(nodes) ->
         // We collect the code of each sequence node by folding over all nodes
+        // and accumulating the code of each node in the accumulator module.
+        // if a node in the  sequence is evaluated to a value (not unit) we drop it from the stack 
+        // unless it is the last node in the sequence. Meaning that it is the return value of the sequence.
         let lastIndex = (List.length nodes) - 1
 
         List.fold
