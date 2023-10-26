@@ -599,7 +599,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// Compiled function body
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
 
-        let closure = createClosure env' node index funcPointer captured
+        let closure = createClosure env node index funcPointer captured
 
         (funcPointer + bodyCode + closure)
     | Seq(nodes) ->

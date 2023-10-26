@@ -1,0 +1,43 @@
+let input: int = 10;
+
+fun f(x: int): int = {
+    assert(x = input);
+
+    fun g(x: int): (int) -> (int) -> (int) -> int = {
+
+        assert(x = 10);
+
+        let x: int = 3;
+
+        assert(x = 3);
+
+        fun (x: int) -> { // f0
+            assert(x = 12);
+
+            let x: int = 4;
+
+            assert(x = 4);
+
+            fun (x: int) -> { // f1
+                assert(x = 13);
+
+                let x: int = 5;
+
+                assert(x = 5);
+
+                fun (x: int) -> { // f2
+                    assert(x = 200);
+                    x
+                }
+            }
+        }
+    };
+
+    let f0: (int) -> (int) -> (int) -> int = g(10);
+    let f1: (int) -> (int) -> int = f0(12);
+    let f2: (int) -> int = f1(13);
+    f2(200)
+};
+
+let c7: int = f(input);
+assert(c7 = 200)
