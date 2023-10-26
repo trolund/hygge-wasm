@@ -647,6 +647,20 @@ module Module =
                 this.hostinglist
             )
 
+        member this.IsFunction(name: string) = this.functions.ContainsKey(name)
+
+        member this.LookupFuncInFuncTable(name: string) =
+            let (f, s) = this.functions.[name]
+
+            let elems = this.elements |> Set.filter (fun (_, l) -> l = name)
+
+            if elems.Count = 0 then
+                None
+            else
+                let (index, _) = elems |> Set.toList |> List.head
+
+                Some(index, f, s)
+
         /// add func ref element and grow func table. GetFuncTableSize will be increased by 1
         /// <summary>add func ref element and grow func table</summary>
         /// <param name="label">label of function</param>

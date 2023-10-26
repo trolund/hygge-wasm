@@ -114,7 +114,7 @@ let trap =
 
 type internal CodegenEnv =
     { CurrFunc: string
-      // CurrFuncArgs: list<string>
+      ClosureFuncs: Set<string>
       MemoryAllocator: StaticMemoryAllocator
       TableController: TableController
       SymbolController: SymbolController
@@ -205,8 +205,7 @@ let internal addArgsToEnv env args =
         env
         args
 
-let internal isTopLevel env =
-    env.CurrFunc = mainFunctionName
+let internal isTopLevel env = env.CurrFunc = mainFunctionName
 
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
@@ -559,25 +558,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// generate code for the expression for the function to be applied
         let exprm: Module = (doCodegen env expr m)
 
-        let appTermCode =
-            Module()
-                .AddCode([ Comment "Load expression to be applied as a function" ])
-                .AddCode(
-                    exprm.GetAccCode() // load closure environment pointer as first argument
-                    @ [ (I32Load_(None, Some(4)), "load closure environment pointer") ]
-                    @ argm.GetAccCode() // load the rest of the arguments
-                    @ exprm.GetAccCode() // load function pointer
-                    @ [ (I32Load, "load table index") ]
-                )
-
         // type to function signature
-        let s = typeToFuncSiganture (expandType expr.Env expr.Type)
-        let name = GenFuncTypeName s
+        let typeId = GenFuncTypeName(typeToFuncSiganture (expandType expr.Env expr.Type))
 
-        let instrs = [ (CallIndirect(Named(name)), "call function") ]
-
-        C [ Comment "start of application" ] ++ argm.ResetAccCode()
-        + appTermCode.AddCode(instrs @ C [ Comment "end of application" ])
+        argm
+            .ResetAccCode()
+            .AddCode([ Comment "Load expression to be applied as a function" ])
+            .AddCode(
+                exprm.GetAccCode() // load closure environment pointer as first argument
+                @ [ (I32Load_(None, Some(4)), "load closure environment pointer") ]
+                @ argm.GetAccCode() // load the rest of the arguments
+                @ exprm.GetAccCode() // load function pointer
+                @ [ (I32Load, "load table index")
+                    (CallIndirect(Named(typeId)), "call function") ]
+            )
 
     | Lambda(args, body) ->
         // Label to mark the position of the lambda term body
@@ -597,7 +591,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let env'' = addCapturedToEnv env' captured
 
         /// Compiled function body
-        let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
+        let bodyCode: Module =
+            compileFunction
+                funLabel
+                argNamesTypes
+                body
+                { env'' with
+                    ClosureFuncs = env.ClosureFuncs.Add(funLabel) }
+                funcPointer
 
         let closure = createClosure env node index funcPointer captured
 
@@ -605,7 +606,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | Seq(nodes) ->
         // We collect the code of each sequence node by folding over all nodes
         // and accumulating the code of each node in the accumulator module.
-        // if a node in the  sequence is evaluated to a value (not unit) we drop it from the stack 
+        // if a node in the  sequence is evaluated to a value (not unit) we drop it from the stack
         // unless it is the last node in the sequence. Meaning that it is the return value of the sequence.
         let lastIndex = (List.length nodes) - 1
 
@@ -1171,19 +1172,32 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let captured = Set.toList (ASTUtil.capturedVars node)
 
-        let env'' = if isTopLevel env then env' else addCapturedToEnv env' captured
+        let env'' =
+            if isTopLevel env then
+                env'
+            else
+                addCapturedToEnv env' captured
 
         /// Compiled function body
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
 
-        let closure = if isTopLevel env then Module() else (createClosure env node index funcPointer captured).AddCode([ GlobalSet(Named(ptr_label)) ])
+        let closure =
+            if isTopLevel env then
+                Module()
+            else
+                (createClosure env node index funcPointer captured)
+                    .AddCode([ GlobalSet(Named(ptr_label)) ])
 
-        let scopeModule: Module = (doCodegen { env with VarStorage = funcref } scope funcPointer)
+        let scopeModule: Module =
+            (doCodegen
+                { env with
+                    VarStorage = funcref
+                    ClosureFuncs = env.ClosureFuncs.Add(funLabel) }
+                scope
+                funcPointer)
 
         // Set the function pointer to the closure struct
-        bodyCode
-        + closure
-        + scopeModule
+        bodyCode + closure + scopeModule
 
     | Let(name, _, init, scope, export) ->
         let m' = doCodegen env init m
@@ -1373,19 +1387,38 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let captured = Set.toList (ASTUtil.capturedVars node)
 
-        let env'' = if isTopLevel env then env'' else addCapturedToEnv env'' captured
+        let env'' =
+            if isTopLevel env then
+                env''
+            else
+                addCapturedToEnv env'' captured
 
         /// Compiled function body
-        let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
+        let bodyCode: Module =
+            compileFunction
+                funLabel
+                argNamesTypes
+                body
+                { env'' with
+                    ClosureFuncs = env.ClosureFuncs.Add(funLabel) }
+                funcPointer
 
-        let closure = if isTopLevel env then Module() else (createClosure env' node index funcPointer captured).AddCode([ GlobalSet(Named(ptr_label)) ])
+        let closure =
+            if isTopLevel env then
+                Module()
+            else
+                (createClosure env' node index funcPointer captured)
+                    .AddCode([ GlobalSet(Named(ptr_label)) ])
 
-        let scopeModule: Module = (doCodegen env' scope funcPointer)
+        let scopeModule: Module =
+            (doCodegen
+                { env' with
+                    ClosureFuncs = env.ClosureFuncs.Add(funLabel) }
+                scope
+                funcPointer)
 
         // Set the function pointer to the closure struct
-        bodyCode
-        + closure
-        + scopeModule
+        bodyCode + closure + scopeModule
 
     | LetRec(name, tpe, init, scope, export) ->
         doCodegen
@@ -1732,7 +1765,8 @@ let codegen (node: TypedAST) : Module =
           MemoryAllocator = StaticMemoryAllocator()
           TableController = TableController()
           SymbolController = SymbolController()
-          VarStorage = Map.empty }
+          VarStorage = Map.empty
+          ClosureFuncs = Set.empty }
 
     // add function to module and export it
     let m' =
