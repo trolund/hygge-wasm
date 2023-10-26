@@ -40,6 +40,7 @@ Common instruction patterns in WebAssembly that can be replaced with more effici
    ```
 
 4. **Conditional Negation:**
+TODO: not implemented
    - Replace `if (condition) x = -x` with `x = x ^ (condition - 1)`, where `^` is the bitwise XOR.
 
    ```wasm
