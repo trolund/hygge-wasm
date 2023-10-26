@@ -1160,10 +1160,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
         let funcref = env.VarStorage.Add(name, Storage.glob ptr_label)
-        let env' = env
 
         // add each arg to var storage (all local vars)
-        let env'' = addArgsToEnv env' args
+        let env' = addArgsToEnv env args
 
         /// Names of the lambda term arguments
         let argNames, _ = List.unzip args
@@ -1172,14 +1171,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let captured = Set.toList (ASTUtil.capturedVars node)
 
-        let env'' = if isTopLevel env then env'' else addCapturedToEnv env'' captured
+        let env'' = if isTopLevel env then env' else addCapturedToEnv env' captured
 
         /// Compiled function body
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
 
-        let closure = if isTopLevel env then Module() else (createClosure env' node index funcPointer captured).AddCode([ GlobalSet(Named(ptr_label)) ])
+        let closure = if isTopLevel env then Module() else (createClosure env node index funcPointer captured).AddCode([ GlobalSet(Named(ptr_label)) ])
 
-        let scopeModule: Module = (doCodegen { env' with VarStorage = funcref } scope funcPointer)
+        let scopeModule: Module = (doCodegen { env with VarStorage = funcref } scope funcPointer)
 
         // Set the function pointer to the closure struct
         bodyCode
