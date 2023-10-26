@@ -1,8 +1,9 @@
-let countdown: (int) -> unit = fun(start: int) -> {
-    let x: int = 10;
-    let rec countdownRec: (int) -> unit = fun(curr: int) -> {
+let countdown: (int) -> int = fun(start: int) -> {
+    let x: int = 100;
+    let rec countdownRec: (int) -> int = fun(curr: int) -> {
         if (curr < 0) then {
-            println("Go!")
+            println("Go!");
+            curr + x // -1 + x
         } 
         else {
             println("Countdown: ");
@@ -14,5 +15,4 @@ let countdown: (int) -> unit = fun(start: int) -> {
     countdownRec(start)
 };
 
-
-countdown(20)
+assert(countdown(10) = 99)

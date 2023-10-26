@@ -1,21 +1,64 @@
-fun h(y: int): unit = {
-    let countdown: (int) -> unit = fun(start: int) -> {
+fun h(y: int): int = {
+    let countdown: (int) -> int = fun(start: int) -> {
         let x: int = 10;
-        let rec countdownRec: (int) -> unit = fun(curr: int) -> {
+        let rec countdownRec: (int) -> int = fun(curr: int) -> {
             if (curr < 0) then {
-                println("Go!")
+                println("Go!");
+                curr
             } 
             else {
                 println("Countdown: ");
-                println(curr + x);
+                println(curr);
+                println(x);
                 countdownRec(curr - 1)
             }
         };
+        print("Start: ");
+        print(x);
 
-        countdownRec(start)
+        countdownRec(start) + x
     };
 
-    countdown(y)
+    let res: int = countdown(y);
+    print("Result: ");
+    println(res);
+    assert(res = 9);
+    println("Done!");
+    res
 };
 
-h(20)
+assert(h(20) = 9)
+
+// js 
+
+// function h(y) {
+//     function countdown(start) {
+//         let x = 10;
+
+//         function countdownRec(curr) {
+//             if (curr < 0) {
+//                 console.log("Go!");
+//                 return curr;
+//             } else {
+//                 console.log("Countdown: ");
+//                 console.log(curr);
+//                 console.log(x);
+//                 return countdownRec(curr - 1);
+//             }
+//         }
+
+//         console.log("Start: ");
+//         console.log(x);
+
+//         return countdownRec(start) + x;
+//     }
+
+//     let res = countdown(y);
+//     console.log("Result: ");
+//     console.log(res);
+//     console.log("Done!");
+//     return res;
+// }
+
+// // Test
+// console.log(h(20));

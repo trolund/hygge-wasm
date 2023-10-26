@@ -35,3 +35,44 @@ fun f6(x: int, y: int, z: int): int = {
 
 let c7: int = f6(1, 2, 3);
 assert(c7 = 612)
+
+
+// in js
+// function f6(x, y, z) {
+//     function g(m) {
+//         let a = 3;
+//         return function (x) {
+//             let b = 3;
+//             return function (y) {
+//                 let m = 200;
+
+//                 function count(curr) {
+//                 		console.log(m)
+//                     if (curr < m) {
+//                         return count(curr + 1);
+//                     } else {
+//                         return curr;
+//                     }
+//                 }
+
+//                 let c = count(10);
+//                 console.assert(c === m);
+                
+//                 console.log(c)
+
+//                 return function (z) {
+//                 	console.log(x, y, z, a, b, c, m, c)
+//                     return x + y + z + a + b + c + m + c;
+//                 };
+//             };
+//         };
+//     }
+
+//     let f0 = g(10);
+//     let f1 = f0(x);
+//     let f2 = f1(y);
+//     return f2(z);
+// }
+
+// const result = f6(1, 2, 3);
+// console.log(result);
