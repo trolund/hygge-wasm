@@ -497,7 +497,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             .AddCode([ (Call "readFloat", "call host function") ]) // call host function
     | PrintLn e
     | Print e ->
-        // TODO make print and println different
+        // TODO: make print and println different
         let m' = doCodegen env e m
 
         match (expandType e.Env e.Type) with
@@ -847,7 +847,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ startm.GetAccCode() // start on stack
             @ targetm.GetAccCode() // struct pointer on stack
             @ [ (I32Load_(None, Some(4)), "load length") ]
-            @ [ (I32GeU, "check if start is < length") // TODO check if this is correct
+            @ [ (I32GeU, "check if start is < length")
                 (If([], trap, None), "check that start is < length - if not return 42") ]
 
         // check that end is bigger then 0 - if not return 42
@@ -860,7 +860,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             endingm.GetAccCode() // end index on stack
             @ targetm.GetAccCode() // struct pointer on stack
             @ [ (I32Load_(None, Some(4)), "load length") ] // 4 is the offset to length field
-            @ [ (I32GtU, "check if end is < length") // TODO check if this is correct
+            @ [ (I32GtU, "check if end is < length")
                 (If([], trap, None), "check that end is < length - if not return 42") ]
 
         // difference between end and start should be at least 1
@@ -1096,7 +1096,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 @ indexCode.GetAccCode() // index on stack
                 @ selTargetCode.GetAccCode() // struct pointer on stack
                 @ [ (I32Load_(None, Some(4)), "load length") ]
-                @ [ (I32GeU, "check if index is < length") // TODO check if this is correct
+                @ [ (I32GeU, "check if index is < length")
                     (If([], trap, None), "check that index is < length - if not return 42") ]
 
             let storeInstr =
