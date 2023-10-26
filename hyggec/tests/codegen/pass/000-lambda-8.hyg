@@ -1,0 +1,37 @@
+fun f6(x: int, y: int, z: int): int = {
+    
+    fun g(m: int): (int) -> (int) -> (int) -> int = {
+        let a: int = 3;
+        fun (x: int) -> {
+            let b: int = 3;
+            fun (y: int) -> {
+
+                let m: int = 200;
+
+                let rec count: (int) -> int = fun(curr: int) -> {
+                        if (curr < m) then {
+                            count(curr + 1)
+                        } 
+                        else {
+                            curr
+                        }
+                    };
+
+                let c: int = count(10);
+                assert(c = m);
+                
+                fun (z: int) -> {
+                    x + y + z + a + b + c + m + c
+                }
+            }
+        }
+    };
+
+    let f0: (int) -> (int) -> (int) -> int = g(10);
+    let f1: (int) -> (int) -> int = f0(x);
+    let f2: (int) -> int = f1(y);
+    f2(z)
+};
+
+let c7: int = f6(1, 2, 3);
+assert(c7 = 612)

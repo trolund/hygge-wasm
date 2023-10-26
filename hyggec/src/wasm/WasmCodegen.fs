@@ -1379,7 +1379,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// Compiled function body
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
 
-        let closure = if isTopLevel env then Module() else (createClosure env'' node index funcPointer captured).AddCode([ GlobalSet(Named(ptr_label)) ])
+        let closure = if isTopLevel env then Module() else (createClosure env' node index funcPointer captured).AddCode([ GlobalSet(Named(ptr_label)) ])
 
         let scopeModule: Module = (doCodegen env' scope funcPointer)
 
