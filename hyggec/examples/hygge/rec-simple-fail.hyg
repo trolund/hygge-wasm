@@ -1,0 +1,10 @@
+// f can not be found inside the function since it is not a recursive function
+let f: (int, int) -> int = fun(x: int, y: int) -> {
+    if ((x + y) < 42) then {
+        f(x + 1, y + 1)
+    } 
+    else {
+        x + y
+    }
+};
+assert(f(0, 0) = 42)

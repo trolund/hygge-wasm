@@ -1155,35 +1155,35 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             else
                 m
 
-        let funcPointer, index, func_ptr = createFunctionPointer funLabel env m
+        let funcPointer, index, ptr_label = createFunctionPointer funLabel env m
+
+        /// Storage info where the name of the compiled function points to the
+        /// label 'funLabel'
+        let funcref = env.VarStorage.Add(name, Storage.glob ptr_label)
+        let env' = env
+
+        // add each arg to var storage (all local vars)
+        let env'' = addArgsToEnv env' args
 
         /// Names of the lambda term arguments
         let argNames, _ = List.unzip args
         /// List of pairs associating each function argument to its type
-        let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
-
-        let env' = addArgsToEnv env args
+        let argNamesTypes = List.zip argNames targs
 
         let captured = Set.toList (ASTUtil.capturedVars node)
 
-        let env'' = addCapturedToEnv env' captured
+        let env'' = if isTopLevel env then env'' else addCapturedToEnv env'' captured
 
         /// Compiled function body
         let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
-        
-        let closure = createClosure env' node index funcPointer captured
 
-        /// Storage info where the name of the compiled function points to the
-        let varStorage2 = env.VarStorage.Add(name, Storage.glob func_ptr)
+        let closure = if isTopLevel env then Module() else (createClosure env' node index funcPointer captured).AddCode([ GlobalSet(Named(ptr_label)) ])
 
-        // Finally, compile the 'let...'' scope with the newly-defined function
-        // label in the variables storage, and append the 'funCode' above. The
-        // 'scope' code leaves its result in the the 'let...' on the stack
-        let scopeModule: Module = (doCodegen { env with VarStorage = varStorage2 } scope m)
+        let scopeModule: Module = (doCodegen { env' with VarStorage = funcref } scope funcPointer)
 
         // Set the function pointer to the closure struct
         bodyCode
-        + closure.AddCode([ GlobalSet(Named(func_ptr)) ])
+        + closure
         + scopeModule
 
     | Let(name, _, init, scope, export) ->
