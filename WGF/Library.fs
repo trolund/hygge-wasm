@@ -931,7 +931,7 @@ module Module =
                     let f' = (instance, snd f)
                     let typedef = instance.signature
 
-                    let typeS = Utils.GenFuncTypeName typedef
+                    let typeS = Utils.GenFuncTypeID typedef
 
                     let typedef = (typeS, typedef)
 

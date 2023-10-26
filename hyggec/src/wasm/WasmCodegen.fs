@@ -559,7 +559,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let exprm: Module = (doCodegen env expr m)
 
         // type to function signature
-        let typeId = GenFuncTypeName(typeToFuncSiganture (expandType expr.Env expr.Type))
+        let typeId = GenFuncTypeID(typeToFuncSiganture (expandType expr.Env expr.Type))
 
         argm
             .ResetAccCode()
@@ -627,10 +627,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     | TUnit -> m + doCodegen env node (m.ResetAccCode())
                     | _ ->
                         // drop value if it is not needed
-                        let cm = doCodegen env node (m.ResetAccCode())
-                        (m + (cm.AddCode([ Drop ]))
-
-                        ))
+                        m + ((doCodegen env node (m.ResetAccCode())).AddCode([ Drop ])))
             m
             (List.indexed nodes)
 

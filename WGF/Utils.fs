@@ -4,7 +4,7 @@ open WGF.Types
 open System.Text
 
 /// generate function type string
-let GenFuncTypeName (t) =
+let GenFuncTypeID (t) =
     // generate function type name
     let locals = fst t
     let ret = snd t
