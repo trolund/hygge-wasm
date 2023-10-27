@@ -49,7 +49,6 @@
     <Compile Include="src/wasm/SI.fs" />
     <Compile Include="src/wasm/WasmCodegen.fs" />
     <Compile Include="src/wasm/WasmPeephole.fs" />
-    <Compile Include="src/CSVWriter.fs" />
     <!-- Command line parsing -->
     <PackageReference Include="CommandLineParser.FSharp" Version="2.9.1" />
     <Compile Include="src/CmdLine.fs" />
@@ -59,6 +58,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.5.0" />
     <PackageReference Include="YoloDev.Expecto.TestSdk" Version="0.13.3" />
     <Compile Include="src/Test.fs" />
+    <Compile Include="src/CSVWriter.fs" />
     <!-- Main entry point -->
     <Compile Include="src/Program.fs" />
   </ItemGroup>

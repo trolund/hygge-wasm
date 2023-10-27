@@ -162,10 +162,16 @@ type TestOptions = {
     [<Option('v', "verbose", HelpText="Enable verbose output (including the test names, usable with the '--filter' option).")>]
     Verbose: bool
 
-    [<Option('O', "output", HelpText="Output all .wat and .wasm files in test suite - Only works with Wasm")>]
+    [<Option('o', "output", HelpText="Output all .wat and .wasm files in test suite - Only works with Wasm")>]
     Out: bool
 }
 
+/// Command line options for stats.
+[<Verb("stats", HelpText="compile test suite and produce csv file with results")>]
+type StatsOptions = {
+    [<Option('f', "file", HelpText="file name")>]
+    Out: string
+}
 
 /// Possible result of command line parsing.
 [<RequireQualifiedAccess>]
@@ -179,6 +185,7 @@ type ParseResult =
     | WasmLaunch of WasmTimeLaunchOptions
     | Interpret of InterpreterOptions
     | Test of TestOptions
+    | Stats of StatsOptions
 
 
 /// Parse the command line.  If successful, return the parsed options; otherwise,
@@ -191,7 +198,8 @@ let parse (args: string[]): ParseResult =
                                                         InterpreterOptions,
                                                         RARSLaunchOptions,
                                                         WasmTimeLaunchOptions,
-                                                        TestOptions>(args);
+                                                        TestOptions,
+                                                        StatsOptions>(args);
 
     match res with
     | :? NotParsed<obj> ->
@@ -206,5 +214,6 @@ let parse (args: string[]): ParseResult =
         | :? RARSLaunchOptions as opt -> ParseResult.RARSLaunch(opt)
         | :? WasmTimeLaunchOptions as opt -> ParseResult.WasmLaunch(opt)
         | :? TestOptions as opt -> ParseResult.Test(opt)
+        | :? StatsOptions as opt -> ParseResult.Stats(opt)
         | x -> failwith $"BUG: unexpected command line parsed value: %O{x}"
     | x -> failwith $"BUG: unexpected command line parsing result: %O{x}"

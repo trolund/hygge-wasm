@@ -9,7 +9,6 @@ module Main
 open System
 open WasmTimeDriver
 open hyggec
-open System.Threading
 
 /// Tokenize the given file with the given options, and print the result on the
 /// terminal. Return 0 in case of success, non-zero otherwise.
@@ -293,4 +292,5 @@ let main (args: string[]): int =
     | CmdLine.ParseResult.RARSLaunch(opts) -> launchRARS opts
     | CmdLine.ParseResult.WasmLaunch(opts) -> launchWasmTime opts
     | CmdLine.ParseResult.Test(opts) -> Test.run opts
+    | CmdLine.ParseResult.Stats(opts) -> CSVWriter.createStats opts
 
