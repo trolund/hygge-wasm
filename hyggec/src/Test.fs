@@ -32,9 +32,22 @@ let internal runRARS tast expected =
     Expect.equal exit expected ($"RARS should have exited with code %d{expected} (%s{explainExpected}), "
                                         + $"got %d{exit} (%s{explainExit})")
 
-let internal runWasmTime tast expected name = 
+let internal runWasmTime tast expected (name: string) peep = 
     // let anf = ANF.transform tast
-    let asm = (hyggec.WASMCodegen.codegen tast).ToString()
+    let asm = if peep then 
+                        let code = (hyggec.WASMCodegen.codegen tast)
+                        let opCode = WasmPeephole.optimize code
+
+                        let nonOpCount = WasmPeephole.CountInstr code
+                        let opCount = WasmPeephole.CountInstr opCode
+
+                        let fileName = Path.GetFileNameWithoutExtension(name)
+
+                        CSVWriter.writeCSV [[$"{fileName}"; nonOpCount.ToString(); opCount.ToString()]]
+
+                        (opCode).ToString() 
+                    else 
+                        (hyggec.WASMCodegen.codegen tast).ToString()
     let explainExpected = RARS.explainExitCode expected
     
     // TODO: get args from cli input
@@ -217,13 +230,25 @@ let tests = testList "tests" [
         testList "pass" (
             getFilesInTestDir ["codegen"; "pass"] |> List.map ( fun file ->
                 testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
-                    testWasmCodegen file 0 
+                    testWasmCodegen file 0 false
+            )
+        )
+        testList "pass-peep" (
+            getFilesInTestDir ["codegen"; "pass"] |> List.map ( fun file ->
+                testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
+                    testWasmCodegen file 0 true
             )
         )
         testList "fail" (
             getFilesInTestDir ["codegen"; "fail"] |> List.map ( fun file ->
                 testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
-                    testWasmCodegen file RISCVCodegen.assertExitCode
+                    testWasmCodegen file RISCVCodegen.assertExitCode false
+            )
+        )
+        testList "fail-peep" (
+            getFilesInTestDir ["codegen"; "fail"] |> List.map ( fun file ->
+                testCase (System.IO.Path.GetFileNameWithoutExtension file) <| fun _ ->
+                    testWasmCodegen file RISCVCodegen.assertExitCode true
             )
         )
     ]

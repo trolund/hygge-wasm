@@ -29,28 +29,28 @@ let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr>
 
         (I32Const shamt, c1) :: (I32ShrS, c2) :: optimizeInstr rest
 
-    // Bitwise AND for Modulo by Power of 2:
-    // replace `i32.const x` followed by `i32.and` with `i32.and (x-1)`. This is more efficient for modulo by powers of 2
-    | (I32Const x, c1) :: (I32And, c2) :: rest when isPowerOfTwo x -> 
+    // // Bitwise AND for Modulo by Power of 2:
+    // // replace `i32.const x` followed by `i32.and` with `i32.and (x-1)`. This is more efficient for modulo by powers of 2
+    // | (I32Const x, c1) :: (I32And, c2) :: rest when isPowerOfTwo x -> 
 
-        let x' = x - 1
+    //     let x' = x - 1
 
-        (I32Const x', c1) :: (I32And, c2) :: optimizeInstr rest
+    //     (I32Const x', c1) :: (I32And, c2) :: optimizeInstr rest
 
-    // replace `i32.const 0` followed by `i32.eqz` with `i32.eqz`. This is more efficient for modulo by powers of 2
-    | (I32Const 0, c1) :: (I32Eqz, c2) :: rest -> 
+    // // replace `i32.const 0` followed by `i32.eqz` with `i32.eqz`. 
+    // | (I32Const 0, c1) :: (I32Eqz, c2) :: rest -> 
 
-        (I32Eqz, c1 + c2) :: optimizeInstr rest
+    //     (I32Eqz, c1 + c2) :: optimizeInstr rest
 
     // Zero Initialization:
     // Replace `i32.const 0` followed by `i32.add` with the original value. This is an optimization when adding zero.
     | (I32Const 0, c1) :: (I32Add, c2) :: rest -> 
         optimizeInstr rest
 
-    // Squaring a Value:
-    // Replace `i32.mul` with `i32.mul` for squaring a value.
-    | (I32Mul, c1) :: (I32Mul, c2) :: rest -> 
-        (I32Mul, c1 + c2) :: optimizeInstr rest
+    // // Squaring a Value:
+    // // Replace `i32.mul` with `i32.mul` for squaring a value.
+    // | (I32Mul, c1) :: (I32Mul, c2) :: rest -> 
+    //     (I32Mul, c1 + c2) :: optimizeInstr rest
 
     // if a value is pushed on the stack and then dropped, we can remove both
     | (I32Const x, c1) :: (Drop, c2) :: rest -> 

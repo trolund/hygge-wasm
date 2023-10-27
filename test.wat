@@ -17,7 +17,7 @@
     global.get $fun_f*ptr ;; get global var: fun_f*ptr
     i32.load ;; load table index
     call_indirect (type $i32_=>_i32) ;; call function
-    i32.const 4 ;; push 4 on stack
+    i32.const 8 ;; push 8 on stack
     i32.eq
     i32.eqz ;; invert assertion
     (if 
@@ -38,13 +38,10 @@
 
     ;; start of struct contructor
     i32.const 2 ;; size of struct
-    i32.const 4 ;; 4 bytes
-    i32.mul ;; multiply length with 4 to get size
+    i32.const 2 ;; 4 bytes
+    i32.shl ;; multiply length with 4 to get size
     call $malloc ;; call malloc function
-    local.set $Sptr$1 ;; set struct pointer var
-    local.get $Sptr$1 ;; get struct pointer var
-    i32.const 0 ;; push field offset to stack
-    i32.add ;; add offset to base address
+    local.tee $Sptr$1 ;; set struct pointer varget struct pointer var
     ;; init field f
     i32.const 1 ;; push 1 on stack
     i32.store ;; store int field in memory
@@ -60,15 +57,34 @@
     i32.add ;; add offset
     ;; start of struct contructor
     i32.const 0 ;; size of struct
-    i32.const 4 ;; 4 bytes
-    i32.mul ;; multiply length with 4 to get size
+    i32.const 2 ;; 4 bytes
+    i32.shl ;; multiply length with 4 to get size
     call $malloc ;; call malloc function
-    local.set $Sptr ;; set struct pointer var
-    local.get $Sptr ;; push struct address to stack
+    local.tee $Sptr ;; set struct pointer varpush struct address to stack
     ;; end of struct contructor
     i32.store ;; store poninter in return struct
     local.get $Sptr$1 ;; get pointer to return struct
     global.set $fun_f$0*ptr
+    i32.const 4 ;; push 4 on stack
+    i32.const 8 ;; push 8 on stack
+    i32.add
+    drop
+    i32.const 6 ;; push 6 on stack
+    i32.const 1 ;; push 2 on stack
+    i32.shl
+    drop
+    i32.const 200 ;; push 200 on stack
+    i32.const 1 ;; push 2 on stack
+    i32.shr_s
+    drop
+    i32.const 2 ;; push 2 on stack
+    i32.const 2 ;; push 2 on stack
+    i32.sub
+    drop
+    i32.const 2 ;; push 2 on stack
+    i32.const 3 ;; push 8 on stack
+    i32.shl
+    drop
     ;; Load expression to be applied as a function
     global.get $fun_f$0*ptr ;; get global var: fun_f$0*ptr
     i32.load offset=4 ;; load closure environment pointer
@@ -80,6 +96,22 @@
     i32.const 2 ;; push 2 on stack
     i32.const 2 ;; push 2 on stack
     i32.add
+    drop
+    i32.const 4 ;; push 4 on stack
+    i32.const 4 ;; push 4 on stack
+    i32.add
+    drop
+    i32.const 3 ;; push 3 on stack
+    i32.const 5 ;; push 5 on stack
+    i32.sub
+    drop
+    i32.const 1 ;; push 1 on stack
+    i32.const 1 ;; push 1 on stack
+    i32.add
+    drop
+    i32.const 2 ;; push 2 on stack
+    i32.const 2 ;; push 4 on stack
+    i32.shl
   )
   (data (i32.const 0) "\00")
   (data (i32.const 4) "\01")
