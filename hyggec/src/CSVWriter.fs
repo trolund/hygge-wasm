@@ -11,7 +11,7 @@ let writeCSV (filename: string) (csvData: string list list) =
     // Create a StreamWriter to write to the file
     let writer = new StreamWriter(filePath)
 
-    csvData
+    (["name of file"; "instr count"; "instr count after op"; "diff"; "% reduction"] :: csvData)
     |> List.map (fun row -> String.concat "," row)
     |> String.concat "\n"
     |> writer.WriteLine
@@ -33,7 +33,10 @@ let internal collectData tast (file: string) =
     // procent as string with 2 decimals and . to seperate$
     let percent = percent.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)
 
-    [ $"{fileName}"; nonOpCount.ToString(); opCount.ToString(); percent.ToString() ]
+    // diffrence between the two
+    let diff = nonOpCount - opCount
+
+    [ $"{fileName}"; nonOpCount.ToString(); opCount.ToString(); diff.ToString(); percent.ToString() ]
 
 let internal compile (file: string) (expected: int) =
     match (Util.parseFile file) with

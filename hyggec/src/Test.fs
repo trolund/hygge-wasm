@@ -61,14 +61,12 @@ let internal WasmPrepareTest tast expected (name: string) peep =
     // let anf = ANF.transform tast
     let asm =
         if peep then
-            let code = (hyggec.WASMCodegen.codegen tast)
-            let opCode = WasmPeephole.optimize code
-
-            (opCode).ToString()
+            let code = (hyggec.WASMCodegen.codegen tast) |> WasmPeephole.optimize
+            code.ToString()
         else
             (hyggec.WASMCodegen.codegen tast).ToString()
 
-    (runWasmModule asm expected name)
+    runWasmModule asm expected name
 
 
 let internal testWasmCodegen (file: string) (expected: int) =
@@ -277,7 +275,9 @@ let tests =
                     (getFilesInTestDir [ "codegen"; "fail" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode true)) ] ]
+                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode true)) 
+                         
+                         ] ]
 
 
 /// Run the tests according to command line options

@@ -29,6 +29,36 @@ let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr>
 
         (I32Const shamt, c1) :: (I32ShrS, c2) :: optimizeInstr rest
 
+    // const x, const y, i32.add followed by drop can be replaced with nothing
+    | (I32Const x, c1) :: (I32Const y, c2) :: (I32Add, c3) :: (Drop, c4) :: rest -> 
+        optimizeInstr rest
+    | (I32Const x, c1) :: (I32Const y, c2) :: (I32Sub, c3) :: (Drop, c4) :: rest -> 
+        optimizeInstr rest
+    | (I32Const x, c1) :: (I32Const y, c2) :: (I32Mul, c3) :: (Drop, c4) :: rest ->
+        optimizeInstr rest
+    | (I32Const x, c1) :: (I32Const y, c2) :: (I32DivS, c3) :: (Drop, c4) :: rest ->
+        optimizeInstr rest
+    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32RemS, c3) :: (Drop, c4) :: rest ->
+    //     optimizeInstr rest
+    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32And, c3) :: (Drop, c4) :: rest ->
+    //     optimizeInstr rest
+    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Or, c3) :: (Drop, c4) :: rest ->
+    //     optimizeInstr rest
+    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Xor, c3) :: (Drop, c4) :: rest ->
+    //     optimizeInstr rest
+    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Shl, c3) :: (Drop, c4) :: rest ->
+    //     optimizeInstr rest
+    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32ShrS, c3) :: (Drop, c4) :: rest ->
+    //     optimizeInstr rest
+    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32ShrU, c3) :: (Drop, c4) :: rest ->
+    //     optimizeInstr rest
+    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Rotl, c3) :: (Drop, c4) :: rest ->
+    //     optimizeInstr rest
+    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Rotr, c3) :: (Drop, c4) :: rest ->
+    //     optimizeInstr rest
+    
+
+
     // // Bitwise AND for Modulo by Power of 2:
     // // replace `i32.const x` followed by `i32.and` with `i32.and (x-1)`. This is more efficient for modulo by powers of 2
     // | (I32Const x, c1) :: (I32And, c2) :: rest when isPowerOfTwo x -> 
