@@ -1,5 +1,5 @@
 let factorial: (int) -> int = fun(n: int) -> {
-
+    // Recursive tail calls 
     fun aux(n: int, acc: int): int = {
         if n = 0 then acc else aux(n - 1, n * acc)
     };

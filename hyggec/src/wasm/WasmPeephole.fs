@@ -38,8 +38,8 @@ let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr>
         optimizeInstr rest
     | (I32Const x, c1) :: (I32Const y, c2) :: (I32DivS, c3) :: (Drop, c4) :: rest ->
         optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32RemS, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
+    | (I32Const x, c1) :: (I32Const y, c2) :: (I32RemS, c3) :: (Drop, c4) :: rest ->
+        optimizeInstr rest
     // | (I32Const x, c1) :: (I32Const y, c2) :: (I32And, c3) :: (Drop, c4) :: rest ->
     //     optimizeInstr rest
     // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Or, c3) :: (Drop, c4) :: rest ->
