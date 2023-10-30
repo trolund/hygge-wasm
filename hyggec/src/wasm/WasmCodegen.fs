@@ -1561,35 +1561,23 @@ and internal compileFunction
     : Module =
 
     // map args to there types
-    let argTypes: Local list = argsToLocals env args
-    let argTypes': Local list = (Some("cenv"), I32) :: argTypes
+    let argTypes': Local list = (Some("cenv"), I32) :: (argsToLocals env args)
     let signature: FunctionSignature = (argTypes', mapType body.Type)
+
+    // compile function body
+    let m': Module = doCodegen { env with CurrFunc = name } body m
 
     // create function instance
     let f: Commented<FunctionInstance> =
-        ({ locals = List.empty // locals are added later
+        ({ locals = m'.GetLocals()
            signature = signature
-           body = List.empty // body is added later
+           body = m'.GetAccCode()
            name = Some(Identifier(name)) },
          $"function {name}")
 
-    // add function to module
-    let m': Module = m.AddFunction(name, f, true)
-
-    // compile function body
-    let m'': Module =
-        doCodegen
-            { env with
-                CurrFunc = name
-            // CurrFuncArgs = List.map (fun (n, _) -> n) args
-            }
-            body
-            m'
-
     // add code and locals to function
-    m''
-        .AddInstrs(name, m''.GetAccCode()) // add instructions to function
-        .AddLocals(name, m''.GetLocals()) // set locals of function
+    m'
+        .AddFunction(name, f, true) // add function to module
         .ResetAccCode() // reset accumulated code
         .ResetLocals() // reset locals
 
