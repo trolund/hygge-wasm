@@ -1,0 +1,59 @@
+// subtyping
+type fType = () -> int;
+type MakeCType = (int) -> fType;
+
+let z: int = 2;
+
+let makeCounter: MakeCType = fun(k: int) -> {
+    let y: int = k;
+    let mutable x: int = 2;
+
+    let f: () -> int = fun() -> {
+
+        let f: () -> int = fun() -> {
+            x <- x * y * z 
+        };
+
+       f();
+       x
+    };
+
+    f
+};
+
+let c1: fType = makeCounter(2);
+let c2: fType = makeCounter(4);
+let c3: fType = makeCounter(8);
+
+assert(c1() = 8);
+assert(c2() = 16);
+assert(c3() = 32)
+
+// js
+
+// let z = 2;
+
+// function makeCounter(k) {
+//   let y = k;
+
+//   let x = 2;
+
+//   function f() {
+//     function innerF() {
+//       x = x * y * z;
+//     }
+
+//     innerF();
+//     return x;
+//   }
+
+//   return f;
+// }
+
+// let c1 = makeCounter(2);
+// let c2 = makeCounter(4);
+// let c3 = makeCounter(8);
+
+// console.log(c1()); // 8
+// console.log(c2()); // 16
+// console.log(c3()); // 32

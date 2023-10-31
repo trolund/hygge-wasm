@@ -1,0 +1,73 @@
+type fType = () -> int;
+type MakeCType = (int) -> fType;
+
+let mutable z: int = 2;
+
+let g: MakeCType = fun(k: int) -> {
+    let y: int = k;
+    let mutable x: int = 2;
+
+    let f: () -> int = fun() -> {
+
+        let f0: () -> int = fun() -> {
+            z <- z + 1;
+            x <- x * y * z 
+        };
+
+        let f1: () -> int = fun() -> {
+            z <- z + 1;
+            x <- x * y * z 
+        };
+
+       f0();
+       f1();
+       x
+    };
+
+    f
+};
+
+let c1: fType = g(2);
+let c2: fType = g(4);
+let c3: fType = g(8);
+
+assert(c1() = 96);
+assert(c2() = 960);
+assert(c3() = 7168);
+assert(c3() = 41287680)
+
+// js
+
+// let z = 2;
+
+// function g(k) {
+//   let y = k;
+//   let x = 2;
+
+//   function f() {
+//     function f0() {
+//       z = z + 1;
+//       x = x * y * z;
+//     }
+
+//     function f1() {
+//       z = z + 1;
+//       x = x * y * z;
+//     }
+
+//     f0();
+//     f1();
+//     return x;
+//   }
+
+//   return f;
+// }
+
+// let c1 = g(2);
+// let c2 = g(4);
+// let c3 = g(8);
+
+// console.log(c1());
+// console.log(c2());
+// console.log(c3());
+// console.log(c3());

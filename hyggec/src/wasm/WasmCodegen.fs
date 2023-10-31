@@ -20,7 +20,7 @@ type internal Storage =
     | local of label: string
     /// global variable
     | glob of label: string
-    /// offset in bytes of element in structure
+    /// offset in as indecies of element in structure
     | Offset of offset: int
 
 /// A memory allocator that allocates memory in pages of 64KB.
