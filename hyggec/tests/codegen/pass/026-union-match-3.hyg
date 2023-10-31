@@ -8,8 +8,8 @@ fun f(x: int): int = x + 1;
 fun matcher(x: U): int =
     match x with {
         foo{x} -> {
-            let k: int = f(x);
-            f(k) + 100
+            let z: int = 100;
+            f(f(x)) + z
         };
         bar{z} -> f(stringLength(z))
     };

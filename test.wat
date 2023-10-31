@@ -190,7 +190,7 @@
     ;; local variables declarations:
     (local $match_var_x i32)
     (local $match_var_z i32)
-    (local $var_k i32)
+    (local $var_z i32)
 
     (block $match_end (result i32)
       ;; case for id: $1, label: foo
@@ -204,6 +204,11 @@
           i32.load offset=4 ;; load data pointer
           local.set $match_var_x ;; set local var
           ;; Start of let
+          i32.const 100 ;; push 100 on stack
+          local.set $var_z ;; set local var
+          ;; Load expression to be applied as a function
+          global.get $fun_f*ptr ;; get global var: fun_f*ptr
+          i32.load offset=4 ;; load closure environment pointer
           ;; Load expression to be applied as a function
           global.get $fun_f*ptr ;; get global var: fun_f*ptr
           i32.load offset=4 ;; load closure environment pointer
@@ -211,15 +216,10 @@
           global.get $fun_f*ptr ;; get global var: fun_f*ptr
           i32.load ;; load table index
           call_indirect (type $i32_i32_=>_i32) ;; call function
-          local.set $var_k ;; set local var
-          ;; Load expression to be applied as a function
-          global.get $fun_f*ptr ;; get global var: fun_f*ptr
-          i32.load offset=4 ;; load closure environment pointer
-          local.get $var_k ;; get local var: var_k
           global.get $fun_f*ptr ;; get global var: fun_f*ptr
           i32.load ;; load table index
           call_indirect (type $i32_i32_=>_i32) ;; call function
-          i32.const 100 ;; push 100 on stack
+          local.get $var_z ;; get local var: var_z
           i32.add
           ;; End of let
           br $match_end ;; break out of match
