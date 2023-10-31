@@ -1,0 +1,24 @@
+type U = union {
+    foo: int;
+    bar: string
+};
+
+fun f(x: int): int = x + 1;
+
+fun matcher(x: U): int =
+    match x with {
+        foo{x} -> {
+            let k: int = f(x);
+            f(k) + 100
+        };
+        bar{z} -> f(stringLength(z))
+    };
+
+let x: U = foo{42};
+let y: U = bar{"Hello"};
+
+assert(matcher(x) = 144);
+assert(matcher(y) = 6);
+
+assert(matcher(foo{100}) = 202);
+assert(matcher(bar{"Hi"}) = 3)
