@@ -13,6 +13,10 @@ name of file,instr count,instr count after op,diff,% reduction
 000-assign-sub,41,41,0,0.00
 000-lambda-10-shadow,242,223,19,7.85
 000-lambda-11,165,156,9,5.45
+000-lambda-12,165,156,9,5.45
+000-lambda-13,224,209,15,6.70
+000-lambda-14,274,257,17,6.20
+000-lambda-15,359,336,23,6.41
 000-lambda-2,159,150,9,5.66
 000-lambda-3,167,155,12,7.19
 000-lambda-4,169,157,12,7.10
@@ -38,6 +42,7 @@ name of file,instr count,instr count after op,diff,% reduction
 004-assert-if,10,10,0,0.00
 005-let,14,14,0,0.00
 006-let-shadow,24,24,0,0.00
+007-subtyping-array,56,54,2,3.57
 007-subtyping,15,15,0,0.00
 008-sub,18,18,0,0.00
 008-xor,14,14,0,0.00
@@ -107,6 +112,7 @@ calcualtor,373,343,30,8.04
 counter-plus,271,253,18,6.64
 counter,223,205,18,8.07
 currying,125,113,12,9.60
+exam,237,231,6,2.53
 func-export,22,22,0,0.00
 functions,191,187,4,2.09
 groceries-list,399,375,24,6.02
