@@ -795,7 +795,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ m''.GetAccCode() // index on stack
             @ m'.GetAccCode() // struct pointer on stack
             @ [ (I32Load_(None, Some(4)), "load length") ]
-            @ [ (I32GeU, "check if index is < length")
+            @ [ (I32GeS, "check if index is < length")
                 (If([], trap, None), "check that index is < length - if not return 42") ]
 
         // resolve load and store instruction based on type
@@ -845,7 +845,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ startm.GetAccCode() // start on stack
             @ targetm.GetAccCode() // struct pointer on stack
             @ [ (I32Load_(None, Some(4)), "load length") ]
-            @ [ (I32GeU, "check if start is < length")
+            @ [ (I32GeS, "check if start is < length")
                 (If([], trap, None), "check that start is < length - if not return 42") ]
 
         // check that end is bigger then 0 - if not return 42
@@ -858,7 +858,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             endingm.GetAccCode() // end index on stack
             @ targetm.GetAccCode() // struct pointer on stack
             @ [ (I32Load_(None, Some(4)), "load length") ] // 4 is the offset to length field
-            @ [ (I32GtU, "check if end is < length")
+            @ [ (I32GtS, "check if end is < length")
                 (If([], trap, None), "check that end is < length - if not return 42") ]
 
         // difference between end and start should be at least 1
@@ -867,7 +867,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ startm.GetAccCode() // start on stack
             @ [ (I32Sub, "subtract end from start") ]
             @ [ (I32Const 1, "put one on stack")
-                (I32LtU, "check if difference is < 1")
+                (I32LtS, "check if difference is < 1")
                 (If([], trap, None), "check that difference is <= 1 - if not return 42") ]
 
         // create struct with length and data
@@ -1094,7 +1094,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 @ indexCode.GetAccCode() // index on stack
                 @ selTargetCode.GetAccCode() // struct pointer on stack
                 @ [ (I32Load_(None, Some(4)), "load length") ]
-                @ [ (I32GeU, "check if index is < length")
+                @ [ (I32GeS, "check if index is < length")
                     (If([], trap, None), "check that index is < length - if not return 42") ]
 
             let storeInstr =
@@ -1442,9 +1442,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 .AddImport(getImport "malloc")
                 .AddLocals([ (Some(Identifier(structName)), I32) ])
                 .AddCode(
-                    [ (I32Const size, "size of struct")
-                      (I32Const 4, "4 bytes")
-                      (I32Mul, "multiply length with 4 to get size")
+                    [ (I32Const(size * 4), "size of struct")
                       (Call "malloc", "call malloc function")
                       (LocalSet(Named(structName)), "set struct pointer var") ]
                 )
@@ -1453,6 +1451,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let folder =
             fun (acc: Module) (fieldOffset: int, fieldName: string, fieldInit: TypedAST) ->
 
+                // calculate offset of field in bytes
                 let fieldOffsetBytes = fieldOffset * 4
 
                 // initialize field
