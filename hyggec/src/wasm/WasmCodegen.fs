@@ -598,7 +598,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 body
                 { env'' with
                     ClosureFuncs = env.ClosureFuncs.Add(funLabel) }
-                funcPointer
+                (Module())
 
         let closure = createClosure env node index funcPointer captured
 
@@ -1176,7 +1176,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 addCapturedToEnv env' captured
 
         /// Compiled function body
-        let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' funcPointer
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' (Module())
 
         let closure =
             if isTopLevel env then
@@ -1398,7 +1398,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 body
                 { env'' with
                     ClosureFuncs = env.ClosureFuncs.Add(funLabel) }
-                funcPointer
+                (Module())
 
         let closure =
             if isTopLevel env then
@@ -1428,7 +1428,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // A type alias does not produce any code --- but its scope does
         doCodegen env scope m
 
-    // struct constructor    
+    // struct constructor
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
