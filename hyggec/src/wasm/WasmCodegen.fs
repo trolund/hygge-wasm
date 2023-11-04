@@ -1427,6 +1427,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | AST.Type(_, _, scope) ->
         // A type alias does not produce any code --- but its scope does
         doCodegen env scope m
+
+    // struct constructor    
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
