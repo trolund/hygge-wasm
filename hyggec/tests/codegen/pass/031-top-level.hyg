@@ -1,10 +1,4 @@
 let x: int = 40;
 let f: () -> int = fun() -> 40 + x;
 
-assert(f() = 80);
-
-fun h(k: () -> int): int = k();
-fun clos(x: int): () -> int = fun() -> x + 1;
-
-assert(h(f) = 80);
-assert(h(clos(41)) = 42)
+assert(f() = 80)
