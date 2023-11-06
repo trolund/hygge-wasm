@@ -1,0 +1,6 @@
+let x: int = 40;
+
+fun h(k: () -> int): int = k();
+fun clos(y: int): () -> int = fun() -> x + y + 1;
+
+assert(h(clos(41)) = 82)
