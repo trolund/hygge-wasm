@@ -180,7 +180,7 @@ namespace WasmTimeDriver
                         Console.WriteLine("Error: Memory not found.");
                         return;
                     }
-                    var message = memory.ReadString(address, length / 2);
+                    var message = memory.ReadString(address, length);
                     Console.WriteLine(message);
                 })
             );

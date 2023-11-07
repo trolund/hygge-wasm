@@ -215,16 +215,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | FloatVal f -> m.AddCode([ F32Const f ])
     | StringVal s ->
         // allocate for struct like structure
-        let ptr = env.MemoryAllocator.Allocate(2 * 4)
+        let ptr = env.MemoryAllocator.Allocate(3 * 4)
 
         // compute size of string in bytes
-        let stringSizeInBytes = Encoding.BigEndianUnicode.GetByteCount(s)
+        let utf8Encoder = Encoding.UTF8
+        let utf8Bytes = utf8Encoder.GetBytes(s)
+        let stringSizeInBytes = utf8Bytes.Length
 
         // allocate string in memory
         let daraPtr = env.MemoryAllocator.Allocate(stringSizeInBytes)
 
         // store data pointer and length in struct like structure
-        let dataString = Util.dataString [ daraPtr; stringSizeInBytes ]
+        let dataString = Util.dataString [ daraPtr; stringSizeInBytes; s.Length ]
 
         m
             .AddData(I32Const(daraPtr), s) // store the string it self in memory
@@ -235,10 +237,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             m'.GetAccCode()
-            @ [ (I32Load_(None, Some(4)), "load string length")
-                // divide by 2 to get the number of characters
-                (I32Const 1, "push 1 on stack") // or i32.const 2
-                (I32ShrS, "divide by 2") ] // or i32.div_s
+            @ [ (I32Load_(None, Some(8)), "load string length") ] 
 
         m'.ResetAccCode().AddCode(instrs)
     | Var v ->
