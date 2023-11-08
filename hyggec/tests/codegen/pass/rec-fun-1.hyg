@@ -1,0 +1,19 @@
+let rec factorial: (int) -> int = fun(n: int) -> {
+        if (n = 0) then {
+            1
+        } 
+        else {
+            n * factorial(n - 1)
+        }
+    };
+
+assert(factorial(5) = 120)
+
+// def factorial(n):
+//     if n == 0:
+//         return 1
+//     else:
+//         return n * factorial(n - 1)
+
+// result = factorial(5)
+// print(result)  # Output: 120

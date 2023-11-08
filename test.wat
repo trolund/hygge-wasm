@@ -1,42 +1,21 @@
 (module
-  (import "env" "writeS" (;0;) (func $writeS (param i32) (param i32) ))
+  (type $i32_i32_=>_i32 (;0;) (func (param i32) (param i32) (result i32)))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) i32.const 0)
-  (global $heap_base (;1;) i32 i32.const 116)
-  (global $var_s (;2;) (mut i32) i32.const 0)
-  (global $var_s2 (;3;) (mut i32) i32.const 0)
-  (global $var_s3 (;4;) (mut i32) i32.const 0)
-  (global $var_s4 (;5;) (mut i32) i32.const 0)
-  (table $func_table (;0;) 0 funcref)
+  (global $fun_factorial*ptr (;1;) (mut i32) i32.const 0)
+  (global $heap_base (;2;) i32 i32.const 4)
+  (table $func_table (;0;) 1 funcref)
+  (elem (i32.const 0) (;0;) $fun_factorial)
   (func $_start (;0;)  (result i32) 
     ;; execution start here:
-    ;; Start of let
-    i32.const 0 ;; leave pointer to string on stack
-    global.set $var_s ;; set local var, have been hoisted
-    global.get $var_s ;; get local var: var_s, have been hoisted
-    i32.load ;; Load string pointer
-    global.get $var_s ;; get local var: var_s, have been hoisted
-    i32.load offset=4 ;; Load string length
-    call $writeS ;; call host function
-    ;; Start of let
-    i32.const 30 ;; leave pointer to string on stack
-    global.set $var_s2 ;; set local var, have been hoisted
-    global.get $var_s2 ;; get local var: var_s2, have been hoisted
-    i32.load ;; Load string pointer
-    global.get $var_s2 ;; get local var: var_s2, have been hoisted
-    i32.load offset=4 ;; Load string length
-    call $writeS ;; call host function
-    ;; Start of let
-    i32.const 58 ;; leave pointer to string on stack
-    global.set $var_s3 ;; set local var, have been hoisted
-    global.get $var_s3 ;; get local var: var_s3, have been hoisted
-    i32.load ;; Load string pointer
-    global.get $var_s3 ;; get local var: var_s3, have been hoisted
-    i32.load offset=4 ;; Load string length
-    call $writeS ;; call host function
-    global.get $var_s3 ;; get local var: var_s3, have been hoisted
-    i32.load offset=8 ;; load string length
-    i32.const 25 ;; push 25 on stack
+    ;; Load expression to be applied as a function
+    global.get $fun_factorial*ptr ;; get global var: fun_factorial*ptr
+    i32.load offset=4 ;; load closure environment pointer
+    i32.const 5 ;; push 5 on stack
+    global.get $fun_factorial*ptr ;; get global var: fun_factorial*ptr
+    i32.load ;; load table index
+    call_indirect (type $i32_i32_=>_i32) ;; call function
+    i32.const 120 ;; push 120 on stack
     i32.eq
     i32.eqz ;; invert assertion
     (if 
@@ -46,30 +25,34 @@
         unreachable ;; exit program
       )
     )
-    ;; Start of let
-    i32.const 101 ;; leave pointer to string on stack
-    global.set $var_s4 ;; set local var, have been hoisted
-    global.get $var_s4 ;; get local var: var_s4, have been hoisted
-    i32.load ;; Load string pointer
-    global.get $var_s4 ;; get local var: var_s4, have been hoisted
-    i32.load offset=4 ;; Load string length
-    call $writeS ;; call host function
-    ;; End of let
-    ;; End of let
-    ;; End of let
-    ;; End of let
     ;; if execution reaches here, the program is successful
     i32.const 0 ;; exit code 0
     return ;; return the exit code
   )
-  (data (i32.const 0) "\0c\00\00\00\12\00\00\00\12\00\00\00")
-  (data (i32.const 12) "hygge println test")
-  (data (i32.const 30) "\2a\00\00\00\10\00\00\00\10\00\00\00")
-  (data (i32.const 42) "hygge print test")
-  (data (i32.const 58) "\46\00\00\00\1f\00\00\00\19\00\00\00")
-  (data (i32.const 70) "𝄞𝄞𝄞 - hygge print test")
-  (data (i32.const 101) "\71\00\00\00\03\00\00\00\01\00\00\00")
-  (data (i32.const 113) "✅")
+  (func $fun_factorial (;1;) (param $cenv i32) (param $arg_n i32) (result i32) 
+    local.get $arg_n ;; get local var: arg_n
+    i32.const 0 ;; push 0 on stack
+    i32.eq
+    (if (result i32)
+      (then
+        i32.const 1 ;; push 1 on stack
+      )
+      (else
+        local.get $arg_n ;; get local var: arg_n
+        ;; Load expression to be applied as a function
+        global.get $fun_factorial*ptr ;; get global var: fun_factorial*ptr
+        i32.load offset=4 ;; load closure environment pointer
+        local.get $arg_n ;; get local var: arg_n
+        i32.const 1 ;; push 1 on stack
+        i32.sub
+        global.get $fun_factorial*ptr ;; get global var: fun_factorial*ptr
+        i32.load ;; load table index
+        call_indirect (type $i32_i32_=>_i32) ;; call function
+        i32.mul
+      )
+    )
+  )
+  (data (i32.const 0) "\00")
   (export "_start" (func $_start))
   (export "exit_code" (global $exit_code))
   (export "heap_base_ptr" (global $heap_base))
