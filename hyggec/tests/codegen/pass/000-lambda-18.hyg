@@ -1,0 +1,10 @@
+fun f(): () -> int = {
+    let mutable i: int = 0;
+    fun () -> {
+        i++
+    }
+};
+
+let f0: () -> int = f();
+assert(f0() = 0);
+assert(f0() = 1)

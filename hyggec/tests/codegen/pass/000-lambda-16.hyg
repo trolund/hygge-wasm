@@ -1,0 +1,11 @@
+fun f(): () -> int = {
+    let mutable s: string = "captured";
+    fun () -> {
+        assert(stringLength(s) = 8);
+        s <- "changed";
+        stringLength(s)
+    }
+};
+
+let f0: () -> int = f();
+assert(f0() = 7)

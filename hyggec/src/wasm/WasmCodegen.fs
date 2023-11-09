@@ -152,7 +152,8 @@ let mapType t =
     | TFun _ -> [ I32 ] // passing function as a index to function table
     | TVar _ -> [ I32 ]
 
-/// look up variable in var env
+// look up variable in var env
+// TODO: remove this function
 let internal lookupVar (env: CodegenEnv) (e: TypedAST) =
     match e.Expr with
     | Var v ->
@@ -161,6 +162,14 @@ let internal lookupVar (env: CodegenEnv) (e: TypedAST) =
         | Some(Storage.glob l) -> Named(l)
         | Some(Storage.Offset(o)) -> Index(o)
         | _ -> failwith "not implemented"
+    | FieldSelect(e, f) ->
+        match e.Expr with
+        | Var v ->
+            match env.VarStorage.TryFind v with
+            | Some(Storage.local l) -> Named(l)
+            | Some(Storage.glob l) -> Named(l)
+            | Some(Storage.Offset(o)) -> Index(o)
+            | _ -> failwith "not implemented"
     | _ -> failwith "not implemented"
 
 /// look up variable in var env
@@ -210,14 +219,12 @@ let internal isTopLevel env = env.CurrFunc = mainFunctionName
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
     | UnitVal -> m
-    | IntVal i -> 
-        m.AddCode([ (I32Const i, $"push %i{i} on stack") ])
-    | BoolVal b -> 
+    | IntVal i -> m.AddCode([ (I32Const i, $"push %i{i} on stack") ])
+    | BoolVal b ->
         let v = if b then 1 else 0
         let s = if v = 1 then "true" else "false"
         m.AddCode([ (I32Const(v), $"push %s{s} on stack") ])
-    | FloatVal f -> 
-        m.AddCode([ (F32Const f, $"push %f{f} on stack") ])
+    | FloatVal f -> m.AddCode([ (F32Const f, $"push %f{f} on stack") ])
     | StringVal s ->
         // allocate for struct like structure
         let ptr = env.MemoryAllocator.Allocate(3 * 4)
@@ -240,9 +247,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | StringLength e ->
         let m' = doCodegen env e m
 
-        let instrs =
-            m'.GetAccCode()
-            @ [ (I32Load_(None, Some(8)), "load string length") ] 
+        let instrs = m'.GetAccCode() @ [ (I32Load_(None, Some(8)), "load string length") ]
 
         m'.ResetAccCode().AddCode(instrs)
     | Var v ->
@@ -267,57 +272,117 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         m.AddCode(instrs)
     | PreIncr(e) ->
-        let m' = doCodegen env e m
-
-        let label = lookupVar env e
-
         let instrs =
             match (expandType e.Env e.Type) with
-            | t when (isSubtypeOf e.Env t TInt) -> m'.GetAccCode() @ C [ I32Const 1; I32Add; LocalTee(label) ]
-            | t when (isSubtypeOf e.Env t TFloat) -> m'.GetAccCode() @ C [ F32Const 1.0f; F32Add; LocalTee(label) ]
+            | t when (isSubtypeOf e.Env t TInt) ->
+                let assignode =
+                    { node with
+                        Expr =
+                            Assign(
+                                e,
+                                { node with
+                                    Expr = Add(e, { node with Expr = IntVal 1 }) }
+                            ) }
+
+                (doCodegen env assignode m)
+            | t when (isSubtypeOf e.Env t TFloat) ->
+                let assignode =
+                    { node with
+                        Expr =
+                            Assign(
+                                e,
+                                { node with
+                                    Expr = Add(e, { node with Expr = FloatVal 1.0f }) }
+                            ) }
+
+                (doCodegen env assignode m)
             | _ -> failwith "not implemented"
 
-        m'.ResetAccCode().AddCode(instrs)
+        instrs
     | PostIncr(e) ->
-        let m' = doCodegen env e m
-
-        let label = lookupVar env e
-
         let instrs =
             match (expandType e.Env e.Type) with
             | t when (isSubtypeOf e.Env t TInt) ->
-                m'.GetAccCode() @ C [ LocalGet(label); I32Const 1; I32Add; LocalSet(label) ]
+                let assignode =
+                    { node with
+                        Expr =
+                            Assign(
+                                e,
+                                { node with
+                                    Expr = Add(e, { node with Expr = IntVal 1 }) }
+                            ) }
+
+                (doCodegen env e m) + (doCodegen env assignode m)
             | t when (isSubtypeOf e.Env t TFloat) ->
-                m'.GetAccCode() @ C [ LocalGet(label); F32Const 1.0f; F32Add; LocalSet(label) ]
+                let assignode =
+                    { node with
+                        Expr =
+                            Assign(
+                                e,
+                                { node with
+                                    Expr = Add(e, { node with Expr = FloatVal 1.0f }) }
+                            ) }
+
+                (doCodegen env e m) + (doCodegen env assignode m)
             | _ -> failwith "not implemented"
 
-        m'.ResetAccCode().AddCode(instrs)
+        instrs.AddCode([ Drop ])
     | PreDcr(e) ->
-        let m' = doCodegen env e m
-
-        let label = lookupVar env e
-
-        let instrs =
-            match (expandType e.Env e.Type) with
-            | t when (isSubtypeOf e.Env t TInt) -> m'.GetAccCode() @ C [ I32Const 1; I32Sub; LocalTee(label) ]
-            | t when (isSubtypeOf e.Env t TFloat) -> m'.GetAccCode() @ C [ F32Const 1.0f; F32Sub; LocalTee(label) ]
-            | _ -> failwith "not implemented"
-
-        m'.ResetAccCode().AddCode(instrs)
-    | PostDcr(e) ->
-        let m' = doCodegen env e m
-
-        let label = lookupVar env e
-
         let instrs =
             match (expandType e.Env e.Type) with
             | t when (isSubtypeOf e.Env t TInt) ->
-                m'.GetAccCode() @ C [ LocalGet(label); I32Const 1; I32Sub; LocalSet(label) ]
+                let assignode =
+                    { node with
+                        Expr =
+                            Assign(
+                                e,
+                                { node with
+                                    Expr = Sub(e, { node with Expr = IntVal 1 }) }
+                            ) }
+
+                (doCodegen env assignode m)
             | t when (isSubtypeOf e.Env t TFloat) ->
-                m'.GetAccCode() @ C [ LocalGet(label); F32Const 1.0f; F32Sub; LocalSet(label) ]
+                let assignode =
+                    { node with
+                        Expr =
+                            Assign(
+                                e,
+                                { node with
+                                    Expr = Sub(e, { node with Expr = FloatVal 1.0f }) }
+                            ) }
+
+                (doCodegen env assignode m)
             | _ -> failwith "not implemented"
 
-        m'.ResetAccCode().AddCode(instrs)
+        instrs
+    | PostDcr(e) ->
+        let instrs =
+            match (expandType e.Env e.Type) with
+            | t when (isSubtypeOf e.Env t TInt) ->
+                let assignode =
+                    { node with
+                        Expr =
+                            Assign(
+                                e,
+                                { node with
+                                    Expr = Sub(e, { node with Expr = IntVal 1 }) }
+                            ) }
+
+                (doCodegen env e m) + (doCodegen env assignode m)
+            | t when (isSubtypeOf e.Env t TFloat) ->
+                let assignode =
+                    { node with
+                        Expr =
+                            Assign(
+                                e,
+                                { node with
+                                    Expr = Sub(e, { node with Expr = FloatVal 1.0f }) }
+                            ) }
+
+                (doCodegen env e m) + (doCodegen env assignode m)
+            | _ -> failwith "not implemented"
+
+        instrs.AddCode([ Drop ])
     | MinAsg(lhs, rhs)
     | DivAsg(lhs, rhs)
     | MulAsg(lhs, rhs)

@@ -177,6 +177,25 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
             else (lab, v, (subst cont var sub))
         let cases2 = List.map substCase cases
         {node with Expr = Match((subst expr var sub), cases2)}
+    | PostIncr(arg) ->
+        {node with Expr = PostIncr(subst arg var sub)}
+    | PreIncr(arg) ->
+        {node with Expr = PreIncr(subst arg var sub)}
+    | PostDcr(arg) ->
+        {node with Expr = PostDcr(subst arg var sub)}
+    | PreDcr(arg) ->
+        {node with Expr = PreDcr(subst arg var sub)}
+    | MulAsg(lhs, rhs) ->
+        {node with Expr = MulAsg((subst lhs var sub), (subst rhs var sub))}
+    | DivAsg(lhs, rhs) ->
+        {node with Expr = DivAsg((subst lhs var sub), (subst rhs var sub))}
+    | RemAsg(lhs, rhs) ->
+        {node with Expr = RemAsg((subst lhs var sub), (subst rhs var sub))}
+    | StringLength(arg) ->
+        {node with Expr = StringLength(subst arg var sub)}
+   // | x -> failwith (sprintf "BUG: unhandled node in subst: %A" node)
+
+    
 
 /// Compute the set of free variables in the given AST node.
 let rec freeVars (node: Node<'E,'T>): Set<string> =
@@ -297,9 +316,13 @@ let rec freeVars (node: Node<'E,'T>): Set<string> =
         freeVars arg
     | PreDcr(arg) ->
         freeVars arg
-
-    
-    | x -> failwith (sprintf "BUG: unhandled node in ANF conversion: %A" node)
+    | MulAsg(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | DivAsg(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+    | RemAsg(lhs, rhs) ->
+        Set.union (freeVars lhs) (freeVars rhs)
+  //  | x -> failwith (sprintf "BUG: unhandled node in freeVars: %A" node)
 
 /// Compute the union of the free variables in a list of AST nodes.
 and internal freeVarsInList (nodes: List<Node<'E,'T>>): Set<string> =
@@ -408,6 +431,7 @@ let rec capturedVars (node: Node<'E,'T>): Set<string> =
     | Greater(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
     | GreaterOrEq(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
     | StringLength(target) -> capturedVars target
+ //   | x -> failwith (sprintf "BUG: unhandled node in capturedVars: %A" node)
 
 /// Compute the union of the captured variables in a list of AST nodes.
 and internal capturedVarsInList (nodes: List<Node<'E,'T>>): Set<string> =
