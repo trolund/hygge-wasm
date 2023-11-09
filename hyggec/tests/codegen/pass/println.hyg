@@ -1,5 +1,6 @@
 let s: string = "hygge println test";
 println(s);
+assert(stringLength(s) = 18);
 
 let s2: string = "hygge print test";
 print(s2);

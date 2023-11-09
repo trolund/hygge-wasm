@@ -210,9 +210,14 @@ let internal isTopLevel env = env.CurrFunc = mainFunctionName
 let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Module =
     match node.Expr with
     | UnitVal -> m
-    | IntVal i -> m.AddCode([ (I32Const i, $"push %i{i} on stack") ])
-    | BoolVal b -> m.AddCode([ I32Const(if b then 1 else 0) ])
-    | FloatVal f -> m.AddCode([ F32Const f ])
+    | IntVal i -> 
+        m.AddCode([ (I32Const i, $"push %i{i} on stack") ])
+    | BoolVal b -> 
+        let v = if b then 1 else 0
+        let s = if v = 1 then "true" else "false"
+        m.AddCode([ (I32Const(v), $"push %s{s} on stack") ])
+    | FloatVal f -> 
+        m.AddCode([ (F32Const f, $"push %f{f} on stack") ])
     | StringVal s ->
         // allocate for struct like structure
         let ptr = env.MemoryAllocator.Allocate(3 * 4)

@@ -1,4 +1,8 @@
 let s: string = "hello world";
 let s0: string = "hello";
+let s1: string = "🏁";
+assert(stringLength(s1) = 2);
 assert(stringLength(s0) = 5);
 assert(stringLength(s) = 11)
+
+// compared with https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
