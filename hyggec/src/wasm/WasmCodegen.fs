@@ -328,61 +328,29 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         instrs.AddCode([ Drop ])
     | PreDcr(e) ->
-        let instrs =
+        let valNode =
             match (expandType e.Env e.Type) with
             | t when (isSubtypeOf e.Env t TInt) ->
-                let assignode =
-                    { node with
-                        Expr =
-                            Assign(
-                                e,
-                                { node with
-                                    Expr = Sub(e, { node with Expr = IntVal 1 }) }
-                            ) }
-
-                (doCodegen env assignode m)
+                { node with Expr = IntVal 1 }
             | t when (isSubtypeOf e.Env t TFloat) ->
-                let assignode =
-                    { node with
-                        Expr =
-                            Assign(
-                                e,
-                                { node with
-                                    Expr = Sub(e, { node with Expr = FloatVal 1.0f }) }
-                            ) }
-
-                (doCodegen env assignode m)
+                { node with Expr = FloatVal 1.0f }
             | _ -> failwith "not implemented"
 
-        instrs
+        let assignode = { node with Expr = Assign(e, { node with Expr = Sub(e, valNode) } ) }
+
+        (doCodegen env assignode m)
     | PostDcr(e) ->
-        let instrs =
+        let valNode =
             match (expandType e.Env e.Type) with
             | t when (isSubtypeOf e.Env t TInt) ->
-                let assignode =
-                    { node with
-                        Expr =
-                            Assign(
-                                e,
-                                { node with
-                                    Expr = Sub(e, { node with Expr = IntVal 1 }) }
-                            ) }
-
-                (doCodegen env e m) + (doCodegen env assignode m)
+                { node with Expr = IntVal 1 }
             | t when (isSubtypeOf e.Env t TFloat) ->
-                let assignode =
-                    { node with
-                        Expr =
-                            Assign(
-                                e,
-                                { node with
-                                    Expr = Sub(e, { node with Expr = FloatVal 1.0f }) }
-                            ) }
-
-                (doCodegen env e m) + (doCodegen env assignode m)
+                { node with Expr = FloatVal 1.0f }
             | _ -> failwith "not implemented"
 
-        instrs.AddCode([ Drop ])
+        let assignode = { node with Expr = Assign(e, { node with Expr = Sub(e, valNode) } ) }
+
+        ((doCodegen env e m) + (doCodegen env assignode m)).AddCode([ Drop ])
     | MinAsg(lhs, rhs) ->
         doCodegen
             env
