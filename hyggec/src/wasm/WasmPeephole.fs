@@ -65,6 +65,14 @@ let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr>
     | (LocalGet x, c1) :: (Drop, c2) :: rest ->
         optimizeInstr rest
 
+    // // load drop
+    // | (I32Load, c1) :: (Drop, c2) :: rest 
+    // | (I32Load_(_,_), c1) :: (Drop, c2) :: rest 
+    // | (F32Load, c1) :: (Drop, c2) :: rest 
+    // | (F32Load_(_,_), c1) :: (Drop, c2) :: rest ->
+    //     optimizeInstr rest
+
+
     // // Bitwise AND for Modulo by Power of 2:
     // // replace `i32.const x` followed by `i32.and` with `i32.and (x-1)`. This is more efficient for modulo by powers of 2
     // | (I32Const x, c1) :: (I32And, c2) :: rest when isPowerOfTwo x -> 
@@ -113,8 +121,13 @@ let optimize (m: Module) : Module =
                 // get all instructions
                 let instrs = func.body
 
+                // run the optimization, until the result stops changing
+                let rec optimizeInstrUntilStable (instrs: Commented<Instr> list) : Commented<Instr> list =
+                    let instrs' = optimizeInstr instrs
+                    if instrs' = instrs then instrs else optimizeInstrUntilStable instrs'
+
                 // optimize all instructions
-                let instrs' = optimizeInstr instrs
+                let instrs' = optimizeInstrUntilStable instrs
 
                 (name, { func with body = instrs' }), c)
             funcs
