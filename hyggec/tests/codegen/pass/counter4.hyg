@@ -1,0 +1,42 @@
+type Counters = struct {f1: () -> int; f2: () -> int; f3: () -> int; f4: () -> int; f5: () -> int};
+
+// An optional integer value.
+type OptionalInt = union {
+    Some: int;
+    None: unit
+};
+
+// Return a structure with two functions that share a counter, counting how
+// many times they have been called.
+fun makeCounters(): Counters = {
+    let mutable i: int = 0;
+
+    let checkOption: (OptionalInt) -> int = fun(o: OptionalInt) -> {
+        match o with {
+            Some{x} -> x * i;
+            None{_} -> i <- i + 1
+        }
+    };
+    
+    // The lambda terms below capture i twice
+    struct { f1 = fun () -> { checkOption(Some{i}) };
+             f2 = fun () -> { checkOption(Some{i + 2}) }; 
+             f3 = fun () -> { checkOption(Some{i + 4}) };
+             f4 = fun () -> { checkOption(Some{i + 8}) };
+             f5 = fun () -> { checkOption(None{()}) }
+            } : Counters
+};
+
+let c1: Counters = makeCounters();
+assert(c1.f1() = 0);
+assert(c1.f2() = 0);    
+assert(c1.f3() = 0);
+assert(c1.f4() = 0);
+assert(c1.f5() = 1); // i = 1
+assert(c1.f1() = 1);
+assert(c1.f2() = 3);
+assert(c1.f3() = 5);
+assert(c1.f4() = 9);
+assert(c1.f5() = 2) // i = 2
+
+
