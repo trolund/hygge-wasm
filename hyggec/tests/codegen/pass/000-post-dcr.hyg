@@ -1,4 +1,4 @@
-let a: int = 5;
+let mutable a: int = 5;
 let b: int = a--;
 assert(a = 4);
 assert(b = 5)

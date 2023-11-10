@@ -1,4 +1,4 @@
-let a: float = 5.0f;
+let mutable a: float = 5.0f;
 a -= 1.0f;
 assert(a = 4.0f);
 a -= 2.0f;

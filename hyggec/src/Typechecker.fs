@@ -271,7 +271,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
               Env = env
               Type = TString
               Expr = StringVal(v) }
-              
+
     | StringLength(arg) ->
         match (typer env arg) with
         | Ok(targ) when (isSubtypeOf env targ.Type TString) ->
@@ -281,7 +281,11 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                   Type = TInt
                   Expr = StringLength(targ) }
         | Ok(targ) ->
-            Error([ (node.Pos, $"string length: expected argument of type %O{TString}, " + $"found %O{targ.Type}") ])
+            Error(
+                [ (node.Pos,
+                   $"string length: expected argument of type %O{TString}, "
+                   + $"found %O{targ.Type}") ]
+            )
         | Error(es) -> Error(es)
 
     | Var(name) ->
@@ -490,7 +494,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
         | Ok(arg) ->
             Error(
                 [ (node.Pos,
-                   $"c-style increment: expected argument of type %O{TInt}, "
+                   $"c-style decrement: expected argument of type %O{TInt}, "
                    + $"found %O{arg.Type}") ]
             )
         | Error(es) -> Error(es)
@@ -518,38 +522,58 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
     | PostDcr(arg) ->
         match (typer env arg) with
         | Ok(targ) when (isSubtypeOf env targ.Type TInt) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = TInt
-                  Expr = PostDcr(targ) }
+            match targ.Expr with
+            | Var(name) ->
+                if (env.Mutables.Contains name) then
+                    Ok
+                        { Pos = node.Pos
+                          Env = env
+                          Type = TInt
+                          Expr = PostDcr(targ) }
+                else
+                    Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
         | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = TFloat
-                  Expr = PostDcr(targ) }
+            match targ.Expr with
+            | Var(name) ->
+                if (env.Mutables.Contains name) then
+                    Ok
+                        { Pos = node.Pos
+                          Env = env
+                          Type = TFloat
+                          Expr = PostDcr(targ) }
+                else
+                    Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
         | Ok(arg) ->
             Error(
                 [ (node.Pos,
-                   $"c-style increment: expected argument of type %O{TInt}, "
+                   $"c-style decrement: expected argument of type %O{TInt}, "
                    + $"found %O{arg.Type}") ]
             )
         | Error(es) -> Error(es)
     | PostIncr(arg) ->
         match (typer env arg) with
         | Ok(targ) when (isSubtypeOf env targ.Type TInt) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = TInt
-                  Expr = PostIncr(targ) }
+            match targ.Expr with
+            | Var(name) ->
+                if (env.Mutables.Contains name) then
+                    Ok
+                        { Pos = node.Pos
+                          Env = env
+                          Type = TInt
+                          Expr = PostIncr(targ) }
+                else
+                    Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
         | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = TFloat
-                  Expr = PostIncr(targ) }
+            match targ.Expr with
+            | Var(name) ->
+                if (env.Mutables.Contains name) then
+                    Ok
+                        { Pos = node.Pos
+                          Env = env
+                          Type = TFloat
+                          Expr = PostIncr(targ) }
+                else
+                    Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
         | Ok(arg) ->
             Error(
                 [ (node.Pos,
@@ -561,41 +585,61 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
     | AddAsg(lhs, rhs) ->
         match (binaryNumericalOpTyper "assign addition" node.Pos env lhs rhs) with
         | Ok(tpe, tlhs, trhs) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = tpe
-                  Expr = AddAsg(tlhs, trhs) }
+            match tlhs.Expr with
+            | Var(name) ->
+                if (env.Mutables.Contains name) then
+                    Ok
+                        { Pos = node.Pos
+                          Env = env
+                          Type = tpe
+                          Expr = AddAsg(tlhs, trhs) }
+                else
+                    Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
         | Error(es) -> Error(es)
 
     | MinAsg(lhs, rhs) ->
         match (binaryNumericalOpTyper "assign minus" node.Pos env lhs rhs) with
         | Ok(tpe, tlhs, trhs) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = tpe
-                  Expr = MinAsg(tlhs, trhs) }
+            match tlhs.Expr with
+            | Var(name) ->
+                if (env.Mutables.Contains name) then
+                    Ok
+                        { Pos = node.Pos
+                          Env = env
+                          Type = tpe
+                          Expr = MinAsg(tlhs, trhs) }
+                else
+                    Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
         | Error(es) -> Error(es)
 
     | MulAsg(lhs, rhs) ->
         match (binaryNumericalOpTyper "assign multiplication" node.Pos env lhs rhs) with
         | Ok(tpe, tlhs, trhs) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = tpe
-                  Expr = MulAsg(tlhs, trhs) }
+            match tlhs.Expr with
+            | Var(name) ->
+                if (env.Mutables.Contains name) then
+                    Ok
+                        { Pos = node.Pos
+                          Env = env
+                          Type = tpe
+                          Expr = MulAsg(tlhs, trhs) }
+                else
+                    Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
         | Error(es) -> Error(es)
 
     | DivAsg(lhs, rhs) ->
         match (binaryNumericalOpTyper "assign division" node.Pos env lhs rhs) with
         | Ok(tpe, tlhs, trhs) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = tpe
-                  Expr = DivAsg(tlhs, trhs) }
+            match tlhs.Expr with
+            | Var(name) ->
+                if (env.Mutables.Contains name) then
+                    Ok
+                        { Pos = node.Pos
+                          Env = env
+                          Type = tpe
+                          Expr = DivAsg(tlhs, trhs) }
+                else
+                    Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
         | Error(es) -> Error(es)
 
     | RemAsg(lhs, rhs) ->
@@ -603,11 +647,16 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
         | Ok(tpe, tlhs, trhs) ->
             match tpe with
             | TInt -> // Remainder division can only be done between integers
-                Ok
-                    { Pos = node.Pos
-                      Env = env
-                      Type = tpe
-                      Expr = RemAsg(tlhs, trhs) }
+                match tlhs.Expr with
+                | Var(name) ->
+                    if (env.Mutables.Contains name) then
+                        Ok
+                            { Pos = node.Pos
+                              Env = env
+                              Type = tpe
+                              Expr = RemAsg(tlhs, trhs) }
+                    else
+                        Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
             | t -> Error([ node.Pos, $"remainder division can only be done between integers" + $"found type %O{t}" ])
         | Error(es) -> Error(es)
 

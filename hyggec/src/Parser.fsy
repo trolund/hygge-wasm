@@ -57,7 +57,7 @@ let mkNode (parseState: IParseState, inputIdx: int, e: UntypedExpr): UntypedAST 
 %token EQ LT LTE GT GTE
 
 // Tokens for C-Style operators
-%token PLUSPLUS MINUSMINUS ADD_ASSIGN MIN_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN
+%token PLUSPLUS MINUSMINUS MIN_ASSIGN ADD_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN
 
 // Tokens for control flow
 %token IF THEN ELSE

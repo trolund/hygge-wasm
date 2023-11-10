@@ -61,7 +61,7 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
     | AddAsg(lhs, rhs) ->
         {node with Expr = AddAsg((subst lhs var sub), (subst rhs var sub))}
     | MinAsg(lhs, rhs) ->
-        {node with Expr = AddAsg((subst lhs var sub), (subst rhs var sub))}        
+        {node with Expr = MinAsg((subst lhs var sub), (subst rhs var sub))}        
     | Eq(lhs, rhs) ->
         {node with Expr = Eq((subst lhs var sub), (subst rhs var sub))}
     | Less(lhs, rhs) ->

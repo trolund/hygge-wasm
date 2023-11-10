@@ -1,4 +1,4 @@
-let a: int = 50;
+let mutable a: int = 50;
 a %= 3;
 assert(a = 2);
 a %= 2;

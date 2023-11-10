@@ -1,4 +1,4 @@
-let x: int = 1;
+let mutable x: int = 1;
 
 // return pre and post increment
 fun f(x: int): int = x++;

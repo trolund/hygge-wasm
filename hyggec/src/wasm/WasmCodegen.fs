@@ -388,39 +388,51 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | MulAsg(lhs, rhs)
     | RemAsg(lhs, rhs)
     | AddAsg(lhs, rhs) ->
-        let lhs' = doCodegen env lhs m
-        let rhs' = doCodegen env rhs m
-
         let opCode =
-            match (expandType node.Env node.Type) with
-            | t when (isSubtypeOf node.Env t TInt) ->
                 match node.Expr with
-                | AddAsg _ -> I32Add
-                | MinAsg _ -> I32Sub
-                | MulAsg _ -> I32Mul
-                | DivAsg _ -> I32DivS
-                | RemAsg _ -> I32RemS
+                | AddAsg _ -> 
+                    { node with
+                        Expr =
+                            Assign(
+                                lhs,
+                                { node with
+                                    Expr = Add(lhs, rhs) }
+                            ) }
+                | MinAsg _ -> 
+                    { node with
+                        Expr =
+                            Assign(
+                                lhs,
+                                { node with
+                                    Expr = Sub(lhs, rhs) }
+                            ) }
+                | MulAsg _ -> 
+                    { node with
+                        Expr =
+                            Assign(
+                                lhs,
+                                { node with
+                                    Expr = Mult(lhs, rhs) }
+                            ) }
+                | DivAsg _ -> 
+                    { node with
+                        Expr =
+                            Assign(
+                                lhs,
+                                { node with
+                                    Expr = Div(lhs, rhs) }
+                            ) }
+                | RemAsg _ -> 
+                    { node with
+                        Expr =
+                            Assign(
+                                lhs,
+                                { node with
+                                    Expr = Rem(lhs, rhs) }
+                            ) }
                 | _ -> failwith "failed to find numeric int operation"
-            | t when (isSubtypeOf node.Env t TFloat) ->
-                match node.Expr with
-                | AddAsg _ -> F32Add
-                | MinAsg _ -> F32Sub
-                | MulAsg _ -> F32Mul
-                | DivAsg _ -> F32Div
-                | _ -> failwith "failed to find numeric float operation"
-            | _ -> failwith "failed to find numeric operation"
 
-        let label = lookupVar env lhs
-
-        let instrs =
-            match (expandType node.Env node.Type) with
-            | t when (isSubtypeOf node.Env t TInt) ->
-                lhs'.GetAccCode() @ rhs'.GetAccCode() @ C [ opCode; LocalTee(label) ]
-            | t when (isSubtypeOf node.Env t TFloat) ->
-                lhs'.GetAccCode() @ rhs'.GetAccCode() @ C [ opCode; LocalTee(label) ]
-            | _ -> failwith "not implemented"
-
-        (lhs' + rhs').ResetAccCode().AddCode(instrs)
+        doCodegen env opCode m
     | Max(e1, e2)
     | Min(e1, e2) ->
         let m' = doCodegen env e1 m
