@@ -5,6 +5,7 @@ open WGF.Types
 open Util
 
 /// Optimize a list of Text segment statements.
+/// TODO: make sure that optimizeInstr are applied until the result stops changing
 let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr> list) =
     match code with
     // Optimization: remove a local.get immediately followed by a local.set 
@@ -56,8 +57,13 @@ let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr>
     //     optimizeInstr rest
     // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Rotr, c3) :: (Drop, c4) :: rest ->
     //     optimizeInstr rest
-    
 
+    // global get drop
+    | (GlobalGet x, c1) :: (Drop, c2) :: rest ->
+        optimizeInstr rest
+    // local get drop
+    | (LocalGet x, c1) :: (Drop, c2) :: rest ->
+        optimizeInstr rest
 
     // // Bitwise AND for Modulo by Power of 2:
     // // replace `i32.const x` followed by `i32.and` with `i32.and (x-1)`. This is more efficient for modulo by powers of 2
@@ -92,7 +98,6 @@ let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr>
         // first assembly statement and try with the rest
         stmt :: (optimizeInstr rest)
     | [] -> []
-
 
 /// Optimize the given assembly code.
 let optimize (m: Module) : Module =
