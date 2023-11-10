@@ -383,56 +383,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | _ -> failwith "not implemented"
 
         instrs.AddCode([ Drop ])
-    | MinAsg(lhs, rhs)
-    | DivAsg(lhs, rhs)
-    | MulAsg(lhs, rhs)
-    | RemAsg(lhs, rhs)
+    | MinAsg(lhs, rhs) ->
+        doCodegen env { node with Expr = Assign(lhs, { node with Expr = Sub(lhs, rhs) }) } m
+    | DivAsg(lhs, rhs) ->
+        doCodegen env { node with Expr = Assign(lhs, { node with Expr = Div(lhs, rhs) }) } m
+    | MulAsg(lhs, rhs) ->
+        doCodegen env { node with Expr = Assign(lhs, { node with Expr = Mult(lhs, rhs) }) } m
+    | RemAsg(lhs, rhs) ->
+        doCodegen env { node with Expr = Assign(lhs, { node with Expr = Rem(lhs, rhs) }) } m
     | AddAsg(lhs, rhs) ->
-        let opCode =
-                match node.Expr with
-                | AddAsg _ -> 
-                    { node with
-                        Expr =
-                            Assign(
-                                lhs,
-                                { node with
-                                    Expr = Add(lhs, rhs) }
-                            ) }
-                | MinAsg _ -> 
-                    { node with
-                        Expr =
-                            Assign(
-                                lhs,
-                                { node with
-                                    Expr = Sub(lhs, rhs) }
-                            ) }
-                | MulAsg _ -> 
-                    { node with
-                        Expr =
-                            Assign(
-                                lhs,
-                                { node with
-                                    Expr = Mult(lhs, rhs) }
-                            ) }
-                | DivAsg _ -> 
-                    { node with
-                        Expr =
-                            Assign(
-                                lhs,
-                                { node with
-                                    Expr = Div(lhs, rhs) }
-                            ) }
-                | RemAsg _ -> 
-                    { node with
-                        Expr =
-                            Assign(
-                                lhs,
-                                { node with
-                                    Expr = Rem(lhs, rhs) }
-                            ) }
-                | _ -> failwith "failed to find numeric int operation"
-
-        doCodegen env opCode m
+        doCodegen env { node with Expr = Assign(lhs, { node with Expr = Add(lhs, rhs) }) } m
     | Max(e1, e2)
     | Min(e1, e2) ->
         let m' = doCodegen env e1 m
