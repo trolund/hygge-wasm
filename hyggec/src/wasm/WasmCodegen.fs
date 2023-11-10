@@ -384,15 +384,35 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         instrs.AddCode([ Drop ])
     | MinAsg(lhs, rhs) ->
-        doCodegen env { node with Expr = Assign(lhs, { node with Expr = Sub(lhs, rhs) }) } m
+        doCodegen
+            env
+            { node with
+                Expr = Assign(lhs, { node with Expr = Sub(lhs, rhs) }) }
+            m
     | DivAsg(lhs, rhs) ->
-        doCodegen env { node with Expr = Assign(lhs, { node with Expr = Div(lhs, rhs) }) } m
+        doCodegen
+            env
+            { node with
+                Expr = Assign(lhs, { node with Expr = Div(lhs, rhs) }) }
+            m
     | MulAsg(lhs, rhs) ->
-        doCodegen env { node with Expr = Assign(lhs, { node with Expr = Mult(lhs, rhs) }) } m
+        doCodegen
+            env
+            { node with
+                Expr = Assign(lhs, { node with Expr = Mult(lhs, rhs) }) }
+            m
     | RemAsg(lhs, rhs) ->
-        doCodegen env { node with Expr = Assign(lhs, { node with Expr = Rem(lhs, rhs) }) } m
+        doCodegen
+            env
+            { node with
+                Expr = Assign(lhs, { node with Expr = Rem(lhs, rhs) }) }
+            m
     | AddAsg(lhs, rhs) ->
-        doCodegen env { node with Expr = Assign(lhs, { node with Expr = Add(lhs, rhs) }) } m
+        doCodegen
+            env
+            { node with
+                Expr = Assign(lhs, { node with Expr = Add(lhs, rhs) }) }
+            m
     | Max(e1, e2)
     | Min(e1, e2) ->
         let m' = doCodegen env e1 m
