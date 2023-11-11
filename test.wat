@@ -5,10 +5,9 @@
   (table $func_table (;0;) 0 funcref)
   (func $_start (;0;)  (result i32) 
     ;; execution start here:
-    f32.const 1.000000 ;; push 1.000000 on stack
-    f32.neg ;; negate
-    f32.const 0.000000 ;; push 0.000000 on stack
-    f32.lt
+    i32.const -1 ;; push -1 on stack
+    i32.const 0 ;; push 0 on stack
+    i32.lt_s
     i32.eqz ;; invert assertion
     (if 
       (then
@@ -17,11 +16,9 @@
         unreachable ;; exit program
       )
     )
-    f32.const 100.000000 ;; push 100.000000 on stack
-    f32.neg ;; negate
-    f32.const 99.000000 ;; push 99.000000 on stack
-    f32.neg ;; negate
-    f32.lt
+    i32.const -100 ;; push -100 on stack
+    i32.const -99 ;; push -99 on stack
+    i32.lt_s
     i32.eqz ;; invert assertion
     (if 
       (then

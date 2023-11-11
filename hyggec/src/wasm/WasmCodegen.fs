@@ -250,16 +250,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs = m'.GetAccCode() @ [ (I32Load_(None, Some(8)), "load string length") ]
 
         m'.ResetAccCode().AddCode(instrs)
-    | Neg e ->
-        let m' = doCodegen env e m
-
-        let instrs =
-            match (expandType node.Env node.Type) with
-            | t when (isSubtypeOf node.Env t TInt) -> [ (I32Const(-1), "constant value -1"); (I32Mul, "Multiply the input by -1") ]
-            | t when (isSubtypeOf node.Env t TFloat) -> [ (F32Neg, "negate") ]
-            | _ -> failwith "not implemented"
-
-        (m' + m).AddCode(instrs)
+    | Neg({ Node.Expr = IntVal(v); Node.Type = TInt }) ->
+        m.AddCode([ (I32Const(-v), $"push %i{-v} on stack") ])
+    | Neg({ Node.Expr = FloatVal(v); Node.Type = TFloat }) ->
+        m.AddCode([ (F32Const(-v), $"push %f{-v} on stack") ])
     | Var v ->
         // load variable
         let instrs: List<Commented<Instr>> =
