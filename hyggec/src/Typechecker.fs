@@ -287,7 +287,27 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                    + $"found %O{targ.Type}") ]
             )
         | Error(es) -> Error(es)
-
+    | Neg(arg) ->
+        match (typer env arg) with
+        | Ok(targ) when (isSubtypeOf env targ.Type TInt) ->
+            Ok
+                { Pos = node.Pos
+                  Env = env
+                  Type = TInt
+                  Expr = Neg(targ) }
+        | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
+            Ok
+                { Pos = node.Pos
+                  Env = env
+                  Type = TFloat
+                  Expr = Neg(targ) }
+        | Ok(targ) ->
+            Error(
+                [ (node.Pos,
+                   $"negation: expected argument of type %O{TInt} or %O{TFloat}, "
+                   + $"found %O{targ.Type}") ]
+            )
+        | Error(es) -> Error(es)
     | Var(name) ->
         match (env.Vars.TryFind name) with
         | Some(tpe) ->

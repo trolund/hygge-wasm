@@ -250,6 +250,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs = m'.GetAccCode() @ [ (I32Load_(None, Some(8)), "load string length") ]
 
         m'.ResetAccCode().AddCode(instrs)
+    | Neg e ->
+        let m' = doCodegen env e m
+
+        let instrs =
+            match (expandType node.Env node.Type) with
+            | t when (isSubtypeOf node.Env t TInt) -> [ (I32Const(-1), "constant value -1"); (I32Mul, "Multiply the input by -1") ]
+            | t when (isSubtypeOf node.Env t TFloat) -> [ (F32Neg, "negate") ]
+            | _ -> failwith "not implemented"
+
+        (m' + m).AddCode(instrs)
     | Var v ->
         // load variable
         let instrs: List<Commented<Instr>> =
@@ -1767,7 +1777,7 @@ let codegen (node: TypedAST) : Module =
     // the main function has no arguments and returns an 32 bit integer
     let signature = ([], [ I32 ])
 
-    let f: Commented<FunctionInstance> =
+    let funcInstance: Commented<FunctionInstance> =
         ({ locals = List.Empty
            signature = signature
            body = List.Empty
@@ -1786,7 +1796,7 @@ let codegen (node: TypedAST) : Module =
     // add function to module and export it
     let m' =
         Module()
-            .AddFunction(funcName, f)
+            .AddFunction(funcName, funcInstance)
             .AddExport(funcName, FunctionType(funcName, None))
 
     // compile main function

@@ -129,6 +129,9 @@ and Expr<'E, 'T> =
     /// Logical not
     | Not of arg: Node<'E, 'T>
 
+    /// negation of a number
+    | Neg of arg: Node<'E, 'T>
+
     ///C-Style Operators TODO: delete
 
     | CSIncr of arg: Node<'E, 'T>

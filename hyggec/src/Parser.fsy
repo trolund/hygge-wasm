@@ -232,6 +232,7 @@ multExpr:
   | unaryExpr                 { $1 }
 // Unary expression
 unaryExpr:
+  | MINUS unaryExpr               { mkNode(parseState, 1, Expr.Neg($2)) }
   | NOT unaryExpr                 { mkNode(parseState, 1, Expr.Not($2)) }
   | PLUSPLUS unaryExpr            { mkNode(parseState, 1, Expr.PreIncr($2))}
   | unaryExpr PLUSPLUS            { mkNode(parseState, 1, Expr.PostIncr($1))}
