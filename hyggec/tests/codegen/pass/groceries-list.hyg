@@ -2,7 +2,7 @@ type Shopping = struct { apple: int;
                          milk: int;
                          pizza: int };
 
-type ShoppingList = struct {f1: (int) -> int; f2: (int) -> int; f3: (int) -> int; theList: Shopping};
+type ShoppingList = struct {addApples: (int) -> int; addMilke: (int) -> int; addPizza: (int) -> int; theList: Shopping};
 
 
 fun makeShoppingList(): ShoppingList = {
@@ -22,34 +22,34 @@ fun makeShoppingList(): ShoppingList = {
         list.pizza <- list.pizza + x
     };
 
-    struct { f1 = app;
-             f2 = mil;
-             f3 = piz;
+    struct { addApples = app;
+             addMilke = mil;
+             addPizza = piz;
              theList = list } : ShoppingList
 };
 
 let c1: ShoppingList = makeShoppingList();
 
-c1.f1(2); // add 2 apples
-c1.f2(3); // add 3 milk
-c1.f3(4); // add 4 pizza
+c1.addApples(2); // add 2 apples
+c1.addMilke(3); // add 3 milk
+c1.addPizza(4); // add 4 pizza
 
 let l: Shopping = c1.theList;
 
-assert(l.apple = 2); // c1.f1 and c2.f2 should share the same counter
+assert(l.apple = 2); // c1.addApples and c2.addMilke should share the same counter
 assert(l.milk = 3);
 assert(l.pizza = 4);
 
 
 let c2: ShoppingList = makeShoppingList();
 
-c2.f1(5); // add 5 apples
-c2.f1(2); // add 2 apples
-c2.f2(6); // add 6 milk
-c2.f3(7); // add 7 pizza
+c2.addApples(5); // add 5 apples
+c2.addApples(2); // add 2 apples
+c2.addMilke(6); // add 6 milk
+c2.addPizza(7); // add 7 pizza
 
 let l2: Shopping = c2.theList;
 
-assert(l2.apple = 7); // c1.f1 and c2.f2 should share the same counter
+assert(l2.apple = 7); // c1.addApples
 assert(l2.milk = 6);
 assert(l2.pizza = 7)
