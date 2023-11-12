@@ -441,6 +441,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
         (m' + m'').AddCode([ I32And ])
+    // short circuit and
+    | ShortAnd(e1, e2) ->
+        let ifNode = { node with Expr = AST.If(e1, e2, { node with Expr = IntVal 0 }) }
+
+        doCodegen env ifNode m  
+    // short circuit or   
+    | ShortOr(e1, e2) ->
+        let ifNode = { node with Expr = AST.If(e1, { node with Expr = IntVal 1 }, e2) }
+
+        doCodegen env ifNode m
     | Or(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m

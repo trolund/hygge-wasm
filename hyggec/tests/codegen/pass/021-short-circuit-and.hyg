@@ -1,0 +1,2 @@
+assert(not(false && true));
+assert(true && (2 < 3))

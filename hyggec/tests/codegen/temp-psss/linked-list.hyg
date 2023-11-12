@@ -1,0 +1,16 @@
+type OpNode = union {
+    Some: Node;
+    None: unit
+};
+
+type Node = struct { data: int;
+                     next: OpNode };
+
+fun appendTo(root: Node, data: int): Node = {
+    let newNode: Node = struct { data = data; 
+                                 next = None{()} };
+    root.next = newNode;
+    root
+};
+
+print("hej")
