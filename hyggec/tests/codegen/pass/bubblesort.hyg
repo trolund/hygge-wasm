@@ -24,7 +24,19 @@ let bubbleSort: (array{int}) -> unit = fun(arr: array{int}) -> {
     } while (swapped)
 };
 
+let printArray: (array{int}) -> unit = fun(arr: array{int}) -> {
+    let mutable x: int = 0; // read input
+
+    do { // do-while to print array data
+        println(arrayElem(arr, x)); // read array element
+        x <- x + 1 // increment
+    } while (x < arrayLength(arr)) // read length of array as part of condition to print array data
+};
+
+// initialize array
 let arr: array {int} = array(10, 0);
+
+// insert random values
 arrayElem(arr, 0) <- 500;
 arrayElem(arr, 1) <- 3;
 arrayElem(arr, 2) <- 11;
@@ -36,15 +48,16 @@ arrayElem(arr, 7) <- 200;
 arrayElem(arr, 8) <- 34;
 arrayElem(arr, 9) <- 80;
 
+// print initial array
+printArray(arr);
+println("🤔 sorting array...");
 // sort array
 bubbleSort(arr);
 
-let mutable x: int = 0; // read input
-
-do { // do-while to print array data
-    println(arrayElem(arr, x)); // read array element
-    x <- x + 1 // increment
-} while (x < arrayLength(arr)); // read length of array as part of condition 
+println("--------------------------------------");
+println("✅ sorted array:");
+// print sorted array
+printArray(arr);
 
 // assert that list is sorted correctly
 assert(arrayElem(arr, 0) = 3);
@@ -60,6 +73,7 @@ assert(arrayElem(arr, 9) = 500);
 
 println("done✅")
 
+// // bubble sort in javascript
 // function bubbleSort(arr) {
 //   var len = arr.length;
 //   var swapped;

@@ -687,7 +687,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         (cond'.ResetAccCode() + body'.ResetAccCode()).AddCode(block)
 
     | DoWhile(cond, body) ->
-        (doCodegen env body m)
+        // insert drop if body is not unit
+        let mayDrop = if (expandType body.Env body.Type) = TUnit then [] else [ Drop ]
+
+        (doCodegen env body m).AddCode(mayDrop)
         ++ (doCodegen env { node with Expr = While(cond, body) } m)
 
     | For(init, cond, update, body) ->

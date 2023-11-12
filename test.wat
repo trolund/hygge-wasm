@@ -8,12 +8,13 @@
   (global $arr_ptr (;1;) (mut i32) i32.const 0)
   (global $exit_code (;2;) (mut i32) i32.const 0)
   (global $fun_bubbleSort*ptr (;3;) (mut i32) i32.const 0)
-  (global $heap_base (;4;) i32 i32.const 23)
-  (global $i (;5;) (mut i32) i32.const 0)
-  (global $var_arr (;6;) (mut i32) i32.const 0)
-  (global $var_x (;7;) (mut i32) i32.const 0)
-  (table $func_table (;0;) 1 funcref)
+  (global $fun_printArray*ptr (;4;) (mut i32) i32.const 4)
+  (global $heap_base (;5;) i32 i32.const 139)
+  (global $i (;6;) (mut i32) i32.const 0)
+  (global $var_arr (;7;) (mut i32) i32.const 0)
+  (table $func_table (;0;) 2 funcref)
   (elem (i32.const 0) (;0;) $fun_bubbleSort)
+  (elem (i32.const 1) (;1;) $fun_printArray)
   (func $_start (;0;)  (result i32) 
     ;; execution start here:
     ;; Start of let
@@ -54,12 +55,12 @@
     i32.store ;; store pointer to data
     i32.const 0
     global.set $i ;; , have been hoisted
-    (block $loop_exit$6 
-      (loop $loop_begin$7 
+    (block $loop_exit$9 
+      (loop $loop_begin$10 
         i32.const 10 ;; push 10 on stack
         global.get $i ;; get i, have been hoisted
         i32.eq
-        br_if $loop_exit$6
+        br_if $loop_exit$9
         ;; start of loop body
         global.get $arr_ptr ;; get struct pointer var, have been hoisted
         i32.load ;; load data pointer
@@ -74,7 +75,7 @@
         i32.const 1 ;; increment by 1
         i32.add ;; add 1 to i
         global.set $i ;; write to i, have been hoisted
-        br $loop_begin$7
+        br $loop_begin$10
       )
     )
     global.get $arr_ptr ;; leave pointer to allocated array struct on stack, have been hoisted
@@ -450,98 +451,41 @@
     i32.load ;; load int from elem pos
     drop
     ;; Load expression to be applied as a function
+    global.get $fun_printArray*ptr ;; get global var: fun_printArray*ptr
+    i32.load offset=4 ;; load closure environment pointer
+    global.get $var_arr ;; get local var: var_arr, have been hoisted
+    global.get $fun_printArray*ptr ;; get global var: fun_printArray*ptr
+    i32.load ;; load table index
+    call_indirect (type $i32_i32_=>_unit) ;; call function
+    i32.const 8 ;; leave pointer to string on stack
+    i32.load ;; Load string pointer
+    i32.const 8 ;; leave pointer to string on stack
+    i32.load offset=4 ;; Load string length
+    call $writeS ;; call host function
+    ;; Load expression to be applied as a function
     global.get $fun_bubbleSort*ptr ;; get global var: fun_bubbleSort*ptr
     i32.load offset=4 ;; load closure environment pointer
     global.get $var_arr ;; get local var: var_arr, have been hoisted
     global.get $fun_bubbleSort*ptr ;; get global var: fun_bubbleSort*ptr
     i32.load ;; load table index
     call_indirect (type $i32_i32_=>_unit) ;; call function
-    ;; Start of let
-    i32.const 0 ;; push 0 on stack
-    global.set $var_x ;; set local var, have been hoisted
-    global.get $var_x ;; get local var: var_x, have been hoisted
-    i32.const 0 ;; put zero on stack
-    i32.lt_s ;; check if index is >= 0
-    (if 
-      (then
-        i32.const 42 ;; error exit code push to stack
-        global.set $exit_code ;; set exit code
-        unreachable ;; exit program
-      )
-    )
-    global.get $var_x ;; get local var: var_x, have been hoisted
+    i32.const 41 ;; leave pointer to string on stack
+    i32.load ;; Load string pointer
+    i32.const 41 ;; leave pointer to string on stack
+    i32.load offset=4 ;; Load string length
+    call $writeS ;; call host function
+    i32.const 91 ;; leave pointer to string on stack
+    i32.load ;; Load string pointer
+    i32.const 91 ;; leave pointer to string on stack
+    i32.load offset=4 ;; Load string length
+    call $writeS ;; call host function
+    ;; Load expression to be applied as a function
+    global.get $fun_printArray*ptr ;; get global var: fun_printArray*ptr
+    i32.load offset=4 ;; load closure environment pointer
     global.get $var_arr ;; get local var: var_arr, have been hoisted
-    i32.load offset=4 ;; load length
-    i32.ge_s ;; check if index is < length
-    (if 
-      (then
-        i32.const 42 ;; error exit code push to stack
-        global.set $exit_code ;; set exit code
-        unreachable ;; exit program
-      )
-    )
-    global.get $var_arr ;; get local var: var_arr, have been hoisted
-    i32.load ;; load data pointer
-    global.get $var_x ;; get local var: var_x, have been hoisted
-    i32.const 4 ;; byte offset
-    i32.mul ;; multiply index with byte offset
-    i32.add ;; add offset to base address
-    i32.load ;; load value
-    ;; end array element access node
-    call $writeInt ;; call host function
-    global.get $var_x ;; get local var: var_x, have been hoisted
-    i32.const 1 ;; push 1 on stack
-    i32.add
-    global.set $var_x ;; set local var, have been hoisted
-    global.get $var_x ;; set local var, have been hoisted
-    (block $loop_exit$8 
-      (loop $loop_begin$9 
-        global.get $var_x ;; get local var: var_x, have been hoisted
-        ;; start array length node
-        global.get $var_arr ;; get local var: var_arr, have been hoisted
-        i32.load offset=4 ;; load length
-        ;; end array length node
-        i32.lt_s
-        i32.eqz
-        br_if $loop_exit$8
-        global.get $var_x ;; get local var: var_x, have been hoisted
-        i32.const 0 ;; put zero on stack
-        i32.lt_s ;; check if index is >= 0
-        (if 
-          (then
-            i32.const 42 ;; error exit code push to stack
-            global.set $exit_code ;; set exit code
-            unreachable ;; exit program
-          )
-        )
-        global.get $var_x ;; get local var: var_x, have been hoisted
-        global.get $var_arr ;; get local var: var_arr, have been hoisted
-        i32.load offset=4 ;; load length
-        i32.ge_s ;; check if index is < length
-        (if 
-          (then
-            i32.const 42 ;; error exit code push to stack
-            global.set $exit_code ;; set exit code
-            unreachable ;; exit program
-          )
-        )
-        global.get $var_arr ;; get local var: var_arr, have been hoisted
-        i32.load ;; load data pointer
-        global.get $var_x ;; get local var: var_x, have been hoisted
-        i32.const 4 ;; byte offset
-        i32.mul ;; multiply index with byte offset
-        i32.add ;; add offset to base address
-        i32.load ;; load value
-        ;; end array element access node
-        call $writeInt ;; call host function
-        global.get $var_x ;; get local var: var_x, have been hoisted
-        i32.const 1 ;; push 1 on stack
-        i32.add
-        global.set $var_x ;; set local var, have been hoisted
-        global.get $var_x ;; set local var, have been hoisted
-        br $loop_begin$9
-      )
-    )
+    global.get $fun_printArray*ptr ;; get global var: fun_printArray*ptr
+    i32.load ;; load table index
+    call_indirect (type $i32_i32_=>_unit) ;; call function
     i32.const 0 ;; push 0 on stack
     i32.const 0 ;; put zero on stack
     i32.lt_s ;; check if index is >= 0
@@ -932,12 +876,11 @@
         unreachable ;; exit program
       )
     )
-    i32.const 4 ;; leave pointer to string on stack
+    i32.const 120 ;; leave pointer to string on stack
     i32.load ;; Load string pointer
-    i32.const 4 ;; leave pointer to string on stack
+    i32.const 120 ;; leave pointer to string on stack
     i32.load offset=4 ;; Load string length
     call $writeS ;; call host function
-    ;; End of let
     ;; End of let
     ;; if execution reaches here, the program is successful
     i32.const 0 ;; exit code 0
@@ -1474,9 +1417,107 @@
     ;; End of let
     ;; End of let
   )
+  (func $fun_printArray (;2;) (param $cenv i32) (param $arg_arr$6 i32)  
+    ;; local variables declarations:
+    (local $var_x i32)
+
+    ;; Start of let
+    i32.const 0 ;; push 0 on stack
+    local.set $var_x ;; set local var
+    local.get $var_x ;; get local var: var_x
+    i32.const 0 ;; put zero on stack
+    i32.lt_s ;; check if index is >= 0
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    local.get $var_x ;; get local var: var_x
+    local.get $arg_arr$6 ;; get local var: arg_arr$6
+    i32.load offset=4 ;; load length
+    i32.ge_s ;; check if index is < length
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    local.get $arg_arr$6 ;; get local var: arg_arr$6
+    i32.load ;; load data pointer
+    local.get $var_x ;; get local var: var_x
+    i32.const 4 ;; byte offset
+    i32.mul ;; multiply index with byte offset
+    i32.add ;; add offset to base address
+    i32.load ;; load value
+    ;; end array element access node
+    call $writeInt ;; call host function
+    local.get $var_x ;; get local var: var_x
+    i32.const 1 ;; push 1 on stack
+    i32.add
+    local.tee $var_x ;; set local var
+    drop
+    (block $loop_exit$7 
+      (loop $loop_begin$8 
+        local.get $var_x ;; get local var: var_x
+        ;; start array length node
+        local.get $arg_arr$6 ;; get local var: arg_arr$6
+        i32.load offset=4 ;; load length
+        ;; end array length node
+        i32.lt_s
+        i32.eqz
+        br_if $loop_exit$7
+        local.get $var_x ;; get local var: var_x
+        i32.const 0 ;; put zero on stack
+        i32.lt_s ;; check if index is >= 0
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        local.get $var_x ;; get local var: var_x
+        local.get $arg_arr$6 ;; get local var: arg_arr$6
+        i32.load offset=4 ;; load length
+        i32.ge_s ;; check if index is < length
+        (if 
+          (then
+            i32.const 42 ;; error exit code push to stack
+            global.set $exit_code ;; set exit code
+            unreachable ;; exit program
+          )
+        )
+        local.get $arg_arr$6 ;; get local var: arg_arr$6
+        i32.load ;; load data pointer
+        local.get $var_x ;; get local var: var_x
+        i32.const 4 ;; byte offset
+        i32.mul ;; multiply index with byte offset
+        i32.add ;; add offset to base address
+        i32.load ;; load value
+        ;; end array element access node
+        call $writeInt ;; call host function
+        local.get $var_x ;; get local var: var_x
+        i32.const 1 ;; push 1 on stack
+        i32.add
+        local.tee $var_x ;; set local var
+        br $loop_begin$8
+      )
+    )
+    ;; End of let
+  )
   (data (i32.const 0) "\00")
-  (data (i32.const 4) "\10\00\00\00\07\00\00\00\05\00\00\00")
-  (data (i32.const 16) "done✅")
+  (data (i32.const 4) "\01")
+  (data (i32.const 8) "\14\00\00\00\15\00\00\00\13\00\00\00")
+  (data (i32.const 20) "🤔 sorting array...")
+  (data (i32.const 41) "\35\00\00\00\26\00\00\00\26\00\00\00")
+  (data (i32.const 53) "--------------------------------------")
+  (data (i32.const 91) "\67\00\00\00\11\00\00\00\0f\00\00\00")
+  (data (i32.const 103) "✅ sorted array:")
+  (data (i32.const 120) "\84\00\00\00\07\00\00\00\05\00\00\00")
+  (data (i32.const 132) "done✅")
   (export "_start" (func $_start))
   (export "exit_code" (global $exit_code))
   (export "heap_base_ptr" (global $heap_base))
