@@ -3,11 +3,11 @@ let bubbleSort: (array{int}) -> unit = fun(arr: array{int}) -> {
 
     let mutable swapped: bool = false;
     let len: int = arrayLength(arr);
-
+    
     do {
         swapped <- false;
         let mutable i: int = 0;
-
+        
         for (i <- 0; i < (len - 1); i++)
         {
             // Swap the elements if they are in the wrong order

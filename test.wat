@@ -969,6 +969,7 @@
     local.set $var_i ;; set local var
     i32.const 0 ;; push 0 on stack
     local.tee $var_i ;; set local var
+    drop
     (block $loop_exit 
       (loop $loop_begin 
         local.get $var_i ;; get local var: var_i
@@ -1211,7 +1212,6 @@
       )
     )
     ;; End of let
-    drop
     (block $loop_exit$4 
       (loop $loop_begin$5 
         local.get $var_swapped ;; get local var: var_swapped
@@ -1225,6 +1225,7 @@
         local.set $var_i$0 ;; set local var
         i32.const 0 ;; push 0 on stack
         local.tee $var_i$0 ;; set local var
+        drop
         (block $loop_exit$2 
           (loop $loop_begin$3 
             local.get $var_i$0 ;; get local var: var_i$0

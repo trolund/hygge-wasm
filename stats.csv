@@ -31,6 +31,8 @@ name of file,instr count,instr count after op,diff,% reduction
 000-lambda-9,157,148,9,5.73
 000-lambda-simple,52,48,4,7.69
 000-lambda,134,125,9,6.72
+000-negate-float,14,14,0,0.00
+000-negate-int,14,14,0,0.00
 000-post-dcr-float,28,26,2,7.14
 000-post-dcr,28,26,2,7.14
 000-post-incr-float,28,26,2,7.14
@@ -88,6 +90,7 @@ name of file,instr count,instr count after op,diff,% reduction
 023-struct-field-sel,157,145,12,7.64
 024-struct-field-assign,152,146,6,3.95
 025-struct-field-assign,152,146,6,3.95
+026-for-2,23,23,0,0.00
 026-for,23,23,0,0.00
 026-rec-suger,19,19,0,0.00
 026-rec,77,77,0,0.00
@@ -115,6 +118,7 @@ name of file,instr count,instr count after op,diff,% reduction
 031-top-level-3,78,72,6,7.69
 031-top-level,21,21,0,0.00
 032-pattern-matching,133,125,8,6.02
+bubblesort,563,561,2,0.36
 calcualtor,353,323,30,8.50
 counter-plus,259,241,18,6.95
 counter,211,193,18,8.53

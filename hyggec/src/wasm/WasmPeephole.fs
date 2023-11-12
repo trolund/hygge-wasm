@@ -58,12 +58,17 @@ let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr>
     // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Rotr, c3) :: (Drop, c4) :: rest ->
     //     optimizeInstr rest
 
-    // global get drop
-    | (GlobalGet x, c1) :: (Drop, c2) :: rest ->
-        optimizeInstr rest
-    // local get drop
-    | (LocalGet x, c1) :: (Drop, c2) :: rest ->
-        optimizeInstr rest
+    // // global get drop
+    // | (GlobalGet x, c1) :: (Drop, c2) :: rest ->
+    //     optimizeInstr rest
+    // // local get drop
+    // | (LocalGet x, c1) :: (Drop, c2) :: rest ->
+    //     optimizeInstr rest
+
+    // tee local drop
+    | (LocalTee x, c1) :: (Drop, c2) :: rest ->
+        // should be just a local.set
+        (LocalSet x, c1) :: optimizeInstr rest
 
     // // load drop
     // | (I32Load, c1) :: (Drop, c2) :: rest 
