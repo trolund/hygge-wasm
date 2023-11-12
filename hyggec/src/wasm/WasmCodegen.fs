@@ -558,10 +558,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         m'.GetAccCode()
                         @ [ (I32Load, "Load string pointer") ]
                         @ m'.GetAccCode()
-                        @ [
-                            // (I32Const 4, "length offset")
-                            // (I32Add, "add offset to pointer")
-                            (I32Load_(None, Some(4)), "Load string length") ]
+                        @ [(I32Load_(None, Some(4)), "Load string length") ]
                     )
 
             // perform host (system) call
