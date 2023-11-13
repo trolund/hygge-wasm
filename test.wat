@@ -111,7 +111,7 @@
     i32.const 4 ;; byte offset
     i32.mul ;; multiply index with byte offset
     i32.add ;; add offset to base address
-    i32.const 500 ;; push 500 on stack
+    i32.const 50000 ;; push 50000 on stack
     i32.store ;; store value in elem pos
     global.get $var_arr ;; get local var: var_arr, have been hoisted
     i32.load ;; load data pointer
@@ -882,7 +882,7 @@
     i32.add ;; add offset to base address
     i32.load ;; load value
     ;; end array element access node
-    i32.const 500 ;; push 500 on stack
+    i32.const 50000 ;; push 50000 on stack
     i32.eq
     i32.eqz ;; invert assertion
     (if 

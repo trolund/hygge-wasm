@@ -56,7 +56,7 @@ let printArray: (array{int}) -> unit = fun(arr: array{int}) -> {
 let arr: array {int} = array(10, 0);
 
 // insert random values
-arrayElem(arr, 0) <- 500;
+arrayElem(arr, 0) <- 50000;
 arrayElem(arr, 1) <- -3;
 arrayElem(arr, 2) <- -11;
 arrayElem(arr, 3) <- 22;
@@ -90,6 +90,6 @@ assert(arrayElem(arr, 5) = 61);
 assert(arrayElem(arr, 6) = 80);
 assert(arrayElem(arr, 7) = 100);
 assert(arrayElem(arr, 8) = 200);
-assert(arrayElem(arr, 9) = 500);
+assert(arrayElem(arr, 9) = 50000);
 
 println("done✅")
