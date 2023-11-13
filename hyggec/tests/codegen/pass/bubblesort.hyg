@@ -49,6 +49,7 @@ arrayElem(arr, 8) <- 34;
 arrayElem(arr, 9) <- 80;
 
 // print initial array
+println("😰 initial array:");
 printArray(arr);
 println("🤔 sorting array... (bubble sort)");
 // sort array

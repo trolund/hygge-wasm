@@ -16,23 +16,6 @@ let insertionSort: (array{int}) -> unit = fun(arr: array{int}) -> {
     }
 };
 
-
-// function insertionSort(arr) {
-//     var len = arr.length;
-//     for (var i = 1; i < len; i++) {
-//         var key = arr[i];
-//         var j = i - 1;
-
-//         // Move elements of arr[0..i-1] that are greater than key to one position ahead of their current position
-//         while (j >= 0 && arr[j] > key) {
-//             arr[j + 1] = arr[j];
-//             j = j - 1;
-//         }
-//         arr[j + 1] = key;
-//     }
-//     return arr;
-// }
-
 let printArray: (array{int}) -> unit = fun(arr: array{int}) -> {
     let mutable x: int = 0; // read input
 
@@ -58,6 +41,7 @@ arrayElem(arr, 8) <- 34;
 arrayElem(arr, 9) <- 80;
 
 // print initial array
+println("😰 initial array:");
 printArray(arr);
 println("🤔 sorting array... (insertion sort)");
 // sort array
@@ -70,37 +54,31 @@ println("✅ sorted array:");
 printArray(arr);
 
 // assert that list is sorted correctly
-// assert(arrayElem(arr, 0) = 3);
-// assert(arrayElem(arr, 1) = 11);
-// assert(arrayElem(arr, 2) = 22);
-// assert(arrayElem(arr, 3) = 34);
-// assert(arrayElem(arr, 4) = 45);
-// assert(arrayElem(arr, 5) = 61);
-// assert(arrayElem(arr, 6) = 80);
-// assert(arrayElem(arr, 7) = 100);
-// assert(arrayElem(arr, 8) = 200);
-// assert(arrayElem(arr, 9) = 500);
+assert(arrayElem(arr, 0) = 3);
+assert(arrayElem(arr, 1) = 11);
+assert(arrayElem(arr, 2) = 22);
+assert(arrayElem(arr, 3) = 34);
+assert(arrayElem(arr, 4) = 45);
+assert(arrayElem(arr, 5) = 61);
+assert(arrayElem(arr, 6) = 80);
+assert(arrayElem(arr, 7) = 100);
+assert(arrayElem(arr, 8) = 200);
+assert(arrayElem(arr, 9) = 500);
 
 println("done✅")
 
-// // bubble sort in javascript
-// function bubbleSort(arr) {
-//   var len = arr.length;
-//   var swapped;
+// function insertionSort(arr) {
+//     var len = arr.length;
+//     for (var i = 1; i < len; i++) {
+//         var key = arr[i];
+//         var j = i - 1;
 
-//   do {
-//     swapped = false;
-
-//     for (var i = 0; i < len - 1; i++) {
-//       if (arr[i] > arr[i + 1]) {
-//         // Swap the elements if they are in the wrong order
-//         var temp = arr[i];
-//         arr[i] = arr[i + 1];
-//         arr[i + 1] = temp;
-//         swapped = true;
-//       }
+//         // Move elements of arr[0..i-1] that are greater than key to one position ahead of their current position
+//         while (j >= 0 && arr[j] > key) {
+//             arr[j + 1] = arr[j];
+//             j = j - 1;
+//         }
+//         arr[j + 1] = key;
 //     }
-//   } while (swapped);
-
-//   return arr;
+//     return arr;
 // }
