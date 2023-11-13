@@ -21,7 +21,6 @@ fun linearSearch(arr: array{int}, target: int): int = {
     result
 };
 
-
 // Example usage:
 let sortedArray: array {int} = array(10, 0);
 

@@ -120,6 +120,7 @@ name of file,instr count,instr count after op,diff,% reduction
 031-top-level-3,78,72,6,7.69
 031-top-level,21,21,0,0.00
 032-pattern-matching,133,125,8,6.02
+binarySearch,445,443,2,0.45
 bubblesort,597,591,6,1.01
 calcualtor,353,323,30,8.50
 counter-plus,259,241,18,6.95
@@ -150,6 +151,7 @@ hygge-union,187,171,16,8.56
 if-return,255,249,6,2.35
 insertionSort,589,584,5,0.85
 letClousure,238,220,18,7.56
+linearSearch,443,441,2,0.45
 memory-grow,56,54,2,3.57
 memory-static,9,9,0,0.00
 mergeSort,706,692,14,1.98
@@ -163,6 +165,7 @@ rec-countdown-4,111,100,11,9.91
 rec-countdown,51,47,4,7.84
 rec-fun-1,19,19,0,0.00
 rec-fun,23,23,0,0.00
+selectionSort,589,584,5,0.85
 simple-struct-field-sel,106,102,4,3.77
 string-length,34,34,0,0.00
 struct-simple,41,39,2,4.88
