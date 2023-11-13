@@ -1,0 +1,126 @@
+fun merge(arr: array{int}, low: int, mid: int, high: int): unit = {
+    let n1: int = mid - low + 1;
+    let n2: int = high - mid;
+
+    // Create temporary arrays
+    let leftArr: array{int} = array(n1 + 1, 0);
+    let rightArr: array{int} = array(n2 + 1, 0);
+
+    // Copy data to temporary arrays leftArr[] and rightArr[]
+    let mutable i: int = 0;
+    while (i < n1)
+    do {
+        arrayElem(leftArr, i) <- arrayElem(arr, low + i);
+        i <- i + 1
+    };
+
+    let mutable j: int = 0;
+    while (j < n2)
+    do {
+        arrayElem(rightArr, j) <- arrayElem(arr, mid + 1 + j);
+        j <- j + 1
+    };
+
+    // Merge the temporary arrays back into arr[low..high]
+    i <- 0;
+    j <- 0;
+    let mutable k: int = low;
+    
+    while (i < n1 && j < n2)
+    do {
+        if (arrayElem(leftArr, i) <= arrayElem(rightArr, j))
+        then {
+            arrayElem(arr, k) <- arrayElem(leftArr, i);
+            i <- i + 1
+        }
+        else {
+            arrayElem(arr, k) <- arrayElem(rightArr, j);
+            j <- j + 1
+        };
+        k <- k + 1
+    };
+
+    // Copy the remaining elements of leftArr[], if there are any
+    while (i < n1)
+    do {
+        arrayElem(arr, k) <- arrayElem(leftArr, i);
+        i <- i + 1;
+        k <- k + 1
+    };
+
+    // Copy the remaining elements of rightArr[], if there are any
+    while (j < n2)
+    do {
+        arrayElem(arr, k) <- arrayElem(rightArr, j);
+        j <- j + 1;
+        k <- k + 1
+    }
+};
+
+fun mergeSort(arr: array{int}, low: int, high: int): unit = {
+    if (low < high)
+    then {
+        // Find the middle point
+        let mid: int = low + (high - low) / 2;
+
+        // Recursively sort the first and second halves
+        mergeSort(arr, low, mid);
+        mergeSort(arr, mid + 1, high);
+
+        // Merge the sorted halves
+        merge(arr, low, mid, high);
+        ()
+    }
+    else {()}
+};
+
+let printArray: (array{int}) -> unit = fun(arr: array{int}) -> {
+    let mutable x: int = 0; // read input
+
+    do { // do-while to print array data
+        println(arrayElem(arr, x)); // read array element
+        x <- x + 1 // increment
+    } while (x < arrayLength(arr)) // read length of array as part of condition to print array data
+};
+
+// initialize array
+let arr: array {int} = array(10, 0);
+
+// insert random values
+arrayElem(arr, 0) <- 50000;
+arrayElem(arr, 1) <- -3;
+arrayElem(arr, 2) <- -11;
+arrayElem(arr, 3) <- 22;
+arrayElem(arr, 4) <- 45;
+arrayElem(arr, 5) <- 61;
+arrayElem(arr, 6) <- 100;
+arrayElem(arr, 7) <- 200;
+arrayElem(arr, 8) <- 34;
+arrayElem(arr, 9) <- 80;
+
+// print initial array
+println("😰 initial array:");
+printArray(arr);
+println("🤔 sorting array... (merge sort)");
+// sort array
+
+mergeSort(arr, 0, arrayLength(arr) - 1);
+
+println("--------------------------------------");
+println("✅ sorted array:");
+// print sorted array
+printArray(arr);
+
+// assert that list is sorted correctly
+assert(arrayElem(arr, 1) = -3);
+assert(arrayElem(arr, 0) = -11);
+assert(arrayElem(arr, 2) = 22);
+assert(arrayElem(arr, 3) = 34);
+assert(arrayElem(arr, 4) = 45);
+assert(arrayElem(arr, 5) = 61);
+assert(arrayElem(arr, 6) = 80);
+assert(arrayElem(arr, 7) = 100);
+assert(arrayElem(arr, 8) = 200);
+assert(arrayElem(arr, 9) = 50000);
+
+println("done✅")
