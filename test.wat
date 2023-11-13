@@ -502,7 +502,7 @@
     global.get $fun_printArray*ptr ;; get global var: fun_printArray*ptr
     i32.load ;; load table index
     call_indirect (type $i32_i32_=>_unit) ;; call function
-    i32.const 0 ;; push 0 on stack
+    i32.const 1 ;; push 1 on stack
     i32.const 0 ;; put zero on stack
     i32.lt_s ;; check if index is >= 0
     (if 
@@ -512,7 +512,7 @@
         unreachable ;; exit program
       )
     )
-    i32.const 0 ;; push 0 on stack
+    i32.const 1 ;; push 1 on stack
     global.get $var_arr ;; get local var: var_arr, have been hoisted
     i32.load offset=4 ;; load length
     i32.ge_s ;; check if index is < length
@@ -525,7 +525,7 @@
     )
     global.get $var_arr ;; get local var: var_arr, have been hoisted
     i32.load ;; load data pointer
-    i32.const 0 ;; push 0 on stack
+    i32.const 1 ;; push 1 on stack
     i32.const 4 ;; byte offset
     i32.mul ;; multiply index with byte offset
     i32.add ;; add offset to base address
@@ -541,7 +541,7 @@
         unreachable ;; exit program
       )
     )
-    i32.const 1 ;; push 1 on stack
+    i32.const 0 ;; push 0 on stack
     i32.const 0 ;; put zero on stack
     i32.lt_s ;; check if index is >= 0
     (if 
@@ -551,7 +551,7 @@
         unreachable ;; exit program
       )
     )
-    i32.const 1 ;; push 1 on stack
+    i32.const 0 ;; push 0 on stack
     global.get $var_arr ;; get local var: var_arr, have been hoisted
     i32.load offset=4 ;; load length
     i32.ge_s ;; check if index is < length
@@ -564,7 +564,7 @@
     )
     global.get $var_arr ;; get local var: var_arr, have been hoisted
     i32.load ;; load data pointer
-    i32.const 1 ;; push 1 on stack
+    i32.const 0 ;; push 0 on stack
     i32.const 4 ;; byte offset
     i32.mul ;; multiply index with byte offset
     i32.add ;; add offset to base address
