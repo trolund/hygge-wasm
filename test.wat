@@ -12,7 +12,7 @@
   (global $fun_partition*ptr (;3;) (mut i32) i32.const 0)
   (global $fun_printArray*ptr (;4;) (mut i32) i32.const 8)
   (global $fun_quickSort*ptr (;5;) (mut i32) i32.const 4)
-  (global $heap_base (;6;) i32 i32.const 156)
+  (global $heap_base (;6;) i32 i32.const 187)
   (global $i (;7;) (mut i32) i32.const 0)
   (global $var_arr (;8;) (mut i32) i32.const 0)
   (table $func_table (;0;) 3 funcref)
@@ -148,7 +148,7 @@
     i32.const 4 ;; byte offset
     i32.mul ;; multiply index with byte offset
     i32.add ;; add offset to base address
-    i32.const 3 ;; push 3 on stack
+    i32.const -3 ;; push -3 on stack
     i32.store ;; store value in elem pos
     global.get $var_arr ;; get local var: var_arr, have been hoisted
     i32.load ;; load data pointer
@@ -185,7 +185,7 @@
     i32.const 4 ;; byte offset
     i32.mul ;; multiply index with byte offset
     i32.add ;; add offset to base address
-    i32.const 11 ;; push 11 on stack
+    i32.const -11 ;; push -11 on stack
     i32.store ;; store value in elem pos
     global.get $var_arr ;; get local var: var_arr, have been hoisted
     i32.load ;; load data pointer
@@ -454,6 +454,11 @@
     i32.add ;; add offset to base address
     i32.load ;; load int from elem pos
     drop
+    i32.const 12 ;; leave pointer to string on stack
+    i32.load ;; Load string pointer
+    i32.const 12 ;; leave pointer to string on stack
+    i32.load offset=4 ;; Load string length
+    call $writeS ;; call host function
     ;; Load expression to be applied as a function
     global.get $fun_printArray*ptr ;; get global var: fun_printArray*ptr
     i32.load offset=4 ;; load closure environment pointer
@@ -461,9 +466,9 @@
     global.get $fun_printArray*ptr ;; get global var: fun_printArray*ptr
     i32.load ;; load table index
     call_indirect (type $i32_i32_=>_unit) ;; call function
-    i32.const 12 ;; leave pointer to string on stack
+    i32.const 43 ;; leave pointer to string on stack
     i32.load ;; Load string pointer
-    i32.const 12 ;; leave pointer to string on stack
+    i32.const 43 ;; leave pointer to string on stack
     i32.load offset=4 ;; Load string length
     call $writeS ;; call host function
     ;; Load expression to be applied as a function
@@ -480,14 +485,14 @@
     global.get $fun_quickSort*ptr ;; get global var: fun_quickSort*ptr
     i32.load ;; load table index
     call_indirect (type $i32_i32_i32_i32_=>_unit) ;; call function
-    i32.const 58 ;; leave pointer to string on stack
+    i32.const 89 ;; leave pointer to string on stack
     i32.load ;; Load string pointer
-    i32.const 58 ;; leave pointer to string on stack
+    i32.const 89 ;; leave pointer to string on stack
     i32.load offset=4 ;; Load string length
     call $writeS ;; call host function
-    i32.const 108 ;; leave pointer to string on stack
+    i32.const 139 ;; leave pointer to string on stack
     i32.load ;; Load string pointer
-    i32.const 108 ;; leave pointer to string on stack
+    i32.const 139 ;; leave pointer to string on stack
     i32.load offset=4 ;; Load string length
     call $writeS ;; call host function
     ;; Load expression to be applied as a function
@@ -526,7 +531,7 @@
     i32.add ;; add offset to base address
     i32.load ;; load value
     ;; end array element access node
-    i32.const 3 ;; push 3 on stack
+    i32.const -3 ;; push -3 on stack
     i32.eq
     i32.eqz ;; invert assertion
     (if 
@@ -565,7 +570,7 @@
     i32.add ;; add offset to base address
     i32.load ;; load value
     ;; end array element access node
-    i32.const 11 ;; push 11 on stack
+    i32.const -11 ;; push -11 on stack
     i32.eq
     i32.eqz ;; invert assertion
     (if 
@@ -887,9 +892,9 @@
         unreachable ;; exit program
       )
     )
-    i32.const 137 ;; leave pointer to string on stack
+    i32.const 168 ;; leave pointer to string on stack
     i32.load ;; Load string pointer
-    i32.const 137 ;; leave pointer to string on stack
+    i32.const 168 ;; leave pointer to string on stack
     i32.load offset=4 ;; Load string length
     call $writeS ;; call host function
     ;; End of let
@@ -1437,14 +1442,16 @@
   (data (i32.const 0) "\00")
   (data (i32.const 4) "\01")
   (data (i32.const 8) "\02")
-  (data (i32.const 12) "\18\00\00\00\22\00\00\00\20\00\00\00")
-  (data (i32.const 24) "🤔 sorting array... (quick sort)")
-  (data (i32.const 58) "\46\00\00\00\26\00\00\00\26\00\00\00")
-  (data (i32.const 70) "--------------------------------------")
-  (data (i32.const 108) "\78\00\00\00\11\00\00\00\0f\00\00\00")
-  (data (i32.const 120) "✅ sorted array:")
-  (data (i32.const 137) "\95\00\00\00\07\00\00\00\05\00\00\00")
-  (data (i32.const 149) "done✅")
+  (data (i32.const 12) "\18\00\00\00\13\00\00\00\11\00\00\00")
+  (data (i32.const 24) "😰 initial array:")
+  (data (i32.const 43) "\37\00\00\00\22\00\00\00\20\00\00\00")
+  (data (i32.const 55) "🤔 sorting array... (quick sort)")
+  (data (i32.const 89) "\65\00\00\00\26\00\00\00\26\00\00\00")
+  (data (i32.const 101) "--------------------------------------")
+  (data (i32.const 139) "\97\00\00\00\11\00\00\00\0f\00\00\00")
+  (data (i32.const 151) "✅ sorted array:")
+  (data (i32.const 168) "\b4\00\00\00\07\00\00\00\05\00\00\00")
+  (data (i32.const 180) "done✅")
   (export "_start" (func $_start))
   (export "exit_code" (global $exit_code))
   (export "heap_base_ptr" (global $heap_base))

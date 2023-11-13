@@ -120,7 +120,7 @@ name of file,instr count,instr count after op,diff,% reduction
 031-top-level-3,78,72,6,7.69
 031-top-level,21,21,0,0.00
 032-pattern-matching,133,125,8,6.02
-bubblesort,592,586,6,1.01
+bubblesort,597,591,6,1.01
 calcualtor,353,323,30,8.50
 counter-plus,259,241,18,6.95
 counter,211,193,18,8.53
@@ -148,13 +148,14 @@ hygge-union-arrays,173,163,10,5.78
 hygge-union-structs,224,210,14,6.25
 hygge-union,187,171,16,8.56
 if-return,255,249,6,2.35
-insertionSort,374,369,5,1.34
+insertionSort,589,584,5,0.85
 letClousure,238,220,18,7.56
 memory-grow,56,54,2,3.57
 memory-static,9,9,0,0.00
 multiplier,84,78,6,7.14
 mut-var-export,13,13,0,0.00
 println,52,52,0,0.00
+quickSort,722,717,5,0.69
 rec-countdown-2,65,59,6,9.23
 rec-countdown-3,131,121,10,7.63
 rec-countdown-4,111,100,11,9.91

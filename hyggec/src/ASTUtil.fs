@@ -322,6 +322,8 @@ let rec freeVars (node: Node<'E,'T>): Set<string> =
         Set.union (freeVars lhs) (freeVars rhs)
     | RemAsg(lhs, rhs) ->
         Set.union (freeVars lhs) (freeVars rhs)
+    | Neg(arg) ->
+        freeVars arg
   //  | x -> failwith (sprintf "BUG: unhandled node in freeVars: %A" node)
 
 /// Compute the union of the free variables in a list of AST nodes.
@@ -431,6 +433,7 @@ let rec capturedVars (node: Node<'E,'T>): Set<string> =
     | Greater(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
     | GreaterOrEq(lhs, rhs) -> Set.union (capturedVars lhs) (capturedVars rhs)
     | StringLength(target) -> capturedVars target
+    | Neg(arg) -> capturedVars arg
  //   | x -> failwith (sprintf "BUG: unhandled node in capturedVars: %A" node)
 
 /// Compute the union of the captured variables in a list of AST nodes.
