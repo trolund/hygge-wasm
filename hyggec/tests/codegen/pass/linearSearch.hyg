@@ -1,0 +1,51 @@
+fun linearSearch(arr: array{int}, target: int): int = {
+    let n: int = arrayLength(arr);
+
+    let mutable i: int = 0;
+    let mutable result: int = -1;
+    let mutable break: bool = true;
+
+    while (i < n && break)
+    do {
+        if (arrayElem(arr, i) = target)
+        then {
+            // Target found, return the index
+            result <- i;
+            break <- false;
+            ()
+        } else {()};
+        i <- i + 1
+    };
+
+    // Return the index of the target, or -1 if not found
+    result
+};
+
+
+// Example usage:
+let sortedArray: array {int} = array(10, 0);
+
+// insert random values in order
+arrayElem(sortedArray, 0) <- 0;
+arrayElem(sortedArray, 1) <- 3;
+arrayElem(sortedArray, 2) <- 11;
+arrayElem(sortedArray, 3) <- 22;
+arrayElem(sortedArray, 4) <- 45;
+arrayElem(sortedArray, 5) <- 61;
+arrayElem(sortedArray, 6) <- 100;
+arrayElem(sortedArray, 7) <- 200;
+arrayElem(sortedArray, 8) <- 222;
+arrayElem(sortedArray, 9) <- 245;
+
+// Test cases
+assert(linearSearch(sortedArray, 22) = 3);
+assert(linearSearch(sortedArray, 45) = 4);
+assert(linearSearch(sortedArray, 245) = 9);
+assert(linearSearch(sortedArray, 0) = 0);
+assert(linearSearch(sortedArray, 100) = 6);
+assert(linearSearch(sortedArray, 200) = 7);
+assert(linearSearch(sortedArray, 222) = 8);
+assert(linearSearch(sortedArray, 3) = 1);
+assert(linearSearch(sortedArray, 11) = 2);
+assert(linearSearch(sortedArray, 61) = 5);
+assert(linearSearch(sortedArray, 1) = -1) // not found
