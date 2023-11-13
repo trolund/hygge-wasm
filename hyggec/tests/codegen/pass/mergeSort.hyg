@@ -3,6 +3,7 @@ fun merge(arr: array{int}, low: int, mid: int, high: int): unit = {
     let n2: int = high - mid;
 
     // Create temporary arrays
+    // +1 sice hygge does not allow empty arrays
     let leftArr: array{int} = array(n1 + 1, 0);
     let rightArr: array{int} = array(n2 + 1, 0);
 
