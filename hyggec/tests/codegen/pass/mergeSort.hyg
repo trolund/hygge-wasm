@@ -104,7 +104,6 @@ println("😰 initial array:");
 printArray(arr);
 println("🤔 sorting array... (merge sort)");
 // sort array
-
 mergeSort(arr, 0, arrayLength(arr) - 1);
 
 println("--------------------------------------");
