@@ -1,7 +1,7 @@
 type Cal = struct {add: (int) -> int; 
-                        sub: (int) -> int; 
-                        mul: (int) -> int; 
-                        div: (int) -> int};
+                   sub: (int) -> int; 
+                   mul: (int) -> int; 
+                   div: (int) -> int};
 
 // Return a structure with two functions that share a counter.
 // The counter is initialized to 0.
