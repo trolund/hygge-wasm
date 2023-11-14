@@ -1,0 +1,7 @@
+fun fail(): bool = {
+    assert(false);
+    println("fail");
+    false
+};
+
+true && fail()
