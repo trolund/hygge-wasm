@@ -254,6 +254,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         m.AddCode([ (I32Const(-v), $"push %i{-v} on stack") ])
     | Neg({ Node.Expr = FloatVal(v); Node.Type = TFloat }) ->
         m.AddCode([ (F32Const(-v), $"push %f{-v} on stack") ])
+    | Neg(e) ->
+        let m' = doCodegen env e m
+
+        let instrs =
+            match (expandType e.Env e.Type) with
+            | t when (isSubtypeOf e.Env t TInt) -> m'.GetAccCode() @ [ (I32Const(-1), "push -1 on stack"); (I32Mul, "multiply with -1") ]
+            | t when (isSubtypeOf e.Env t TFloat) -> m'.GetAccCode() @ [ (F32Const(-1.0f), "push -1.0 on stack"); (F32Mul, "multiply with -1.0") ]
+            | _ -> failwith "negation of type not implemented"
+
+        m'.ResetAccCode().AddCode(instrs)
     | Var v ->
         // load variable
         let instrs: List<Commented<Instr>> =
