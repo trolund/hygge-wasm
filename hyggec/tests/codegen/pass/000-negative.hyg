@@ -1,3 +1,7 @@
 let mutable x: int = -(5 + 10);
 assert(x < 0);
-assert(x = -15)
+assert(x = -15);
+
+
+let mutable y: int = -(5 * 2 / 2) + -2;
+assert(y = -7)

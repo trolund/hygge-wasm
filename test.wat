@@ -3,6 +3,7 @@
   (global $exit_code (;0;) (mut i32) i32.const 0)
   (global $heap_base (;1;) i32 i32.const 0)
   (global $var_x (;2;) (mut i32) i32.const 0)
+  (global $var_y (;3;) (mut i32) i32.const 0)
   (table $func_table (;0;) 0 funcref)
   (func $_start (;0;)  (result i32) 
     ;; execution start here:
@@ -35,6 +36,29 @@
         unreachable ;; exit program
       )
     )
+    ;; Start of let
+    i32.const 5 ;; push 5 on stack
+    i32.const 2 ;; push 2 on stack
+    i32.mul
+    i32.const 2 ;; push 2 on stack
+    i32.div_s
+    i32.const -1 ;; push -1 on stack
+    i32.mul ;; multiply with -1
+    i32.const -2 ;; push -2 on stack
+    i32.add
+    global.set $var_y ;; set local var, have been hoisted
+    global.get $var_y ;; get local var: var_y, have been hoisted
+    i32.const -7 ;; push -7 on stack
+    i32.eq
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
+    ;; End of let
     ;; End of let
     ;; if execution reaches here, the program is successful
     i32.const 0 ;; exit code 0
