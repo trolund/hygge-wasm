@@ -1,0 +1,14 @@
+let mutable x: int = 42;
+
+let arr: array {int} = array(3, 42);
+let tup: tuple {string, int, bool} = tuple {"Hello", 40 + 2, true};
+let str: struct {f: int} = struct {f = 42};
+
+x <- arrayElem(arr, 0) <- str.f <- tup._2 <- arrayElem(arr, 0) + x + str.f + tup._2;
+
+
+// this is too test that the multilpe assignmet only leaves
+assert(x = 42 * 4);
+assert(arrayElem(arr, 0) = 42 * 4);
+assert(str.f = 42 * 4);
+assert(tup._2 = 42 * 4)

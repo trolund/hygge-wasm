@@ -1,0 +1,7 @@
+let arr: array {int} = array(3, 42);
+// multiple assignments
+arrayElem(arr, 0) <- arrayElem(arr, 1) <- arrayElem(arr, 2) <- 94;
+
+assert(arrayElem(arr, 0) = 94);
+assert(arrayElem(arr, 1) = 94);
+assert(arrayElem(arr, 2) = 94)
