@@ -1070,10 +1070,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ (Block(matchEndLabel, reusltType, casesCode.GetAccCode() @ defaultCase)) ]
 
         casesCode.ResetAccCode().AddCode(block)
-    | Assign(asignTo, value) ->
+    | Assign(target, value) ->
         let value' = doCodegen env value m
 
-        match asignTo.Expr with
+        match target.Expr with
         | Var(name) ->
 
             match env.VarStorage.TryFind name with
@@ -1117,7 +1117,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
                 /// Assembly code that performs the field value assignment
                 let assignCode =
-                    match (expandType asignTo.Env asignTo.Type) with
+                    match (expandType target.Env target.Type) with
                     | t when (isSubtypeOf value.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf value.Env t TFloat) ->
                         selTargetCode.GetAccCode()
