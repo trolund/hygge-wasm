@@ -250,17 +250,21 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs = m'.GetAccCode() @ [ (I32Load_(None, Some(8)), "load string length") ]
 
         m'.ResetAccCode().AddCode(instrs)
-    | Neg({ Node.Expr = IntVal(v); Node.Type = TInt }) ->
-        m.AddCode([ (I32Const(-v), $"push %i{-v} on stack") ])
-    | Neg({ Node.Expr = FloatVal(v); Node.Type = TFloat }) ->
-        m.AddCode([ (F32Const(-v), $"push %f{-v} on stack") ])
+    | Neg({ Node.Expr = IntVal(v)
+            Node.Type = TInt }) -> m.AddCode([ (I32Const(-v), $"push %i{-v} on stack") ])
+    | Neg({ Node.Expr = FloatVal(v)
+            Node.Type = TFloat }) -> m.AddCode([ (F32Const(-v), $"push %f{-v} on stack") ])
     | Neg(e) ->
         let m' = doCodegen env e m
 
         let instrs =
             match (expandType e.Env e.Type) with
-            | t when (isSubtypeOf e.Env t TInt) -> m'.GetAccCode() @ [ (I32Const(-1), "push -1 on stack"); (I32Mul, "multiply with -1") ]
-            | t when (isSubtypeOf e.Env t TFloat) -> m'.GetAccCode() @ [ (F32Const(-1.0f), "push -1.0 on stack"); (F32Mul, "multiply with -1.0") ]
+            | t when (isSubtypeOf e.Env t TInt) ->
+                m'.GetAccCode()
+                @ [ (I32Const(-1), "push -1 on stack"); (I32Mul, "multiply with -1") ]
+            | t when (isSubtypeOf e.Env t TFloat) ->
+                m'.GetAccCode()
+                @ [ (F32Const(-1.0f), "push -1.0 on stack"); (F32Mul, "multiply with -1.0") ]
             | _ -> failwith "negation of type not implemented"
 
         m'.ResetAccCode().AddCode(instrs)
@@ -344,25 +348,25 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | PreDcr(e) ->
         let valNode =
             match (expandType e.Env e.Type) with
-            | t when (isSubtypeOf e.Env t TInt) ->
-                { node with Expr = IntVal 1 }
-            | t when (isSubtypeOf e.Env t TFloat) ->
-                { node with Expr = FloatVal 1.0f }
+            | t when (isSubtypeOf e.Env t TInt) -> { node with Expr = IntVal 1 }
+            | t when (isSubtypeOf e.Env t TFloat) -> { node with Expr = FloatVal 1.0f }
             | _ -> failwith "not implemented"
 
-        let assignode = { node with Expr = Assign(e, { node with Expr = Sub(e, valNode) } ) }
+        let assignode =
+            { node with
+                Expr = Assign(e, { node with Expr = Sub(e, valNode) }) }
 
         (doCodegen env assignode m)
     | PostDcr(e) ->
         let valNode =
             match (expandType e.Env e.Type) with
-            | t when (isSubtypeOf e.Env t TInt) ->
-                { node with Expr = IntVal 1 }
-            | t when (isSubtypeOf e.Env t TFloat) ->
-                { node with Expr = FloatVal 1.0f }
+            | t when (isSubtypeOf e.Env t TInt) -> { node with Expr = IntVal 1 }
+            | t when (isSubtypeOf e.Env t TFloat) -> { node with Expr = FloatVal 1.0f }
             | _ -> failwith "not implemented"
 
-        let assignode = { node with Expr = Assign(e, { node with Expr = Sub(e, valNode) } ) }
+        let assignode =
+            { node with
+                Expr = Assign(e, { node with Expr = Sub(e, valNode) }) }
 
         ((doCodegen env e m) + (doCodegen env assignode m)).AddCode([ Drop ])
     | MinAsg(lhs, rhs) ->
@@ -453,14 +457,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         (m' + m'').AddCode([ I32And ])
     // short circuit and
     | ShortAnd(e1, e2) ->
-        let ifNode = { node with Expr = AST.If(e1, e2, { node with Expr = IntVal 0 }) }
-
-        doCodegen env ifNode m  
-    // short circuit or   
+        doCodegen
+            env
+            { node with
+                Expr = AST.If(e1, e2, { node with Expr = IntVal 0 }) }
+            m
+    // short circuit or
     | ShortOr(e1, e2) ->
-        let ifNode = { node with Expr = AST.If(e1, { node with Expr = IntVal 1 }, e2) }
-
-        doCodegen env ifNode m
+        doCodegen
+            env
+            { node with
+                Expr = AST.If(e1, { node with Expr = IntVal 1 }, e2) }
+            m
     | Or(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
@@ -568,7 +576,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         m'.GetAccCode()
                         @ [ (I32Load, "Load string pointer") ]
                         @ m'.GetAccCode()
-                        @ [(I32Load_(None, Some(4)), "Load string length") ]
+                        @ [ (I32Load_(None, Some(4)), "Load string length") ]
                     )
 
             // perform host (system) call
@@ -705,7 +713,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     | DoWhile(cond, body) ->
         // insert drop if body is not unit
-        let mayDrop = if (expandType body.Env body.Type) = TUnit then [] else [ Drop ]
+        let mayDrop =
+            if (expandType body.Env body.Type) = TUnit then
+                []
+            else
+                [ Drop ]
 
         (doCodegen env body m).AddCode(mayDrop)
         ++ (doCodegen env { node with Expr = While(cond, body) } m)
@@ -714,7 +726,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // the init expression is evaluated before the loop
         // the init expresstion is not allowed to return a value
         // therefore we drop the value if it is not unit
-        let mayDrop = if (expandType init.Env init.Type) = TUnit then [] else [ Drop ]
+        let mayDrop =
+            if (expandType init.Env init.Type) = TUnit then
+                []
+            else
+                [ Drop ]
 
         (doCodegen env init m).AddCode(mayDrop)
         ++ (doCodegen
@@ -724,7 +740,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         While(
                             cond,
                             { node with
-                                Expr = Seq([ body; update; {node with Expr = UnitVal; Type = TUnit } ]) }
+                                Expr =
+                                    Seq(
+                                        [ body
+                                          update
+                                          { node with
+                                              Expr = UnitVal
+                                              Type = TUnit } ]
+                                    ) }
                         ) }
                 m)
     | Array(length, data) ->
