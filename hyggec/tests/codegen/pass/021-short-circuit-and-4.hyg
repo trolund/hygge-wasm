@@ -1,0 +1,5 @@
+// Operator precedence
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Logical_AND#operator_precedence
+assert(true || false && false);
+assert(not(true && (false || false)));
+assert(not((2 = 3) || (4 < 0) && (1 = 1)))
