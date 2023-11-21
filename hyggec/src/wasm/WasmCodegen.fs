@@ -6,6 +6,7 @@ open Typechecker
 open WGF.Module
 open WGF.Types
 open WGF.Utils
+open WGF.Instr
 open System.Text
 open SI
 
@@ -270,13 +271,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         m'.ResetAccCode().AddCode(instrs)
     | Var v ->
         // load variable
-        let instrs: List<Commented<Instr>> =
+        let instrs: List<Commented<WGF.Instr.Wasm>> =
             match env.VarStorage.TryFind v with
             | Some(Storage.local l) -> [ (LocalGet(Named(l)), $"get local var: {l}") ] // push local variable on stack
             | Some(Storage.glob l) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ] // push global variable on stack
             | Some(Storage.Offset(i)) -> // push variable from offset on stack
                 // get load instruction based on type
-                let li: Instr =
+                let li: WGF.Instr.Wasm =
                     match (expandType node.Env node.Type) with
                     | t when (isSubtypeOf node.Env t TBool) -> I32Load_(None, Some(i * 4))
                     | t when (isSubtypeOf node.Env t TInt) -> I32Load_(None, Some(i * 4))
@@ -843,7 +844,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                   ) ]
 
         // block that contains loop and provides a way to exit the loop
-        let block: Commented<Instr> list =
+        let block: Commented<WGF.Instr.Wasm> list =
             C [ I32Const 0; LocalSet(Named(i)) ] @ C [ (Block(exitl, [], loop)) ]
 
         let loopModule =
@@ -1720,7 +1721,7 @@ and internal createClosure (env: CodegenEnv) (node: TypedAST) (index: int) (m: M
 /// with global get and set instructions
 /// this is used to upgrade local variables to global variables
 /// this is needed for the closure implementation
-let rec localSubst (code: Commented<Instr> list) (var: string) : Commented<Instr> list =
+let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commented<WGF.Instr.Wasm> list =
     match code with
     | [] -> code // end of code
     | (LocalGet(Named(n)), c) :: rest when n = var ->

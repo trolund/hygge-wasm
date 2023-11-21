@@ -2,11 +2,12 @@ module WasmPeephole
 
 open WGF.Module
 open WGF.Types
+open WGF.Instr
 open Util
 
 /// Optimize a list of Text segment statements.
 /// TODO: make sure that optimizeInstr are applied until the result stops changing
-let rec internal optimizeInstr (code: Commented<Instr> list) : (Commented<Instr> list) =
+let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Commented<WGF.Instr.Wasm> list) =
     match code with
     // Optimization: remove a local.get immediately followed by a local.set 
     // of the same local variable. This is a common pattern when using local
@@ -127,7 +128,7 @@ let optimize (m: Module) : Module =
                 let instrs = func.body
 
                 // run the optimization, until the result stops changing
-                let rec optimizeInstrUntilStable (instrs: Commented<Instr> list) : Commented<Instr> list =
+                let rec optimizeInstrUntilStable (instrs: Commented<WGF.Instr.Wasm> list) : Commented<WGF.Instr.Wasm> list =
                     let instrs' = optimizeInstr instrs
                     if instrs' = instrs then instrs else optimizeInstrUntilStable instrs'
 

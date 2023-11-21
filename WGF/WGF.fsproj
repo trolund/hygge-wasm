@@ -9,6 +9,8 @@
 
     <ItemGroup>
         <Compile Include="Types.fs"/>
+        <Compile Include="Instructions.fs"/>
+       
         <Compile Include="Utils.fs"/>
         <Compile Include="WatGen.fs"/>
         <Compile Include="Library.fs"/>

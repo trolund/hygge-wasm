@@ -1,5 +1,4 @@
 (module
-  (import "env" "writeInt" (;0;) (func $writeInt (param i32) ))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) i32.const 0)
   (global $heap_base (;1;) i32 i32.const 0)
@@ -23,7 +22,14 @@
         )
       )
     )
-    call $writeInt ;; call host function
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
     i32.const 1 ;; push true on stack
     (if (result i32)
       (then
@@ -42,7 +48,14 @@
       )
     )
     i32.eqz
-    call $writeInt ;; call host function
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
     i32.const 2 ;; push 2 on stack
     i32.const 3 ;; push 3 on stack
     i32.eq
@@ -67,7 +80,14 @@
       )
     )
     i32.eqz
-    call $writeInt ;; call host function
+    i32.eqz ;; invert assertion
+    (if 
+      (then
+        i32.const 42 ;; error exit code push to stack
+        global.set $exit_code ;; set exit code
+        unreachable ;; exit program
+      )
+    )
     ;; if execution reaches here, the program is successful
     i32.const 0 ;; exit code 0
     return ;; return the exit code

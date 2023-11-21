@@ -4,509 +4,9 @@ module Module =
 
     open WGF.Types
     open WGF.WatGen
-
-    /// Instructions are syntactically distinguished into plain (Instr) and structured instructions (BlockInstr).
-    /// <summary>All Wasm instructions used</summary>
-    type Instr =
-        // Control Instrs
-        | Unreachable
-        | Nop
-        | Else of ValueType list * ValueType list * Instr list * Instr list
-        | Br of Identifier
-        | BrIf of Identifier
-        | BrTable of int list * int
-        | Return
-        // Memory Instrs
-        | I32Load_ of int option * int option
-        | I32Load
-        | I64Load of int * int
-        /// load align and offset
-        | F32Load_ of int option * int option
-        | F32Load
-        | F64Load of int * int
-        | I32Load8S of int * int
-        | I32Load8U of int * int
-        | I32Load16S of int * int
-        | I32Load16U of int * int
-        | I64Load8S of int * int
-        | I64Load8U of int * int
-        | I64Load16S of int * int
-        | I64Load16U of int * int
-        | I64Load32S of int * int
-        | I64Load32U of int * int
-        /// align and offset
-        | I32Store_ of int option * int option
-        | I32Store
-        | I64Store of int * int
-        | F32Store_ of int option * int option
-        | F32Store
-        | F64Store of int * int
-        | I32Store8 of int * int
-        | I32Store16 of int * int
-        | I64Store8 of int * int
-        | I64Store16 of int * int
-        | I64Store32 of int * int
-        | MemorySize
-        | MemoryGrow
-        // Numeric Instrs
-        | I32Const of int32
-        | I64Const of int64
-        | F32Const of float32
-        | F64Const of float
-        | I32Eqz
-        | I32Eq
-        | I32Ne
-        | I32LtS
-        | I32LtU
-        | I32GtS
-        | I32GtU
-        | I32LeS
-        | I32LeU
-        | I32GeS
-        | I32GeU
-        | I64Eqz
-        | I64Eq
-        | I64Ne
-        | I64LtS
-        | I64LtU
-        | I64GtS
-        | I64GtU
-        | I64LeS
-        | I64LeU
-        | I64GeS
-        | I64GeU
-        | F32Eq
-        | F32Ne
-        | F32Lt
-        | F32Gt
-        | F32Le
-        | F32Ge
-        | F64Eq
-        | F64Ne
-        | F64Lt
-        | F64Gt
-        | F64Le
-        | F64Ge
-        | I32Clz
-        | I32Ctz
-        | I32Popcnt
-        | I32Add
-        | I32Sub
-        | I32Mul
-        | I32DivS
-        | I32DivU
-        | I32RemS
-        | I32RemU
-        | I32And
-        | I32Or
-        | I32Xor
-        | I32Shl
-        | I32ShrS
-        | I32ShrU
-        | I32Rotl
-        | I32Rotr
-        | I64Clz
-        | I64Ctz
-        | I64Popcnt
-        | I64Add
-        | I64Sub
-        | I64Mul
-        | I64DivS
-        | I64DivU
-        | I64RemS
-        | I64RemU
-        | I64And
-        | I64Or
-        | I64Xor
-        | I64Shl
-        | I64ShrS
-        | I64ShrU
-        | I64Rotl
-        | I64Rotr
-        | F32Abs
-        | F32Neg
-        | F32Ceil
-        | F32Floor
-        | F32Trunc
-        | F32Nearest
-        | F32Sqrt
-        | F32Add
-        | F32Sub
-        | F32Mul
-        | F32Div
-        | F32Min
-        | F32Max
-        | F32Copysign
-        | F64Abs
-        | F64Neg
-        | F64Ceil
-        | F64Floor
-        | F64Trunc
-        | F64Nearest
-        | F64Sqrt
-        | F64Add
-        | F64Sub
-        | F64Mul
-        | F64Div
-        | F64Min
-        | F64Max
-        | F64Copysign
-        // Parametric Instr
-        | Drop
-        | Select
-        // Variable Instr
-        | Local of Label * ValueType // https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Variables/Local
-        | LocalGet of Label
-        | LocalSet of Label
-        | LocalTee of Label
-        | GlobalGet of Label
-        | GlobalSet of Label
-        // Table Instr
-        | TableGet of int
-        | TableSet of int
-        | TableInit of int * int * int
-        | ElemDrop of int
-        | TableCopy of int * int
-        | TableGrow of int
-        | TableSize of int
-        // Call Instr
-        | Call of string
-        | CallIndirect_ of int * int
-        /// type label
-        | CallIndirect of Label
-        | CallIndirect__ of FunctionSignature
-        // ref
-        | RefFunc of Label
-        // Conversion Instr
-        | I32WrapI64
-        | I32TruncF32S
-        | I32TruncF32U
-        | I32TruncF64S
-        | I32TruncF64U
-        | I64ExtendI32S
-        | I64ExtendI32U
-        | I64TruncF32S
-        | I64TruncF32U
-        | I64TruncF64S
-        | I64TruncF64U
-        | F32ConvertI32S
-        | F32ConvertI32U
-        | F32ConvertI64S
-        | F32ConvertI64U
-        | F32DemoteF64
-        | F64ConvertI32S
-        | F64ConvertI32U
-        | F64ConvertI64S
-        | F64ConvertI64U
-        | F64PromoteF32
-        | I32ReinterpretF32
-        | I64ReinterpretF64
-        | F32ReinterpretI32
-        | F64ReinterpretI64
-        // memory instr
-        | MemoryInit of int * int * int
-        | DataDrop of int
-        | MemoryCopy of int * int
-        | MemoryFill_ of int * int * int
-        | MemoryFill
-        /// Block Instruction
-        /// label * result type * instrs
-        | Block of Identifier * ValueType list * list<Commented<Instr>>
-        /// Loop Instruction
-        /// label * result type * instrs
-        | Loop of Identifier * ValueType list * list<Commented<Instr>>
-        /// If Instruction
-        /// reuslt type of if, then block, else block
-        /// if (result type) then (instrs) else (instrs)
-        | If of ValueType list * list<Commented<Instr>> * list<Commented<Instr>> option
-        // comment
-        | Comment of string
-
-        override this.ToString() =
-            match this with
-            | I32Const value -> $"i32.const %i{value}"
-            | I64Const value -> $"i64.const %i{value}"
-            | F32Const value -> $"f32.const %f{value}"
-            | F64Const value -> $"f64.const %f{value}"
-            | I32Eqz -> "i32.eqz"
-            | I32Eq -> "i32.eq"
-            | I32Ne -> "i32.ne"
-            | I32LtS -> "i32.lt_s"
-            | I32LtU -> "i32.lt_u"
-            | I32GtS -> "i32.gt_s"
-            | I32GtU -> "i32.gt_u"
-            | I32LeS -> "i32.le_s"
-            | I32LeU -> "i32.le_u"
-            | I32GeS -> "i32.ge_s"
-            | I32GeU -> "i32.ge_u"
-            | I32Add -> "i32.add"
-            | I32And -> "i32.and"
-            | I32Clz -> "i32.clz"
-            | I32Ctz -> "i32.ctz"
-            | I32DivS -> "i32.div_s"
-            | I32DivU -> "i32.div_u"
-            | I32Mul -> "i32.mul"
-            | I32Or -> "i32.or"
-            | I32Popcnt -> "i32.popcnt"
-            | I32RemS -> "i32.rem_s"
-            | I32RemU -> "i32.rem_u"
-            | I32Rotl -> "i32.rotl"
-            | I32Rotr -> "i32.rotr"
-            | I32Shl -> "i32.shl"
-            | I32ShrS -> "i32.shr_s"
-            | I32ShrU -> "i32.shr_u"
-            | I32Sub -> "i32.sub"
-            | I32Xor -> "i32.xor"
-            | I64Add -> "i64.add"
-            | I64And -> "i64.and"
-            | I64Clz -> "i64.clz"
-            | I64Ctz -> "i64.ctz"
-            | I64DivS -> "i64.div_s"
-            | I64DivU -> "i64.div_u"
-            | I64Mul -> "i64.mul"
-            | I64Or -> "i64.or"
-            | I64Popcnt -> "i64.popcnt"
-            | I64RemS -> "i64.rem_s"
-            | I64RemU -> "i64.rem_u"
-            | I64Rotl -> "i64.rotl"
-            | I64Rotr -> "i64.rotr"
-            | I64Shl -> "i64.shl"
-            | I64ShrS -> "i64.shr_s"
-            | I64ShrU -> "i64.shr_u"
-            | I64Sub -> "i64.sub"
-            | I64Xor -> "i64.xor"
-            | I64Eqz -> "i64.eqz"
-            | I64Eq -> "i64.eq"
-            | I64Ne -> "i64.ne"
-            | I64LtS -> "i64.lt_s"
-            | I64LtU -> "i64.lt_u"
-            | I64GtS -> "i64.gt_s"
-            | I64GtU -> "i64.gt_u"
-            | I64LeS -> "i64.le_s"
-            | I64LeU -> "i64.le_u"
-            | I64GeS -> "i64.ge_s"
-            | I64GeU -> "i64.ge_u"
-            | F32Eq -> "f32.eq"
-            | F32Ne -> "f32.ne"
-            | F32Lt -> "f32.lt"
-            | F32Gt -> "f32.gt"
-            | F32Le -> "f32.le"
-            | F32Ge -> "f32.ge"
-            | F32Abs -> "f32.abs"
-            | F32Neg -> "f32.neg"
-            | F32Ceil -> "f32.ceil"
-            | F32Floor -> "f32.floor"
-            | F32Trunc -> "f32.trunc"
-            | F32Nearest -> "f32.nearest"
-            | F32Sqrt -> "f32.sqrt"
-            | F32Add -> "f32.add"
-            | F32Sub -> "f32.sub"
-            | F32Mul -> "f32.mul"
-            | F32Div -> "f32.div"
-            | F32Min -> "f32.min"
-            | F32Max -> "f32.max"
-            | F32Copysign -> "f32.copysign"
-            | F64Eq -> "f64.eq"
-            | F64Ne -> "f64.ne"
-            | F64Lt -> "f64.lt"
-            | F64Gt -> "f64.gt"
-            | F64Le -> "f64.le"
-            | F64Ge -> "f64.ge"
-            | F64Abs -> "f64.abs"
-            | F64Neg -> "f64.neg"
-            | F64Ceil -> "f64.ceil"
-            | F64Floor -> "f64.floor"
-            | F64Trunc -> "f64.trunc"
-            | F64Nearest -> "f64.nearest"
-            | F64Sqrt -> "f64.sqrt"
-            | F64Add -> "f64.add"
-            | F64Sub -> "f64.sub"
-            | F64Mul -> "f64.mul"
-            | F64Div -> "f64.div"
-            | F64Min -> "f64.min"
-            | F64Max -> "f64.max"
-            | F64Copysign -> "f64.copysign"
-            | I32Load_(align, offset) ->
-                match align, offset with
-                | Some align, Some offset -> $"i32.load align=%d{align} offset=%d{offset}"
-                | Some align, None -> $"i32.load align=%d{align}"
-                | None, Some offset -> $"i32.load offset=%d{offset}"
-                | None, None -> "i32.load"
-            | I32Load -> "i32.load"
-            | I64Load(align, offset) -> $"i64.load align=%d{align} offset=%d{offset}"
-            | F32Load_(align, offset) ->
-                match align, offset with
-                | Some align, Some offset -> $"f32.load align=%d{align} offset=%d{offset}"
-                | Some align, None -> $"f32.load align=%d{align}"
-                | None, Some offset -> $"f32.load offset=%d{offset}"
-                | None, None -> "f32.load"
-            | F32Load -> "f32.load"
-            | F64Load(align, offset) -> $"f64.load align=%d{align} offset=%d{offset}"
-            | I32Load8S(align, offset) -> $"i32.load8_s align=%d{align} offset=%d{offset}"
-            | I32Load8U(align, offset) -> $"i32.load8_u align=%d{align} offset=%d{offset}"
-            | I32Load16S(align, offset) -> $"i32.load16_s align=%d{align} offset=%d{offset}"
-            | I32Load16U(align, offset) -> $"i32.load16_u align=%d{align} offset=%d{offset}"
-            | I64Load8S(align, offset) -> $"i64.load8_s align=%d{align} offset=%d{offset}"
-            | I64Load8U(align, offset) -> $"i64.load8_u align=%d{align} offset=%d{offset}"
-            | I64Load16S(align, offset) -> $"i64.load16_s align=%d{align} offset=%d{offset}"
-            | I64Load16U(align, offset) -> $"i64.load16_u align=%d{align} offset=%d{offset}"
-            | I64Load32S(align, offset) -> $"i64.load32_s align=%d{align} offset=%d{offset}"
-            | I64Load32U(align, offset) -> $"i64.load32_u align=%d{align} offset=%d{offset}"
-            | I32Store_(align, offset) ->
-                match align, offset with
-                | Some align, Some offset -> $"i32.store align=%d{align} offset=%d{offset}"
-                | Some align, None -> $"i32.store align=%d{align}"
-                | None, Some offset -> $"i32.store offset=%d{offset}"
-                | None, None -> "i32.store"
-            | I32Store -> "i32.store"
-            | I64Store(align, offset) -> $"i64.store align=%d{align} offset=%d{offset}"
-            | F32Store_(align, offset) ->
-                match align, offset with
-                | Some align, Some offset -> $"f32.store align=%d{align} offset=%d{offset}"
-                | Some align, None -> $"f32.store align=%d{align}"
-                | None, Some offset -> $"f32.store offset=%d{offset}"
-                | None, None -> "f32.store"
-            | F32Store -> "f32.store"
-            | F64Store(align, offset) -> $"f64.store align=%d{align} offset=%d{offset}"
-            | I32Store8(align, offset) -> $"i32.store8 align=%d{align} offset=%d{offset}"
-            | I32Store16(align, offset) -> $"i32.store16 align=%d{align} offset=%d{offset}"
-            | I64Store8(align, offset) -> $"i64.store8 align=%d{align} offset=%d{offset}"
-            | I64Store16(align, offset) -> $"i64.store16 align=%d{align} offset=%d{offset}"
-            | I64Store32(align, offset) -> $"i64.store32 align=%d{align} offset=%d{offset}"
-            | MemorySize -> "memory.size"
-            | MemoryGrow -> "memory.grow"
-            // declare variable
-            | LocalGet l -> $"local.get %s{l.ToString()}"
-            | LocalSet l -> $"local.set %s{l.ToString()}"
-            | LocalTee l -> $"local.tee %s{l.ToString()}"
-            | GlobalGet index -> $"global.get %s{index.ToString()}"
-            | GlobalSet index -> $"global.set %s{index.ToString()}"
-            | Unreachable -> "unreachable"
-            | Nop -> "nop"
-            | Br id -> $"br $%s{id}"
-            | BrIf id -> $"br_if $%s{id}"
-            // TODO: br_table
-            // | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
-            | Return -> "return"
-            | Call name -> $"call $%s{name}"
-            | CallIndirect_(index, x) -> $"call_indirect %d{index}" // TODO: add x??
-            | CallIndirect label -> $"call_indirect (type %s{label.ToString()})"
-            | CallIndirect__(signature) -> sprintf "call_indirect %s" (generate_signature signature "")
-            | Drop -> "drop"
-            | Select -> "select"
-            // block instructions
-            // | Block(label, valueTypes, instrs) ->
-            //     $"(block $%s{label} %s{resultPrint valueTypes}\n%s{generate_wat_code_ident instrs indent}\n    )"
-            // | Loop(label, valueTypes, instrs: Commented<Instr> list) ->
-            //     $"(loop $%s{label} %s{resultPrint valueTypes}\n%s{generate_wat_code_ident instrs indent}\n)"
-            // | If(types, ifInstrs, elseInstrs) ->
-            //     match elseInstrs with
-            //     | Some elseInstrs' ->
-            //         $"(if %s{resultPrint types}\n     (then\n%s{generate_wat_code_ident ifInstrs indent}\n     )\n     (else\n%s{generate_wat_code_ident elseInstrs' indent}\n     )\n    )"
-            //     | None ->
-            //         $"(if%s{resultPrint types} (then\n%s{generate_wat_code_ident ifInstrs indent}       )\n      )"
-            // comments
-            | RefFunc label -> $"ref.func %s{label.ToString()}"
-            | MemoryFill -> "memory.fill"
-            | MemoryFill_(offset, value, size) -> $"memory.fill offset=%d{offset} value=%d{value} size=%d{size}"
-            | Comment comment -> $";; %s{comment}"
-
-            | x -> $"not implemented: %s{x.ToString()}"
-
-    and Instrs = Instr list
-
-    /// Global variables are like module-level variables in JavaScript.
-    /// They are declared with a type and an initial value.
-    /// The type can be either mutable or immutable.
-    /// The initial value is a constant expression.
-    /// The value can be either a constant or an import.
-    /// It can have a name, which is used to export the global variable.
-    /// The name is optional, and can be used to import the global variable.
-    and Global = Identifier * (ValueType * Mutability) * Instr
-
-    and Data = Instr * string
-
-    // ( func name <signature> <locals> <body> )
-    // The signature declares what the function takes (parameters) and returns (return values).
-    // The locals are like vars in JavaScript, but with explicit types declared.
-    // The body is just a linear list of low-level Instrs.
-    and Function = string option * FunctionSignature * Variable list * Commented<Instr> list
-
-    and GlobalSegment = int * Instr list
-
-    and FunctionInstance =
-        { name: Identifier option
-          signature: FunctionSignature
-          locals: Local list
-          body: Commented<Instr> list }
-
-    /// generate the wat instruction for a list of instructions
-    /// indent is the number of tabs to add before each instruction
-    let genWat instrs ident =
-
-        let rec aux (instrs: Commented<Instr> list) (watCode: string) (indent: int) =
-            match instrs with
-            | [] -> watCode
-            | head :: tail ->
-                // deconstruct instr and comment
-                let (instr, c: string) = head
-
-                // compute indent
-                let is = gIndent indent
-
-                match instr with
-                // block instructions
-                | Block(label, valueTypes, instrs: Commented<Instr> list) ->
-                    let innerWat = aux instrs "" (indent + 1)
-
-                    let s =
-                        watCode
-                        + is
-                        + $"(block ${label} {resultPrint valueTypes}\n{innerWat}{gIndent (indent)})\n"
-
-                    aux tail s indent
-                | Loop(label, valueTypes, instrs: Commented<Instr> list) ->
-                    let innerWat = aux instrs "" (indent + 1)
-
-                    let s =
-                        watCode
-                        + is
-                        + $"(loop ${label} {resultPrint valueTypes}\n{innerWat}{gIndent (indent)})\n"
-
-                    aux tail s indent
-                | If(types, ifInstrs, elseInstrs) ->
-                    match elseInstrs with
-                    | Some elseInstrs' ->
-                        let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
-                        let innerWatFalse = aux elseInstrs' "" (indent + 2)
-
-                        let s =
-                            watCode
-                            + is
-                            + $"(if {resultPrint types}\n{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent + 1)}(else\n{innerWatFalse}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
-
-                        aux tail s indent
-                    | None ->
-                        let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
-
-                        let s =
-                            watCode
-                            + is
-                            + $"(if {resultPrint types}\n{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
-
-                        aux tail s indent
-                | _ ->
-                    // generate wat code for plain instr
-                    let instrAsString =
-                        instr.ToString() + if (c.Length > 0) then $" ;; %s{c}\n" else "\n" in
-
-                    let watCode = watCode + is + instrAsString
-
-                    aux tail watCode indent
-
-        aux instrs "" ident
-
-    /// def of module
+    open WGF.Instr
+   
+    /// define a module
     [<RequireQualifiedAccess>]
     type Module
         private
@@ -522,7 +22,7 @@ module Module =
             elements: Set<Element>,
             data: Set<Data>,
             locals: Set<Local>,
-            tempCode: list<Commented<Instr>>,
+            tempCode: list<Commented<Instr.Wasm>>,
             funcTableSize: int,
             hostinglist
         ) =
@@ -540,7 +40,7 @@ module Module =
         member private this.locals: Set<Local> = locals
 
         member private this.funcTableSize: int = funcTableSize
-        member private this.tempCode: list<Commented<Instr>> = tempCode
+        member private this.tempCode: list<Commented<Instr.Wasm>> = tempCode
 
         member private this.hostinglist: string list = hostinglist
 
@@ -564,7 +64,7 @@ module Module =
             )
 
         // module constructor that take temp code
-        new(tempCode: list<Commented<Instr>>) =
+        new(tempCode: list<Commented<Instr.Wasm>>) =
             Module(
                 Set.empty,
                 Map.empty,
@@ -696,7 +196,7 @@ module Module =
             )
 
         // add temp code
-        member this.AddCode(instrs: Instr list) =
+        member this.AddCode(instrs: Instr.Wasm list) =
             // map comment to instrs
             let instrs = instrs |> List.map (fun x -> Commented(x, ""))
             let tempCode = this.tempCode @ instrs
@@ -719,7 +219,7 @@ module Module =
             )
 
         // add temp code with comment
-        member this.AddCode(instrs: Commented<Instr> list) =
+        member this.AddCode(instrs: Commented<Instr.Wasm> list) =
             let tempCode = this.tempCode @ instrs
 
             Module(
@@ -835,7 +335,7 @@ module Module =
             )
 
         // Add instructions to function with name
-        member this.AddInstrs(name: string, instrs: Instr list) =
+        member this.AddInstrs(name: string, instrs: Instr.Wasm list) =
             let (f), s = this.functions.[name]
             // add instrs to function f a function instance
             let newInstance: Commented<FunctionInstance> =
@@ -864,7 +364,7 @@ module Module =
                 this.hostinglist
             )
 
-        member this.AddInstrs(name: string, instrs: Commented<Instr> list) =
+        member this.AddInstrs(name: string, instrs: Commented<Instr.Wasm> list) =
             let (f), s = this.functions.[name]
             // add instrs to function f a function instance
             let newInstance: Commented<FunctionInstance> =
@@ -1111,7 +611,7 @@ module Module =
 
         static member (++)(wasm1: Module, wasm2: Module) : Module = wasm1.Combine wasm2
 
-        static member (++)(instr: Commented<Instr> list, wasm2: Module) : Module = Module(instr).Combine wasm2
+        static member (++)(instr: Commented<Instr.Wasm> list, wasm2: Module) : Module = Module(instr).Combine wasm2
 
         static member (@)(wasm1: Instrs list, wasm2: Commented<Instrs> list) =
             let instrs = wasm1 |> List.map (fun x -> Commented(x, ""))
@@ -1204,7 +704,7 @@ module Module =
                 x <- x + 1
 
             for (instr, data) in this.data do
-                result <- result + $"{gIndent 1}(data (%s{instr.ToString()}) \"%s{data.ToString()}\")\n"
+                result <- result + $"{gIndent 1}(data (%s{printInstr instr}) \"%s{data.ToString()}\")\n"
 
             // create exports
             for export in this.exports do
