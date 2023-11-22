@@ -91,8 +91,8 @@ let instrLabel i =
     match i with
     | I32Const _ -> "i32.const"
     | F32Const _ -> "f32.const"
-    | I32Eqz -> "i32.eqz"
-    | I32Eq -> "i32.eq"
+    | I32Eqz _ -> "i32.eqz"
+    | I32Eq _ -> "i32.eq"
     | I32Ne -> "i32.ne"
     | I32LtS -> "i32.lt_s"
     | I32LtU -> "i32.lt_u"
@@ -120,7 +120,7 @@ let instrLabel i =
     | I32ShrU -> "i32.shr_u"
     | I32Sub _ -> "i32.sub"
     | I32Xor _ -> "i32.xor"
-    | F32Eq -> "f32.eq"
+    | F32Eq _ -> "f32.eq"
     | F32Ne -> "f32.ne"
     | F32Lt -> "f32.lt"
     | F32Gt -> "f32.gt"
@@ -188,12 +188,12 @@ let instrLabel i =
     | TableGrow(_) -> "table.grow"
     | TableSize(_) -> "table.size"
     | RefFunc(_) -> "ref.func"
-    | I32TruncF32S -> "i32.trunc_f32_s"
-    | I32TruncF32U -> "i32.trunc_f32_u"
-    | F32ConvertI32S -> "f32.convert_i32_s"
-    | F32ConvertI32U -> "f32.convert_i32_u"
-    | I32ReinterpretF32 -> "i32.reinterpret_f32"
-    | F32ReinterpretI32 -> "f32.reinterpret_i32"
+    // | I32TruncF32S -> "i32.trunc_f32_s"
+    // | I32TruncF32U -> "i32.trunc_f32_u"
+    // | F32ConvertI32S -> "f32.convert_i32_s"
+    // | F32ConvertI32U -> "f32.convert_i32_u"
+    // | I32ReinterpretF32 -> "i32.reinterpret_f32"
+    // | F32ReinterpretI32 -> "f32.reinterpret_i32"
     | MemoryInit(_, _, _) -> "memory.init"
     | DataDrop(_) -> "data.drop"
     | MemoryCopy(_, _) -> "memory.copy"
@@ -280,6 +280,9 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
             | I32Xor instrs
             | I32LeS instrs
             | F32Le instrs
+            | I32Eq instrs
+            | I32Eqz instrs
+            | F32Eq instrs
             | I32Add instrs when style = Folded ->
                 let watCode =
                     watCode
@@ -302,6 +305,9 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
             | I32Xor instrs
             | I32LeS instrs
             | F32Le instrs
+            | I32Eq instrs
+            | I32Eqz instrs
+            | F32Eq instrs
             | I32Add instrs when style = Linar ->
                 aux
                     tail
@@ -333,8 +339,8 @@ and printInstr (i: Commented<Instr.Wasm>) =
     match instr with
     | I32Const value -> $"i32.const %i{value}"
     | F32Const value -> $"f32.const %f{value}"
-    | I32Eqz -> "i32.eqz"
-    | I32Eq -> "i32.eq"
+    | I32Eqz instrs -> $"(i32.eqz {comment}\n {genWat instrs} )"
+    | I32Eq instrs -> $"(i32.eq {comment}\n {genWat instrs} )"
     | I32Ne -> "i32.ne"
     | I32LtS -> "i32.lt_s"
     | I32LtU -> "i32.lt_u"
@@ -362,7 +368,7 @@ and printInstr (i: Commented<Instr.Wasm>) =
     | I32ShrU -> "i32.shr_u"
     | I32Sub instrs -> $"(i32.sub {comment}\n {genWat instrs} )"
     | I32Xor instrs -> $"(i32.xor {comment}\n {genWat instrs} )"
-    | F32Eq -> "f32.eq"
+    | F32Eq instrs -> $"(f32.eq {comment}\n {genWat instrs} )"
     | F32Ne -> "f32.ne"
     | F32Lt -> "f32.lt"
     | F32Gt -> "f32.gt"

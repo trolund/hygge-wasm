@@ -473,7 +473,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             { node with
                 Expr = AST.If(lhs, { node with Expr = IntVal 1 }, rhs) }
             m
-    | Not(e) -> (doCodegen env e m).AddCode([ I32Eqz ])
+    | Not(e) -> 
+        let m' = doCodegen env e m
+        m'.ResetAccCode().AddCode([ I32Eqz(m'.GetAccCode()) ])
     | Greater(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
@@ -487,19 +489,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
-    | Eq(e1, e2) ->
-        let m' = doCodegen env e1 m
-        let m'' = doCodegen env e2 m
+    | Eq(lhs, rhs) ->
+        let m' = doCodegen env lhs m
+        let m'' = doCodegen env rhs m
 
         // find type of e1 and e2 and check if they are equal
         let opcode =
-            match (expandType e1.Env e1.Type) with
-            | t1 when (isSubtypeOf e1.Env t1 TInt) -> [ I32Eq ]
-            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> [ F32Eq ]
-            | t1 when (isSubtypeOf e1.Env t1 TBool) -> [ I32Eq ]
+            match (expandType lhs.Env lhs.Type) with
+            | t1 when (isSubtypeOf lhs.Env t1 TInt) -> I32Eq
+            | t1 when (isSubtypeOf lhs.Env t1 TFloat) -> F32Eq
+            | t1 when (isSubtypeOf lhs.Env t1 TBool) -> I32Eq
             | _ -> failwith "type mismatch"
 
-        let instrs = m'.GetAccCode() @ m''.GetAccCode() @ C opcode
+        let instrs = [(opcode(m'.GetAccCode() @ m''.GetAccCode()), "equality check")]
         (m + m'.ResetAccCode() + m''.ResetAccCode()).AddCode(instrs)
     | Less(lhs, rhs) ->
         let m' = doCodegen env lhs m
@@ -521,12 +523,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // find type of e1 and e2 and check if they are equal
         let opcode =
             match (expandType e1.Env e1.Type) with
-            | t1 when (isSubtypeOf e1.Env t1 TInt) -> I32LeS 
-            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> F32Le 
+            | t1 when (isSubtypeOf e1.Env t1 TInt) -> I32LeS
+            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> F32Le
             | t1 when (isSubtypeOf e1.Env t1 TBool) -> I32LeS
             | _ -> failwith "type mismatch"
 
-        (m'.ResetAccCode() + m''.ResetAccCode()).AddCode([(opcode(m'.GetAccCode() @ m''.GetAccCode()), "")])
+        (m'.ResetAccCode() + m''.ResetAccCode())
+            .AddCode([ (opcode (m'.GetAccCode() @ m''.GetAccCode()), "") ])
     | GreaterOrEq(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
@@ -598,9 +601,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m' = doCodegen env e (m.ResetAccCode())
 
         let instrs =
-            m'.GetAccCode()
             // invert assertion
-            @ [ (I32Eqz, "invert assertion") ]
+            [ (I32Eqz(m'.GetAccCode()), "invert assertion") ]
             @ C [ (If([], trap, None)) ]
 
         m'.ResetAccCode().AddCode(instrs)
@@ -696,8 +698,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ Loop(
                       beginl,
                       [],
-                      cond'.GetAccCode()
-                      @ C [ I32Eqz; BrIf exitl ]
+                      
+                      C [ I32Eqz(cond'.GetAccCode()); BrIf exitl ]
                       @ body'.GetAccCode()
                       @ C [ Br beginl ]
                   ) ]
@@ -825,9 +827,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ Loop(
                       beginl,
                       [], // loops does not return anything
-                      length'.GetAccCode()
-                      @ [ (LocalGet(Named i), "get i") ]
-                      @ C [ I32Eq; BrIf exitl ]
+
+                      C
+                          [ I32Eq(
+                                length'.GetAccCode() @ [ (LocalGet(Named i), "get i") ]
+                            )
+                            BrIf exitl ]
                       @ body
                       @ [ (I32Add([ (LocalGet(Named i), "get i"); (I32Const(1), "increment by 1") ]), "add 1 to i")
                           (LocalSet(Named i), "write to i") ]
@@ -1067,9 +1072,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
                 let condition =
                     targetm.GetAccCode()
-                    @ [ (I32Load, "load label")
-                        (I32Const id, $"put label id {id} on stack")
-                        (I32Eq, "check if index is equal to target") ]
+                    @ [ (I32Eq([ (I32Load, "load label"); (I32Const id, $"put label id {id} on stack") ]),
+                         "check if index is equal to target") ]
 
                 // if case is not the last case
                 let case = condition @ C [ (If([], caseCode.GetAccCode(), None)) ]
@@ -1771,7 +1775,9 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (F32Div(instrs), c) :: rest -> [ (F32Div(localSubst instrs var), c) ] @ localSubst rest var
     | (I32LeS(instrs), c) :: rest -> [ (I32LeS(localSubst instrs var), c) ] @ localSubst rest var
     | (F32Le(instrs), c) :: rest -> [ (F32Le(localSubst instrs var), c) ] @ localSubst rest var
-
+    | (I32Eq(instrs), c) :: rest -> [ (I32Eq(localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Eq(instrs), c) :: rest -> [ (F32Eq(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32Eqz(instrs), c) :: rest -> [ (I32Eqz(localSubst instrs var), c) ] @ localSubst rest var
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 

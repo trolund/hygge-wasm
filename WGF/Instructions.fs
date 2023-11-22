@@ -35,8 +35,8 @@ type Wasm =
     // Numeric Instrs
     | I32Const of int32
     | F32Const of float32
-    | I32Eqz
-    | I32Eq
+    | I32Eqz of Wasm Commented list
+    | I32Eq of Wasm Commented list
     | I32Ne
     | I32LtS
     | I32LtU
@@ -46,7 +46,7 @@ type Wasm =
     | I32LeU
     | I32GeS
     | I32GeU
-    | F32Eq
+    | F32Eq of Wasm Commented list
     | F32Ne
     | F32Lt
     | F32Gt
@@ -112,16 +112,16 @@ type Wasm =
     | RefFunc of Label
     // Conversion Instr
     // | I32WrapI64
-    | I32TruncF32S
-    | I32TruncF32U
+    // | I32TruncF32S
+    // | I32TruncF32U
     // | I32TruncF64S
     // | I32TruncF64U
-    | F32ConvertI32S
-    | F32ConvertI32U
+    // | F32ConvertI32S
+    // | F32ConvertI32U
     // | F32ConvertI64S
     // | F32ConvertI64U
-    | I32ReinterpretF32
-    | F32ReinterpretI32
+    // | I32ReinterpretF32
+    // | F32ReinterpretI32
     // memory instr
     | MemoryInit of int * int * int
     | DataDrop of int
