@@ -67,9 +67,9 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
     //     optimizeInstr rest
 
     // tee local drop
-    | (LocalTee x, c1) :: (Drop, c2) :: rest ->
-        // should be just a local.set
-        (LocalSet x, c1) :: optimizeInstr rest
+    // | (LocalTee x, c1) :: (Drop, c2) :: rest ->
+    //     // should be just a local.set
+    //     (LocalSet x, c1) :: optimizeInstr rest
 
     // // load drop
     // | (I32Load, c1) :: (Drop, c2) :: rest 

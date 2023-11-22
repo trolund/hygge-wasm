@@ -109,8 +109,7 @@ type internal SymbolController() =
 
 /// code that is executed when an error occurs
 let trap =
-    [ (I32Const errorExitCode, "error exit code push to stack")
-      (GlobalSet(Named("exit_code")), "set exit code")
+    [ (GlobalSet(Named("exit_code"), [ (I32Const errorExitCode, "error exit code push to stack") ]), "set exit code")
       (Unreachable, "exit program") ]
 
 type internal CodegenEnv =
@@ -473,7 +472,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             { node with
                 Expr = AST.If(lhs, { node with Expr = IntVal 1 }, rhs) }
             m
-    | Not(e) -> 
+    | Not(e) ->
         let m' = doCodegen env e m
         m'.ResetAccCode().AddCode([ I32Eqz(m'.GetAccCode()) ])
     | Greater(e1, e2) ->
@@ -501,7 +500,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | t1 when (isSubtypeOf lhs.Env t1 TBool) -> I32Eq
             | _ -> failwith "type mismatch"
 
-        let instrs = [(opcode(m'.GetAccCode() @ m''.GetAccCode()), "equality check")]
+        let instrs = [ (opcode (m'.GetAccCode() @ m''.GetAccCode()), "equality check") ]
         (m + m'.ResetAccCode() + m''.ResetAccCode()).AddCode(instrs)
     | Less(lhs, rhs) ->
         let m' = doCodegen env lhs m
@@ -602,8 +601,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             // invert assertion
-            [ (I32Eqz(m'.GetAccCode()), "invert assertion") ]
-            @ C [ (If([], trap, None)) ]
+            [ (I32Eqz(m'.GetAccCode()), "invert assertion") ] @ C [ (If([], trap, None)) ]
 
         m'.ResetAccCode().AddCode(instrs)
     | Application(expr, args) ->
@@ -698,7 +696,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ Loop(
                       beginl,
                       [],
-                      
+
                       C [ I32Eqz(cond'.GetAccCode()); BrIf exitl ]
                       @ body'.GetAccCode()
                       @ C [ Br beginl ]
@@ -772,9 +770,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let structPointerLabel = env.SymbolController.genSymbol $"arr_ptr"
 
         let structPointer =
-            structm // pointer to struct on stack
+            structm
+                .ResetAccCode() // pointer to struct on stack
                 .AddLocals([ (Some(Identifier(structPointerLabel)), I32) ]) // add local var
-                .AddCode([ (LocalSet(Named(structPointerLabel)), "set struct pointer var") ]) // set struct pointer var
+                .AddCode([ (LocalSet(Named(structPointerLabel), structm.GetAccCode()), "set struct pointer var") ]) // set struct pointer var
 
         let allocation = // allocate memory for array, return pointer to allocated memory
             length'
@@ -827,21 +826,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ Loop(
                       beginl,
                       [], // loops does not return anything
-
-                      C
-                          [ I32Eq(
-                                length'.GetAccCode() @ [ (LocalGet(Named i), "get i") ]
-                            )
-                            BrIf exitl ]
+                      C [ I32Eq(length'.GetAccCode() @ [ (LocalGet(Named i), "get i") ]); BrIf exitl ]
                       @ body
-                      @ [ (I32Add([ (LocalGet(Named i), "get i"); (I32Const(1), "increment by 1") ]), "add 1 to i")
-                          (LocalSet(Named i), "write to i") ]
+                      @ [ (LocalSet(
+                              Named i,
+                              [ (I32Add([ (LocalGet(Named i), "get i"); (I32Const(1), "increment by 1") ]), "add 1 to i") ]
+                           ),
+                           "write to i") ]
                       @ C [ Br beginl ]
                   ) ]
 
         // block that contains loop and provides a way to exit the loop
         let block: Commented<WGF.Instr.Wasm> list =
-            C [ I32Const 0; LocalSet(Named(i)) ] @ C [ (Block(exitl, [], loop)) ]
+            C [ LocalSet(Named(i), C [ I32Const 0 ]) ] @ C [ (Block(exitl, [], loop)) ]
 
         let loopModule =
             data'.ResetAccCode().AddLocals([ (Some(Identifier(i)), I32) ]).AddCode(block)
@@ -962,8 +959,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let structm' =
             structm
+                .ResetAccCode() // pointer to struct on stack
                 .AddLocals([ (Some(Identifier(structPointerLabel)), I32) ]) // add local var
-                .AddCode([ (LocalSet(Named(structPointerLabel)), "set struct pointer var") ]) // set struct pointer var
+                .AddCode([ (LocalSet(Named(structPointerLabel), structm.GetAccCode()), "set struct pointer var") ]) // set struct pointer var
 
         // set data pointer of struct
         let instr =
@@ -1063,9 +1061,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
                 // address to data
                 let dataPointer =
-                    targetm.GetAccCode()
-                    @ [ (loadInstr (None, Some(4)), "load data pointer") ]
-                    @ [ (LocalSet(Named(varName)), "set local var") ] // set local var
+                    [ (LocalSet(
+                          Named(varName),
+                          targetm.GetAccCode() @ [ (loadInstr (None, Some(4)), "load data pointer") ]
+                       ),
+                       "set local var") ] // set local var
 
                 let caseCode =
                     dataPointer ++ scope.AddCode([ (Br matchEndLabel, "break out of match") ])
@@ -1103,7 +1103,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | Some(Storage.Local l) ->
                 value'
                     .ResetAccCode()
-                    .AddCode(value'.GetAccCode() @ [ (LocalTee(Named(l)), "set local var") ])
+                    .AddCode([ (LocalTee(Named(l), value'.GetAccCode()), "set local var") ])
             | Some(Storage.Offset(i)) ->
                 // get correct load and store instruction
                 let li, si =
@@ -1124,9 +1124,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 value'
                     .ResetAccCode()
                     .AddCode(
-                        value'.GetAccCode()
-                        @ [ (GlobalSet(Named(g)), "set global var")
-                            (GlobalGet(Named(g)), "get global var") ]
+                        [ (GlobalSet(Named(g), value'.GetAccCode()), "set global var")
+                          (GlobalGet(Named(g)), "get global var") ]
                     )
             | _ -> failwith "not implemented"
 
@@ -1279,8 +1278,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             if isTopLevel env then
                 Module()
             else
-                (createClosure env node index funcPointer captured)
-                    .AddCode([ GlobalSet(Named(ptr_label)) ])
+                let closureModule = (createClosure env' node index funcPointer captured)
+
+                closureModule
+                    .ResetAccCode()
+                    .AddCode([ GlobalSet(Named(ptr_label), closureModule.GetAccCode()) ])
 
         let scopeModule: Module =
             (doCodegen
@@ -1314,9 +1316,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
 
-            let instrs =
-                initCode // inizilize code
-                @ [ (LocalSet varLabel, "set local var") ] // set local var
+            let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
 
             let scopeCode = (doCodegen env' scope (m.ResetAccCode()))
 
@@ -1331,9 +1331,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
 
-            let instrs =
-                initCode // inizilize code
-                @ [ (LocalSet varLabel, "set local var") ] // set local var
+            let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
 
             let scopeCode = (doCodegen env' scope (m.ResetAccCode()))
 
@@ -1353,9 +1351,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let initCode = m'.GetAccCode()
 
-            let instrs =
-                initCode // inizilize code
-                @ [ (LocalSet varLabel, "set local var") ] // set local var
+            let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
 
             let scopeCode = (doCodegen env'' scope (m.ResetAccCode()))
 
@@ -1370,9 +1366,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
 
-            let instrs =
-                initCode // inizilize code
-                @ [ (LocalSet varLabel, "set local var") ] // set local var
+            let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
 
             let scopeCode = (doCodegen env' scope (m'.ResetAccCode()))
 
@@ -1388,9 +1382,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
 
-            let instrs =
-                initCode // inizilize code
-                @ [ (LocalSet varLabel, "set local var") ] // set local var
+            let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
 
             let scopeCode = (doCodegen env' scope (m.ResetAccCode()))
 
@@ -1500,8 +1492,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             if isTopLevel env then
                 Module()
             else
-                (createClosure env' node index funcPointer captured)
-                    .AddCode([ GlobalSet(Named(ptr_label)) ])
+                let closureModule = (createClosure env' node index funcPointer captured)
+
+                closureModule
+                    .ResetAccCode()
+                    .AddCode([ GlobalSet(Named(ptr_label), closureModule.GetAccCode()) ])
 
         let scopeModule: Module =
             (doCodegen
@@ -1540,9 +1535,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 .AddImport(getImport "malloc")
                 .AddLocals([ (Some(Identifier(structName)), I32) ])
                 .AddCode(
-                    [ (I32Const(size * 4), "size of struct")
-                      (Call "malloc", "call malloc function")
-                      (LocalSet(Named(structName)), "set struct pointer var") ]
+                    [ (LocalSet(
+                          Named(structName),
+                          [ (I32Const(size * 4), "size of struct")
+                            (Call "malloc", "call malloc function") ]
+                       ),
+                       "set struct pointer var") ]
                 )
 
         // fold over fields and add them to struct with indexes
@@ -1745,10 +1743,11 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | [] -> code // end of code
     | (LocalGet(Named(n)), c) :: rest when n = var ->
         [ (GlobalGet(Named(n)), c + ", have been hoisted") ] @ localSubst rest var
-    | (LocalSet(Named(n)), c) :: rest when n = var ->
-        [ (GlobalSet(Named(n)), c + ", have been hoisted") ] @ localSubst rest var
-    | (LocalTee(Named(n)), c) :: rest when n = var ->
-        [ (GlobalSet(Named(n)), c + ", have been hoisted")
+    | (LocalSet(Named(n), instrs), c) :: rest when n = var ->
+        [ (GlobalSet(Named(n), localSubst instrs var), c + ", have been hoisted") ]
+        @ localSubst rest var
+    | (LocalTee(Named(n), instrs), c) :: rest when n = var ->
+        [ (GlobalSet(Named(n), localSubst instrs var), c + ", have been hoisted")
           (GlobalGet(Named(n)), c + ", have been hoisted") ]
         @ localSubst rest var
     // block instructions
@@ -1778,6 +1777,12 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (I32Eq(instrs), c) :: rest -> [ (I32Eq(localSubst instrs var), c) ] @ localSubst rest var
     | (F32Eq(instrs), c) :: rest -> [ (F32Eq(localSubst instrs var), c) ] @ localSubst rest var
     | (I32Eqz(instrs), c) :: rest -> [ (I32Eqz(localSubst instrs var), c) ] @ localSubst rest var
+    | (LocalSet(Named(n), instrs), c) :: rest when n <> var ->
+        [ (LocalSet(Named(n), localSubst instrs var), c) ] @ localSubst rest var
+    | (LocalTee(Named(n), instrs), c) :: rest when n <> var ->
+        [ (LocalTee(Named(n), localSubst instrs var), c) ] @ localSubst rest var
+    | (GlobalSet(Named(n), instrs), c) :: rest when n <> var ->
+        [ (GlobalSet(Named(n), localSubst instrs var), c) ] @ localSubst rest var
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 

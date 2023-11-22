@@ -315,6 +315,26 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
                      + (genWat instrs indent)
                      + $"{gIndent indent}{instrLabel instr}{commentS c}\n")
                     indent
+
+            | GlobalSet (l, instrs)
+            | LocalTee (l, instrs)
+            | LocalSet (l, instrs: Commented<Wasm> list) when style = Linar ->
+                aux
+                    tail
+                    (watCode
+                     + (genWat instrs indent)
+                     + $"{gIndent indent}{instrLabel instr} {l.ToString()}{commentS c}\n")
+                    indent
+
+            | GlobalSet (l, instrs)
+            | LocalTee (l, instrs)
+            | LocalSet (l, instrs) when style = Folded ->
+                let watCode =
+                    watCode
+                    + space
+                    + $"({instrLabel instr} {l.ToString()}{commentS c}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+
+                aux tail watCode indent
             | _ ->
 
                 let isComment =
@@ -426,10 +446,10 @@ and printInstr (i: Commented<Instr.Wasm>) =
     | MemoryGrow -> "memory.grow"
     // declare variable
     | LocalGet l -> $"local.get %s{l.ToString()}"
-    | LocalSet l -> $"local.set %s{l.ToString()}"
-    | LocalTee l -> $"local.tee %s{l.ToString()}"
+    | LocalSet (l, instrs) -> $"local.set %s{l.ToString()}\n {genWat instrs}"
+    | LocalTee (l, instrs) -> $"local.tee %s{l.ToString()}\n {genWat instrs}"
     | GlobalGet index -> $"global.get %s{index.ToString()}"
-    | GlobalSet index -> $"global.set %s{index.ToString()}"
+    | GlobalSet (l, instrs) -> $"global.set %s{l.ToString()}\n {genWat instrs}"
     | Unreachable -> "unreachable"
     | Nop -> "nop"
     | Br id -> $"br $%s{id}"

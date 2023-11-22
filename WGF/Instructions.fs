@@ -90,10 +90,10 @@ type Wasm =
     // Variable Instr
     | Local of Label * ValueType // https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Variables/Local
     | LocalGet of Label
-    | LocalSet of Label
-    | LocalTee of Label
-    | GlobalGet of Label
-    | GlobalSet of Label
+    | LocalSet of Label * Wasm Commented list
+    | LocalTee of Label * Wasm Commented list
+    | GlobalGet of Label 
+    | GlobalSet of Label * Wasm Commented list
     // Table Instr
     | TableGet of int
     | TableSet of int

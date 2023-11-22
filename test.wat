@@ -2,101 +2,26 @@
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) (i32.const 0))
   (global $heap_base (;1;) i32 (i32.const 0))
-  (global $var_x (;2;) (mut i32) (i32.const 0))
   (table $func_table (;0;) 0 funcref)
   (func $_start (;0;)  (result i32) 
     ;; execution start here:
-    ;; Start of let
-    (i32.const 10) ;; push 10 on stack
-    (global.set $var_x) ;; set local var, have been hoisted
     (i32.eqz ;; invert assertion
-      (i32.eq ;; equality check
-        (global.get $var_x) ;; get local var: var_x, have been hoisted
-        (i32.const 10) ;; push 10 on stack
+      (f32.eq ;; equality check
+        (f32.add
+          (f32.const 4.000000) ;; push 4.000000 on stack
+          (f32.const 5.000000) ;; push 5.000000 on stack
+        )
+        (f32.const 9.000000) ;; push 9.000000 on stack
       )
     )
     (if 
       (then
-        (i32.const 42) ;; error exit code push to stack
-        (global.set $exit_code) ;; set exit code
+        (global.set $exit_code ;; set exit code
+          (i32.const 42) ;; error exit code push to stack
+        )
         (unreachable) ;; exit program
       )
     )
-    (i32.eqz ;; invert assertion
-      (global.get $var_x) ;; get local var: var_x, have been hoisted
-      (i32.const 20) ;; push 20 on stack
-      (i32.lt_s)
-    )
-    (if 
-      (then
-        (i32.const 42) ;; error exit code push to stack
-        (global.set $exit_code) ;; set exit code
-        (unreachable) ;; exit program
-      )
-    )
-    (i32.eqz ;; invert assertion
-      (i32.le_s
-        (global.get $var_x) ;; get local var: var_x, have been hoisted
-        (i32.const 12) ;; push 12 on stack
-      )
-    )
-    (if 
-      (then
-        (i32.const 42) ;; error exit code push to stack
-        (global.set $exit_code) ;; set exit code
-        (unreachable) ;; exit program
-      )
-    )
-    (i32.eqz ;; invert assertion
-      (i32.le_s
-        (global.get $var_x) ;; get local var: var_x, have been hoisted
-        (i32.const 10) ;; push 10 on stack
-      )
-    )
-    (if 
-      (then
-        (i32.const 42) ;; error exit code push to stack
-        (global.set $exit_code) ;; set exit code
-        (unreachable) ;; exit program
-      )
-    )
-    (i32.eqz ;; invert assertion
-      (global.get $var_x) ;; get local var: var_x, have been hoisted
-      (i32.const 5) ;; push 5 on stack
-      (i32.gt_s)
-    )
-    (if 
-      (then
-        (i32.const 42) ;; error exit code push to stack
-        (global.set $exit_code) ;; set exit code
-        (unreachable) ;; exit program
-      )
-    )
-    (i32.eqz ;; invert assertion
-      (global.get $var_x) ;; get local var: var_x, have been hoisted
-      (i32.const 10) ;; push 10 on stack
-      (i32.ge_s)
-    )
-    (if 
-      (then
-        (i32.const 42) ;; error exit code push to stack
-        (global.set $exit_code) ;; set exit code
-        (unreachable) ;; exit program
-      )
-    )
-    (i32.eqz ;; invert assertion
-      (global.get $var_x) ;; get local var: var_x, have been hoisted
-      (i32.const 9) ;; push 9 on stack
-      (i32.ge_s)
-    )
-    (if 
-      (then
-        (i32.const 42) ;; error exit code push to stack
-        (global.set $exit_code) ;; set exit code
-        (unreachable) ;; exit program
-      )
-    )
-    ;; End of let
     ;; if execution reaches here, the program is successful
     (i32.const 0) ;; exit code 0
     (return) ;; return the exit code
