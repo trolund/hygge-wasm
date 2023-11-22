@@ -1,8 +1,8 @@
 (module
   (memory (;0;) (export "memory") 1)
-  (global $exit_code (;0;) (mut i32) i32.const 0)
-  (global $heap_base (;1;) i32 i32.const 0)
-  (global $var_x (;2;) (mut i32) i32.const 0)
+  (global $exit_code (;0;) (mut i32) (i32.const 0))
+  (global $heap_base (;1;) i32 (i32.const 0))
+  (global $var_x (;2;) (mut i32) (i32.const 0))
   (table $func_table (;0;) 0 funcref)
   (func $_start (;0;)  (result i32) 
     ;; execution start here:

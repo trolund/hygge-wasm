@@ -472,4 +472,4 @@ let printGlobal (i: int, g: Global) =
         | Mutable -> $"(mut %s{valueType})"
         | Immutable -> $"%s{valueType}"
 
-    sprintf "%s(global $%s %s %s%s %s)\n" (gIndent 1) name (ic i) gType (commentS "") (printInstr instr)
+    sprintf "%s(global $%s %s %s%s %s)\n" (gIndent 1) name (ic i) gType (commentS "") $"({printInstr instr})"
