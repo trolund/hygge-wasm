@@ -15,6 +15,10 @@ type Label =
 
 type Identifier = string
 
+type VarType =
+        | Local
+        | Global
+
 type ValueType =
         // basic numeric types
         | I32

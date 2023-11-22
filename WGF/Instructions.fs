@@ -16,40 +16,25 @@ type Wasm =
     // Memory Instrs
     | I32Load_ of int option * int option
     | I32Load
-    | I64Load of int * int
     /// load align and offset
     | F32Load_ of int option * int option
     | F32Load
-    | F64Load of int * int
     | I32Load8S of int * int
     | I32Load8U of int * int
     | I32Load16S of int * int
     | I32Load16U of int * int
-    | I64Load8S of int * int
-    | I64Load8U of int * int
-    | I64Load16S of int * int
-    | I64Load16U of int * int
-    | I64Load32S of int * int
-    | I64Load32U of int * int
     /// align and offset
     | I32Store_ of int option * int option
     | I32Store
-    | I64Store of int * int
     | F32Store_ of int option * int option
     | F32Store
-    | F64Store of int * int
     | I32Store8 of int * int
     | I32Store16 of int * int
-    | I64Store8 of int * int
-    | I64Store16 of int * int
-    | I64Store32 of int * int
     | MemorySize
     | MemoryGrow
     // Numeric Instrs
     | I32Const of int32
-    | I64Const of int64
     | F32Const of float32
-    | F64Const of float
     | I32Eqz
     | I32Eq
     | I32Ne
@@ -61,65 +46,30 @@ type Wasm =
     | I32LeU
     | I32GeS
     | I32GeU
-    | I64Eqz
-    | I64Eq
-    | I64Ne
-    | I64LtS
-    | I64LtU
-    | I64GtS
-    | I64GtU
-    | I64LeS
-    | I64LeU
-    | I64GeS
-    | I64GeU
     | F32Eq
     | F32Ne
     | F32Lt
     | F32Gt
     | F32Le
     | F32Ge
-    | F64Eq
-    | F64Ne
-    | F64Lt
-    | F64Gt
-    | F64Le
-    | F64Ge
     | I32Clz
     | I32Ctz
     | I32Popcnt
-    | I32Add
-    | I32Sub
-    | I32Mul
-    | I32DivS
-    | I32DivU
-    | I32RemS
-    | I32RemU
-    | I32And
-    | I32Or
-    | I32Xor
+    | I32Add of Wasm Commented list
+    | I32Sub of Wasm Commented list
+    | I32Mul of Wasm Commented list
+    | I32DivS of Wasm Commented list
+    | I32DivU of Wasm Commented list
+    | I32RemS of Wasm Commented list 
+    | I32RemU of Wasm Commented list
+    | I32And of Wasm Commented list
+    | I32Or of Wasm Commented list
+    | I32Xor of Wasm Commented list
     | I32Shl
     | I32ShrS
     | I32ShrU
     | I32Rotl
     | I32Rotr
-    | I64Clz
-    | I64Ctz
-    | I64Popcnt
-    | I64Add
-    | I64Sub
-    | I64Mul
-    | I64DivS
-    | I64DivU
-    | I64RemS
-    | I64RemU
-    | I64And
-    | I64Or
-    | I64Xor
-    | I64Shl
-    | I64ShrS
-    | I64ShrU
-    | I64Rotl
-    | I64Rotr
     | F32Abs
     | F32Neg
     | F32Ceil
@@ -127,27 +77,13 @@ type Wasm =
     | F32Trunc
     | F32Nearest
     | F32Sqrt
-    | F32Add
-    | F32Sub
-    | F32Mul
-    | F32Div
+    | F32Add of Wasm Commented list
+    | F32Sub of Wasm Commented list
+    | F32Mul of Wasm Commented list
+    | F32Div of Wasm Commented list
     | F32Min
     | F32Max
     | F32Copysign
-    | F64Abs
-    | F64Neg
-    | F64Ceil
-    | F64Floor
-    | F64Trunc
-    | F64Nearest
-    | F64Sqrt
-    | F64Add
-    | F64Sub
-    | F64Mul
-    | F64Div
-    | F64Min
-    | F64Max
-    | F64Copysign
     // Parametric Instr
     | Drop
     | Select
@@ -175,31 +111,17 @@ type Wasm =
     // ref
     | RefFunc of Label
     // Conversion Instr
-    | I32WrapI64
+    // | I32WrapI64
     | I32TruncF32S
     | I32TruncF32U
-    | I32TruncF64S
-    | I32TruncF64U
-    | I64ExtendI32S
-    | I64ExtendI32U
-    | I64TruncF32S
-    | I64TruncF32U
-    | I64TruncF64S
-    | I64TruncF64U
+    // | I32TruncF64S
+    // | I32TruncF64U
     | F32ConvertI32S
     | F32ConvertI32U
-    | F32ConvertI64S
-    | F32ConvertI64U
-    | F32DemoteF64
-    | F64ConvertI32S
-    | F64ConvertI32U
-    | F64ConvertI64S
-    | F64ConvertI64U
-    | F64PromoteF32
+    // | F32ConvertI64S
+    // | F32ConvertI64U
     | I32ReinterpretF32
-    | I64ReinterpretF64
     | F32ReinterpretI32
-    | F64ReinterpretI64
     // memory instr
     | MemoryInit of int * int * int
     | DataDrop of int
@@ -221,16 +143,9 @@ type Wasm =
 
 and Instrs = Wasm list
 
-/// Global variables are like module-level variables in JavaScript.
-/// They are declared with a type and an initial value.
-/// The type can be either mutable or immutable.
-/// The initial value is a constant expression.
-/// The value can be either a constant or an import.
-/// It can have a name, which is used to export the global variable.
-/// The name is optional, and can be used to import the global variable.
-and Global = Identifier * (ValueType * Mutability) * Wasm
+and Global = Identifier * (ValueType * Mutability) * Commented<Wasm>
 
-and Data = Wasm * string
+and Data = Commented<Wasm> * string
 
 // ( func name <signature> <locals> <body> )
 // The signature declares what the function takes (parameters) and returns (return values).

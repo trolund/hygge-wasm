@@ -18,9 +18,9 @@ let mainFunctionName = "_start"
 [<RequireQualifiedAccess; StructuralComparison; StructuralEquality>]
 type internal Storage =
     /// local variable
-    | local of label: string
+    | Local of label: string
     /// global variable
-    | glob of label: string
+    | Global of label: string
     /// offset in as indecies of element in structure
     | Offset of offset: int
 
@@ -133,8 +133,8 @@ let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) 
     let FunctionPointer =
         m
             .AddFuncRefElement(name, funcindex) // add function to function table
-            .AddData(I32Const ptr, Util.intToHex funcindex) // index as hex string
-            .AddGlobal((ptr_label, (I32, Mutable), (I32Const ptr)))
+            .AddData((I32Const ptr, ""), Util.intToHex funcindex) // index as hex string
+            .AddGlobal((ptr_label, (I32, Mutable), (I32Const ptr, "")))
 
     // return compontents needed to create a function pointer
     (FunctionPointer, funcindex, ptr_label)
@@ -159,16 +159,16 @@ let internal lookupVar (env: CodegenEnv) (e: TypedAST) =
     match e.Expr with
     | Var v ->
         match env.VarStorage.TryFind v with
-        | Some(Storage.local l) -> Named(l)
-        | Some(Storage.glob l) -> Named(l)
+        | Some(Storage.Local l) -> Named(l)
+        | Some(Storage.Global l) -> Named(l)
         | Some(Storage.Offset(o)) -> Index(o)
         | _ -> failwith "not implemented"
     | FieldSelect(e, f) ->
         match e.Expr with
         | Var v ->
             match env.VarStorage.TryFind v with
-            | Some(Storage.local l) -> Named(l)
-            | Some(Storage.glob l) -> Named(l)
+            | Some(Storage.Local l) -> Named(l)
+            | Some(Storage.Global l) -> Named(l)
             | Some(Storage.Offset(o)) -> Index(o)
             | _ -> failwith "not implemented"
     | _ -> failwith "not implemented"
@@ -176,8 +176,8 @@ let internal lookupVar (env: CodegenEnv) (e: TypedAST) =
 /// look up variable in var env
 let internal lookupLabel (env: CodegenEnv) (name: string) =
     match env.VarStorage.TryFind name with
-    | Some(Storage.local l) -> l
-    | Some(Storage.glob l) -> l
+    | Some(Storage.Local l) -> l
+    | Some(Storage.Global l) -> l
     | _ -> failwith "not implemented"
 
 let internal lookupLatestLocal (m: Module) =
@@ -211,7 +211,7 @@ let internal addArgsToEnv env args =
             let l = env.SymbolController.genSymbol $"arg_{n}"
 
             { env with
-                VarStorage = env.VarStorage.Add(n, Storage.local l) })
+                VarStorage = env.VarStorage.Add(n, Storage.Local l) })
         env
         args
 
@@ -242,8 +242,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let dataString = Util.dataString [ daraPtr; stringSizeInBytes; s.Length ]
 
         m
-            .AddData(I32Const(daraPtr), s) // store the string it self in memory
-            .AddData(I32Const(ptr), dataString) // store pointer an length in memory
+            .AddData((I32Const(daraPtr), ""), s) // store the string it self in memory
+            .AddData((I32Const(ptr), ""), dataString) // store pointer an length in memory
             .AddCode([ (I32Const(ptr), "leave pointer to string on stack") ])
     | StringLength e ->
         let m' = doCodegen env e m
@@ -261,11 +261,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let instrs =
             match (expandType e.Env e.Type) with
             | t when (isSubtypeOf e.Env t TInt) ->
-                m'.GetAccCode()
-                @ [ (I32Const(-1), "push -1 on stack"); (I32Mul, "multiply with -1") ]
+                [ (I32Mul(m'.GetAccCode() @ [ (I32Const(-1), "push -1 on stack") ]), "multiply with -1") ]
             | t when (isSubtypeOf e.Env t TFloat) ->
-                m'.GetAccCode()
-                @ [ (F32Const(-1.0f), "push -1.0 on stack"); (F32Mul, "multiply with -1.0") ]
+                [ (F32Mul(m'.GetAccCode() @ [ (F32Const(-1.0f), "push -1.0 on stack") ]), "multiply with -1.0") ]
             | _ -> failwith "negation of type not implemented"
 
         m'.ResetAccCode().AddCode(instrs)
@@ -273,8 +271,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // load variable
         let instrs: List<Commented<WGF.Instr.Wasm>> =
             match env.VarStorage.TryFind v with
-            | Some(Storage.local l) -> [ (LocalGet(Named(l)), $"get local var: {l}") ] // push local variable on stack
-            | Some(Storage.glob l) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ] // push global variable on stack
+            | Some(Storage.Local l) -> [ (LocalGet(Named(l)), $"get local var: {l}") ] // push local variable on stack
+            | Some(Storage.Global l) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ] // push global variable on stack
             | Some(Storage.Offset(i)) -> // push variable from offset on stack
                 // get load instruction based on type
                 let li: WGF.Instr.Wasm =
@@ -428,6 +426,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | Sub(lhs, rhs)
     | Rem(lhs, rhs)
     | Div(lhs, rhs)
+    | And(lhs, rhs)
+    | Or(lhs, rhs)
+    | Xor(lhs, rhs)
     | Mult(lhs, rhs) as expr ->
         let lhs' = doCodegen env lhs m
         let rhs' = doCodegen env rhs m
@@ -449,31 +450,29 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | Div _ -> F32Div
                 | Mult _ -> F32Mul
                 | _ -> failwith "failed to find numeric float operation"
+            | t when (isSubtypeOf node.Env t TBool) ->
+                match expr with
+                | And _ -> I32And
+                | Or _ -> I32Or
+                | Xor _ -> I32Xor
             | _ -> failwith "failed to find numeric operation"
 
-        (lhs' + rhs').AddCode([ opCode ])
-    | And(e1, e2) ->
-        let m' = doCodegen env e1 m
-        let m'' = doCodegen env e2 m
-        (m' + m'').AddCode([ I32And ])
+        (lhs'.ResetAccCode() + rhs'.ResetAccCode())
+            .AddCode([ opCode (lhs'.GetAccCode() @ rhs'.GetAccCode()) ])
     // short circuit and
-    | ShortAnd(e1, e2) ->
+    | ShortAnd(lhs, rhs) ->
         doCodegen
             env
             { node with
-                Expr = AST.If(e1, e2, { node with Expr = IntVal 0 }) }
+                Expr = AST.If(lhs, rhs, { node with Expr = IntVal 0 }) }
             m
     // short circuit or
-    | ShortOr(e1, e2) ->
+    | ShortOr(lhs, rhs) ->
         doCodegen
             env
             { node with
-                Expr = AST.If(e1, { node with Expr = IntVal 1 }, e2) }
+                Expr = AST.If(lhs, { node with Expr = IntVal 1 }, rhs) }
             m
-    | Or(e1, e2) ->
-        let m' = doCodegen env e1 m
-        let m'' = doCodegen env e2 m
-        (m' + m'').AddCode([ I32Or ])
     | Not(e) -> (doCodegen env e m).AddCode([ I32Eqz ])
     | Greater(e1, e2) ->
         let m' = doCodegen env e1 m
@@ -502,21 +501,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs = m'.GetAccCode() @ m''.GetAccCode() @ C opcode
         (m + m'.ResetAccCode() + m''.ResetAccCode()).AddCode(instrs)
-    | Xor(e1, e2) ->
-        let m' = doCodegen env e1 m
-        let m'' = doCodegen env e2 m
-        let instrs = [ I32Xor ]
-        (m' + m'').AddCode(instrs)
-    | Less(e1, e2) ->
-        let m' = doCodegen env e1 m
-        let m'' = doCodegen env e2 m
+    | Less(lhs, rhs) ->
+        let m' = doCodegen env lhs m
+        let m'' = doCodegen env rhs m
 
         // find type of e1 and e2 and check if they are equal
         let opcode =
-            match (expandType e1.Env e1.Type) with
-            | t1 when (isSubtypeOf e1.Env t1 TInt) -> [ I32LtS ]
-            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> [ F32Lt ]
-            | t1 when (isSubtypeOf e1.Env t1 TBool) -> [ I32LtS ]
+            match (expandType lhs.Env lhs.Type) with
+            | t1 when (isSubtypeOf lhs.Env t1 TInt) -> [ I32LtS ]
+            | t1 when (isSubtypeOf lhs.Env t1 TFloat) -> [ F32Lt ]
+            | t1 when (isSubtypeOf lhs.Env t1 TBool) -> [ I32LtS ]
             | _ -> failwith "type mismatch"
 
         (m' + m'').AddCode(opcode)
@@ -783,11 +777,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 .AddCode([ (LocalSet(Named(structPointerLabel)), "set struct pointer var") ]) // set struct pointer var
 
         let allocation = // allocate memory for array, return pointer to allocated memory
-            length' // length of array on stack
+            length'
+                .ResetAccCode() // length of array on stack
                 .AddImport(getImport "malloc") // import malloc function
                 .AddCode(
-                    [ (I32Const 4, "4 bytes")
-                      (I32Mul, "multiply length with 4 to get size")
+                    [ (I32Mul(length'.GetAccCode() @ [ (I32Const 4, "4 bytes") ]), "multiply length with 4 to get size")
                       (Call "malloc", "call malloc function") ]
                 )
 
@@ -812,17 +806,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // body should set data in allocated memory
         // TODO: optimize loop so i just multiply index with 4 and add it to base address
         let body =
-            [ (Comment "start of loop body", "")
-              (LocalGet(Named(structPointerLabel)), "get struct pointer var")
-              (I32Load, "load data pointer")
-
-              // find offset to element
-              (LocalGet(Named(i)), "get index")
-              (I32Const(4), "byte offset")
-              (I32Mul, "multiply index with byte offset") // then offset is on top of stack
-
-              // apply offset data pointer
-              (I32Add, "add offset to base address") ] // then pointer to element is on top of stack
+            [ 
+              (Comment "start of loop body", "")
+              (I32Add([
+                (I32Mul(
+                  [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
+                    (I32Load, "load data pointer")
+                    // find offset to element
+                    (LocalGet(Named(i)), "get index")
+                    (I32Const(4), "byte offset") ]
+               ),
+               "multiply index with byte offset")
+              ]), "add offset to base address")
+            ] // then offset is on top of stack
             @ data'.GetAccCode() // get value to store in allocated memory
             @ [ (storeInstr, "store value in elem pos"); (Comment "end of loop body", "") ]
 
@@ -836,9 +832,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       @ [ (LocalGet(Named i), "get i") ]
                       @ C [ I32Eq; BrIf exitl ]
                       @ body
-                      @ [ (LocalGet(Named i), "get i")
-                          (I32Const(1), "increment by 1")
-                          (I32Add, "add 1 to i")
+                      @ [ (I32Add([ (LocalGet(Named i), "get i"); (I32Const(1), "increment by 1") ]), "add 1 to i")
                           (LocalSet(Named i), "write to i") ]
                       @ C [ Br beginl ]
                   ) ]
@@ -889,11 +883,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             m'.GetAccCode() // struct pointer on stack
-            @ [ (I32Load, "load data pointer") ]
-            @ m''.GetAccCode() // index on stack
-            @ [ (I32Const 4, "byte offset")
-                (I32Mul, "multiply index with byte offset")
-                (I32Add, "add offset to base address") ]
+            @ [ (I32Add(
+                    [ (I32Mul(
+                          [ (I32Load, "load data pointer") ]
+                          @ m''.GetAccCode()
+                          @ [ (I32Const 4, "byte offset") ]
+                       ),
+                       "multiply index with byte offset") ]
+                 ),
+                 "add offset to base address") ]
             @ [ (loadInstr, "load value") ]
 
         indexCheck
@@ -945,9 +943,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // difference between end and start should be at least 1
         let atleastOne =
-            endingm.GetAccCode() // end on stack
-            @ startm.GetAccCode() // start on stack
-            @ [ (I32Sub, "subtract end from start") ]
+            [ (I32Sub(endingm.GetAccCode() @ startm.GetAccCode()), "subtract end from start") ]
             @ [ (I32Const 1, "put one on stack")
                 (I32LtS, "check if difference is < 1")
                 (If([], trap, None), "check that difference is <= 1 - if not return 42") ]
@@ -974,11 +970,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             // value to store in data pointer field
             @ targetm.GetAccCode() // pointer to exsisiting array struct on stack
-            @ [ (I32Load, "Load data pointer from array struct") ]
-            @ startm.GetAccCode() // index of start
-            @ [ (I32Const 4, "offset of data field")
-                (I32Mul, "multiply index with byte offset")
-                (I32Add, "add offset to base address") ] // get pointer to allocated memory - value to store in data pointer field
+
+            @ [ (I32Add(
+                    [ 
+                      (I32Mul([ (I32Load, "Load data pointer from array struct") ] @ startm.GetAccCode() @ [(I32Const 4, "offset of data field")]),
+                       "multiply index with byte offset") ]
+                 ),
+                 "add offset to base address") ] // get pointer to allocated memory - value to store in data pointer field
             @ [ (I32Store, "store pointer to data") ]
 
         (C [ Comment "start array slice" ] @ atleastOne @ endCheck @ startCheck)
@@ -1037,7 +1035,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let varName = env.SymbolController.genSymbol $"match_var_{var}"
 
                 // map case var to label address
-                let scopeVarStorage = env.VarStorage.Add(var, Storage.local varName)
+                let scopeVarStorage = env.VarStorage.Add(var, Storage.Local varName)
 
                 /// Environment for compiling the 'case' scope
                 let scopeEnv =
@@ -1061,14 +1059,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // address to data
                 let dataPointer =
                     targetm.GetAccCode()
-                    @ [ (loadInstr (None, Some(4)), "load data pointer")
-                        (LocalSet(Named(varName)), "set local var") ]
+                    @ [ (loadInstr (None, Some(4)), "load data pointer") ]
+                    @ [ (LocalSet(Named(varName)), "set local var") ] // set local var
 
                 let caseCode =
-                    dataPointer
-                    ++ scope
-                        // .AddLocals([ (Some(Identifier(var)), I32) ])
-                        .AddCode([ (Br matchEndLabel, "break out of match") ])
+                    dataPointer ++ scope.AddCode([ (Br matchEndLabel, "break out of match") ])
 
                 let condition =
                     targetm.GetAccCode()
@@ -1101,7 +1096,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         | Var(name) ->
 
             match env.VarStorage.TryFind name with
-            | Some(Storage.local l) ->
+            | Some(Storage.Local l) ->
                 value'
                     .ResetAccCode()
                     .AddCode(value'.GetAccCode() @ [ (LocalTee(Named(l)), "set local var") ])
@@ -1121,6 +1116,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let load = [ (LocalGet(Index(0)), "get env") ] @ [ li ]
 
                 value'.ResetAccCode().AddCode(store @ load)
+            | Some(Storage.Global g) ->
+                value'
+                    .ResetAccCode()
+                    .AddCode(
+                        value'.GetAccCode()
+                        @ [ (GlobalSet(Named(g)), "set global var")
+                            (GlobalGet(Named(g)), "get global var") ]
+                    )
             | _ -> failwith "not implemented"
 
 
@@ -1192,22 +1195,30 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | _ -> I32Load
 
             let instrs =
-                // store value in allocated memory
-                selTargetCode.GetAccCode() // struct pointer on stack
-                @ [ (I32Load, "load data pointer") ]
-                @ indexCode.GetAccCode() // index on stack
-                @ [ (I32Const 4, "byte offset")
-                    (I32Mul, "multiply index with byte offset")
-                    (I32Add, "add offset to base address") ]
+                [ (I32Add(
+                      [ (I32Mul(
+                            // store value in allocated memory
+                            selTargetCode.GetAccCode() // struct pointer on stack
+                            @ [ (I32Load, "load data pointer") ]
+                            @ indexCode.GetAccCode() // index on stack
+                            @ [ (I32Const 4, "byte offset") ]
+                         ),
+                         "multiply index with byte offset") ]
+                   ),
+                   "add offset to base address") ]
                 @ rhsCode.GetAccCode()
                 @ [ (storeInstr, "store value in elem pos") ]
                 // load value just to leave a value on the stack
                 @ selTargetCode.GetAccCode() // struct pointer on stack
-                @ [ (I32Load, "load data pointer") ]
-                @ indexCode.GetAccCode() // index on stack
-                @ [ (I32Const 4, "byte offset")
-                    (I32Mul, "multiply index with byte offset")
-                    (I32Add, "add offset to base address") ]
+                @ [ (I32Add(
+                        [ (I32Mul(
+                              [ (I32Load, "load data pointer") ]
+                              @ indexCode.GetAccCode()
+                              @ [ (I32Const 4, "byte offset") ]
+                           ),
+                           "multiply index with byte offset") ]
+                     ),
+                     "add offset to base address") ]
                 @ [ (loadInstr, "load int from elem pos") ]
 
             (rhsCode.ResetAccCode() + indexCode.ResetAccCode() + selTargetCode.ResetAccCode())
@@ -1239,7 +1250,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
-        let funcref = env.VarStorage.Add(name, Storage.glob ptr_label)
+        let funcref = env.VarStorage.Add(name, Storage.Global ptr_label)
 
         // add each arg to var storage (all local vars)
         let env' = addArgsToEnv env args
@@ -1291,7 +1302,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let env' =
             { env with
-                VarStorage = env.VarStorage.Add(name, Storage.local varName) }
+                VarStorage = env.VarStorage.Add(name, Storage.Local varName) }
 
         match (expandType init.Env init.Type) with
         | t when (isSubtypeOf init.Env t TUnit) -> m' ++ (doCodegen env scope m)
@@ -1334,7 +1345,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             // add var to func ref
             let env'' =
                 { env' with
-                    VarStorage = env.VarStorage.Add(name, Storage.local varName) }
+                    VarStorage = env.VarStorage.Add(name, Storage.Local varName) }
 
             let initCode = m'.GetAccCode()
 
@@ -1386,7 +1397,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             ++ combi
                 .AddLocals([ (Some(Identifier(varName)), I32) ])
                 .AddCode([ Comment "End of let" ])
-
 
     | LetMut(name, tpe, init, scope, export) ->
         // check if var is captured
@@ -1453,7 +1463,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
-        let funcref = env.VarStorage.Add(name, Storage.glob ptr_label)
+        let funcref = env.VarStorage.Add(name, Storage.Global ptr_label)
         let env' = { env with VarStorage = funcref }
 
         // add each arg to var storage (all local vars)
@@ -1542,7 +1552,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let initField = doCodegen env fieldInit m
 
                 // add comment to init field
-                let initField' = C [ Comment $"init field {fieldName}" ] ++ initField
+                let initField' = C [ Comment $"init field ({fieldName})" ] ++ initField
 
                 // instr based on type of field
                 // store field in memory
@@ -1550,15 +1560,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     match (expandType fieldInit.Env fieldInit.Type) with
                     | t when (isSubtypeOf fieldInit.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf fieldInit.Env t TFloat) ->
-                        [ (LocalGet(Named(structName)), "get struct pointer var")
-                          (I32Const fieldOffsetBytes, "push field offset to stack")
-                          (I32Add, "add offset to base address") ]
+                        [ (I32Add(
+                              [ (LocalGet(Named(structName)), "get struct pointer var")
+                                (I32Const fieldOffsetBytes, "push field offset to stack") ]
+                           ),
+                           "add offset to base address") ]
                         @ initField'.GetAccCode()
-                        @ [ (F32Store, $"store float field ({fieldName}) in memory") ]
+                        @ [ (F32Store, "store int field in memory") ]
+
                     | _ ->
-                        [ (LocalGet(Named(structName)), "get struct pointer var")
-                          (I32Const fieldOffsetBytes, "push field offset to stack")
-                          (I32Add, "add offset to base address") ]
+                        [ (I32Add(
+                              [ (LocalGet(Named(structName)), "get struct pointer var")
+                                (I32Const fieldOffsetBytes, "push field offset to stack") ]
+                           ),
+                           "add offset to base address") ]
                         @ initField'.GetAccCode()
                         @ [ (I32Store, "store int field in memory") ]
 
@@ -1707,8 +1722,8 @@ and internal createClosure (env: CodegenEnv) (node: TypedAST) (index: int) (m: M
     let localVarID = lookupLatestLocal returnStructModule
 
     let instr =
-        returnStructModule.GetAccCode()
-        @ [ (I32Const 4, "4 byte offset"); (I32Add, "add offset") ]
+        [ (I32Const 4, "4 byte offset yy")
+          (I32Add(returnStructModule.GetAccCode()), "add offset") ]
         @ capturedVarsStructCode.GetAccCode()
         @ [ (I32Store, "store poninter in return struct") ]
         @ [ (LocalGet(Named(localVarID)), "get pointer to return struct") ]
@@ -1741,6 +1756,20 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
         | Some(instrs2) ->
             [ (If(l, (localSubst instrs1 var), Some(localSubst instrs2 var)), c) ]
             @ localSubst rest var
+    // nested instructions
+    | (I32Add(instrs), c) :: rest -> [ (I32Add(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32Sub(instrs), c) :: rest -> [ (I32Sub(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32Mul(instrs), c) :: rest -> [ (I32Mul(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32DivS(instrs), c) :: rest -> [ (I32DivS(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32RemS(instrs), c) :: rest -> [ (I32RemS(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32And(instrs), c) :: rest -> [ (I32And(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32Or(instrs), c) :: rest -> [ (I32Or(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32Xor(instrs), c) :: rest -> [ (I32Xor(localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Add(instrs), c) :: rest -> [ (F32Add(localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Sub(instrs), c) :: rest -> [ (F32Sub(localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Mul(instrs), c) :: rest -> [ (F32Mul(localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Div(instrs), c) :: rest -> [ (F32Div(localSubst instrs var), c) ] @ localSubst rest var
+
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 
@@ -1802,7 +1831,7 @@ let hoistingLocals (m: Module) (upgradeList: list<string>) : Module =
                     | F32 -> F32Const 0.0f
                     | _ -> failwith "not implemented"
 
-                (n, (t, Mutable), value))
+                (n, (t, Mutable), (value, "")))
             upgradeList
 
     m.AddGlobals(globals).ReplaceFuncs(funcs')
@@ -1862,8 +1891,8 @@ let codegen (node: TypedAST) : Module =
             .AddInstrs(env.CurrFunc, m.GetAccCode()) // add code of main function
             .AddInstrs(env.CurrFunc, [ Comment "if execution reaches here, the program is successful" ])
             .AddInstrs(env.CurrFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ]) // return 0 if program is successful
-            .AddGlobal((heapBase, (I32, Immutable), (I32Const staticOffset))) // add heap base pointer
-            .AddGlobal((exitCode, (I32, Mutable), (I32Const 0))) // add exit code
+            .AddGlobal((heapBase, (I32, Immutable), (I32Const staticOffset, ""))) // add heap base pointer
+            .AddGlobal((exitCode, (I32, Mutable), (I32Const 0, ""))) // add exit code
             .AddExport(heapBase + "_ptr", GlobalType("heap_base")) // export heap base pointer
             .AddExport(exitCode, GlobalType("exit_code")) // export exit code pointer
             .ResetAccCode() // reset accumulated code
