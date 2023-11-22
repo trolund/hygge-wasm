@@ -521,12 +521,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // find type of e1 and e2 and check if they are equal
         let opcode =
             match (expandType e1.Env e1.Type) with
-            | t1 when (isSubtypeOf e1.Env t1 TInt) -> [ I32LeS ]
-            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> [ F32Le ]
-            | t1 when (isSubtypeOf e1.Env t1 TBool) -> [ I32LeS ]
+            | t1 when (isSubtypeOf e1.Env t1 TInt) -> I32LeS 
+            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> F32Le 
+            | t1 when (isSubtypeOf e1.Env t1 TBool) -> I32LeS
             | _ -> failwith "type mismatch"
 
-        (m' + m'').AddCode(opcode)
+        (m'.ResetAccCode() + m''.ResetAccCode()).AddCode([(opcode(m'.GetAccCode() @ m''.GetAccCode()), "")])
     | GreaterOrEq(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
@@ -751,10 +751,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // check that length is bigger then 1 - if not return 42
         let lengthCheck =
-            length'.GetAccCode()
-            @ [ (I32Const 1, "put one on stack")
-                (I32LeS, "check if length is <= 1")
-                (If([], trap, None), "check that length of array is bigger then 1 - if not return 42") ]
+            [ (I32LeS(length'.GetAccCode() @ [ (I32Const 1, "put one on stack") ]), "check if length is <= 1")
+              (If([], trap, None), "check that length of array is bigger then 1 - if not return 42") ]
 
         // node with literal value 0
         // data poiner of struct is first zoro.
@@ -806,19 +804,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // body should set data in allocated memory
         // TODO: optimize loop so i just multiply index with 4 and add it to base address
         let body =
-            [ 
-              (Comment "start of loop body", "")
-              (I32Add([
-                (I32Mul(
-                  [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
-                    (I32Load, "load data pointer")
-                    // find offset to element
-                    (LocalGet(Named(i)), "get index")
-                    (I32Const(4), "byte offset") ]
+            [ (Comment "start of loop body", "")
+              (I32Add(
+                  [ (I32Mul(
+                        [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
+                          (I32Load, "load data pointer")
+                          // find offset to element
+                          (LocalGet(Named(i)), "get index")
+                          (I32Const(4), "byte offset") ]
+                     ),
+                     "multiply index with byte offset") ]
                ),
-               "multiply index with byte offset")
-              ]), "add offset to base address")
-            ] // then offset is on top of stack
+               "add offset to base address") ] // then offset is on top of stack
             @ data'.GetAccCode() // get value to store in allocated memory
             @ [ (storeInstr, "store value in elem pos"); (Comment "end of loop body", "") ]
 
@@ -972,8 +969,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             @ targetm.GetAccCode() // pointer to exsisiting array struct on stack
 
             @ [ (I32Add(
-                    [ 
-                      (I32Mul([ (I32Load, "Load data pointer from array struct") ] @ startm.GetAccCode() @ [(I32Const 4, "offset of data field")]),
+                    [ (I32Mul(
+                          [ (I32Load, "Load data pointer from array struct") ]
+                          @ startm.GetAccCode()
+                          @ [ (I32Const 4, "offset of data field") ]
+                       ),
                        "multiply index with byte offset") ]
                  ),
                  "add offset to base address") ] // get pointer to allocated memory - value to store in data pointer field
@@ -1769,6 +1769,8 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (F32Sub(instrs), c) :: rest -> [ (F32Sub(localSubst instrs var), c) ] @ localSubst rest var
     | (F32Mul(instrs), c) :: rest -> [ (F32Mul(localSubst instrs var), c) ] @ localSubst rest var
     | (F32Div(instrs), c) :: rest -> [ (F32Div(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32LeS(instrs), c) :: rest -> [ (I32LeS(localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Le(instrs), c) :: rest -> [ (F32Le(localSubst instrs var), c) ] @ localSubst rest var
 
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var

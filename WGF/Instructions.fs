@@ -42,7 +42,7 @@ type Wasm =
     | I32LtU
     | I32GtS
     | I32GtU
-    | I32LeS
+    | I32LeS of Wasm Commented list
     | I32LeU
     | I32GeS
     | I32GeU
@@ -50,7 +50,7 @@ type Wasm =
     | F32Ne
     | F32Lt
     | F32Gt
-    | F32Le
+    | F32Le of Wasm Commented list
     | F32Ge
     | I32Clz
     | I32Ctz
