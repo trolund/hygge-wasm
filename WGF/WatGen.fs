@@ -191,7 +191,7 @@ type WritingStyle =
 
 /// generate the wat instruction for a list of instructions
 /// indent is the number of tabs to add before each instruction
-let style = Linar
+let style = Folded
 
 let rec genWat (instrs: Wasm Commented list) (ident: int) =
 

@@ -3,7 +3,6 @@ module WasmPeephole
 open WGF.Module
 open WGF.Types
 open WGF.Instr
-open Util
 
 /// Optimize a list of Text segment statements.
 /// TODO: make sure that optimizeInstr are applied until the result stops changing
@@ -103,9 +102,147 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
     //     (I32Mul, c1 + c2) :: optimizeInstr rest
 
     // if a value is pushed on the stack and then dropped, we can remove both
-    // | (I32Const x, c1) :: (Drop, c2) :: rest -> 
-    //     optimizeInstr rest
+    | (I32Const _, _) :: (Drop, _) :: rest -> 
+        optimizeInstr rest
+
+    // global.get and then drop
+    | (GlobalGet _, _) :: (Drop, _) :: rest ->
+        optimizeInstr rest
+
+    // terverse nested nodes
+    // terverse if
+    | (If (t, cond, ifTrue, ifFalse), c1) :: rest ->
+        let cond' = optimizeInstr cond
+        let ifTrue' = optimizeInstr ifTrue  
+        let ifFalse' = match ifFalse with
+                        | Some ifFalse -> Some (optimizeInstr ifFalse)
+                        | None -> ifFalse
         
+        let rest' = optimizeInstr rest
+
+        (If (t, cond', ifTrue', ifFalse'), c1) :: rest'
+
+    // terverse block
+    | (Block (l, t, instrs), c1) :: rest ->
+        let instrs' = optimizeInstr instrs
+        let rest' = optimizeInstr rest
+        (Block (l, t, instrs'), c1) :: rest'
+
+    // terverse loop
+    | (Loop (l, t, instrs), c1) :: rest ->
+        let instrs' = optimizeInstr instrs
+        let rest' = optimizeInstr rest
+        (Loop (l, t, instrs'), c1) :: rest'
+    
+    // loads
+    | (I32Load(instrs), c) :: rest ->
+        let instrs' = optimizeInstr instrs
+        (I32Load(instrs'), c) :: optimizeInstr rest
+
+    | (I32Load_(align, offset, instrs), c) :: rest ->
+        let instrs' = optimizeInstr instrs
+        (I32Load_(align, offset, instrs'), c) :: optimizeInstr rest
+
+    | (F32Load(instrs), c) :: rest ->
+        let instrs' = optimizeInstr instrs
+        (F32Load(instrs'), c) :: optimizeInstr rest
+
+    | (F32Load_(align, offset, instrs), c) :: rest ->
+        let instrs' = optimizeInstr instrs
+        (F32Load_(align, offset, instrs'), c) :: optimizeInstr rest
+
+    // stores
+    | (I32Store(instrs), c) :: rest ->
+        let instrs' = optimizeInstr instrs
+        (I32Store(instrs'), c) :: optimizeInstr rest
+
+    | (I32Store_(align, offset, instrs), c) :: rest ->
+        let instrs' = optimizeInstr instrs
+        (I32Store_(align, offset, instrs'), c) :: optimizeInstr rest
+
+    | (F32Store(instrs), c) :: rest ->
+        let instrs' = optimizeInstr instrs
+        (F32Store(instrs'), c) :: optimizeInstr rest
+
+    | (F32Store_(align, offset, instrs), c) :: rest ->
+        let instrs' = optimizeInstr instrs
+        (F32Store_(align, offset, instrs'), c) :: optimizeInstr rest
+
+    | (I32Eqz(instrs), c) :: rest ->
+        (I32Eqz(optimizeInstr instrs), c) :: optimizeInstr rest
+
+    | (I32Eq(instrs), c) :: rest -> 
+        (I32Eq(optimizeInstr instrs), c) :: optimizeInstr rest
+
+    | (I32LtS(instrs), c) :: rest ->
+        (I32LtS(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (I32GtS(instrs), c) :: rest ->
+        (I32GtS(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (I32LeS(instrs), c) :: rest ->
+        (I32LeS(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (I32GeS(instrs), c) :: rest ->
+        (I32GeS(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (F32Eq(instrs), c) :: rest ->
+        (F32Eq(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (F32Lt(instrs), c) :: rest ->
+        (F32Lt(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (F32Gt(instrs), c) :: rest ->
+        (F32Gt(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (F32Le(instrs), c) :: rest ->
+        (F32Le(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (F32Ge(instrs), c) :: rest ->
+        (F32Ge(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (I32Add(instrs), c) :: rest ->
+        (I32Add(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (I32Sub(instrs), c) :: rest ->
+        (I32Sub(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (I32Mul(instrs), c) :: rest ->
+        (I32Mul(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (I32DivS(instrs), c) :: rest ->
+        (I32DivS(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (I32DivU(instrs), c) :: rest ->
+        (I32DivU(optimizeInstr instrs), c) :: optimizeInstr rest
+
+    | (I32RemS(instrs), c) :: rest ->
+        (I32RemS(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (I32RemU(instrs), c) :: rest ->
+        (I32RemU(optimizeInstr instrs), c) :: optimizeInstr rest
+
+    | (I32And(instrs), c) :: rest ->
+        (I32And(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (I32Or(instrs), c) :: rest ->
+        (I32Or(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (I32Xor(instrs), c) :: rest ->
+        (I32Xor(optimizeInstr instrs), c) :: optimizeInstr rest
+
+    | (F32Add(instrs), c) :: rest ->
+        (F32Add(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (F32Sub(instrs), c) :: rest ->
+        (F32Sub(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (F32Mul(instrs), c) :: rest ->
+        (F32Mul(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (F32Div(instrs), c) :: rest ->
+        (F32Div(optimizeInstr instrs), c) :: optimizeInstr rest
+
     // no optimization case matched: continue with the rest
     | stmt :: rest ->
         // If we are here, we did not find any pattern to optimize: we skip the
