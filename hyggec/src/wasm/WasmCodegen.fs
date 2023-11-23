@@ -1962,9 +1962,8 @@ let codegen (node: TypedAST) : Module =
     let funcName = mainFunctionName
 
     // signature of main function
-    // the main function has no arguments and returns an 32 bit integer
+    // the main function has no arguments
     let signature: FunctionSignature = ([], mapType node.Type)
-    // let signature = ([], [ I32 ])
 
     let funcInstance: Commented<FunctionInstance> =
         ({ locals = List.Empty
@@ -2007,7 +2006,6 @@ let codegen (node: TypedAST) : Module =
             .AddInstrs(env.CurrFunc, [ Comment "execution start here:" ])
             .AddInstrs(env.CurrFunc, m.GetAccCode()) // add code of main function
             .AddInstrs(env.CurrFunc, [ Comment "if execution reaches here, the program is successful" ])
-            // .AddInstrs(env.CurrFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ]) // return 0 if program is successful
             .AddGlobal((heapBase, (I32, Immutable), (I32Const staticOffset, ""))) // add heap base pointer
             .AddGlobal((exitCode, (I32, Mutable), (I32Const 0, ""))) // add exit code
             .AddExport(heapBase + "_ptr", GlobalType("heap_base")) // export heap base pointer

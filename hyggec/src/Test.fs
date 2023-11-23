@@ -10,6 +10,7 @@ open Expecto // See https://github.com/haf/expecto
 open WasmTimeDriver
 open System
 open System.IO
+open WGF.WatGen
 
 
 /// Collect and sort the test files in a test directory.
@@ -57,14 +58,14 @@ let runWasmModule asm expected (name: string) =
          + $"got %d{exit} (%s{explainExit})")
 
 
-let internal WasmPrepareTest tast expected (name: string) peep =
+let internal WasmPrepareTest tast expected (name: string) (peep: bool) (style: WGF.WatGen.WritingStyle) =
     // let anf = ANF.transform tast
     let asm =
         if peep then
             let code = (hyggec.WASMCodegen.codegen tast) |> WasmPeephole.optimize
-            code.ToString()
+            code.ToWat(style)
         else
-            (hyggec.WASMCodegen.codegen tast).ToString()
+            (hyggec.WASMCodegen.codegen tast).ToWat(style)
 
     runWasmModule asm expected name
 
@@ -252,32 +253,58 @@ let tests =
           // Wasm tests are disabled for now
           testList
               "wasm"
+              // linar style
               [ testList
                     "pass"
                     (getFilesInTestDir [ "codegen"; "pass" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file 0 false))
+                         <| fun _ -> testWasmCodegen file 0 false WritingStyle.Linar))
                 testList
                     "pass-peep"
                     (getFilesInTestDir [ "codegen"; "pass" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file 0 true))
+                         <| fun _ -> testWasmCodegen file 0 true WritingStyle.Linar))
                 testList
                     "fail"
                     (getFilesInTestDir [ "codegen"; "fail" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode false))
+                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode false WritingStyle.Linar))
                 testList
                     "fail-peep"
                     (getFilesInTestDir [ "codegen"; "fail" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode true)) 
-                         
-                         ] ]
+                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode true WritingStyle.Linar))
+                // folded style
+                testList
+                    "pass-folded"
+                    (getFilesInTestDir [ "codegen"; "pass" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ -> testWasmCodegen file 0 false WritingStyle.Folded))
+                testList
+                    "pass-peep-folded"
+                    (getFilesInTestDir [ "codegen"; "pass" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ -> testWasmCodegen file 0 true WritingStyle.Folded))
+                testList
+                    "fail-folded"
+                    (getFilesInTestDir [ "codegen"; "fail" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode false WritingStyle.Folded))
+                testList
+                    "fail-peep-folded"
+                    (getFilesInTestDir [ "codegen"; "fail" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode true WritingStyle.Folded))
+
+                ] ]
 
 
 /// Run the tests according to command line options

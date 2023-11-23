@@ -677,7 +677,14 @@ module Module =
 
         static member (@)(wasm1: Commented<Instrs> list, wasm2: Commented<Instrs> list) = wasm1 @ wasm2
 
-        override this.ToString() =
+        override this.ToString() = this.ToWat()
+
+        member this.ToWat(?style: WritingStyle) =
+
+            let style = match style with
+                        | Some style -> style
+                        | None -> Linar
+
             let mutable result = ""
 
             // open module tag
@@ -750,7 +757,7 @@ module Module =
 
                 result <-
                     result
-                    + $"{gIndent 1}(func %s{genrate_name f.name} %s{ic x} %s{generate_signature f.signature c} %s{generate_local f.locals}\n%s{genWat f.body 2}  )\n"
+                    + $"{gIndent 1}(func %s{genrate_name f.name} %s{ic x} %s{generate_signature f.signature c} %s{generate_local f.locals}\n%s{generateText f.body style}  )\n"
 
                 // increase x
                 x <- x + 1

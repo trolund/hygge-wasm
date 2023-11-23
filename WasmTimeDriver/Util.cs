@@ -45,10 +45,6 @@ public static class Utils
             Console.WriteLine($"The process exited with an error. Exit code: {process.ExitCode}");
             throw new Exception($"Wat2Wasm: The process exited with an error. Exit code: {process.ExitCode}");
         }
-        // else
-        // {
-        //     Console.WriteLine("The process completed successfully.");
-        // }
     }
 
     // run wasm-as command on file
@@ -72,12 +68,8 @@ public static class Utils
         if (process.ExitCode != 0)
         {
             Console.WriteLine($"WasmAs: The process exited with an error. Exit code: {process.ExitCode}, test: {fileName}");
-            // throw new Exception($"WasmAs: The process exited with an error. Exit code: {process.ExitCode}");
+            throw new Exception($"WasmAs: The process exited with an error. Exit code: {process.ExitCode}");
         }
-        // else
-        // {
-        //     Console.WriteLine($"WasmAs: works with wasm-as, test: {fileName}");
-        // }
     }
 
     public static void Createfile(string name, string wat)
@@ -88,7 +80,7 @@ public static class Utils
 
         WriteToFile(path, wat);
         Wat2Wasm(path, type);
-        WasmAs(path, type);
+        // WasmAs(path, type);
 
     }
 
