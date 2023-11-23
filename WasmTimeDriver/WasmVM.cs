@@ -238,7 +238,7 @@ namespace WasmTimeDriver
             {
                 Console.WriteLine(name);
                 Console.WriteLine(e);
-                return null;
+                return 42;
             }
         }
 
@@ -261,7 +261,7 @@ namespace WasmTimeDriver
             {
                 Console.WriteLine(name);
                 Console.WriteLine(e);
-                return null;
+                return 42;
             }
         }
 
@@ -287,7 +287,7 @@ namespace WasmTimeDriver
             {
                 Console.WriteLine(name);
                 Console.WriteLine(e);
-                return null;
+                return 42;
             }
         }
 

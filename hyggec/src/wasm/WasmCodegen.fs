@@ -247,7 +247,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | StringLength e ->
         let m' = doCodegen env e m
 
-        let instrs = m'.GetAccCode() @ [ (I32Load_(None, Some(8)), "load string length") ]
+        let instrs = [ (I32Load_(None, Some(8), m'.GetAccCode()), "load string length") ]
 
         m'.ResetAccCode().AddCode(instrs)
     | Neg({ Node.Expr = IntVal(v)
@@ -276,14 +276,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // get load instruction based on type
                 let li: WGF.Instr.Wasm =
                     match (expandType node.Env node.Type) with
-                    | t when (isSubtypeOf node.Env t TBool) -> I32Load_(None, Some(i * 4))
-                    | t when (isSubtypeOf node.Env t TInt) -> I32Load_(None, Some(i * 4))
-                    | t when (isSubtypeOf node.Env t TFloat) -> F32Load_(None, Some(i * 4))
-                    | t when (isSubtypeOf node.Env t TString) -> I32Load_(None, Some(i * 4))
-                    | _ -> I32Load_(None, Some(i * 4))
+                    | t when (isSubtypeOf node.Env t TBool) ->
+                        I32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env pointer") ])
+                    | t when (isSubtypeOf node.Env t TInt) ->
+                        I32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env pointer") ])
+                    | t when (isSubtypeOf node.Env t TFloat) ->
+                        F32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env pointer") ])
+                    | t when (isSubtypeOf node.Env t TString) ->
+                        I32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env pointer") ])
+                    | _ -> I32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env pointer") ])
 
-                [ (LocalGet(Index(0)), "get env pointer")
-                  (li, $"load value at offset: {i * 4}") ]
+                [ (li, $"load value at offset: {i * 4}") ]
             | _ -> failwith "could not find variable in var storage"
 
         m.AddCode(instrs)
@@ -411,8 +414,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | _ -> failwith "not implemented"
             | t when (isSubtypeOf node.Env t TInt) ->
                 match node.Expr with
-                | Max _ -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32GtS; Select ]
-                | Min _ -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32LtS; Select ]
+                | Max _ -> C [ I32GtS(m'.GetAccCode() @ m''.GetAccCode()); Select ]
+                | Min _ -> C [ I32LtS(m'.GetAccCode() @ m''.GetAccCode()); Select ]
                 | _ -> failwith "not implemented"
             | _ -> failwith "failed type of max/min"
 
@@ -482,12 +485,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // find type of e1 and e2 and check if they are equal
         let opcode =
             match (expandType e1.Env e1.Type) with
-            | t1 when (isSubtypeOf e1.Env t1 TInt) -> [ I32GtS ]
-            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> [ F32Gt ]
-            | t1 when (isSubtypeOf e1.Env t1 TBool) -> [ I32GtS ]
+            | t1 when (isSubtypeOf e1.Env t1 TInt) -> I32GtS
+            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> F32Gt
+            | t1 when (isSubtypeOf e1.Env t1 TBool) -> I32GtS
             | _ -> failwith "type mismatch"
 
-        (m' + m'').AddCode(opcode)
+        (m'.ResetAccCode() + m''.ResetAccCode())
+            .AddCode([ (opcode (m'.GetAccCode() @ m''.GetAccCode()), "") ])
     | Eq(lhs, rhs) ->
         let m' = doCodegen env lhs m
         let m'' = doCodegen env rhs m
@@ -509,12 +513,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // find type of e1 and e2 and check if they are equal
         let opcode =
             match (expandType lhs.Env lhs.Type) with
-            | t1 when (isSubtypeOf lhs.Env t1 TInt) -> [ I32LtS ]
-            | t1 when (isSubtypeOf lhs.Env t1 TFloat) -> [ F32Lt ]
-            | t1 when (isSubtypeOf lhs.Env t1 TBool) -> [ I32LtS ]
+            | t1 when (isSubtypeOf lhs.Env t1 TInt) -> I32LtS
+            | t1 when (isSubtypeOf lhs.Env t1 TFloat) -> F32Lt
+            | t1 when (isSubtypeOf lhs.Env t1 TBool) -> I32LtS
             | _ -> failwith "type mismatch"
 
-        (m' + m'').AddCode(opcode)
+        (m'.ResetAccCode() + m''.ResetAccCode())
+            .AddCode([ (opcode (m'.GetAccCode() @ m''.GetAccCode()), "") ])
     | LessOrEq(e1, e2) ->
         let m' = doCodegen env e1 m
         let m'' = doCodegen env e2 m
@@ -536,12 +541,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // find type of e1 and e2 and check if they are equal
         let opcode =
             match (expandType e1.Env e1.Type) with
-            | t1 when (isSubtypeOf e1.Env t1 TInt) -> [ I32GeS ]
-            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> [ F32Ge ]
-            | t1 when (isSubtypeOf e1.Env t1 TBool) -> [ I32GeS ]
+            | t1 when (isSubtypeOf e1.Env t1 TInt) -> I32GeS
+            | t1 when (isSubtypeOf e1.Env t1 TFloat) -> F32Ge
+            | t1 when (isSubtypeOf e1.Env t1 TBool) -> I32GeS
             | _ -> failwith "type mismatch"
 
-        (m' + m'').AddCode(opcode)
+        (m'.ResetAccCode() + m''.ResetAccCode())
+            .AddCode([ (opcode (m'.GetAccCode() @ m''.GetAccCode()), "") ])
     | ReadInt ->
         // perform host (system) call
         m
@@ -570,10 +576,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     .AddImport(getImport "writeS")
                     .AddCode(
                         // push string pointer to stack
-                        m'.GetAccCode()
-                        @ [ (I32Load, "Load string pointer") ]
-                        @ m'.GetAccCode()
-                        @ [ (I32Load_(None, Some(4)), "Load string length") ]
+                        [ (I32Load(m'.GetAccCode()), "Load string pointer") ]
+                        @ [ (I32Load_(None, Some(4), m'.GetAccCode()), "Load string length") ]
                     )
 
             // perform host (system) call
@@ -592,8 +596,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let resultType = (expandType node.Env node.Type)
 
         let instrs =
-            m'.GetAccCode()
-            @ C [ (If(mapType resultType, m''.GetAccCode(), Some(m'''.GetAccCode()))) ]
+            C [ (If(mapType resultType, m'.GetAccCode(), m''.GetAccCode(), Some(m'''.GetAccCode()))) ]
 
         (m' + m'' + m''').ResetAccCode().AddCode(instrs)
     | Assertion(e) ->
@@ -601,7 +604,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let instrs =
             // invert assertion
-            [ (I32Eqz(m'.GetAccCode()), "invert assertion") ] @ C [ (If([], trap, None)) ]
+            C [ (If([], [ (I32Eqz(m'.GetAccCode()), "invert assertion") ], trap, None)) ]
 
         m'.ResetAccCode().AddCode(instrs)
     | Application(expr, args) ->
@@ -618,13 +621,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             .ResetAccCode()
             .AddCode([ Comment "Load expression to be applied as a function" ])
             .AddCode(
-                exprm.GetAccCode() // load closure environment pointer as first argument
-                @ [ (I32Load_(None, Some(4)), "load closure environment pointer") ]
-                @ argm.GetAccCode() // load the rest of the arguments
-                @ exprm.GetAccCode() // load function pointer
-                @ [ (I32Load, "load table index")
-                    (CallIndirect(Named(typeId)), "call function") ]
+                [ (CallIndirect(
+                      Named(typeId),
+                      [ (I32Load_(None, Some(4), exprm.GetAccCode()), "load closure environment pointer") ]
+                      @ argm.GetAccCode() // load the rest of the arguments
+                      // load function pointer
+                      @ [ (I32Load(exprm.GetAccCode()), "load table index") ]
+                   ),
+                   "call function") ]
             )
+
+
 
     | Lambda(args, body) ->
         // Label to mark the position of the lambda term body
@@ -751,8 +758,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // check that length is bigger then 1 - if not return 42
         let lengthCheck =
-            [ (I32LeS(length'.GetAccCode() @ [ (I32Const 1, "put one on stack") ]), "check if length is <= 1")
-              (If([], trap, None), "check that length of array is bigger then 1 - if not return 42") ]
+            [ (If(
+                  [],
+                  [ (I32LeS(length'.GetAccCode() @ [ (I32Const 1, "put one on stack") ]), "check if length is <= 1") ],
+                  trap,
+                  None
+               ),
+               "check that length of array is bigger then 1 - if not return 42") ]
 
         // node with literal value 0
         // data poiner of struct is first zoro.
@@ -808,8 +820,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             [ (Comment "start of loop body", "")
               (I32Add(
                   [ (I32Mul(
-                        [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
-                          (I32Load, "load data pointer")
+                        [ (I32Load([ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]),
+                           "load data pointer")
                           // find offset to element
                           (LocalGet(Named(i)), "get index")
                           (I32Const(4), "byte offset") ]
@@ -851,7 +863,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | ArrayLength(target) ->
         let m' = doCodegen env target m
 
-        let instrs = m'.GetAccCode() @ [ (I32Load_(None, Some(4)), "load length") ]
+        let instrs = [ (I32Load_(None, Some(4), m'.GetAccCode()), "load length") ]
 
         C [ Comment "start array length node" ]
         ++ m'.ResetAccCode().AddCode(instrs @ C [ Comment "end array length node" ])
@@ -863,15 +875,29 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // check that index is bigger then 0 - if not return 42
         // and that index is smaller then length - if not return 42
         let indexCheck =
-            m''.GetAccCode() // index on stack
-            @ [ (I32Const 0, "put zero on stack")
-                (I32LtS, "check if index is >= 0")
-                (If([], trap, None), "check that index is >= 0 - if not return 42") ]
-            @ m''.GetAccCode() // index on stack
-            @ m'.GetAccCode() // struct pointer on stack
-            @ [ (I32Load_(None, Some(4)), "load length") ]
-            @ [ (I32GeS, "check if index is < length")
-                (If([], trap, None), "check that index is < length - if not return 42") ]
+            [ (If(
+                  [],
+                  [ (I32LtS(
+                        m''.GetAccCode() // index on stack
+                        @ [ (I32Const 0, "put zero on stack") ]
+                     ),
+                     "check if index is >= 0") ],
+                  trap,
+                  None
+               ),
+               "check that index is >= 0 - if not return 42") ]
+            @ [ (If(
+                    [],
+                    [ (I32GeS(
+                          m''.GetAccCode() // index on stack
+                          // struct pointer on stack
+                          @ [ (I32Load_(None, Some(4), m'.GetAccCode()), "load length") ]
+                       ),
+                       "check if index is < length") ],
+                    trap,
+                    None
+                 ),
+                 "check that index is < length - if not return 42") ]
 
         // resolve load and store instruction based on type
         let loadInstr =
@@ -881,17 +907,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | _ -> I32Load
 
         let instrs =
-            m'.GetAccCode() // struct pointer on stack
-            @ [ (I32Add(
-                    [ (I32Mul(
-                          [ (I32Load, "load data pointer") ]
-                          @ m''.GetAccCode()
-                          @ [ (I32Const 4, "byte offset") ]
-                       ),
-                       "multiply index with byte offset") ]
-                 ),
-                 "add offset to base address") ]
-            @ [ (loadInstr, "load value") ]
+            // struct pointer on stack
+            [ (loadInstr (
+                  [ (I32Add(
+                        [ (I32Mul(
+                              [ (I32Load(m'.GetAccCode()), "load data pointer") ]
+                              @ m''.GetAccCode()
+                              @ [ (I32Const 4, "byte offset") ]
+                           ),
+                           "multiply index with byte offset") ]
+                     ),
+                     "add offset to base address") ]
+               ),
+               "load value") ]
 
         indexCheck
         ++ (m' + m'')
@@ -917,15 +945,29 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // check that start is bigger then 0 - if not return 42
         // and that start is smaller then length of the original array - if not return 42
         let startCheck =
-            startm.GetAccCode() // start on stack
-            @ [ (I32Const 0, "put zero on stack")
-                (I32LtS, "check if start is >= 0")
-                (If([], trap, None), "check that start is >= 0 - if not return 42") ]
-            @ startm.GetAccCode() // start on stack
-            @ targetm.GetAccCode() // struct pointer on stack
-            @ [ (I32Load_(None, Some(4)), "load length") ]
-            @ [ (I32GeS, "check if start is < length")
-                (If([], trap, None), "check that start is < length - if not return 42") ]
+            [ (If(
+                  [],
+                  [ (I32LtS(
+                        startm.GetAccCode() // start on stack
+                        @ [ (I32Const 0, "put zero on stack") ]
+                     ),
+                     "check if start is >= 0") ],
+                  trap,
+                  None
+               ),
+               "check that start is >= 0 - if not return 42") ]
+            @ [ (If(
+                    [],
+                    [ (I32GeS(
+                          startm.GetAccCode() // start on stack
+                          // struct pointer on stack
+                          @ [ (I32Load_(None, Some(4), targetm.GetAccCode()), "load length") ]
+                       ),
+                       "check if start is < length") ],
+                    trap,
+                    None
+                 ),
+                 "check that start is < length - if not return 42") ]
 
         // check that end is bigger then 0 - if not return 42
         // and that end is smaller then length of the original array - if not return 42
@@ -934,18 +976,33 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // check that end index is smaller then length of the original array - if not return 42
         let endCheck =
-            endingm.GetAccCode() // end index on stack
-            @ targetm.GetAccCode() // struct pointer on stack
-            @ [ (I32Load_(None, Some(4)), "load length") ] // 4 is the offset to length field
-            @ [ (I32GtS, "check if end is < length")
-                (If([], trap, None), "check that end is < length - if not return 42") ]
+            [ (If(
+                  [],
+                  // 4 is the offset to length field
+                  [ (I32GtS(
+                        endingm.GetAccCode() // end index on stack
+                        // struct pointer on stack
+                        @ [ (I32Load_(None, Some(4), targetm.GetAccCode()), "load length") ]
+                     ),
+                     "check if end is < length") ],
+                  trap,
+                  None
+               ),
+               "check that end is < length - if not return 42") ]
 
         // difference between end and start should be at least 1
         let atleastOne =
-            [ (I32Sub(endingm.GetAccCode() @ startm.GetAccCode()), "subtract end from start") ]
-            @ [ (I32Const 1, "put one on stack")
-                (I32LtS, "check if difference is < 1")
-                (If([], trap, None), "check that difference is <= 1 - if not return 42") ]
+            [ (If(
+                  [],
+                  [ (I32LtS(
+                        [ (I32Sub(endingm.GetAccCode() @ startm.GetAccCode()), "subtract end from start")
+                          (I32Const 1, "put one on stack") ]
+                     ),
+                     "check if difference is < 1") ],
+                  trap,
+                  None
+               ),
+               "check that difference is <= 1 - if not return 42") ]
 
         // create struct with length and data
         let structm =
@@ -969,11 +1026,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             [ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]
 
             // value to store in data pointer field
-            @ targetm.GetAccCode() // pointer to exsisiting array struct on stack
+            // pointer to exsisiting array struct on stack
 
             @ [ (I32Add(
                     [ (I32Mul(
-                          [ (I32Load, "Load data pointer from array struct") ]
+                          [ (I32Load(targetm.GetAccCode()), "Load data pointer from array struct") ]
                           @ startm.GetAccCode()
                           @ [ (I32Const 4, "offset of data field") ]
                        ),
@@ -1063,7 +1120,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let dataPointer =
                     [ (LocalSet(
                           Named(varName),
-                          targetm.GetAccCode() @ [ (loadInstr (None, Some(4)), "load data pointer") ]
+                          [ (loadInstr (None, Some(4), targetm.GetAccCode()), "load data pointer") ]
                        ),
                        "set local var") ] // set local var
 
@@ -1071,12 +1128,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     dataPointer ++ scope.AddCode([ (Br matchEndLabel, "break out of match") ])
 
                 let condition =
-                    targetm.GetAccCode()
-                    @ [ (I32Eq([ (I32Load, "load label"); (I32Const id, $"put label id {id} on stack") ]),
-                         "check if index is equal to target") ]
+                    [ (I32Eq(
+                          [ (I32Load(targetm.GetAccCode()), "load label")
+                            (I32Const id, $"put label id {id} on stack") ]
+                       ),
+                       "check if index is equal to target") ]
 
                 // if case is not the last case
-                let case = condition @ C [ (If([], caseCode.GetAccCode(), None)) ]
+                let case = C [ (If([], condition, caseCode.GetAccCode(), None)) ]
 
                 acc
                 ++ caseCode
@@ -1109,15 +1168,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let li, si =
                     match (expandType value.Env value.Type) with
                     | t when (isSubtypeOf value.Env t TInt) ->
-                        ((I32Load_(None, Some(i * 4)), "load value i32 from env"),
+                        ((I32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ]), "load value i32 from env"),
                          (I32Store_(None, Some(i * 4)), "store i32 value in env"))
                     | t when (isSubtypeOf value.Env t TFloat) ->
-                        ((F32Load_(None, Some(i * 4)), "load value f32 from env"),
+                        ((F32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ]), "load value f32 from env"),
                          (F32Store_(None, Some(i * 4)), "store f32 value in env"))
                     | _ -> failwith "not implemented"
 
                 let store = [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode() @ [ si ]
-                let load = [ (LocalGet(Index(0)), "get env") ] @ [ li ]
+                let load = [ li ]
 
                 value'.ResetAccCode().AddCode(store @ load)
             | Some(Storage.Global g) ->
@@ -1154,15 +1213,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                         @ rhsCode.GetAccCode()
                         @ [ (F32Store_(None, Some(offset * 4)), "store float in struct") ]
                         // load value just to leave a value on the stack
-                        @ selTargetCode.GetAccCode()
-                        @ [ (F32Load_(None, Some(offset * 4)), "load float from struct") ]
+
+                        @ [ (F32Load_(None, Some(offset * 4), selTargetCode.GetAccCode()), "load float from struct") ]
                     | _ ->
                         selTargetCode.GetAccCode()
                         @ rhsCode.GetAccCode()
                         @ [ (I32Store_(None, Some(offset * 4)), "store int in struct") ]
                         // load value just to leave a value on the stack
-                        @ selTargetCode.GetAccCode()
-                        @ [ (I32Load_(None, Some(offset * 4)), "load int from struct") ]
+
+                        @ [ (I32Load_(None, Some(offset * 4), selTargetCode.GetAccCode()), "load int from struct") ]
 
                 // Put everything together
                 assignCode ++ (rhsCode.ResetAccCode() + selTargetCode.ResetAccCode())
@@ -1175,15 +1234,29 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             // Check index >= 0 and index < length
             let indexCheck =
-                indexCode.GetAccCode() // index on stack
-                @ [ (I32Const 0, "put zero on stack")
-                    (I32LtS, "check if index is >= 0")
-                    (If([], trap, None), "check that index is >= 0 - if not return 42") ]
-                @ indexCode.GetAccCode() // index on stack
-                @ selTargetCode.GetAccCode() // struct pointer on stack
-                @ [ (I32Load_(None, Some(4)), "load length") ]
-                @ [ (I32GeS, "check if index is < length")
-                    (If([], trap, None), "check that index is < length - if not return 42") ]
+                [ (If(
+                      [],
+                      [ (I32LtS(
+                            indexCode.GetAccCode() // index on stack
+                            @ [ (I32Const 0, "put zero on stack") ]
+                         ),
+                         "check if index is >= 0") ],
+                      trap,
+                      None
+                   ),
+                   "check that index is >= 0 - if not return 42") ]
+                @ [ (If(
+                        [],
+                        [ (I32GeS(
+                              indexCode.GetAccCode() // index on stack
+                              // struct pointer on stack
+                              @ [ (I32Load_(None, Some(4), selTargetCode.GetAccCode()), "load length") ]
+                           ),
+                           "check if index is < length") ],
+                        trap,
+                        None
+                     ),
+                     "check that index is < length - if not return 42") ]
 
             let storeInstr =
                 match (expandType value.Env value.Type) with
@@ -1201,8 +1274,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ (I32Add(
                       [ (I32Mul(
                             // store value in allocated memory
-                            selTargetCode.GetAccCode() // struct pointer on stack
-                            @ [ (I32Load, "load data pointer") ]
+                            // struct pointer on stack
+                            [ (I32Load(selTargetCode.GetAccCode()), "load data pointer") ]
                             @ indexCode.GetAccCode() // index on stack
                             @ [ (I32Const 4, "byte offset") ]
                          ),
@@ -1212,17 +1285,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 @ rhsCode.GetAccCode()
                 @ [ (storeInstr, "store value in elem pos") ]
                 // load value just to leave a value on the stack
-                @ selTargetCode.GetAccCode() // struct pointer on stack
-                @ [ (I32Add(
-                        [ (I32Mul(
-                              [ (I32Load, "load data pointer") ]
-                              @ indexCode.GetAccCode()
-                              @ [ (I32Const 4, "byte offset") ]
+                // struct pointer on stack
+
+                @ [ (loadInstr (
+                        [ (I32Add(
+                              [ (I32Mul(
+                                    [ (I32Load(selTargetCode.GetAccCode()), "load data pointer") ]
+                                    @ indexCode.GetAccCode()
+                                    @ [ (I32Const 4, "byte offset") ]
+                                 ),
+                                 "multiply index with byte offset") ]
                            ),
-                           "multiply index with byte offset") ]
+                           "add offset to base address") ]
                      ),
-                     "add offset to base address") ]
-                @ [ (loadInstr, "load int from elem pos") ]
+                     "load int from elem pos") ]
 
             (rhsCode.ResetAccCode() + indexCode.ResetAccCode() + selTargetCode.ResetAccCode())
                 .AddCode(indexCheck @ instrs)
@@ -1604,11 +1680,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 match fieldTypes[offset] with
                 | t when (isSubtypeOf target.Env t TUnit) -> [] // Nothing to do
                 | t when (isSubtypeOf target.Env t TFloat) ->
-                    selTargetCode.GetAccCode()
-                    @ [ (F32Load_(None, Some(offset * 4)), $"load field: {fieldNames[offset]}") ]
+                    [ (F32Load_(None, Some(offset * 4), selTargetCode.GetAccCode()), $"load field: {fieldNames[offset]}") ]
                 | _ ->
-                    selTargetCode.GetAccCode()
-                    @ [ (I32Load_(None, Some(offset * 4)), $"load field: {fieldNames[offset]}") ]
+                    [ (I32Load_(None, Some(offset * 4), selTargetCode.GetAccCode()), $"load field: {fieldNames[offset]}") ]
 
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 
@@ -1753,11 +1827,13 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     // block instructions
     | (Block(l, vt, instrs), c) :: rest -> [ (Block(l, vt, (localSubst instrs var)), c) ] @ localSubst rest var
     | (Loop(l, vt, instrs), c) :: rest -> [ (Loop(l, vt, (localSubst instrs var)), c) ] @ localSubst rest var
-    | (If(l, instrs1, instrs2), c) :: rest ->
+    | (If(l, cond, instrs1, instrs2), c) :: rest ->
         match instrs2 with
-        | None -> [ (If(l, (localSubst instrs1 var), instrs2), c) ] @ localSubst rest var
+        | None ->
+            [ (If(l, (localSubst cond var), (localSubst instrs1 var), instrs2), c) ]
+            @ localSubst rest var
         | Some(instrs2) ->
-            [ (If(l, (localSubst instrs1 var), Some(localSubst instrs2 var)), c) ]
+            [ (If(l, (localSubst cond var), (localSubst instrs1 var), Some(localSubst instrs2 var)), c) ]
             @ localSubst rest var
     // nested instructions
     | (I32Add(instrs), c) :: rest -> [ (I32Add(localSubst instrs var), c) ] @ localSubst rest var
@@ -1783,6 +1859,16 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
         [ (LocalTee(Named(n), localSubst instrs var), c) ] @ localSubst rest var
     | (GlobalSet(Named(n), instrs), c) :: rest when n <> var ->
         [ (GlobalSet(Named(n), localSubst instrs var), c) ] @ localSubst rest var
+    | (I32Load(instrs), c) :: rest -> [ (I32Load(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32Load_(align, offset, instrs), c) :: rest ->
+        [ (I32Load_(align, offset, localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Load(instrs), c) :: rest -> [ (F32Load(localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Load_(align, offset, instrs), c) :: rest ->
+        [ (F32Load_(align, offset, localSubst instrs var), c) ] @ localSubst rest var
+    | (I32GtS(instrs), c) :: rest -> [ (I32GtS(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32LtS(instrs), c) :: rest -> [ (I32LtS(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32GeS(instrs), c) :: rest -> [ (I32GeS(localSubst instrs var), c) ] @ localSubst rest var
+    | (CallIndirect(t, instrs), c) :: rest -> [ (CallIndirect(t, localSubst instrs var), c) ] @ localSubst rest var
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 
@@ -1860,7 +1946,8 @@ let codegen (node: TypedAST) : Module =
 
     // signature of main function
     // the main function has no arguments and returns an 32 bit integer
-    let signature = ([], [ I32 ])
+    let signature: FunctionSignature = ([], mapType node.Type)
+    // let signature = ([], [ I32 ])
 
     let funcInstance: Commented<FunctionInstance> =
         ({ locals = List.Empty
@@ -1903,7 +1990,7 @@ let codegen (node: TypedAST) : Module =
             .AddInstrs(env.CurrFunc, [ Comment "execution start here:" ])
             .AddInstrs(env.CurrFunc, m.GetAccCode()) // add code of main function
             .AddInstrs(env.CurrFunc, [ Comment "if execution reaches here, the program is successful" ])
-            .AddInstrs(env.CurrFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ]) // return 0 if program is successful
+            // .AddInstrs(env.CurrFunc, [ (I32Const successExitCode, "exit code 0"); (Return, "return the exit code") ]) // return 0 if program is successful
             .AddGlobal((heapBase, (I32, Immutable), (I32Const staticOffset, ""))) // add heap base pointer
             .AddGlobal((exitCode, (I32, Mutable), (I32Const 0, ""))) // add exit code
             .AddExport(heapBase + "_ptr", GlobalType("heap_base")) // export heap base pointer

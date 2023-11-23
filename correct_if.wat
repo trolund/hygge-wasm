@@ -4,12 +4,15 @@
   (global $heap_base (;1;) i32 (i32.const 0))
   (table $func_table (;0;) 0 funcref)
   (func $_start (;0;)  (result i32) 
-    ;; execution start here:
-    (i32.add
-      (i32.const 2) ;; push 2 on stack
-      (i32.const 5) ;; push 5 on stack
-    )
-    ;; if execution reaches here, the program is successful
+    (if (result i32)
+        (i32.eqz (i32.const 1))
+        (then
+          (i32.const 1)
+        )
+        (else
+          (i32.const 0)
+        )
+      )
   )
   (export "_start" (func $_start))
   (export "exit_code" (global $exit_code))

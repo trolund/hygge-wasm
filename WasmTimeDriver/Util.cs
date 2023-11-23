@@ -26,7 +26,7 @@ public static class Utils
     }
 
     // run wat2wasm command on file
-    public static void Wat2Wasm(string path, string type)
+    public static void Wat2Wasm(string path, string type) 
     {
         // create directory if not exists
         var directory = Path.GetDirectoryName($"./temp/{type}/wasm/");
@@ -39,17 +39,60 @@ public static class Utils
         var wasmPath = $"./temp/{type}/wasm/{fileName}.wasm";
         var wat2wasm = $"wat2wasm --debug-names {path} -o {wasmPath}";
         var process = System.Diagnostics.Process.Start("bash", $"-c \"{wat2wasm}\"");
+
         process.WaitForExit();
+
+        // Check the exit code to determine if there was an error
+        if (process.ExitCode != 0)
+        {
+            Console.WriteLine($"The process exited with an error. Exit code: {process.ExitCode}");
+            throw new Exception($"Wat2Wasm: The process exited with an error. Exit code: {process.ExitCode}");
+        }
+        else
+        {
+            Console.WriteLine("The process completed successfully.");
+        }
+    }
+
+    // run wasm-as command on file
+    public static void WasmAs(string path, string type) 
+    {
+        // create directory if not exists
+        var directory = Path.GetDirectoryName($"./temp/{type}/wasm/");
+        if (!Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var fileName = GetFileName(path);
+        var wasmPath = $"./temp/{type}/wasm/{fileName}.wasm";
+        var wasmAs = $"wasm-as {path} -o {wasmPath}";
+        var process = System.Diagnostics.Process.Start("bash", $"-c \"{wasmAs}\"");
+
+        process.WaitForExit();
+
+        // Check the exit code to determine if there was an error
+        if (process.ExitCode != 0)
+        {
+            Console.WriteLine($"The process exited with an error. Exit code: {process.ExitCode}");
+            throw new Exception($"WasmAs: The process exited with an error. Exit code: {process.ExitCode}");
+        }
+        else
+        {
+            Console.WriteLine("The process completed successfully.");
+        }
     }
 
     public static void Createfile(string name, string wat)
     {
-        var fileName = Utils.GetFileName(name);
-        var type = Utils.GetFolderName(name);
+        var fileName = GetFileName(name);
+        var type = GetFolderName(name);
         var path = $"./temp/{type}/wat/{fileName}.wat";
 
-        Utils.WriteToFile(path, wat);
-        Utils.Wat2Wasm(path, type);
+        WriteToFile(path, wat);
+        Wat2Wasm(path, type);
+        // WasmAs(path, type);
+
     }
 
     // get last folder name from path

@@ -94,13 +94,13 @@ let instrLabel i =
     | I32Eqz _ -> "i32.eqz"
     | I32Eq _ -> "i32.eq"
     | I32Ne -> "i32.ne"
-    | I32LtS -> "i32.lt_s"
+    | I32LtS _ -> "i32.lt_s"
     | I32LtU -> "i32.lt_u"
-    | I32GtS -> "i32.gt_s"
+    | I32GtS _ -> "i32.gt_s"
     | I32GtU -> "i32.gt_u"
     | I32LeS _ -> "i32.le_s"
     | I32LeU -> "i32.le_u"
-    | I32GeS -> "i32.ge_s"
+    | I32GeS _ -> "i32.ge_s"
     | I32GeU -> "i32.ge_u"
     | I32Add _ -> "i32.add"
     | I32And _ -> "i32.and"
@@ -122,10 +122,10 @@ let instrLabel i =
     | I32Xor _ -> "i32.xor"
     | F32Eq _ -> "f32.eq"
     | F32Ne -> "f32.ne"
-    | F32Lt -> "f32.lt"
-    | F32Gt -> "f32.gt"
+    | F32Lt _ -> "f32.lt"
+    | F32Gt _ -> "f32.gt"
     | F32Le _ -> "f32.le"
-    | F32Ge -> "f32.ge"
+    | F32Ge _ -> "f32.ge"
     | F32Abs -> "f32.abs"
     | F32Neg -> "f32.neg"
     | F32Ceil -> "f32.ceil"
@@ -141,9 +141,9 @@ let instrLabel i =
     | F32Max -> "f32.max"
     | F32Copysign -> "f32.copysign"
     | I32Load_ _ -> "i32.load"
-    | I32Load -> "i32.load"
+    | I32Load _ -> "i32.load"
     | F32Load_ _ -> "f32.load"
-    | F32Load -> "f32.load"
+    | F32Load _ -> "f32.load"
     | I32Load8S _ -> "i32.load8_s"
     | I32Load8U _ -> "i32.load8_u"
     | I32Load16S _ -> "i32.load16_s"
@@ -170,9 +170,7 @@ let instrLabel i =
     | BrTable _ -> "br_table"
     | Return -> "return"
     | Call _ -> "call"
-    | CallIndirect_ _ -> "call_indirect"
     | CallIndirect _ -> "call_indirect"
-    | CallIndirect__ _ -> "call_indirect"
     | Block _ -> "block"
     | Loop _ -> "loop"
     | If _ -> "if"
@@ -208,7 +206,7 @@ type WritingStyle =
 /// generate the wat instruction for a list of instructions
 /// indent is the number of tabs to add before each instruction
 ///
-let style = Folded
+let style = Linar
 
 let rec genWat (instrs: Wasm Commented list) (ident: int) =
 
@@ -242,23 +240,50 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
                     + $"(loop ${label} {resultPrint valueTypes}\n{innerWat}{gIndent (indent)})\n"
 
                 aux tail s indent
-            | If(types, ifInstrs, elseInstrs) ->
+            | If(types, cond, ifInstrs, elseInstrs) when style = Folded  ->
                 match elseInstrs with
                 | Some elseInstrs' ->
+                    let condWat = aux cond "" (indent + 2)
                     let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
                     let innerWatFalse = aux elseInstrs' "" (indent + 2)
 
                     let s =
                         watCode
                         + space
-                        + $"(if {resultPrint types}\n{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent + 1)}(else\n{innerWatFalse}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
+                        + $"(if {resultPrint types}\n{condWat}{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent + 1)}(else\n{innerWatFalse}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
 
                     aux tail s indent
                 | None ->
+                    let condWat = aux cond "" (indent + 2)
                     let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
 
                     let s =
                         watCode
+                        + space
+                        + $"(if {resultPrint types}\n{condWat}{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
+
+                    aux tail s indent
+            | If(types, cond, ifInstrs, elseInstrs) when style = Linar  ->
+                match elseInstrs with
+                | Some elseInstrs' ->
+                    let condWat = genWat cond (indent)
+                    let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
+                    let innerWatFalse = aux elseInstrs' "" (indent + 2)
+
+                    let s =
+                        watCode
+                        + condWat
+                        + space
+                        + $"(if {resultPrint types}\n{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent + 1)}(else\n{innerWatFalse}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
+
+                    aux tail s indent
+                | None ->
+                    let condWat = aux cond "" (indent)
+                    let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
+
+                    let s =
+                        watCode
+                        + condWat
                         + space
                         + $"(if {resultPrint types}\n{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
 
@@ -280,9 +305,19 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
             | I32Xor instrs
             | I32LeS instrs
             | F32Le instrs
+            | I32LtS instrs
             | I32Eq instrs
             | I32Eqz instrs
             | F32Eq instrs
+            | I32GtS instrs
+            | F32Lt instrs
+            | F32Gt instrs
+            | I32LtS instrs
+            | I32GtS instrs
+            | F32Lt instrs
+            | F32Gt instrs
+            | I32GeS instrs
+            | F32Ge instrs
             | I32Add instrs when style = Folded ->
                 let watCode =
                     watCode
@@ -290,6 +325,16 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
                     + $"({instrLabel instr}{commentS c}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
+            | I32GeS instrs
+            | F32Ge instrs
+            | F32Lt instrs
+            | F32Gt instrs
+            | I32GtS instrs
+            | I32LtS instrs
+            | I32LtS instrs
+            | I32GtS instrs
+            | F32Lt instrs
+            | F32Gt instrs
             | I32Sub instrs
             | I32Mul instrs
             | I32DivS instrs
@@ -335,6 +380,127 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
                     + $"({instrLabel instr} {l.ToString()}{commentS c}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
+
+            | I32Load (instrs: Commented<Wasm> list) when style = Linar ->
+                aux
+                    tail
+                    (watCode
+                     + (genWat instrs indent)
+                     + $"{gIndent indent}{instrLabel instr}{commentS c}\n")
+                    indent
+            | I32Load (instrs: Commented<Wasm> list) when style = Folded ->
+                let watCode =
+                    watCode
+                    + space
+                    + $"({instrLabel instr}{commentS c}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+
+                aux tail watCode indent
+
+            | I32Load_(align, offset, instrs) when style = Folded ->
+                    match align, offset with
+                    | Some align, Some offset -> 
+                        let watCode = watCode + space + $"({instrLabel instr} align=%d{align} offset=%d{offset}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+                        aux tail watCode indent
+                    | Some align, None -> 
+                        let watCode = watCode + space + $"({instrLabel instr} align=%d{align}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+                        aux tail watCode indent
+                    | None, Some offset -> 
+                        let watCode = watCode + space + $"({instrLabel instr} offset=%d{offset}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+                        aux tail watCode indent
+                    | None, None -> 
+                        let watCode = watCode + space + $"({instrLabel instr}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+                        aux tail watCode indent
+
+            | F32Load_(align, offset, instrs) when style = Linar ->
+                    match align, offset with
+                    | Some align, Some offset -> 
+                        aux tail (watCode + space + (genWat instrs indent) + $"{instrLabel instr} align={align} offset={offset}{commentS c}\n") indent
+                    | Some align, None -> 
+                        aux tail (watCode + space + (genWat instrs indent) + $"{instrLabel instr} align={align}{commentS c}\n") indent
+                    | None, Some offset -> 
+                        aux tail (watCode + space + (genWat instrs indent) + $"{instrLabel instr} offset={offset}{commentS c}\n") indent
+                    | None, None -> 
+                        let watCode = watCode + space + (genWat instrs indent) + $"f32.load\n" 
+                        aux tail watCode indent
+            | F32Load_(align, offset, instrs) when style = Folded ->
+                    match align, offset with
+                    | Some align, Some offset -> 
+                        let watCode = watCode + space + $"({instrLabel instr} align=%d{align} offset=%d{offset}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+                        aux tail watCode indent
+                    | Some align, None -> 
+                        let watCode = watCode + space + $"({instrLabel instr} align=%d{align}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+                        aux tail watCode indent
+                    | None, Some offset -> 
+                        let watCode = watCode + space + $"({instrLabel instr} offset=%d{offset}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+                        aux tail watCode indent
+                    | None, None -> 
+                        let watCode = watCode + space + $"({instrLabel instr}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+                        aux tail watCode indent
+            | F32Load_(align, offset, instrs) when style = Linar ->
+                    aux
+                        tail
+                        (watCode
+                         + (genWat instrs indent)
+                         + $"{gIndent indent}{instrLabel instr} align={align} offset={offset}{commentS c}\n")
+                        indent        
+            | F32Load(instrs) when style = Folded ->
+                let watCode =
+                    watCode
+                    + space
+                    + $"({instrLabel instr}{commentS c}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+
+                aux tail watCode indent
+            | F32Load(instrs) when style = Linar ->
+                    aux
+                        tail
+                        (watCode
+                         + (genWat instrs indent)
+                         + $"{gIndent indent}{instrLabel instr}{commentS c}\n")
+                        indent       
+            | I32Load_ (align, offset, instrs: Commented<Wasm> list) when style = Linar ->
+                let offset = match offset with | Some offset -> offset | None -> 0
+                let align = match align with | Some align -> align | None -> 0
+                let offsetString = if offset > 0 then $" offset={offset}" else ""
+                let alignString = if align > 0 then $" align={align}" else ""
+
+                let watCode =
+                    watCode
+                    +
+                    genWat instrs indent 
+                    + space
+                    + $"{instrLabel instr}{alignString}{offsetString}{commentS c}\n"
+
+                aux tail watCode indent
+
+            | F32Load_ (align, offset, instrs: Commented<Wasm> list) when style = Linar ->
+                let offset = match offset with | Some offset -> offset | None -> 0
+                let align = match align with | Some align -> align | None -> 0
+                let offsetString = if offset > 0 then $" offset={offset}" else ""
+                let alignString = if align > 0 then $" align={align}" else ""
+
+                let watCode =
+                    watCode
+                    + space
+                    + $"({instrLabel instr}{alignString}{offsetString}{commentS c}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+
+                aux tail watCode indent
+
+            | CallIndirect (t, instrs: Commented<Wasm> list) when style = Linar ->
+                    aux
+                        tail
+                        (watCode
+                        + (genWat instrs indent)
+                        + $"{gIndent indent}{instrLabel instr} (type {t.ToString()}){commentS c}\n")
+                        indent
+            | CallIndirect (t, instrs: Commented<Wasm> list) when style = Folded ->
+                let watCode =
+                    watCode
+                    + space
+                    + $"({instrLabel instr} (type {t.ToString()}){commentS c}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+
+                aux tail watCode indent 
+
+
             | _ ->
 
                 let isComment =
@@ -362,13 +528,13 @@ and printInstr (i: Commented<Instr.Wasm>) =
     | I32Eqz instrs -> $"(i32.eqz {comment}\n {genWat instrs} )"
     | I32Eq instrs -> $"(i32.eq {comment}\n {genWat instrs} )"
     | I32Ne -> "i32.ne"
-    | I32LtS -> "i32.lt_s"
+    | I32LtS _ -> "i32.lt_s"
     | I32LtU -> "i32.lt_u"
-    | I32GtS -> "i32.gt_s"
+    | I32GtS _ -> "i32.gt_s"
     | I32GtU -> "i32.gt_u"
     | I32LeS instrs -> $"(i32.le_s {comment}\n {genWat instrs} )"
     | I32LeU -> "i32.le_u"
-    | I32GeS -> "i32.ge_s"
+    | I32GeS _ -> "i32.ge_s"
     | I32GeU -> "i32.ge_u"
     | I32Add instrs -> $"(i32.add {comment}\n {genWat instrs} )"
     | I32And instrs -> $"(i32.and {comment}\n {genWat instrs} )"
@@ -390,10 +556,10 @@ and printInstr (i: Commented<Instr.Wasm>) =
     | I32Xor instrs -> $"(i32.xor {comment}\n {genWat instrs} )"
     | F32Eq instrs -> $"(f32.eq {comment}\n {genWat instrs} )"
     | F32Ne -> "f32.ne"
-    | F32Lt -> "f32.lt"
-    | F32Gt -> "f32.gt"
+    | F32Lt _ -> "f32.lt"
+    | F32Gt _ -> "f32.gt"
     | F32Le instrs -> $"(f32.le {comment}\n {genWat instrs} )"
-    | F32Ge -> "f32.ge"
+    | F32Ge _ -> "f32.ge"
     | F32Abs -> "f32.abs"
     | F32Neg -> "f32.neg"
     | F32Ceil -> "f32.ceil"
@@ -408,20 +574,20 @@ and printInstr (i: Commented<Instr.Wasm>) =
     | F32Min -> "f32.min"
     | F32Max -> "f32.max"
     | F32Copysign -> "f32.copysign"
-    | I32Load_(align, offset) ->
+    | I32Load_(align, offset, instrs) ->
         match align, offset with
-        | Some align, Some offset -> $"i32.load align=%d{align} offset=%d{offset}"
-        | Some align, None -> $"i32.load align=%d{align}"
-        | None, Some offset -> $"i32.load offset=%d{offset}"
-        | None, None -> "i32.load"
-    | I32Load -> "i32.load"
-    | F32Load_(align, offset) ->
+        | Some align, Some offset -> $"(i32.load align=%d{align} offset=%d{offset}\n {genWat instrs} )"
+        | Some align, None -> $"(i32.load align=%d{align}\n {genWat instrs} )"
+        | None, Some offset -> $"(i32.load offset=%d{offset} \n {genWat instrs} )"
+        | None, None -> $"(i32.load\n {genWat instrs} )"
+    | I32Load instrs -> $"(i32.load\n {genWat instrs} )"
+    | F32Load_(align, offset, instrs) ->
         match align, offset with
-        | Some align, Some offset -> $"f32.load align=%d{align} offset=%d{offset}"
-        | Some align, None -> $"f32.load align=%d{align}"
-        | None, Some offset -> $"f32.load offset=%d{offset}"
-        | None, None -> "f32.load"
-    | F32Load -> "f32.load"
+        | Some align, Some offset -> $"(f32.load align=%d{align} offset=%d{offset}\n {genWat instrs} )"
+        | Some align, None -> $"(f32.load align=%d{align}\n {genWat instrs} )"
+        | None, Some offset -> $"(f32.load offset=%d{offset} \n {genWat instrs} )"
+        | None, None -> $"(f32.load\n {genWat instrs} )"
+    | F32Load instrs -> $"(f32.load\n {genWat instrs} )"
     | I32Load8S(align, offset) -> $"i32.load8_s align=%d{align} offset=%d{offset}"
     | I32Load8U(align, offset) -> $"i32.load8_u align=%d{align} offset=%d{offset}"
     | I32Load16S(align, offset) -> $"i32.load16_s align=%d{align} offset=%d{offset}"
@@ -458,9 +624,7 @@ and printInstr (i: Commented<Instr.Wasm>) =
     // | BrTable (indexes, index) -> sprintf "br_table %s %d" (generate_wat_code indexes) index
     | Return -> "return"
     | Call name -> $"call $%s{name}"
-    | CallIndirect_(index, x) -> $"call_indirect %d{index}" // TODO: add x??
-    | CallIndirect label -> $"call_indirect (type %s{label.ToString()})"
-    | CallIndirect__(signature) -> sprintf "call_indirect %s" (generate_signature signature "")
+    | CallIndirect (label, instrs) -> $"call_indirect (type %s{label.ToString()})"
     | Drop -> "drop"
     | Select -> "select"
     // block instructions

@@ -14,11 +14,11 @@ type Wasm =
     | BrTable of int list * int
     | Return
     // Memory Instrs
-    | I32Load_ of int option * int option
-    | I32Load
+    | I32Load_ of int option * int option * Wasm Commented list
+    | I32Load of Wasm Commented list
     /// load align and offset
-    | F32Load_ of int option * int option
-    | F32Load
+    | F32Load_ of int option * int option * Wasm Commented list
+    | F32Load of Wasm Commented list
     | I32Load8S of int * int
     | I32Load8U of int * int
     | I32Load16S of int * int
@@ -38,20 +38,20 @@ type Wasm =
     | I32Eqz of Wasm Commented list
     | I32Eq of Wasm Commented list
     | I32Ne
-    | I32LtS
+    | I32LtS of Wasm Commented list
     | I32LtU
-    | I32GtS
+    | I32GtS of Wasm Commented list
     | I32GtU
     | I32LeS of Wasm Commented list
     | I32LeU
-    | I32GeS
+    | I32GeS of Wasm Commented list
     | I32GeU
     | F32Eq of Wasm Commented list
     | F32Ne
-    | F32Lt
-    | F32Gt
+    | F32Lt of Wasm Commented list
+    | F32Gt of Wasm Commented list
     | F32Le of Wasm Commented list
-    | F32Ge
+    | F32Ge of Wasm Commented list
     | I32Clz
     | I32Ctz
     | I32Popcnt
@@ -104,24 +104,10 @@ type Wasm =
     | TableSize of int
     // Call Instr
     | Call of string
-    | CallIndirect_ of int * int
     /// type label
-    | CallIndirect of Label
-    | CallIndirect__ of FunctionSignature
+    | CallIndirect of Label * Wasm Commented list
     // ref
     | RefFunc of Label
-    // Conversion Instr
-    // | I32WrapI64
-    // | I32TruncF32S
-    // | I32TruncF32U
-    // | I32TruncF64S
-    // | I32TruncF64U
-    // | F32ConvertI32S
-    // | F32ConvertI32U
-    // | F32ConvertI64S
-    // | F32ConvertI64U
-    // | I32ReinterpretF32
-    // | F32ReinterpretI32
     // memory instr
     | MemoryInit of int * int * int
     | DataDrop of int
@@ -136,8 +122,8 @@ type Wasm =
     | Loop of Identifier * ValueType list * list<Commented<Wasm>>
     /// If Instruction
     /// reuslt type of if, then block, else block
-    /// if (result type) then (instrs) else (instrs)
-    | If of ValueType list * list<Commented<Wasm>> * list<Commented<Wasm>> option
+    /// if (result type), condision, then (instrs) else (instrs)
+    | If of ValueType list * list<Commented<Wasm>> * list<Commented<Wasm>> * list<Commented<Wasm>> option
     // comment
     | Comment of string
 
