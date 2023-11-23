@@ -185,10 +185,6 @@ let instrLabel i =
     | MemoryFill -> "memory.fill"
     | Comment(_) -> ""
 
-type WritingStyle =
-    | Linar
-    | Folded
-
 /// generate the wat instruction for a list of instructions
 /// indent is the number of tabs to add before each instruction
 // let style = Folded

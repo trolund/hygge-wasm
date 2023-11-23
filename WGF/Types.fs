@@ -1,5 +1,14 @@
 module WGF.Types
 
+type WritingStyle =
+    | Linar
+    | Folded
+
+    override this.ToString() =
+        match this with
+        | Linar -> "linar"
+        | Folded -> "folded"
+
 type Commented<'a> = 'a * string
 
 type Label =

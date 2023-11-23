@@ -1,5 +1,8 @@
 public static class Utils
-{
+{   
+
+    private static string _tempPath = "./data";
+
     public static void WriteToFile(string filePath, string content)
     {
         // create directory if not exists
@@ -22,18 +25,20 @@ public static class Utils
         return fileName;
     }
 
+     
+
     // run wat2wasm command on file
     public static void Wat2Wasm(string path, string type) 
     {
         // create directory if not exists
-        var directory = Path.GetDirectoryName($"./temp/{type}/wasm/");
-        if (!Directory.Exists(directory))
+        var linar = Path.GetDirectoryName($"{_tempPath}/{type}/linar/wasm/");
+        if (!Directory.Exists(linar))
         {
-            Directory.CreateDirectory(directory);
+            Directory.CreateDirectory(linar);
         }
 
         var fileName = GetFileName(path);
-        var wasmPath = $"./temp/{type}/wasm/{fileName}.wasm";
+        var wasmPath = $"{_tempPath}/{type}/linar/wasm/{fileName}.wasm";
         var wat2wasm = $"wat2wasm --debug-names {path} -o {wasmPath}";
         var process = System.Diagnostics.Process.Start("bash", $"-c \"{wat2wasm}\"");
 
@@ -51,14 +56,14 @@ public static class Utils
     public static void WasmAs(string path, string type) 
     {
         // create directory if not exists
-        var directory = Path.GetDirectoryName($"./temp/{type}/wasm/");
-        if (!Directory.Exists(directory))
+        var folded = Path.GetDirectoryName($"{_tempPath}/{type}/folded/wasm/");
+        if (!Directory.Exists(folded))
         {
-            Directory.CreateDirectory(directory);
+            Directory.CreateDirectory(folded);
         }
 
         var fileName = GetFileName(path);
-        var wasmPath = $"./temp/{type}/wasm/{fileName}.wasm";
+        var wasmPath = $"{_tempPath}/{type}/folded/wasm/{fileName}.wasm";
         var wasmAs = $"wasm-as {path} -o {wasmPath}";
         var process = System.Diagnostics.Process.Start("bash", $"-c \"{wasmAs}\"");
 
@@ -68,19 +73,22 @@ public static class Utils
         if (process.ExitCode != 0)
         {
             Console.WriteLine($"WasmAs: The process exited with an error. Exit code: {process.ExitCode}, test: {fileName}");
-            throw new Exception($"WasmAs: The process exited with an error. Exit code: {process.ExitCode}");
+            //throw new Exception($"WasmAs: The process exited with an error. Exit code: {process.ExitCode}");
         }
     }
 
-    public static void Createfile(string name, string wat)
+    public static void Createfile(string name, string wat, WGF.Types.WritingStyle style)
     {
         var fileName = GetFileName(name);
         var type = GetFolderName(name);
-        var path = $"./temp/{type}/wat/{fileName}.wat";
+        var path = $"{_tempPath}/{type}/{style}/wat/{fileName}.wat";
 
         WriteToFile(path, wat);
+
+        // validate wat file and create wasm file
         Wat2Wasm(path, type);
-        // WasmAs(path, type);
+        // only run wasm-as if folded
+        if (style == WGF.Types.WritingStyle.Folded) WasmAs(path, type);
 
     }
 

@@ -229,9 +229,6 @@ namespace WasmTimeDriver
                 // load module 
                 using var module = Module.FromText(_engine, name, wat);
 
-                // Createfile
-                if (output) Utils.Createfile(name, wat);
-
                 return ExecModule(module, target, name);
             }
             catch (Exception e)

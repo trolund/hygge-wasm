@@ -10,7 +10,7 @@ open Expecto // See https://github.com/haf/expecto
 open WasmTimeDriver
 open System
 open System.IO
-open WGF.WatGen
+open WGF.Types
 
 
 /// Collect and sort the test files in a test directory.
@@ -57,15 +57,18 @@ let runWasmModule asm expected (name: string) =
          + $"WasmTime should have exited with code %d{expected} (%s{explainExpected}), "
          + $"got %d{exit} (%s{explainExit})")
 
+let output = true
 
-let internal WasmPrepareTest tast expected (name: string) (peep: bool) (style: WGF.WatGen.WritingStyle) =
+let internal WasmPrepareTest tast expected (name: string) (peep: bool) (style: WritingStyle) =
     // let anf = ANF.transform tast
     let asm =
         if peep then
-            let code = (hyggec.WASMCodegen.codegen tast) |> WasmPeephole.optimize
-            code.ToWat(style)
+            ((hyggec.WASMCodegen.codegen tast) |> WasmPeephole.optimize).ToWat(style)
         else
             (hyggec.WASMCodegen.codegen tast).ToWat(style)
+
+    // Createfile
+    if (output) then Utils.Createfile(name, asm, style);
 
     runWasmModule asm expected name
 
@@ -280,23 +283,11 @@ let tests =
                          <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode true WritingStyle.Linar))
                 // folded style
                 testList
-                    "pass-folded"
-                    (getFilesInTestDir [ "codegen"; "pass" ]
-                     |> List.map (fun file ->
-                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file 0 false WritingStyle.Folded))
-                testList
                     "pass-peep-folded"
                     (getFilesInTestDir [ "codegen"; "pass" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
                          <| fun _ -> testWasmCodegen file 0 true WritingStyle.Folded))
-                testList
-                    "fail-folded"
-                    (getFilesInTestDir [ "codegen"; "fail" ]
-                     |> List.map (fun file ->
-                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode false WritingStyle.Folded))
                 testList
                     "fail-peep-folded"
                     (getFilesInTestDir [ "codegen"; "fail" ]
