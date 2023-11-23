@@ -19,19 +19,11 @@ type Wasm =
     /// load align and offset
     | F32Load_ of int option * int option * Wasm Commented list
     | F32Load of Wasm Commented list
-    | I32Load8S of int * int
-    | I32Load8U of int * int
-    | I32Load16S of int * int
-    | I32Load16U of int * int
     /// align and offset
-    | I32Store_ of int option * int option
-    | I32Store
-    | F32Store_ of int option * int option
-    | F32Store
-    | I32Store8 of int * int
-    | I32Store16 of int * int
-    | MemorySize
-    | MemoryGrow
+    | I32Store_ of int option * int option * Wasm Commented list
+    | I32Store of Wasm Commented list
+    | F32Store_ of int option * int option * Wasm Commented list
+    | F32Store of Wasm Commented list
     // Numeric Instrs
     | I32Const of int32
     | F32Const of float32

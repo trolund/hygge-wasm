@@ -798,9 +798,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // set data pointer of struct
         let instr =
-            [ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]
-            @ allocation.GetAccCode() // get pointer to allocated memory - value to store in data pointer field
-            @ [ (I32Store, "store pointer to data") ]
+            // get pointer to allocated memory - value to store in data pointer field
+            [ (I32Store(
+                  [ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]
+                  @ allocation.GetAccCode()
+               ),
+               "store pointer to data") ]
 
 
         // loop that runs length times and stores data in allocated memory
@@ -817,20 +820,24 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // body should set data in allocated memory
         // TODO: optimize loop so i just multiply index with 4 and add it to base address
         let body =
-            [ (Comment "start of loop body", "")
-              (I32Add(
-                  [ (I32Mul(
-                        [ (I32Load([ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]),
-                           "load data pointer")
-                          // find offset to element
-                          (LocalGet(Named(i)), "get index")
-                          (I32Const(4), "byte offset") ]
+            // get value to store in allocated memory
+            [ (storeInstr (
+                  [ (Comment "start of loop body", "")
+                    (I32Add(
+                        [ (I32Mul(
+                              [ (I32Load([ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]),
+                                 "load data pointer")
+                                // find offset to element
+                                (LocalGet(Named(i)), "get index")
+                                (I32Const(4), "byte offset") ]
+                           ),
+                           "multiply index with byte offset") ]
                      ),
-                     "multiply index with byte offset") ]
+                     "add offset to base address") ] // then offset is on top of stack
+                  @ data'.GetAccCode()
                ),
-               "add offset to base address") ] // then offset is on top of stack
-            @ data'.GetAccCode() // get value to store in allocated memory
-            @ [ (storeInstr, "store value in elem pos"); (Comment "end of loop body", "") ]
+               "store value in elem pos")
+              (Comment "end of loop body", "") ]
 
         // loop that runs length times and stores data in allocated memory
         let loop =
@@ -1023,21 +1030,22 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // set data pointer of struct
         let instr =
             // here to store pointer to allocated memory
-            [ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]
-
             // value to store in data pointer field
             // pointer to exsisiting array struct on stack
-
-            @ [ (I32Add(
-                    [ (I32Mul(
-                          [ (I32Load(targetm.GetAccCode()), "Load data pointer from array struct") ]
-                          @ startm.GetAccCode()
-                          @ [ (I32Const 4, "offset of data field") ]
-                       ),
-                       "multiply index with byte offset") ]
-                 ),
-                 "add offset to base address") ] // get pointer to allocated memory - value to store in data pointer field
-            @ [ (I32Store, "store pointer to data") ]
+            // get pointer to allocated memory - value to store in data pointer field
+            [ (I32Store(
+                  [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
+                    (I32Add(
+                        [ (I32Mul(
+                              [ (I32Load(targetm.GetAccCode()), "Load data pointer from array struct") ]
+                              @ startm.GetAccCode()
+                              @ [ (I32Const 4, "offset of data field") ]
+                           ),
+                           "multiply index with byte offset") ]
+                     ),
+                     "add offset to base address") ]
+               ),
+               "store pointer to data") ]
 
         (C [ Comment "start array slice" ] @ atleastOne @ endCheck @ startCheck)
         ++ structm'
@@ -1169,16 +1177,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     match (expandType value.Env value.Type) with
                     | t when (isSubtypeOf value.Env t TInt) ->
                         ((I32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ]), "load value i32 from env"),
-                         (I32Store_(None, Some(i * 4)), "store i32 value in env"))
+                         (I32Store_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode()),
+                          "store i32 value in env"))
                     | t when (isSubtypeOf value.Env t TFloat) ->
                         ((F32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ]), "load value f32 from env"),
-                         (F32Store_(None, Some(i * 4)), "store f32 value in env"))
+                         (F32Store_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode()),
+                          "store f32 value in env"))
                     | _ -> failwith "not implemented"
 
-                let store = [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode() @ [ si ]
-                let load = [ li ]
-
-                value'.ResetAccCode().AddCode(store @ load)
+                value'.ResetAccCode().AddCode([ si ] @ [ li ])
             | Some(Storage.Global g) ->
                 value'
                     .ResetAccCode()
@@ -1209,16 +1216,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     match (expandType name.Env name.Type) with
                     | t when (isSubtypeOf value.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf value.Env t TFloat) ->
-                        selTargetCode.GetAccCode()
-                        @ rhsCode.GetAccCode()
-                        @ [ (F32Store_(None, Some(offset * 4)), "store float in struct") ]
+                        [ (F32Store_(None, Some(offset * 4), selTargetCode.GetAccCode() @ rhsCode.GetAccCode()),
+                           "store float in struct") ]
                         // load value just to leave a value on the stack
 
                         @ [ (F32Load_(None, Some(offset * 4), selTargetCode.GetAccCode()), "load float from struct") ]
                     | _ ->
-                        selTargetCode.GetAccCode()
-                        @ rhsCode.GetAccCode()
-                        @ [ (I32Store_(None, Some(offset * 4)), "store int in struct") ]
+                        [ (I32Store_(None, Some(offset * 4), selTargetCode.GetAccCode() @ rhsCode.GetAccCode()),
+                           "store int in struct") ]
                         // load value just to leave a value on the stack
 
                         @ [ (I32Load_(None, Some(offset * 4), selTargetCode.GetAccCode()), "load int from struct") ]
@@ -1271,19 +1276,21 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | _ -> I32Load
 
             let instrs =
-                [ (I32Add(
-                      [ (I32Mul(
-                            // store value in allocated memory
-                            // struct pointer on stack
-                            [ (I32Load(selTargetCode.GetAccCode()), "load data pointer") ]
-                            @ indexCode.GetAccCode() // index on stack
-                            @ [ (I32Const 4, "byte offset") ]
+                [ (storeInstr (
+                      [ (I32Add(
+                            [ (I32Mul(
+                                  // store value in allocated memory
+                                  // struct pointer on stack
+                                  [ (I32Load(selTargetCode.GetAccCode()), "load data pointer") ]
+                                  @ indexCode.GetAccCode() // index on stack
+                                  @ [ (I32Const 4, "byte offset") ]
+                               ),
+                               "multiply index with byte offset") ]
                          ),
-                         "multiply index with byte offset") ]
+                         "add offset to base address") ]
+                      @ rhsCode.GetAccCode()
                    ),
-                   "add offset to base address") ]
-                @ rhsCode.GetAccCode()
-                @ [ (storeInstr, "store value in elem pos") ]
+                   "store value in elem pos") ]
                 // load value just to leave a value on the stack
                 // struct pointer on stack
 
@@ -1638,22 +1645,25 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     match (expandType fieldInit.Env fieldInit.Type) with
                     | t when (isSubtypeOf fieldInit.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf fieldInit.Env t TFloat) ->
-                        [ (I32Add(
-                              [ (LocalGet(Named(structName)), "get struct pointer var")
-                                (I32Const fieldOffsetBytes, "push field offset to stack") ]
+                        [ (F32Store(
+                              [ (I32Add(
+                                    [ (LocalGet(Named(structName)), "get struct pointer var")
+                                      (I32Const fieldOffsetBytes, "push field offset to stack") ]
+                                 ),
+                                 "add offset to base address") ]
+                              @ initField'.GetAccCode()
                            ),
-                           "add offset to base address") ]
-                        @ initField'.GetAccCode()
-                        @ [ (F32Store, "store int field in memory") ]
-
+                           "store int field in memory") ]
                     | _ ->
-                        [ (I32Add(
-                              [ (LocalGet(Named(structName)), "get struct pointer var")
-                                (I32Const fieldOffsetBytes, "push field offset to stack") ]
+                        [ (I32Store(
+                              [ (I32Add(
+                                    [ (LocalGet(Named(structName)), "get struct pointer var")
+                                      (I32Const fieldOffsetBytes, "push field offset to stack") ]
+                                 ),
+                                 "add offset to base address") ]
+                              @ initField'.GetAccCode()
                            ),
-                           "add offset to base address") ]
-                        @ initField'.GetAccCode()
-                        @ [ (I32Store, "store int field in memory") ]
+                           "store int field in memory") ]
 
                 // accumulate code
                 acc ++ initField.ResetAccCode().AddCode(instr)
@@ -1798,10 +1808,11 @@ and internal createClosure (env: CodegenEnv) (node: TypedAST) (index: int) (m: M
     let localVarID = lookupLatestLocal returnStructModule
 
     let instr =
-        [ (I32Const 4, "4 byte offset yy")
-          (I32Add(returnStructModule.GetAccCode()), "add offset") ]
-        @ capturedVarsStructCode.GetAccCode()
-        @ [ (I32Store, "store poninter in return struct") ]
+        [ (I32Store(
+              [ (I32Add(returnStructModule.GetAccCode() @ [ (I32Const 4, "4 byte offset") ]), "add offset") ]
+              @ capturedVarsStructCode.GetAccCode()
+           ),
+           "store poninter in return struct") ]
         @ [ (LocalGet(Named(localVarID)), "get pointer to return struct") ]
 
 
@@ -1869,6 +1880,12 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (I32LtS(instrs), c) :: rest -> [ (I32LtS(localSubst instrs var), c) ] @ localSubst rest var
     | (I32GeS(instrs), c) :: rest -> [ (I32GeS(localSubst instrs var), c) ] @ localSubst rest var
     | (CallIndirect(t, instrs), c) :: rest -> [ (CallIndirect(t, localSubst instrs var), c) ] @ localSubst rest var
+    | (I32Store(instrs), c) :: rest -> [ (I32Store(localSubst instrs var), c) ] @ localSubst rest var
+    | (I32Store_(align, offset, instrs), c) :: rest ->
+        [ (I32Store_(align, offset, localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Store(instrs), c) :: rest -> [ (F32Store(localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Store_(align, offset, instrs), c) :: rest ->
+        [ (F32Store_(align, offset, localSubst instrs var), c) ] @ localSubst rest var
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 

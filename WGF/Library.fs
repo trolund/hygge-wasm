@@ -718,7 +718,6 @@ module Module =
             for global_ in List.indexed (Set.toList this.globals) do
                 result <- result + (printGlobal global_)
 
-
             // print tables and elements
             // func table
             result <-
@@ -742,7 +741,6 @@ module Module =
                 result <-
                     result
                     + $"{gIndent 1}(elem (i32.const %i{index}) %s{ic i} $%s{element.ToString()})\n"
-
 
             // create functions
             let mutable x: int = 0

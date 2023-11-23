@@ -144,20 +144,12 @@ let instrLabel i =
     | I32Load _ -> "i32.load"
     | F32Load_ _ -> "f32.load"
     | F32Load _ -> "f32.load"
-    | I32Load8S _ -> "i32.load8_s"
-    | I32Load8U _ -> "i32.load8_u"
-    | I32Load16S _ -> "i32.load16_s"
-    | I32Load16U _ -> "i32.load16_u"
 
     | I32Store_ _ -> "i32.store"
-    | I32Store -> "i32.store"
+    | I32Store _ -> "i32.store"
 
     | F32Store_ _ -> "f32.store"
-    | F32Store -> "f32.store"
-    | I32Store8 _ -> "i32.store8"
-    | I32Store16 _ -> "i32.store16"
-    | MemorySize -> "memory.size"
-    | MemoryGrow -> "memory.grow"
+    | F32Store _ -> "f32.store"
     | LocalGet _ -> "local.get"
     | LocalSet _ -> "local.set"
     | LocalTee _ -> "local.tee"
@@ -186,12 +178,6 @@ let instrLabel i =
     | TableGrow(_) -> "table.grow"
     | TableSize(_) -> "table.size"
     | RefFunc(_) -> "ref.func"
-    // | I32TruncF32S -> "i32.trunc_f32_s"
-    // | I32TruncF32U -> "i32.trunc_f32_u"
-    // | F32ConvertI32S -> "f32.convert_i32_s"
-    // | F32ConvertI32U -> "f32.convert_i32_u"
-    // | I32ReinterpretF32 -> "i32.reinterpret_f32"
-    // | F32ReinterpretI32 -> "f32.reinterpret_i32"
     | MemoryInit(_, _, _) -> "memory.init"
     | DataDrop(_) -> "data.drop"
     | MemoryCopy(_, _) -> "memory.copy"
@@ -206,7 +192,7 @@ type WritingStyle =
 /// generate the wat instruction for a list of instructions
 /// indent is the number of tabs to add before each instruction
 ///
-let style = Linar
+let style = Folded
 
 let rec genWat (instrs: Wasm Commented list) (ident: int) =
 
@@ -318,6 +304,8 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
             | F32Gt instrs
             | I32GeS instrs
             | F32Ge instrs
+            | I32Store instrs
+            | F32Store instrs
             | I32Add instrs when style = Folded ->
                 let watCode =
                     watCode
@@ -353,6 +341,8 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
             | I32Eq instrs
             | I32Eqz instrs
             | F32Eq instrs
+            | I32Store instrs
+            | F32Store instrs
             | I32Add instrs when style = Linar ->
                 aux
                     tail
@@ -414,13 +404,13 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
             | F32Load_(align, offset, instrs) when style = Linar ->
                     match align, offset with
                     | Some align, Some offset -> 
-                        aux tail (watCode + space + (genWat instrs indent) + $"{instrLabel instr} align={align} offset={offset}{commentS c}\n") indent
+                        aux tail (watCode + (genWat instrs indent) + space + $"{instrLabel instr} align={align} offset={offset}{commentS c}\n") indent
                     | Some align, None -> 
-                        aux tail (watCode + space + (genWat instrs indent) + $"{instrLabel instr} align={align}{commentS c}\n") indent
+                        aux tail (watCode + (genWat instrs indent) + space + $"{instrLabel instr} align={align}{commentS c}\n") indent
                     | None, Some offset -> 
-                        aux tail (watCode + space + (genWat instrs indent) + $"{instrLabel instr} offset={offset}{commentS c}\n") indent
+                        aux tail (watCode + (genWat instrs indent) + space + $"{instrLabel instr} offset={offset}{commentS c}\n") indent
                     | None, None -> 
-                        let watCode = watCode + space + (genWat instrs indent) + $"f32.load\n" 
+                        let watCode = watCode + (genWat instrs indent) + space + $"f32.load\n" 
                         aux tail watCode indent
             | F32Load_(align, offset, instrs) when style = Folded ->
                     match align, offset with
@@ -485,6 +475,61 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
 
                 aux tail watCode indent
 
+            | I32Store_ (align, offset, instrs: Commented<Wasm> list) when style = Linar ->
+                let offset = match offset with | Some offset -> offset | None -> 0
+                let align = match align with | Some align -> align | None -> 0
+                let offsetString = if offset > 0 then $" offset={offset}" else ""
+                let alignString = if align > 0 then $" align={align}" else ""
+
+                let watCode =
+                    watCode
+                    + genWat instrs indent
+                    + space
+                    + $"{instrLabel instr}{alignString}{offsetString}{commentS c}\n"
+                    
+                aux tail watCode indent
+
+            | I32Store_ (align, offset, instrs: Commented<Wasm> list) when style = Folded ->
+                let offset = match offset with | Some offset -> offset | None -> 0
+                let align = match align with | Some align -> align | None -> 0
+                let offsetString = if offset > 0 then $" offset=%d{offset}" else ""
+                let alignString = if align > 0 then $" align=%d{align}" else ""
+
+                let watCode =
+                    watCode
+                    + space
+                    + $"({instrLabel instr}{alignString}{offsetString}{commentS c}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+
+                aux tail watCode indent
+
+            | F32Store_ (align, offset, instrs: Commented<Wasm> list) when style = Linar ->
+                let offset = match offset with | Some offset -> offset | None -> 0
+                let align = match align with | Some align -> align | None -> 0
+                let offsetString = if offset > 0 then $" offset={offset}" else ""
+                let alignString = if align > 0 then $" align={align}" else ""
+
+                let watCode =
+                    watCode
+                    + genWat instrs indent
+                    + space
+                    + $"{instrLabel instr}{alignString}{offsetString}{commentS c}\n"
+
+                aux tail watCode indent
+            
+            | F32Store_ (align, offset, instrs: Commented<Wasm> list) when style = Folded ->
+                let offset = match offset with | Some offset -> offset | None -> 0
+                let align = match align with | Some align -> align | None -> 0
+                let offsetString = if offset > 0 then $" offset=%d{offset}" else ""
+                let alignString = if align > 0 then $" align=%d{align}" else ""
+
+                let watCode =
+                    watCode
+                    + space
+                    + $"({instrLabel instr}{alignString}{offsetString}{commentS c}\n{genWat instrs (indent + 1)}{gIndent (indent)})\n"
+
+                aux tail watCode indent
+
+
             | CallIndirect (t, instrs: Commented<Wasm> list) when style = Linar ->
                     aux
                         tail
@@ -522,6 +567,7 @@ let rec genWat (instrs: Wasm Commented list) (ident: int) =
 and printInstr (i: Commented<Instr.Wasm>) =
     let (instr, comment) = i
 
+    // all non nested instructions
     match instr with
     | I32Const value -> $"i32.const %i{value}"
     | F32Const value -> $"f32.const %f{value}"
@@ -588,28 +634,20 @@ and printInstr (i: Commented<Instr.Wasm>) =
         | None, Some offset -> $"(f32.load offset=%d{offset} \n {genWat instrs} )"
         | None, None -> $"(f32.load\n {genWat instrs} )"
     | F32Load instrs -> $"(f32.load\n {genWat instrs} )"
-    | I32Load8S(align, offset) -> $"i32.load8_s align=%d{align} offset=%d{offset}"
-    | I32Load8U(align, offset) -> $"i32.load8_u align=%d{align} offset=%d{offset}"
-    | I32Load16S(align, offset) -> $"i32.load16_s align=%d{align} offset=%d{offset}"
-    | I32Load16U(align, offset) -> $"i32.load16_u align=%d{align} offset=%d{offset}"
-    | I32Store_(align, offset) ->
-        match align, offset with
-        | Some align, Some offset -> $"i32.store align=%d{align} offset=%d{offset}"
-        | Some align, None -> $"i32.store align=%d{align}"
-        | None, Some offset -> $"i32.store offset=%d{offset}"
-        | None, None -> "i32.store"
-    | I32Store -> "i32.store"
-    | F32Store_(align, offset) ->
-        match align, offset with
-        | Some align, Some offset -> $"f32.store align=%d{align} offset=%d{offset}"
-        | Some align, None -> $"f32.store align=%d{align}"
-        | None, Some offset -> $"f32.store offset=%d{offset}"
-        | None, None -> "f32.store"
-    | F32Store -> "f32.store"
-    | I32Store8(align, offset) -> $"i32.store8 align=%d{align} offset=%d{offset}"
-    | I32Store16(align, offset) -> $"i32.store16 align=%d{align} offset=%d{offset}"
-    | MemorySize -> "memory.size"
-    | MemoryGrow -> "memory.grow"
+    // | I32Store_(align, offset) ->
+    //     match align, offset with
+    //     | Some align, Some offset -> $"i32.store align=%d{align} offset=%d{offset}"
+    //     | Some align, None -> $"i32.store align=%d{align}"
+    //     | None, Some offset -> $"i32.store offset=%d{offset}"
+    //     | None, None -> "i32.store"
+    // | I32Store -> "i32.store"
+    // | F32Store_(align, offset) ->
+    //     match align, offset with
+    //     | Some align, Some offset -> $"f32.store align=%d{align} offset=%d{offset}"
+    //     | Some align, None -> $"f32.store align=%d{align}"
+    //     | None, Some offset -> $"f32.store offset=%d{offset}"
+    //     | None, None -> "f32.store"
+    // | F32Store -> "f32.store"
     // declare variable
     | LocalGet l -> $"local.get %s{l.ToString()}"
     | LocalSet (l, instrs) -> $"local.set %s{l.ToString()}\n {genWat instrs}"
