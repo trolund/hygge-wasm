@@ -190,28 +190,16 @@
     )
     (i32.store ;; store value in elem pos
       (i32.add ;; add offset to base address
+        (i32.load ;; load data pointer
+          (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        )
         (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
           (i32.const 0) ;; push 0 on stack
           (i32.const 4) ;; byte offset
         )
       )
       (i32.const 500) ;; push 500 on stack
     )
-    (i32.load ;; load int from elem pos
-      (i32.add ;; add offset to base address
-        (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
-          (i32.const 0) ;; push 0 on stack
-          (i32.const 4) ;; byte offset
-        )
-      )
-    )
-    (drop)
     (if 
         (i32.lt_s ;; check if index is >= 0
           (i32.const 1) ;; push 1 on stack
@@ -240,28 +228,16 @@
     )
     (i32.store ;; store value in elem pos
       (i32.add ;; add offset to base address
+        (i32.load ;; load data pointer
+          (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        )
         (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
           (i32.const 1) ;; push 1 on stack
           (i32.const 4) ;; byte offset
         )
       )
       (i32.const 3) ;; push 3 on stack
     )
-    (i32.load ;; load int from elem pos
-      (i32.add ;; add offset to base address
-        (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
-          (i32.const 1) ;; push 1 on stack
-          (i32.const 4) ;; byte offset
-        )
-      )
-    )
-    (drop)
     (if 
         (i32.lt_s ;; check if index is >= 0
           (i32.const 2) ;; push 2 on stack
@@ -290,28 +266,16 @@
     )
     (i32.store ;; store value in elem pos
       (i32.add ;; add offset to base address
+        (i32.load ;; load data pointer
+          (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        )
         (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
           (i32.const 2) ;; push 2 on stack
           (i32.const 4) ;; byte offset
         )
       )
       (i32.const 11) ;; push 11 on stack
     )
-    (i32.load ;; load int from elem pos
-      (i32.add ;; add offset to base address
-        (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
-          (i32.const 2) ;; push 2 on stack
-          (i32.const 4) ;; byte offset
-        )
-      )
-    )
-    (drop)
     (if 
         (i32.lt_s ;; check if index is >= 0
           (i32.const 3) ;; push 3 on stack
@@ -340,28 +304,16 @@
     )
     (i32.store ;; store value in elem pos
       (i32.add ;; add offset to base address
+        (i32.load ;; load data pointer
+          (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        )
         (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
           (i32.const 3) ;; push 3 on stack
           (i32.const 4) ;; byte offset
         )
       )
       (i32.const 22) ;; push 22 on stack
     )
-    (i32.load ;; load int from elem pos
-      (i32.add ;; add offset to base address
-        (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
-          (i32.const 3) ;; push 3 on stack
-          (i32.const 4) ;; byte offset
-        )
-      )
-    )
-    (drop)
     (if 
         (i32.lt_s ;; check if index is >= 0
           (i32.const 4) ;; push 4 on stack
@@ -390,28 +342,16 @@
     )
     (i32.store ;; store value in elem pos
       (i32.add ;; add offset to base address
+        (i32.load ;; load data pointer
+          (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        )
         (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
           (i32.const 4) ;; push 4 on stack
           (i32.const 4) ;; byte offset
         )
       )
       (i32.const 45) ;; push 45 on stack
     )
-    (i32.load ;; load int from elem pos
-      (i32.add ;; add offset to base address
-        (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
-          (i32.const 4) ;; push 4 on stack
-          (i32.const 4) ;; byte offset
-        )
-      )
-    )
-    (drop)
     (if 
         (i32.lt_s ;; check if index is >= 0
           (i32.const 5) ;; push 5 on stack
@@ -440,28 +380,16 @@
     )
     (i32.store ;; store value in elem pos
       (i32.add ;; add offset to base address
+        (i32.load ;; load data pointer
+          (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        )
         (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
           (i32.const 5) ;; push 5 on stack
           (i32.const 4) ;; byte offset
         )
       )
       (i32.const 61) ;; push 61 on stack
     )
-    (i32.load ;; load int from elem pos
-      (i32.add ;; add offset to base address
-        (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
-          (i32.const 5) ;; push 5 on stack
-          (i32.const 4) ;; byte offset
-        )
-      )
-    )
-    (drop)
     (if 
         (i32.lt_s ;; check if index is >= 0
           (i32.const 6) ;; push 6 on stack
@@ -490,28 +418,16 @@
     )
     (i32.store ;; store value in elem pos
       (i32.add ;; add offset to base address
+        (i32.load ;; load data pointer
+          (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        )
         (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
           (i32.const 6) ;; push 6 on stack
           (i32.const 4) ;; byte offset
         )
       )
       (i32.const 100) ;; push 100 on stack
     )
-    (i32.load ;; load int from elem pos
-      (i32.add ;; add offset to base address
-        (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
-          (i32.const 6) ;; push 6 on stack
-          (i32.const 4) ;; byte offset
-        )
-      )
-    )
-    (drop)
     (if 
         (i32.lt_s ;; check if index is >= 0
           (i32.const 7) ;; push 7 on stack
@@ -540,28 +456,16 @@
     )
     (i32.store ;; store value in elem pos
       (i32.add ;; add offset to base address
+        (i32.load ;; load data pointer
+          (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        )
         (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
           (i32.const 7) ;; push 7 on stack
           (i32.const 4) ;; byte offset
         )
       )
       (i32.const 200) ;; push 200 on stack
     )
-    (i32.load ;; load int from elem pos
-      (i32.add ;; add offset to base address
-        (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
-          (i32.const 7) ;; push 7 on stack
-          (i32.const 4) ;; byte offset
-        )
-      )
-    )
-    (drop)
     (if 
         (i32.lt_s ;; check if index is >= 0
           (i32.const 8) ;; push 8 on stack
@@ -590,28 +494,16 @@
     )
     (i32.store ;; store value in elem pos
       (i32.add ;; add offset to base address
+        (i32.load ;; load data pointer
+          (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        )
         (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
           (i32.const 8) ;; push 8 on stack
           (i32.const 4) ;; byte offset
         )
       )
       (i32.const 34) ;; push 34 on stack
     )
-    (i32.load ;; load int from elem pos
-      (i32.add ;; add offset to base address
-        (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
-          (i32.const 8) ;; push 8 on stack
-          (i32.const 4) ;; byte offset
-        )
-      )
-    )
-    (drop)
     (if 
         (i32.lt_s ;; check if index is >= 0
           (i32.const 9) ;; push 9 on stack
@@ -640,28 +532,16 @@
     )
     (i32.store ;; store value in elem pos
       (i32.add ;; add offset to base address
+        (i32.load ;; load data pointer
+          (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        )
         (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
           (i32.const 9) ;; push 9 on stack
           (i32.const 4) ;; byte offset
         )
       )
       (i32.const 80) ;; push 80 on stack
     )
-    (i32.load ;; load int from elem pos
-      (i32.add ;; add offset to base address
-        (i32.mul ;; multiply index with byte offset
-          (i32.load ;; load data pointer
-            (global.get $var_arr) ;; get local var: var_arr, have been hoisted
-          )
-          (i32.const 9) ;; push 9 on stack
-          (i32.const 4) ;; byte offset
-        )
-      )
-    )
-    (drop)
     (i32.load ;; Load string pointer
       (i32.const 8) ;; leave pointer to string on stack
     )
@@ -1411,10 +1291,10 @@
             )
             (i32.store ;; store value in elem pos
               (i32.add ;; add offset to base address
+                (i32.load ;; load data pointer
+                  (local.get $arg_arr) ;; get local var: arg_arr
+                )
                 (i32.mul ;; multiply index with byte offset
-                  (i32.load ;; load data pointer
-                    (local.get $arg_arr) ;; get local var: arg_arr
-                  )
                   (i32.add
                     (local.get $var_j) ;; get local var: var_j
                     (i32.const 1) ;; push 1 on stack
@@ -1461,21 +1341,6 @@
               )
               ;; end array element access node
             )
-            (i32.load ;; load int from elem pos
-              (i32.add ;; add offset to base address
-                (i32.mul ;; multiply index with byte offset
-                  (i32.load ;; load data pointer
-                    (local.get $arg_arr) ;; get local var: arg_arr
-                  )
-                  (i32.add
-                    (local.get $var_j) ;; get local var: var_j
-                    (i32.const 1) ;; push 1 on stack
-                  )
-                  (i32.const 4) ;; byte offset
-                )
-              )
-            )
-            (drop)
             (local.tee $var_j ;; set local var
               (i32.sub
                 (local.get $var_j) ;; get local var: var_j
@@ -1519,10 +1384,10 @@
         )
         (i32.store ;; store value in elem pos
           (i32.add ;; add offset to base address
+            (i32.load ;; load data pointer
+              (local.get $arg_arr) ;; get local var: arg_arr
+            )
             (i32.mul ;; multiply index with byte offset
-              (i32.load ;; load data pointer
-                (local.get $arg_arr) ;; get local var: arg_arr
-              )
               (i32.add
                 (local.get $var_j) ;; get local var: var_j
                 (i32.const 1) ;; push 1 on stack
@@ -1533,11 +1398,11 @@
           (local.get $var_key) ;; get local var: var_key
         )
         (i32.load ;; load int from elem pos
+          (i32.load ;; load data pointer
+            (local.get $arg_arr) ;; get local var: arg_arr
+          )
           (i32.add ;; add offset to base address
             (i32.mul ;; multiply index with byte offset
-              (i32.load ;; load data pointer
-                (local.get $arg_arr) ;; get local var: arg_arr
-              )
               (i32.add
                 (local.get $var_j) ;; get local var: var_j
                 (i32.const 1) ;; push 1 on stack
@@ -1547,8 +1412,6 @@
           )
         )
         ;; End of let
-        ;; End of let
-        (drop)
         (local.get $var_i) ;; get local var: var_i
         (local.tee $var_i ;; set local var
           (i32.add
@@ -1556,8 +1419,6 @@
             (i32.const 1) ;; push 1 on stack
           )
         )
-        (drop)
-        (drop)
         (br $loop_begin$1)
       )
     )

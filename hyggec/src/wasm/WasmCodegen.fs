@@ -1327,11 +1327,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let instrs =
                 [ (storeInstr (
                       [ (I32Add(
-                            [ (I32Mul(
+                            [ (I32Load(selTargetCode.GetAccCode()), "load data pointer")
+                              (I32Mul(
                                   // store value in allocated memory
                                   // struct pointer on stack
-                                  [ (I32Load(selTargetCode.GetAccCode()), "load data pointer") ]
-                                  @ indexCode.GetAccCode() // index on stack
+                                  indexCode.GetAccCode() // index on stack
                                   @ [ (I32Const 4, "byte offset") ]
                                ),
                                "multiply index with byte offset") ]
@@ -1344,12 +1344,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // struct pointer on stack
 
                 @ [ (loadInstr (
-                        [ (I32Add(
-                              [ (I32Mul(
-                                    [ (I32Load(selTargetCode.GetAccCode()), "load data pointer") ]
-                                    @ indexCode.GetAccCode()
-                                    @ [ (I32Const 4, "byte offset") ]
-                                 ),
+                        [ (I32Load(selTargetCode.GetAccCode()), "load data pointer")
+                          (I32Add(
+                              [ (I32Mul(indexCode.GetAccCode() @ [ (I32Const 4, "byte offset") ]),
                                  "multiply index with byte offset") ]
                            ),
                            "add offset to base address") ]

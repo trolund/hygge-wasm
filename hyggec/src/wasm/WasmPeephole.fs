@@ -4,6 +4,122 @@ open WGF.Module
 open WGF.Types
 open WGF.Instr
 
+// function that check if a sub-tree contains side effects
+// in this case that is local and global set and memory store
+let rec hasSideEffects (instrs: Commented<WGF.Instr.Wasm> list) : bool =
+    match instrs with
+    | (LocalSet _, _) :: rest -> true
+    | (GlobalSet _, _) :: rest -> true
+    | (I32Store _, _) :: rest -> true
+    | (I32Store_ _, _) :: rest -> true
+    | (F32Store _, _) :: rest -> true
+    | (F32Store_ _, _) :: rest -> true
+    | (LocalTee _, _) :: rest -> true   
+    | (Call _, _) :: rest -> true
+    | (CallIndirect _, _) :: rest -> true
+
+    | (If (_, _, ifTrue, ifFalse), _) :: rest -> 
+        hasSideEffects ifTrue || 
+        match ifFalse with
+        | Some ifFalse -> hasSideEffects ifFalse
+        | None -> false
+    
+    | (Block (_, _, instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (Loop (_, _, instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32Load(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32Load_(align, offset, instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (F32Load(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (F32Load_(align, offset, instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32Eqz(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+
+    | (I32Eq(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+
+    | (I32LtS(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32GtS(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32LeS(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32GeS(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (F32Eq(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (F32Lt(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (F32Gt(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (F32Le(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (F32Ge(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32Add(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+
+    | (I32Sub(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32Mul(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+
+    | (I32DivS(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32DivU(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32RemS(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32RemU(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32And(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (I32Or(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+
+    | (I32Xor(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (F32Add(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (F32Sub(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (F32Mul(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+    
+    | (F32Div(instrs), _) :: rest ->
+        hasSideEffects instrs || hasSideEffects rest
+
+    | _ :: rest -> hasSideEffects rest
+    | [] -> false
+
 /// Optimize a list of Text segment statements.
 /// TODO: make sure that optimizeInstr are applied until the result stops changing
 let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Commented<WGF.Instr.Wasm> list) =
@@ -100,6 +216,9 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
     // // Replace `i32.mul` with `i32.mul` for squaring a value.
     // | (I32Mul, c1) :: (I32Mul, c2) :: rest -> 
     //     (I32Mul, c1 + c2) :: optimizeInstr rest
+
+    | subTree :: (Drop, _) :: rest when (not (hasSideEffects [subTree])) -> 
+        optimizeInstr rest
 
     // if a value is pushed on the stack and then dropped, we can remove both
     | (I32Const _, _) :: (Drop, _) :: rest -> 
