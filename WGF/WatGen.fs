@@ -237,7 +237,6 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | Unreachable -> "unreachable"
     | Nop -> "nop"
     | Br id -> $"br $%s{id}"
-    | BrIf id -> $"br_if $%s{id}"
     | Return -> "return"
     | Call name -> $"call $%s{name}"
     | CallIndirect(label, instrs) -> $"call_indirect (type %s{label.ToString()})"
@@ -720,6 +719,22 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     watCode
                     + space
                     + $"({instrLabel instr} (type {t.ToString()}){commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
+
+                aux tail watCode indent
+
+            | BrIf(label, instrs: Commented<Wasm> list) when style = Linar ->
+                aux
+                    tail
+                    (watCode
+                     + (aux instrs emptyS indent)
+                     + $"{gIndent indent}{instrLabel instr} $%s{label.ToString()}{commentS c}\n")
+                    indent
+
+            | BrIf(label, instrs: Commented<Wasm> list) when style = Folded ->
+                let watCode =
+                    watCode
+                    + space
+                    + $"({instrLabel instr} $%s{label.ToString()}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
 

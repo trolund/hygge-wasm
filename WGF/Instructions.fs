@@ -10,7 +10,7 @@ type Wasm =
     | Nop
     | Else of ValueType list * ValueType list * Wasm list * Wasm list
     | Br of Identifier
-    | BrIf of Identifier
+    | BrIf of Identifier * Wasm Commented list
     | BrTable of int list * int
     | Return
     // Memory Instrs

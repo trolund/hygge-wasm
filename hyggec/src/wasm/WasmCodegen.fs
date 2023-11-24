@@ -727,15 +727,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let exitl = env.SymbolController.genSymbol $"loop_exit"
         let beginl = env.SymbolController.genSymbol $"loop_begin"
 
+        let mayDrop =
+            if (expandType body.Env body.Type) = TUnit then
+                []
+            else
+                [ Drop ]
+
         let loop =
             C
                 [ Loop(
                       beginl,
                       [],
-
-                      C [ I32Eqz(cond'.GetAccCode()); BrIf exitl ]
-                      @ body'.GetAccCode()
-                      @ C [ Br beginl ]
+                      [ (BrIf(exitl, [(I32Eqz(cond'.GetAccCode()), "evaluate loop condition")]), "if false break") ]
+                      @ body'.GetAccCode() @ C mayDrop
+                      @ [ (Br beginl, "jump to beginning of loop") ]
                   ) ]
 
         let block = C [ (Block(exitl, [], loop)) ]
@@ -895,7 +900,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ Loop(
                       beginl,
                       [], // loops does not return anything
-                      C [ I32Eq(length'.GetAccCode() @ [ (LocalGet(Named i), "get i") ]); BrIf exitl ]
+                      [ (BrIf(exitl, C [ I32Eq(length'.GetAccCode() @ [ (LocalGet(Named i), "get i") ])]), "") ]
                       @ body
                       @ [ (LocalSet(
                               Named i,
@@ -1949,6 +1954,7 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (F32Store_(align, offset, instrs), c) :: rest ->
         [ (F32Store_(align, offset, localSubst instrs var), c) ] @ localSubst rest var
     | (MemoryGrow(instrs), c) :: rest -> [ (MemoryGrow(localSubst instrs var), c) ] @ localSubst rest var
+    | (BrIf(l, instrs), c) :: rest -> [ (BrIf(l, localSubst instrs var), c) ] @ localSubst rest var
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 

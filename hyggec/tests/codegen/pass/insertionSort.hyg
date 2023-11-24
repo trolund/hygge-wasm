@@ -3,7 +3,7 @@ let insertionSort: (array{int}) -> unit = fun(arr: array{int}) -> {
     let len: int = arrayLength(arr);
     let mutable i: int = 0;
     
-    for (i <- 1; i < len; i++) {
+    for (i <- 1; i < len; ++i) {
         let key: int = arrayElem(arr, i);
         let mutable j: int = i - 1;
 
