@@ -207,18 +207,26 @@ let internal compile (opt: CmdLine.CompilerOptions): int =
                             | CmdLine.CompilationTarget.WASM ->
                                 // Compile the AST to WASM assembly
                                 let m = (compileWasm opt tast)
-                                // let m' = Analisys.trimStack m
-                                m.ToString()
+
+                                let style = match opt.Style with
+                                            | Some("linear") | Some("l") -> WGF.Types.WritingStyle.Linar
+                                            | Some("folded") | Some("f") -> WGF.Types.WritingStyle.Folded
+                                            | Some(s) ->
+                                                Log.error $"Invalid WAT writing style: %s{s}, proceeding with default (linear)"
+                                                WGF.Types.WritingStyle.Linar    
+                                            | None -> WGF.Types.WritingStyle.Linar
+                                
+                                m.ToWat(style)
                 
             // Write the output file (or print to stdout if no output file is given)
             handelOutputFile (opt.OutFile, asm) |> ignore
 
-            // TODO remove this
-            Log.debug $"WASM code: %s{asm}"
-            Console.WriteLine $"Running WASM VM"
-            let vm = WasmVM()
-            let res = vm.RunWatString(asm, opt.File)
-            Console.WriteLine $"WASM VM result: %O{res}"
+            if opt.Execute then
+                Log.debug $"WASM code: %s{asm}"
+                Console.WriteLine $"Running WASM VM"
+                let vm = WasmVM()
+                let res = vm.RunWatString(asm, opt.File)
+                Console.WriteLine $"WASM VM result: %O{res}"
             0
 
 

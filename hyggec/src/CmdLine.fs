@@ -94,6 +94,12 @@ type CompilerOptions = {
     [<Option('o', "output-file", HelpText="Save the generated assembly code on the given file. (Default: don't save, print on the terminal)")>]
     OutFile: Option<string>;
 
+    [<Option('s', "style", HelpText="WAT writing style (linar (l, Default)  or folded (f))")>]
+    Style: Option<string>;
+
+    [<Option('e', "execute", HelpText="Execute compiled file after compilation")>]
+    Execute: bool;
+
     [<Option('l', "log-level", HelpText="Set the log level. Valid values: debug, info, warning, error. (Default: warning)")>]
     LogLevel: Log.LogLevel;
 
