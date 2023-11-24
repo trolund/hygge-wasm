@@ -19,7 +19,10 @@ let writeCSV (filename: string) (csvData: string list list) =
     writer.Close()
 
 let internal collectData tast (file: string) =
-    let code = (hyggec.WASMCodegen.codegen tast)
+    // create a Compilation config
+    let config: hyggec.Config.CompileConfig = { AllocationStrategy = hyggec.Config.MemoryConfig.Internal; Si = hyggec.Config.SI.HyggeSI }
+
+    let code = (hyggec.WASMCodegen.codegen tast (Some(config)))
     let opCode = WasmPeephole.optimize code
 
     let nonOpCount = WasmPeephole.CountInstr code

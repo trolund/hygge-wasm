@@ -172,7 +172,8 @@ let compileRISCV (opt: CmdLine.CompilerOptions) tast =
             asm2
 
 let compileWasm (opt: CmdLine.CompilerOptions) tast =
-    let asm = WASMCodegen.codegen tast
+    let config: Config.CompileConfig = { AllocationStrategy = Config.MemoryConfig.Internal; Si = hyggec.Config.SI.HyggeSI }
+    let asm = WASMCodegen.codegen tast (Some(config))
     if (opt.Optimize = 4u) then 
         Console.WriteLine("Optimizing WASM")
         Console.WriteLine($"There was {(WasmPeephole.CountInstr asm).ToString()} instructions before optimization")

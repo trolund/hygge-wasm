@@ -873,9 +873,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             [ (storeInstr (
                   [ (Comment "start of loop body", "")
                     (I32Add(
-                        [ (I32Mul(
-                              [ (I32Load([ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]),
-                                 "load data pointer")
+                        [ (I32Load([ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]),
+                           "load data pointer")
+                          (I32Mul(
+                              [
                                 // find offset to element
                                 (LocalGet(Named(i)), "get index")
                                 (I32Const(4), "byte offset") ]
@@ -966,12 +967,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             // struct pointer on stack
             [ (loadInstr (
                   [ (I32Add(
-                        [ (I32Mul(
-                              [ (I32Load(m'.GetAccCode()), "load data pointer") ]
-                              @ m''.GetAccCode()
-                              @ [ (I32Const 4, "byte offset") ]
-                           ),
-                           "multiply index with byte offset") ]
+                        [ (I32Load(m'.GetAccCode()), "load data pointer")
+                          (I32Mul(m''.GetAccCode() @ [ (I32Const 4, "byte offset") ]), "multiply index with byte offset") ]
                      ),
                      "add offset to base address") ]
                ),
@@ -1085,11 +1082,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             [ (I32Store(
                   [ (LocalGet(Named(structPointerLabel)), "get struct pointer var")
                     (I32Add(
-                        [ (I32Mul(
-                              [ (I32Load(targetm.GetAccCode()), "Load data pointer from array struct") ]
-                              @ startm.GetAccCode()
-                              @ [ (I32Const 4, "offset of data field") ]
-                           ),
+                        [ (I32Load(targetm.GetAccCode()), "Load data pointer from array struct")
+                          (I32Mul(startm.GetAccCode() @ [ (I32Const 4, "offset of data field") ]),
                            "multiply index with byte offset") ]
                      ),
                      "add offset to base address") ]
@@ -1342,11 +1336,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                    "store value in elem pos") ]
                 // load value just to leave a value on the stack
                 // struct pointer on stack
-
                 @ [ (loadInstr (
-                        [ (I32Load(selTargetCode.GetAccCode()), "load data pointer")
-                          (I32Add(
-                              [ (I32Mul(indexCode.GetAccCode() @ [ (I32Const 4, "byte offset") ]),
+                        [ (I32Add(
+                              [ (I32Load(selTargetCode.GetAccCode()), "load data pointer")
+                                (I32Mul(indexCode.GetAccCode() @ [ (I32Const 4, "byte offset") ]),
                                  "multiply index with byte offset") ]
                            ),
                            "add offset to base address") ]
@@ -2024,7 +2017,7 @@ let hoistingLocals (m: Module) (upgradeList: list<string>) : Module =
 
 /// add special implicit main function
 /// as the entry point of the program
-let codegen (node: TypedAST) : Module =
+let codegen (node: TypedAST) (config: CompileConfig option) : Module =
 
     // _start function is the entry point of the program
     // _start name is a special name that is part of the WASI ABI.
@@ -2042,6 +2035,8 @@ let codegen (node: TypedAST) : Module =
            name = Some(Identifier(funcName)) },
          "entry point of program (main function)")
 
+    let allocationStrategy = match config with | Some(c) -> c.AllocationStrategy | None -> Internal
+
     /// Environment used during code generation
     let env =
         { CurrFunc = funcName
@@ -2051,7 +2046,7 @@ let codegen (node: TypedAST) : Module =
           VarStorage = Map.empty
           ClosureFuncs = Set.empty
           Config =
-            { AllocationStrategy = Internal
+            { AllocationStrategy = allocationStrategy
               Si = HyggeSI } }
 
     // add function to module and export it

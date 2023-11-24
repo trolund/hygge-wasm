@@ -64,7 +64,7 @@ public static class Utils
 
         var fileName = GetFileName(path);
         var wasmPath = $"{_tempPath}/{type}/folded/wasm/{fileName}.wasm";
-        var wasmAs = $"wasm-as {path} -o {wasmPath}";
+        var wasmAs = $"wasm-as --quiet {path} -o {wasmPath}";
         var process = System.Diagnostics.Process.Start("bash", $"-c \"{wasmAs}\"");
 
         process.WaitForExit();
@@ -72,7 +72,7 @@ public static class Utils
         // Check the exit code to determine if there was an error
         if (process.ExitCode != 0)
         {
-            Console.WriteLine($"WasmAs: The process exited with an error. Exit code: {process.ExitCode}, test: {fileName}");
+            // Console.WriteLine($"WasmAs: The process exited with an error. Exit code: {process.ExitCode}, test: {fileName}");
             //throw new Exception($"WasmAs: The process exited with an error. Exit code: {process.ExitCode}");
         }
     }

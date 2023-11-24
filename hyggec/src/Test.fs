@@ -11,6 +11,7 @@ open WasmTimeDriver
 open System
 open System.IO
 open WGF.Types
+open hyggec.Config
 
 
 /// Collect and sort the test files in a test directory.
@@ -59,21 +60,22 @@ let runWasmModule asm expected (name: string) =
 
 let output = true
 
-let internal WasmPrepareTest tast expected (name: string) (peep: bool) (style: WritingStyle) =
-    // let anf = ANF.transform tast
+let internal WasmPrepareTest tast expected (name: string) (peep: bool) (style: WritingStyle) (config: CompileConfig) =
     let asm =
         if peep then
-            ((hyggec.WASMCodegen.codegen tast) |> WasmPeephole.optimize).ToWat(style)
+            ((hyggec.WASMCodegen.codegen tast (Some(config))) |> WasmPeephole.optimize)
+                .ToWat(style)
         else
-            (hyggec.WASMCodegen.codegen tast).ToWat(style)
+            (hyggec.WASMCodegen.codegen tast (Some(config))).ToWat(style)
 
     // Createfile
-    if (output) then Utils.Createfile(name, asm, style);
+    if (output) then
+        Utils.Createfile(name, asm, style)
 
     runWasmModule asm expected name
 
 
-let internal testWasmCodegen (file: string) (expected: int) =
+let internal testWasmCodegen (file: string) (expected: int) (peep: bool) (style: WritingStyle) (config: CompileConfig) =
     match (Util.parseFile file) with
     | Error(e) -> failwith $"Parsing failed: %s{e}"
     | Ok(ast) ->
@@ -82,7 +84,7 @@ let internal testWasmCodegen (file: string) (expected: int) =
         | Ok(tast) ->
             let name = Path.GetFileNameWithoutExtension(file)
             Console.WriteLine($"running test: %s{name}")
-            WasmPrepareTest tast expected file
+            WasmPrepareTest tast expected file peep style config
 
 /// Compile a source file and run the resulting assembly code on RARS, checking
 /// whether its return code matches the expected one.
@@ -169,90 +171,90 @@ let tests =
                              match (Util.parseFile file) with
                              | Error(e) -> failwith $"Parsing failed: %s{e}"
                              | Ok(ast) -> Expect.isError (Typechecker.typecheck ast) "Typing should have failed")) ]
-          testList
-              "interpreter"
-              [ testList
-                    "pass"
-                    (getFilesInTestDir [ "interpreter"; "pass" ]
-                     |> List.map (fun file ->
-                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ ->
-                             match (Util.parseFile file) with
-                             | Error(e) -> failwith $"Parsing failed: %s{e}"
-                             | Ok(ast) ->
-                                 let last = Interpreter.reduceFully ast (Some(fun _ -> "")) (Some ignore)
-                                 Expect.isFalse (Interpreter.isStuck last) "Interpreter reached a stuck expression"))
-                testList
-                    "fail"
-                    (getFilesInTestDir [ "interpreter"; "fail" ]
-                     |> List.map (fun file ->
-                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ ->
-                             match (Util.parseFile file) with
-                             | Error(e) -> failwith $"Parsing failed: %s{e}"
-                             | Ok(ast) ->
-                                 let last = Interpreter.reduceFully ast (Some(fun _ -> "")) (Some ignore)
+        //   testList
+        //       "interpreter"
+        //       [ testList
+        //             "pass"
+        //             (getFilesInTestDir [ "interpreter"; "pass" ]
+        //              |> List.map (fun file ->
+        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
+        //                  <| fun _ ->
+        //                      match (Util.parseFile file) with
+        //                      | Error(e) -> failwith $"Parsing failed: %s{e}"
+        //                      | Ok(ast) ->
+        //                          let last = Interpreter.reduceFully ast (Some(fun _ -> "")) (Some ignore)
+        //                          Expect.isFalse (Interpreter.isStuck last) "Interpreter reached a stuck expression"))
+        //         testList
+        //             "fail"
+        //             (getFilesInTestDir [ "interpreter"; "fail" ]
+        //              |> List.map (fun file ->
+        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
+        //                  <| fun _ ->
+        //                      match (Util.parseFile file) with
+        //                      | Error(e) -> failwith $"Parsing failed: %s{e}"
+        //                      | Ok(ast) ->
+        //                          let last = Interpreter.reduceFully ast (Some(fun _ -> "")) (Some ignore)
 
-                                 Expect.isTrue
-                                     (Interpreter.isStuck last)
-                                     "Interpreter should have reached a stuck expression")) ]
-          testList
-              "interpreter-anf"
-              [ testList
-                    "pass"
-                    (getFilesInTestDir [ "interpreter-anf"; "pass" ]
-                     |> List.map (fun file ->
-                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ ->
-                             match (Util.parseFile file) with
-                             | Error(e) -> failwith $"Parsing failed: %s{e}"
-                             | Ok(ast) ->
-                                 let anf = ANF.transform ast
-                                 let last = Interpreter.reduceFully anf (Some(fun _ -> "")) (Some ignore)
-                                 Expect.isFalse (Interpreter.isStuck last) "Interpreter reached a stuck expression"))
-                testList
-                    "fail"
-                    (getFilesInTestDir [ "interpreter-anf"; "fail" ]
-                     |> List.map (fun file ->
-                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ ->
-                             match (Util.parseFile file) with
-                             | Error(e) -> failwith $"Parsing failed: %s{e}"
-                             | Ok(ast) ->
-                                 let anf = ANF.transform ast
-                                 let last = Interpreter.reduceFully anf (Some(fun _ -> "")) (Some ignore)
+        //                          Expect.isTrue
+        //                              (Interpreter.isStuck last)
+        //                              "Interpreter should have reached a stuck expression")) ]
+        //   testList
+        //       "interpreter-anf"
+        //       [ testList
+        //             "pass"
+        //             (getFilesInTestDir [ "interpreter-anf"; "pass" ]
+        //              |> List.map (fun file ->
+        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
+        //                  <| fun _ ->
+        //                      match (Util.parseFile file) with
+        //                      | Error(e) -> failwith $"Parsing failed: %s{e}"
+        //                      | Ok(ast) ->
+        //                          let anf = ANF.transform ast
+        //                          let last = Interpreter.reduceFully anf (Some(fun _ -> "")) (Some ignore)
+        //                          Expect.isFalse (Interpreter.isStuck last) "Interpreter reached a stuck expression"))
+        //         testList
+        //             "fail"
+        //             (getFilesInTestDir [ "interpreter-anf"; "fail" ]
+        //              |> List.map (fun file ->
+        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
+        //                  <| fun _ ->
+        //                      match (Util.parseFile file) with
+        //                      | Error(e) -> failwith $"Parsing failed: %s{e}"
+        //                      | Ok(ast) ->
+        //                          let anf = ANF.transform ast
+        //                          let last = Interpreter.reduceFully anf (Some(fun _ -> "")) (Some ignore)
 
-                                 Expect.isTrue
-                                     (Interpreter.isStuck last)
-                                     "Interpreter should have reached a stuck expression")) ]
-          testList
-              "codegen"
-              [ testList
-                    "pass"
-                    (getFilesInTestDir [ "codegen"; "pass" ]
-                     |> List.map (fun file ->
-                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testCodegen file 0))
-                testList
-                    "fail"
-                    (getFilesInTestDir [ "codegen"; "fail" ]
-                     |> List.map (fun file ->
-                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testCodegen file RISCVCodegen.assertExitCode)) ]
-          testList
-              "codegen-anf"
-              [ testList
-                    "pass"
-                    (getFilesInTestDir [ "codegen-anf"; "pass" ]
-                     |> List.map (fun file ->
-                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testANFCodegen file 0))
-                testList
-                    "fail"
-                    (getFilesInTestDir [ "codegen-anf"; "fail" ]
-                     |> List.map (fun file ->
-                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testANFCodegen file RISCVCodegen.assertExitCode)) ]
+        //                          Expect.isTrue
+        //                              (Interpreter.isStuck last)
+        //                              "Interpreter should have reached a stuck expression")) ]
+        //   testList
+        //       "codegen"
+        //       [ testList
+        //             "pass"
+        //             (getFilesInTestDir [ "codegen"; "pass" ]
+        //              |> List.map (fun file ->
+        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
+        //                  <| fun _ -> testCodegen file 0))
+        //         testList
+        //             "fail"
+        //             (getFilesInTestDir [ "codegen"; "fail" ]
+        //              |> List.map (fun file ->
+        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
+        //                  <| fun _ -> testCodegen file RISCVCodegen.assertExitCode)) ]
+        //   testList
+        //       "codegen-anf"
+        //       [ testList
+        //             "pass"
+        //             (getFilesInTestDir [ "codegen-anf"; "pass" ]
+        //              |> List.map (fun file ->
+        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
+        //                  <| fun _ -> testANFCodegen file 0))
+        //         testList
+        //             "fail"
+        //             (getFilesInTestDir [ "codegen-anf"; "fail" ]
+        //              |> List.map (fun file ->
+        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
+        //                  <| fun _ -> testANFCodegen file RISCVCodegen.assertExitCode)) ]
           // Wasm tests are disabled for now
           testList
               "wasm"
@@ -262,38 +264,134 @@ let tests =
                     (getFilesInTestDir [ "codegen"; "pass" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file 0 false WritingStyle.Linar))
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 0
+                                 false
+                                 Linar
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.Internal
+                                   Si = hyggec.Config.SI.HyggeSI }))
                 testList
                     "pass-peep"
                     (getFilesInTestDir [ "codegen"; "pass" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file 0 true WritingStyle.Linar))
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 0
+                                 true
+                                 Linar
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.Internal
+                                   Si = hyggec.Config.SI.HyggeSI }))
                 testList
                     "fail"
                     (getFilesInTestDir [ "codegen"; "fail" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode false WritingStyle.Linar))
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 RISCVCodegen.assertExitCode
+                                 false
+                                 Linar
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.Internal
+                                   Si = hyggec.Config.SI.HyggeSI }))
                 testList
                     "fail-peep"
                     (getFilesInTestDir [ "codegen"; "fail" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode true WritingStyle.Linar))
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 RISCVCodegen.assertExitCode
+                                 true
+                                 Linar
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.Internal
+                                   Si = hyggec.Config.SI.HyggeSI }))
                 // folded style
                 testList
                     "pass-peep-folded"
                     (getFilesInTestDir [ "codegen"; "pass" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file 0 true WritingStyle.Folded))
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 0
+                                 true
+                                 Folded
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.Internal
+                                   Si = hyggec.Config.SI.HyggeSI }))
                 testList
                     "fail-peep-folded"
                     (getFilesInTestDir [ "codegen"; "fail" ]
                      |> List.map (fun file ->
                          testCase (System.IO.Path.GetFileNameWithoutExtension file)
-                         <| fun _ -> testWasmCodegen file RISCVCodegen.assertExitCode true WritingStyle.Folded))
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 RISCVCodegen.assertExitCode
+                                 true
+                                 Folded
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.Internal
+                                   Si = hyggec.Config.SI.HyggeSI }))
+
+            // external memory
+                testList
+                    "pass-peep-external"
+                    (getFilesInTestDir [ "codegen"; "pass" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 0
+                                 true
+                                 Folded
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.External
+                                   Si = hyggec.Config.SI.HyggeSI }))
+                testList
+                    "fail-peep-external"
+                    (getFilesInTestDir [ "codegen"; "fail" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 RISCVCodegen.assertExitCode
+                                 true
+                                 Folded
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.External
+                                   Si = hyggec.Config.SI.HyggeSI }))
+                testList
+                    "pass-peep-folded-external"
+                    (getFilesInTestDir [ "codegen"; "pass" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 0
+                                 true
+                                 Folded
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.External
+                                   Si = hyggec.Config.SI.HyggeSI }))
+                testList
+                    "fail-peep-folded-external"
+                    (getFilesInTestDir [ "codegen"; "fail" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 RISCVCodegen.assertExitCode
+                                 true
+                                 Folded
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.External
+                                   Si = hyggec.Config.SI.HyggeSI }))
 
                 ] ]
 

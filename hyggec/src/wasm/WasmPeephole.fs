@@ -220,6 +220,11 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
     | subTree :: (Drop, _) :: rest when (not (hasSideEffects [subTree])) -> 
         optimizeInstr rest
 
+    // tee local drop
+    | (LocalTee (x, instrs), c) :: (Drop, _) :: rest ->
+        // should be a local.set
+        (LocalSet (x, instrs), c) :: optimizeInstr rest
+
     // if a value is pushed on the stack and then dropped, we can remove both
     | (I32Const _, _) :: (Drop, _) :: rest -> 
         optimizeInstr rest
@@ -397,6 +402,55 @@ let optimize (m: Module) : Module =
     // replace all functions with the new ones that have been optimized
     m.ReplaceFuncs(funcs')
 
+let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
+    match instrs with
+    | (LocalSet (_, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (GlobalSet (_, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32Store (instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32Store_ (_, _, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Store (instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Store_ (_, _, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (LocalTee (_, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (Call (_), _) :: rest -> 1 + countFunctionInstrs rest
+    | (CallIndirect (_), _) :: rest -> 1 + countFunctionInstrs rest
+    | (If (_, _, ifTrue, ifFalse), _) :: rest -> 1 + (countFunctionInstrs ifTrue) + (match ifFalse with | Some ifFalse -> countFunctionInstrs ifFalse | None -> 0) + countFunctionInstrs rest
+    | (Block (_, _, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (Loop (_, _, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32Load(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32Load_(_, _, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Load(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Load_(_, _, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32Eqz(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32Eq(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32LtS(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32GtS(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32LeS(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32GeS(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Eq(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Lt(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Gt(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Le(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Ge(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32Add(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32Sub(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32Mul(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32DivS(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32DivU(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32RemS(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32RemU(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32And(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32Or(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (I32Xor(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Add(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Sub(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Mul(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Div(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | _ :: rest -> countFunctionInstrs rest
+    | [] -> 0
+
+
+
+
 /// Count the number of instructions in the given module.
 let CountInstr (m: Module) : int =
     // get all functions
@@ -409,7 +463,7 @@ let CountInstr (m: Module) : int =
                 // get all instructions
                 let instrs = func.body
 
-                List.length instrs)
+                countFunctionInstrs instrs)
             funcs
 
     // return sum of all instructions
