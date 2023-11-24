@@ -9,10 +9,14 @@ open WGF.Utils
 open WGF.Instr
 open System.Text
 open SI
+open Config
 
+// static values
 let errorExitCode = 42
 let successExitCode = 0
 let mainFunctionName = "_start"
+let heapBase = "heap_base"
+let exitCode = "exit_code"
 
 /// Storage information for variables.
 [<RequireQualifiedAccess; StructuralComparison; StructuralEquality>]
@@ -112,13 +116,38 @@ let trap =
     [ (GlobalSet(Named("exit_code"), [ (I32Const errorExitCode, "error exit code push to stack") ]), "set exit code")
       (Unreachable, "exit program") ]
 
+/// check if memory is big enough to allocate size bytes
+/// if not allocate more memory
+/// return the start position of the allocated memory
+let checkMemory (size: Commented<Wasm> list) : Commented<Wasm> list =
+    [ (If(
+          [],
+          [ (I32GeS(
+                [ (I32Add([ (GlobalGet(Named(heapBase)), "get heap base") ] @ size), "find size need to allocate")
+                  (I32Mul([ (MemorySize, "memory size"); (I32Const 65536, "page size") ]), "find current size") ]
+             ),
+             "size need > current size") ],
+          [ (MemoryGrow(
+                [ (I32DivS(
+                      [ (I32Add([ (GlobalGet(Named(heapBase)), "get heap base") ] @ size), "find size need to allocate")
+                        (I32Const 65536, "page size") ]
+                   ),
+                   "grow memory!") ]
+             ),
+             "grow memory if needed")
+            (Drop, "drop new size") ],
+          None
+       ),
+       "grow memory if needed") ]
+
 type internal CodegenEnv =
     { CurrFunc: string
       ClosureFuncs: Set<string>
       MemoryAllocator: StaticMemoryAllocator
       TableController: TableController
       SymbolController: SymbolController
-      VarStorage: Map<string, Storage> }
+      VarStorage: Map<string, Storage>
+      Config: Config.CompileConfig }
 
 let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) =
     let ptr_label = $"{name}*ptr"
@@ -788,13 +817,33 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 .AddCode([ (LocalSet(Named(structPointerLabel), structm.GetAccCode()), "set struct pointer var") ]) // set struct pointer var
 
         let allocation = // allocate memory for array, return pointer to allocated memory
-            length'
-                .ResetAccCode() // length of array on stack
-                .AddImport(getImport "malloc") // import malloc function
-                .AddCode(
-                    [ (I32Mul(length'.GetAccCode() @ [ (I32Const 4, "4 bytes") ]), "multiply length with 4 to get size")
-                      (Call "malloc", "call malloc function") ]
-                )
+            match env.Config.AllocationStrategy with
+            | External ->
+                length'
+                    .ResetAccCode() // length of array on stack
+                    .AddImport(getImport "malloc") // import malloc function
+                    .AddCode(
+                        [ (I32Mul(length'.GetAccCode() @ [ (I32Const 4, "4 bytes") ]),
+                           "multiply length with 4 to get size")
+                          (Call "malloc", "call malloc function") ]
+                    )
+            | Internal ->
+                let size =
+                    [ (I32Mul(length'.GetAccCode() @ [ (I32Const 4, "4 bytes") ]), "multiply length with 4 to get size") ]
+
+                length'
+                    .ResetAccCode() // length of array on stack
+                    .AddCode(checkMemory size)
+                    .AddCode(
+                        [ (GlobalGet(Named(heapBase)), "leave current heap base address")
+                          (GlobalSet(
+                              Named(heapBase),
+                              [ (I32Add([ (GlobalGet(Named(heapBase)), "current base address") ] @ size),
+                                 "add size to heap base") ]
+                           ),
+                           "set heap base") ]
+                    )
+            | Heap -> failwith "WasmGc not implemented"
 
         // set data pointer of struct
         let instr =
@@ -1614,17 +1663,40 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // allocate memory for struct in dynamic memory
         let allocate =
-            m
-                .AddImport(getImport "malloc")
-                .AddLocals([ (Some(Identifier(structName)), I32) ])
-                .AddCode(
-                    [ (LocalSet(
-                          Named(structName),
-                          [ (I32Const(size * 4), "size of struct")
-                            (Call "malloc", "call malloc function") ]
-                       ),
-                       "set struct pointer var") ]
-                )
+            match env.Config.AllocationStrategy with
+            | External ->
+                m
+                    .AddImport(getImport "malloc")
+                    .AddLocals([ (Some(Identifier(structName)), I32) ])
+                    .AddCode(
+                        [ (LocalSet(
+                              Named(structName),
+                              [ (I32Const(size * 4), "size of struct")
+                                (Call "malloc", "call malloc function") ]
+                           ),
+                           "set struct pointer var") ]
+                    )
+            | Internal ->
+                m
+                    .AddLocals([ (Some(Identifier(structName)), I32) ])
+                    .AddCode(checkMemory [ (I32Const(size * 4), "size of struct") ])
+                    .AddCode(
+                        [ (LocalSet(
+                              Named(structName),
+                              [ (GlobalGet(Named(heapBase)), "leave current heap base address")
+                                (GlobalSet(
+                                    Named(heapBase),
+                                    [ (I32Add(
+                                          [ (GlobalGet(Named(heapBase)), "get current heap base")
+                                            (I32Const(size * 4), "size of struct") ]
+                                       ),
+                                       "add size to heap base") ]
+                                 ),
+                                 "set base pointer") ]
+                           ),
+                           "set struct pointer var") ]
+                    )
+            | Heap -> failwith "WasmGC not implemented"
 
         // fold over fields and add them to struct with indexes
         let folder =
@@ -1886,6 +1958,7 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (F32Store(instrs), c) :: rest -> [ (F32Store(localSubst instrs var), c) ] @ localSubst rest var
     | (F32Store_(align, offset, instrs), c) :: rest ->
         [ (F32Store_(align, offset, localSubst instrs var), c) ] @ localSubst rest var
+    | (MemoryGrow(instrs), c) :: rest -> [ (MemoryGrow(localSubst instrs var), c) ] @ localSubst rest var
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 
@@ -1979,7 +2052,10 @@ let codegen (node: TypedAST) : Module =
           TableController = TableController()
           SymbolController = SymbolController()
           VarStorage = Map.empty
-          ClosureFuncs = Set.empty }
+          ClosureFuncs = Set.empty
+          Config =
+            { AllocationStrategy = Internal
+              Si = HyggeSI } }
 
     // add function to module and export it
     let m' =
@@ -1996,9 +2072,6 @@ let codegen (node: TypedAST) : Module =
     let staticOffset: int = env.MemoryAllocator.GetAllocationPosition()
     let numOfStaticPages: int = env.MemoryAllocator.GetNumPages()
 
-    let heapBase = "heap_base"
-    let exitCode = "exit_code"
-
     let topLevelModule =
         m
             .AddMemory(("memory", Unbounded(numOfStaticPages))) // allocate memory need as unbounded memory
@@ -2006,7 +2079,15 @@ let codegen (node: TypedAST) : Module =
             .AddInstrs(env.CurrFunc, [ Comment "execution start here:" ])
             .AddInstrs(env.CurrFunc, m.GetAccCode()) // add code of main function
             .AddInstrs(env.CurrFunc, [ Comment "if execution reaches here, the program is successful" ])
-            .AddGlobal((heapBase, (I32, Immutable), (I32Const staticOffset, ""))) // add heap base pointer
+            .AddGlobal(
+                (heapBase,
+                 (I32,
+                  if env.Config.AllocationStrategy = External then
+                      Immutable
+                  else
+                      Mutable),
+                 (I32Const staticOffset, ""))
+            ) // add heap base pointer
             .AddGlobal((exitCode, (I32, Mutable), (I32Const 0, ""))) // add exit code
             .AddExport(heapBase + "_ptr", GlobalType("heap_base")) // export heap base pointer
             .AddExport(exitCode, GlobalType("exit_code")) // export exit code pointer

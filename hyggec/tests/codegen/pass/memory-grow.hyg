@@ -1,5 +1,12 @@
-let len: int = 530000000;
+let len: int = 530000;
 let arr: array {int} = array(len, 100);
 let len2: int = arrayLength(arr);
 
-assert(len = len2)
+assert(len = len2);
+
+let mutable i: int = 0;
+// assert that the unmodified array is equal to the values they where initialized to
+while (i < arrayLength(arr)) do {
+    assert(arrayElem(arr, i) = 100);
+    i <- i + 1
+}

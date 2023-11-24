@@ -184,6 +184,8 @@ let instrLabel i =
     | MemoryCopy(_, _) -> "memory.copy"
     | MemoryFill_(_, _, _) -> "memory.fill"
     | MemoryFill -> "memory.fill"
+    | MemoryGrow(_) -> "memory.grow"
+    | MemorySize -> "memory.size"
     | Comment(_) -> ""
 
 /// generate the wat instruction for a list of instructions
@@ -227,6 +229,8 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | F32Min -> "f32.min"
     | F32Max -> "f32.max"
     | F32Copysign -> "f32.copysign"
+    | MemoryGrow _ -> "memory.grow"
+    | MemorySize -> "memory.size"
     // declare variable
     | LocalGet l -> $"local.get %s{l.ToString()}"
     | GlobalGet index -> $"global.get %s{index.ToString()}"
@@ -381,6 +385,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
             | F32Ge instrs
             | I32Store instrs
             | F32Store instrs
+            | MemoryGrow instrs
             | I32Add instrs when style = Folded ->
                 let watCode =
                     watCode
@@ -388,6 +393,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"({instrLabel instr}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
+            | MemoryGrow instrs
             | I32GeS instrs
             | F32Ge instrs
             | F32Lt instrs

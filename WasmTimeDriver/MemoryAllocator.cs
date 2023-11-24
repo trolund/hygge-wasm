@@ -47,7 +47,7 @@ namespace WasmTimeDriver
                     var roundedPages = (int)Math.Ceiling((double)requiredPages);
 
                     mem.Grow(roundedPages);
-                    _heapSize++;
+                    _heapSize = roundedPages;
                     if (_debugMode)
                     {
                         Console.ForegroundColor = ConsoleColor.Cyan;

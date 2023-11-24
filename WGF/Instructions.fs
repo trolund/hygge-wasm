@@ -76,6 +76,8 @@ type Wasm =
     | F32Min
     | F32Max
     | F32Copysign
+    | MemorySize
+    | MemoryGrow of Wasm Commented list
     // Parametric Instr
     | Drop
     | Select

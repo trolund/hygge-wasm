@@ -342,9 +342,9 @@ namespace WasmTimeDriver
             }
             catch (Exception e)
             {
-                // if (debug) Console.WriteLine($"program {name} failed");
-                var exitCode = instance.GetGlobal("exit_code").GetValue();
-                return exitCode;
+                // mashine trap error code
+                // Console.WriteLine($"Machine trap error: {e}");
+                return 42;
             }
             return 0;
         }

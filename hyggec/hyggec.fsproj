@@ -45,6 +45,7 @@
     <Compile Include="src/RISCV/ANFRISCVCodegen.fs" />
     <Compile Include="src\RISCV\RARS.fs" />
     <Compile Include="src/Peephole.fs" />
+    <Compile Include="src/wasm/CompileConfig.fs" />
     <Compile Include="src/WasmTime.fs" />
     <Compile Include="src/wasm/SI.fs" />
     <Compile Include="src/wasm/WasmCodegen.fs" />
