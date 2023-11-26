@@ -88,7 +88,7 @@ public static class Utils
         // validate wat file and create wasm file
         Wat2Wasm(path, type);
         // only run wasm-as if folded
-        if (style == WGF.Types.WritingStyle.Folded) WasmAs(path, type);
+        // if (style == WGF.Types.WritingStyle.Folded) WasmAs(path, type);
 
     }
 

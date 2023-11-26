@@ -120,6 +120,17 @@ type Wasm =
     | If of ValueType list * list<Commented<Wasm>> * list<Commented<Wasm>> * list<Commented<Wasm>> option
     // comment
     | Comment of string
+    // wasmGC
+    // (struct.new $tup (i64.const 1) (i64.const 2) (i64.const 1))
+    | StructNew of Label * Wasm Commented * Wasm Commented list * Wasm Commented list
+    // (struct.get $tup 1 (local.get $t))
+    | StructGet of Label * uint * Wasm Commented
+    // (array.new $vec3d (f64.const 1) (i32.const 3))
+    | ArrayNew of Label * Wasm Commented * Wasm Commented 
+    // (array.set $vec3d (local.get $v) (i32.const 2) (i32.const 5))
+    | ArraySet of Label * Wasm Commented * Wasm Commented * Wasm Commented
+    // (array.get $vec3d (local.get $v) (i32.const 1))
+    | ArrayGet of Label * Wasm Commented * Wasm Commented
 
 and Instrs = Wasm list
 
