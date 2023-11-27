@@ -471,6 +471,25 @@ module Module =
                 this.hostinglist
             )
 
+        member this.AddTypedef(typedef: TypeDef) =
+            let types = Set.add typedef this.types
+
+            Module(
+                types,
+                this.functions,
+                this.tables,
+                this.memories,
+                this.globals,
+                this.exports,
+                this.imports,
+                this.start,
+                this.elements,
+                this.data,
+                this.locals,
+                this.tempCode,
+                this.funcTableSize,
+                this.hostinglist
+            )
 
         // Add a function to the module
         member this.AddFunction(name: string, f: Commented<FunctionInstance>) = this.AddFunction(name, f, false)

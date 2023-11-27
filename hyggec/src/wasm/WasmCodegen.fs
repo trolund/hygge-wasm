@@ -1648,7 +1648,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     // struct constructor
     | Struct(fields) when env.Config.AllocationStrategy = Heap -> 
-        Module()
+        let typeId = env.SymbolController.genSymbol $"sType"
+
+        let fieldNames = List.map (fun (n, _) -> n) fields
+        let fieldTypes = List.map (fun (_, t) -> t) fields
+
+        let typeParams: Param list =
+            List.map (fun (name, t: TypedAST) -> (Some(name), ((mapType (expandType t.Env t.Type))[0], Mutable))
+            ) fields
+            
+        m.AddTypedef(StructType(typeId, typeParams))
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields

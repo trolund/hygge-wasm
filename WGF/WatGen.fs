@@ -84,14 +84,26 @@ let printType (i: int, t) (withName: bool) =
             String.concat " " (List.map (fun x -> $"(result %s{x.ToString()})") returnValues)
 
         // name with suffix
-        $"{gIndent 1}(type ${name} %s{ic i} (func %s{parametersString} %s{returnValuesString}))\n"
-    | StructType(name: Identifier, types: ValueType list) ->
-        let typesString =
-            String.concat " " (List.map (fun x -> $"%s{x.ToString()}") types)
+        $"{gIndent 1}(type ${name} %s{ic i} (func {parametersString} {returnValuesString}))\n"
+    | StructType(name: Identifier, types: Param list) ->
+        // valid type: (type $buf (struct (field $pos (mut i32)) (field $chars (mut i32))))
 
-        $"{gIndent 1}(type ${name} %s{ic i} (struct %s{typesString}))\n"
+        let formatVar = fun (var: Variable) ->
+            match var with
+            | (t, Mutable) -> $"(mut {t.ToString()})"
+            | (t, Immutable) -> t.ToString()
+
+        let printParam (n: Identifier option, var: Variable) =
+            match n with
+            | Some name -> $"(field ${name} {formatVar var})"
+            | None -> $"(field %s{var.ToString()})"
+
+        let paramsString =
+            String.concat " " (List.map (fun (param) -> printParam param) types)
+
+        $"{gIndent 1}(type ${name} {ic i} (struct {paramsString}))\n"
     | ArrayType(name: Identifier, t: ValueType, size: int) ->
-        $"{gIndent 1}(type ${name} %s{ic i} (array %s{t.ToString()} %d{size}))\n"
+        $"{gIndent 1}(type ${name} {ic i} (array {t.ToString()} {size}))\n"
 
 // function that only return the label of the instruction
 // I32Const should return "i32.const"

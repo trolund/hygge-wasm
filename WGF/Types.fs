@@ -77,11 +77,7 @@ type Local = Identifier option * ValueType
 /// function parameters and return values.
 /// The signature declares what the function takes (parameters) and returns (return values)
 type FunctionSignature = Local list * ValueType list           
-            
-type TypeDef = 
-        | FuncType of Identifier * FunctionSignature
-        | StructType of Identifier * ValueType list
-        | ArrayType of Identifier * ValueType * int
+        
 
 type Table = Identifier * ValueType * Limits
 
@@ -109,7 +105,14 @@ type Start = int option
 
 type Variable = ValueType * Mutability
 
+type Param = Identifier option * Variable
+
 type TableSegment = int * int list
 
 type MemorySegment = int * string
 
+type TypeDef = 
+        | FuncType of Identifier * FunctionSignature
+        // (type $buf (struct (field $pos (mut i64)) (field $chars (ref $char-array))))
+        | StructType of Identifier * Param list
+        | ArrayType of Identifier * ValueType * int
