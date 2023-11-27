@@ -5,13 +5,15 @@ module Module =
     open WGF.Types
     open WGF.WatGen
     open WGF.Instr
-   
+    open Types
+    open Utils
+
     /// define a module
     [<RequireQualifiedAccess>]
     type Module
         private
         (
-            types: Set<Type>,
+            types: Set<TypeDef>,
             functions: Map<string, Commented<FunctionInstance>>,
             tables: seq<Table>,
             memories: Set<Memory>,
@@ -26,7 +28,7 @@ module Module =
             funcTableSize: int,
             hostinglist
         ) =
-        member private this.types: Set<Type> = types
+        member private this.types: Set<TypeDef> = types
         member private this.functions = functions
         member private this.tables = tables
         member private this.memories: Set<Memory> = memories
@@ -302,17 +304,18 @@ module Module =
                     this.funcTableSize,
                     this.hostinglist
                 )
-            | VarType.Global ->
+            | Global ->
                 // map local to global
-                let vars: Global list = vars |> List.map (fun (name, t) -> 
-                    match name with
-                    | Some name -> 
-                        match t with
-                        | ValueType.I32 -> (name, (I32, Mutable), (I32Const 0, ""))
-                        | ValueType.F32 -> (name, (F32, Mutable), (F32Const 0.0f, ""))
-                        | _ -> failwith "keep it wasm32"
-                    | None -> failwith "global must have name"
-                )
+                let vars: Global list =
+                    vars
+                    |> List.map (fun (name, t) ->
+                        match name with
+                        | Some name ->
+                            match t with
+                            | I32 -> (name, (I32, Mutable), (I32Const 0, ""))
+                            | F32 -> (name, (F32, Mutable), (F32Const 0.0f, ""))
+                            | _ -> failwith "keep it wasm32"
+                        | None -> failwith "global must have name")
 
                 let globals = vars @ Set.toList this.globals
 
@@ -473,7 +476,8 @@ module Module =
         member this.AddFunction(name: string, f: Commented<FunctionInstance>) = this.AddFunction(name, f, false)
 
         member this.AddFunction(name: string, f: Commented<FunctionInstance>, addTypedef: bool) =
-            // add typedef
+            // handle func typedef
+            // add typedef to types
             let (types, f') =
                 if addTypedef then
                     let typeIndex = this.types.Count
@@ -487,11 +491,13 @@ module Module =
 
                     let typeS = Utils.GenFuncTypeID typedef
 
-                    let typedef = (typeS, typedef)
+                    let typedef = FuncType(typeS, typedef)
 
-                    let set = Set(List.distinctBy (fun l -> fst l) (typedef :: Set.toList this.types))
+                    let newTypes = (Set.add typedef this.types)
 
-                    set, f'
+                    let set = distinctTypes newTypes
+
+                    Set(set), f'
                 else
                     this.types, f
 
@@ -645,7 +651,7 @@ module Module =
         // combine two wasm modules
         member this.Combine(m: Module) =
             Module(
-                Set.ofSeq (Seq.distinctBy (fun l -> fst l) (Set.union this.types m.types)),
+                Set(distinctTypes (Set.union this.types m.types)),
                 Map.fold (fun acc key value -> Map.add key value acc) this.functions m.functions,
                 Seq.append this.tables m.tables,
                 Set.union this.memories m.memories,
@@ -667,23 +673,24 @@ module Module =
 
         static member (++)(instr: Commented<Instr.Wasm> list, wasm2: Module) : Module = Module(instr).Combine wasm2
 
-        static member (@)(wasm1: Instrs list, wasm2: Commented<Instrs> list) =
-            let instrs = wasm1 |> List.map (fun x -> Commented(x, ""))
-            instrs @ wasm2
+        // static member (@)(wasm1: Instrs list, wasm2: Commented<Instrs> list) =
+        //     let instrs = wasm1 |> List.map (fun x -> Commented(x, ""))
+        //     instrs @ wasm2
 
-        static member (@)(wasm1: Commented<Instrs> list, wasm2: Instrs list) =
-            let instrs = wasm2 |> List.map (fun x -> Commented(x, ""))
-            wasm1 @ instrs
+        // static member (@)(wasm1: Commented<Instrs> list, wasm2: Instrs list) =
+        //     let instrs = wasm2 |> List.map (fun x -> Commented(x, ""))
+        //     wasm1 @ instrs
 
-        static member (@)(wasm1: Commented<Instrs> list, wasm2: Commented<Instrs> list) = wasm1 @ wasm2
+        // static member (@)(wasm1: Commented<Instrs> list, wasm2: Commented<Instrs> list) = wasm1 @ wasm2
 
         override this.ToString() = this.ToWat()
 
         member this.ToWat(?style: WritingStyle) =
 
-            let style = match style with
-                        | Some style -> style
-                        | None -> Linar
+            let style =
+                match style with
+                | Some style -> style
+                | None -> Linar
 
             let mutable result = ""
 
@@ -716,10 +723,10 @@ module Module =
                          | MemoryType memory -> $"(memory %s{memory.ToString()})"
                          | _ -> "")
             // print all memories
-            for i, (name, Limits) in List.indexed (Set.toList this.memories) do
+            for i, (name, limits) in List.indexed (Set.toList this.memories) do
                 result <-
                     result
-                    + $"{gIndent 1}(memory %s{ic i} (export \"%s{name}\") %s{Limits.ToString()})\n"
+                    + $"{gIndent 1}(memory %s{ic i} (export \"%s{name}\") %s{limits.ToString()})\n"
 
             // print all globals
             for global_ in List.indexed (Set.toList this.globals) do

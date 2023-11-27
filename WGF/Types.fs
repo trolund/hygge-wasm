@@ -78,7 +78,10 @@ type Local = Identifier option * ValueType
 /// The signature declares what the function takes (parameters) and returns (return values)
 type FunctionSignature = Local list * ValueType list           
             
-type Type = Identifier * FunctionSignature
+type TypeDef = 
+        | FuncType of Identifier * FunctionSignature
+        | StructType of Identifier * ValueType list
+        | ArrayType of Identifier * ValueType * int
 
 type Table = Identifier * ValueType * Limits
 

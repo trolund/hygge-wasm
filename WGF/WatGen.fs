@@ -61,30 +61,37 @@ let generate_local (locals: (string option * 'a) list) =
 
 /// format type as a string
 let printType (i: int, t) (withName: bool) =
-    let name, signature = t
-    let parameters, returnValues = signature
+    match t with
+    | FuncType(name: Identifier, signature: FunctionSignature) ->
 
-    let parametersString =
-        String.concat
-            " "
-            (List.map
-                (fun (n, t) ->
-                    match n with
-                    | Some name ->
-                        if withName then
-                            $"(param $%s{name} %s{t.ToString()})"
-                        else
-                            $"(param %s{t.ToString()})"
-                    | None -> $"(param %s{t.ToString()})")
-                parameters)
+        let (parameters: Local list), (returnValues: ValueType list) = signature
 
-    let returnValuesString =
-        String.concat " " (List.map (fun x -> $"(result %s{x.ToString()})") returnValues)
+        let parametersString =
+            String.concat
+                " "
+                (List.map
+                    (fun (n, t) ->
+                        match n with
+                        | Some name ->
+                            if withName then
+                                $"(param $%s{name} %s{t.ToString()})"
+                            else
+                                $"(param %s{t.ToString()})"
+                        | None -> $"(param %s{t.ToString()})")
+                    parameters)
 
-    // name with suffix
-    $"{gIndent 1}(type $%s{name} %s{ic i} (func %s{parametersString} %s{returnValuesString}))\n"
+        let returnValuesString =
+            String.concat " " (List.map (fun x -> $"(result %s{x.ToString()})") returnValues)
 
+        // name with suffix
+        $"{gIndent 1}(type ${name} %s{ic i} (func %s{parametersString} %s{returnValuesString}))\n"
+    | StructType(name: Identifier, types: ValueType list) ->
+        let typesString =
+            String.concat " " (List.map (fun x -> $"%s{x.ToString()}") types)
 
+        $"{gIndent 1}(type ${name} %s{ic i} (struct %s{typesString}))\n"
+    | ArrayType(name: Identifier, t: ValueType, size: int) ->
+        $"{gIndent 1}(type ${name} %s{ic i} (array %s{t.ToString()} %d{size}))\n"
 
 // function that only return the label of the instruction
 // I32Const should return "i32.const"

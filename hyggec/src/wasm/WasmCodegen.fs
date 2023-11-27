@@ -1647,6 +1647,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         doCodegen env scope m
 
     // struct constructor
+    | Struct(fields) when env.Config.AllocationStrategy = Heap -> 
+        Module()
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields

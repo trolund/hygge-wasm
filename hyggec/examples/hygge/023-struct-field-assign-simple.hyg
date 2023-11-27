@@ -1,0 +1,2 @@
+let s1: struct {f: int} = struct {f = 1 + 2};
+10

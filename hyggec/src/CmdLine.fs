@@ -94,6 +94,9 @@ type CompilerOptions = {
     [<Option('o', "output-file", HelpText="Save the generated assembly code on the given file. (Default: don't save, print on the terminal)")>]
     OutFile: Option<string>;
 
+    [<Option('m', "memory", HelpText="Memory allocation strategy (default: 0, i.e. external, internal: 1, heap using WasmGC: 2.)")>]
+    MemoryStrategy: Option<uint>
+
     [<Option('s', "style", HelpText="WAT writing style (linar (l, Default)  or folded (f))")>]
     Style: Option<string>;
 

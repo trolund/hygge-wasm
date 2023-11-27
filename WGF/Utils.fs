@@ -42,3 +42,12 @@ let writeWasmFile (wasm: string) (path: string) =
     let bytes = wasm |> Encoding.UTF8.GetBytes
     file.Write(bytes, 0, bytes.Length)
     file.Close()
+
+let distinctTypes types =
+    List.distinctBy
+        (fun l ->
+            match l with
+            | FuncType(name, _) -> name
+            | StructType(name, _) -> name
+            | ArrayType(name, _, _) -> name)
+        (Set.toList types)
