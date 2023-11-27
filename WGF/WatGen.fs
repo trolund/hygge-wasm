@@ -187,7 +187,7 @@ let instrLabel i =
     | Loop _ -> "loop"
     | If _ -> "if"
     | Else(_, _, _, _) -> "else"
-    | Drop -> "drop"
+    | Drop _ -> "drop"
     | Select -> "select"
     | Local(_, _) -> "local"
     | TableGet(_) -> "table.get"
@@ -259,7 +259,8 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | Return -> "return"
     | Call name -> $"call $%s{name}"
     | CallIndirect(label, instrs) -> $"call_indirect (type %s{label.ToString()})"
-    | Drop -> "drop"
+    | Drop _ -> "drop"
+    | Drop_ -> "drop"
     | Select -> "select"
     | RefFunc label -> $"ref.func %s{label.ToString()}"
     | MemoryFill -> "memory.fill"
@@ -404,6 +405,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
             | I32Store instrs
             | F32Store instrs
             | MemoryGrow instrs
+            | Drop instrs
             | I32Add instrs when style = Folded ->
                 let watCode =
                     watCode
@@ -411,6 +413,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"({instrLabel instr}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
+            | Drop instrs
             | MemoryGrow instrs
             | I32GeS instrs
             | F32Ge instrs

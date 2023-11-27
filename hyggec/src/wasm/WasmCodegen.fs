@@ -127,15 +127,18 @@ let checkMemory (size: Commented<Wasm> list) : Commented<Wasm> list =
                   (I32Mul([ (MemorySize, "memory size"); (I32Const 65536, "page size") ]), "find current size") ]
              ),
              "size need > current size") ],
-          [ (MemoryGrow(
-                [ (I32DivS(
-                      [ (I32Add([ (GlobalGet(Named(heapBase)), "get heap base") ] @ size), "find size need to allocate")
-                        (I32Const 65536, "page size") ]
+          [ (Drop(
+                [ (MemoryGrow(
+                      [ (I32DivS(
+                            [ (I32Add([ (GlobalGet(Named(heapBase)), "get heap base") ] @ size),
+                               "find size need to allocate")
+                              (I32Const 65536, "page size") ]
+                         ),
+                         "grow memory!") ]
                    ),
-                   "grow memory!") ]
+                   "grow memory if needed") ]
              ),
-             "grow memory if needed")
-            (Drop, "drop new size") ],
+             "drop new size") ],
           None
        ),
        "grow memory if needed") ]
@@ -374,7 +377,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 (doCodegen env e m) + (doCodegen env assignode m)
             | _ -> failwith "not implemented"
 
-        instrs.AddCode([ Drop ])
+        instrs.ResetAccCode().AddCode([ Drop(instrs.GetAccCode()) ])
     | PreDcr(e) ->
         let valNode =
             match (expandType e.Env e.Type) with
@@ -398,7 +401,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             { node with
                 Expr = Assign(e, { node with Expr = Sub(e, valNode) }) }
 
-        ((doCodegen env e m) + (doCodegen env assignode m)).AddCode([ Drop ])
+        let assignModule = (doCodegen env assignode m)
+
+        ((doCodegen env e m) + assignModule.ResetAccCode()).AddCode([ Drop(assignModule.GetAccCode()) ])
     | MinAsg(lhs, rhs) ->
         doCodegen
             env
@@ -709,14 +714,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // this may be a unit value
                 if (i = lastIndex) then
                     // return last node
+                    // todo just use new Module()
                     m + doCodegen env node (m.ResetAccCode())
                 else
                     // return node
                     match node.Type with
                     | TUnit -> m + doCodegen env node (m.ResetAccCode())
                     | _ ->
+                        let subTree = (doCodegen env node (m.ResetAccCode()))
                         // drop value if it is not needed
-                        m + ((doCodegen env node (m.ResetAccCode())).AddCode([ Drop ])))
+                        (m + subTree.ResetAccCode()).AddCode([ (Drop(subTree.GetAccCode()), "drop value of subtree") ]))
             m
             (List.indexed nodes)
 
@@ -727,19 +734,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let exitl = env.SymbolController.genSymbol $"loop_exit"
         let beginl = env.SymbolController.genSymbol $"loop_begin"
 
-        let mayDrop =
+        let body'' =
             if (expandType body.Env body.Type) = TUnit then
-                []
+                body'.GetAccCode()
             else
-                [ Drop ]
+                [ (Drop(body'.GetAccCode()), "drop value of loop body") ]
 
         let loop =
             C
                 [ Loop(
                       beginl,
                       [],
-                      [ (BrIf(exitl, [(I32Eqz(cond'.GetAccCode()), "evaluate loop condition")]), "if false break") ]
-                      @ body'.GetAccCode() @ C mayDrop
+                      [ (BrIf(exitl, [ (I32Eqz(cond'.GetAccCode()), "evaluate loop condition") ]), "if false break") ]
+                      @ body'' 
                       @ [ (Br beginl, "jump to beginning of loop") ]
                   ) ]
 
@@ -748,27 +755,30 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         (cond'.ResetAccCode() + body'.ResetAccCode()).AddCode(block)
 
     | DoWhile(cond, body) ->
+
+        let body' = (doCodegen env body m) 
         // insert drop if body is not unit
         let mayDrop =
             if (expandType body.Env body.Type) = TUnit then
-                []
+                body'.GetAccCode()
             else
-                [ Drop ]
+                [ (Drop(body'.GetAccCode()), "drop value of the body") ]
 
-        (doCodegen env body m).AddCode(mayDrop)
+        body'.ResetAccCode().AddCode(mayDrop)
         ++ (doCodegen env { node with Expr = While(cond, body) } m)
 
     | For(init, cond, update, body) ->
         // the init expression is evaluated before the loop
         // the init expresstion is not allowed to return a value
         // therefore we drop the value if it is not unit
+        let init' = (doCodegen env init m)
         let mayDrop =
             if (expandType init.Env init.Type) = TUnit then
-                []
+                init'.GetAccCode()
             else
-                [ Drop ]
+                [ (Drop(init'.GetAccCode()), "drop value of init node") ]
 
-        (doCodegen env init m).AddCode(mayDrop)
+        init'.ResetAccCode().AddCode(mayDrop)
         ++ (doCodegen
                 env
                 { node with
@@ -900,7 +910,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ Loop(
                       beginl,
                       [], // loops does not return anything
-                      [ (BrIf(exitl, C [ I32Eq(length'.GetAccCode() @ [ (LocalGet(Named i), "get i") ])]), "") ]
+                      [ (BrIf(exitl, C [ I32Eq(length'.GetAccCode() @ [ (LocalGet(Named i), "get i") ]) ]), "") ]
                       @ body
                       @ [ (LocalSet(
                               Named i,
@@ -1647,16 +1657,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         doCodegen env scope m
 
     // struct constructor
-    | Struct(fields) when env.Config.AllocationStrategy = Heap -> 
+    | Struct(fields) when env.Config.AllocationStrategy = Heap ->
         let typeId = env.SymbolController.genSymbol $"sType"
 
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
 
         let typeParams: Param list =
-            List.map (fun (name, t: TypedAST) -> (Some(name), ((mapType (expandType t.Env t.Type))[0], Mutable))
-            ) fields
-            
+            List.map (fun (name, t: TypedAST) -> (Some(name), ((mapType (expandType t.Env t.Type))[0], Mutable))) fields
+
         m.AddTypedef(StructType(typeId, typeParams))
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
@@ -1966,6 +1975,7 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
         [ (F32Store_(align, offset, localSubst instrs var), c) ] @ localSubst rest var
     | (MemoryGrow(instrs), c) :: rest -> [ (MemoryGrow(localSubst instrs var), c) ] @ localSubst rest var
     | (BrIf(l, instrs), c) :: rest -> [ (BrIf(l, localSubst instrs var), c) ] @ localSubst rest var
+    | (Drop(instrs), c) :: rest -> [ (Drop(localSubst instrs var), c) ] @ localSubst rest var
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 
@@ -2052,7 +2062,10 @@ let codegen (node: TypedAST) (config: CompileConfig option) : Module =
            name = Some(Identifier(funcName)) },
          "entry point of program (main function)")
 
-    let allocationStrategy = match config with | Some(c) -> c.AllocationStrategy | None -> Internal
+    let allocationStrategy =
+        match config with
+        | Some(c) -> c.AllocationStrategy
+        | None -> Internal
 
     /// Environment used during code generation
     let env =

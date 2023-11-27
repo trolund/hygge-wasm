@@ -79,7 +79,8 @@ type Wasm =
     | MemorySize
     | MemoryGrow of Wasm Commented list
     // Parametric Instr
-    | Drop
+    | Drop of Wasm Commented list
+    | Drop_
     | Select
     // Variable Instr
     | Local of Label * ValueType // https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Variables/Local

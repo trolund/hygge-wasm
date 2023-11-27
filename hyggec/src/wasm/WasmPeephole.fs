@@ -217,21 +217,21 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
     // | (I32Mul, c1) :: (I32Mul, c2) :: rest -> 
     //     (I32Mul, c1 + c2) :: optimizeInstr rest
 
-    | subTree :: (Drop, _) :: rest when (not (hasSideEffects [subTree])) -> 
-        optimizeInstr rest
+    // | subTree :: (Drop, _) :: rest when (not (hasSideEffects [subTree])) -> 
+    //     optimizeInstr rest
 
-    // tee local drop
-    | (LocalTee (x, instrs), c) :: (Drop, _) :: rest ->
-        // should be a local.set
-        (LocalSet (x, instrs), c) :: optimizeInstr rest
+    // // tee local drop
+    // | (LocalTee (x, instrs), c) :: (Drop, _) :: rest ->
+    //     // should be a local.set
+    //     (LocalSet (x, instrs), c) :: optimizeInstr rest
 
-    // if a value is pushed on the stack and then dropped, we can remove both
-    | (I32Const _, _) :: (Drop, _) :: rest -> 
-        optimizeInstr rest
+    // // if a value is pushed on the stack and then dropped, we can remove both
+    // | (I32Const _, _) :: (Drop, _) :: rest -> 
+    //     optimizeInstr rest
 
-    // global.get and then drop
-    | (GlobalGet _, _) :: (Drop, _) :: rest ->
-        optimizeInstr rest
+    // // global.get and then drop
+    // | (GlobalGet _, _) :: (Drop, _) :: rest ->
+    //     optimizeInstr rest
 
     // terverse nested nodes
     // terverse if
