@@ -1704,8 +1704,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let typeParams: Param list =
             List.map (fun (name, t: TypedAST) -> (Some(name), ((mapType (expandType t.Env t.Type))[0], Mutable))) fields
-        
-        let initFields: Wasm Commented list = [(I32Const(2), "")]
 
         // fold over fields and add them to struct with indexes
         let folder =

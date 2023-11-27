@@ -206,7 +206,7 @@ let instrLabel i =
     | MemoryGrow(_) -> "memory.grow"
     | MemorySize -> "memory.size"
     | StructNew(_, _) -> "struct.new"
-    | StructGet(name, index, _) -> $"struct.get %s{name.ToString()} %d{index}"
+    | StructGet(name, index, _) -> $"struct.get"
     | Comment(_) -> ""
 
 /// generate the wat instruction for a list of instructions
@@ -387,12 +387,32 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail s indent
             | StructNew(label, instrs: Commented<Wasm> list) when style = Linar ->
+                let innerWat = aux instrs "" (indent)
+
+                let s =
+                    watCode
+                    + innerWat
+                    + space
+                    + $"struct.new %s{label.ToString()}\n"
+
+                aux tail s indent
+            | StructGet(label, index, instrs: Commented<Wasm> list) when style = Folded ->
                 let innerWat = aux instrs "" (indent + 1)
 
                 let s =
                     watCode
                     + space
-                    + $"struct.new %s{label.ToString()}\n{innerWat}{gIndent (indent)}end\n"
+                    + $"(struct.get %s{label.ToString()} %d{index}\n{innerWat}{gIndent (indent)})\n"
+
+                aux tail s indent
+            | StructGet(label, index, instrs: Commented<Wasm> list) when style = Linar ->
+                let innerWat = aux instrs "" (indent)
+
+                let s =
+                    watCode
+                    + innerWat
+                    + space
+                    + $"struct.get %s{label.ToString()} %d{index}\n"
 
                 aux tail s indent
             // foled instructions

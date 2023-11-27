@@ -1,3 +1,10 @@
 let s1: struct {f: int} = struct {f = 1 + 2};
 
-assert(s1.f = 3)
+assert(s1.f = 3);
+
+let f: () -> unit = fun() -> {
+    let s1: struct {f: int} = struct {f = 1 + 2 + 3};
+    assert(s1.f = 6)
+};
+
+f()
