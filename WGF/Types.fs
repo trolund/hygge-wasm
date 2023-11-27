@@ -37,6 +37,9 @@ type ValueType =
         // reference types
         | Externref
         | Funcref
+        | Ref of Label
+        | Nullref
+        | Null
 
         override this.ToString() =
             match this with
@@ -46,6 +49,10 @@ type ValueType =
             | F64 -> "f64"
             | Externref -> "externref"
             | Funcref -> "funcref"
+            // todo: ref null
+            | Ref l -> $"(ref null {l})"
+            | Nullref -> "ref.null"
+            | Null -> "null"
 
 type BlockType =
         | Type of ValueType

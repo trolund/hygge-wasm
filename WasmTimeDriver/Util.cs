@@ -77,6 +77,32 @@ public static class Utils
         }
     }
 
+    // run wasm-tools
+    // wasm-tools parse struct_working.wat -o struct_working.wasm
+    public static void WasmTools(string path, string type) 
+    {
+        // create directory if not exists
+        var folded = Path.GetDirectoryName($"{_tempPath}/{type}/folded/wasm/");
+        if (!Directory.Exists(folded))
+        {
+            Directory.CreateDirectory(folded);
+        }
+
+        var fileName = GetFileName(path);
+        var wasmPath = $"{_tempPath}/{type}/folded/wasm/{fileName}.wasm";
+        var wasmTools = $"wasm-tools parse {path} -o {wasmPath}";
+        var process = System.Diagnostics.Process.Start("bash", $"-c \"{wasmTools}\"");
+
+        process.WaitForExit();
+
+        // Check the exit code to determine if there was an error
+        if (process.ExitCode != 0)
+        {
+            Console.WriteLine($"wasm-tools: The process exited with an error. Exit code: {process.ExitCode}, test: {fileName}");
+            throw new Exception($"wasm-tools: The process exited with an error. Exit code: {process.ExitCode}");
+        }
+    }
+
     public static void Createfile(string name, string wat, WGF.Types.WritingStyle style)
     {
         var fileName = GetFileName(name);
@@ -86,7 +112,8 @@ public static class Utils
         WriteToFile(path, wat);
 
         // validate wat file and create wasm file
-        Wat2Wasm(path, type);
+        // Wat2Wasm(path, type);
+        WasmTools(path, type);
         // only run wasm-as if folded
         // if (style == WGF.Types.WritingStyle.Folded) WasmAs(path, type);
 

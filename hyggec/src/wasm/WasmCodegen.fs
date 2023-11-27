@@ -216,6 +216,13 @@ let internal lookupLatestLocal (m: Module) =
     | Some(n), _ -> n
     | None, _ -> failwith "failed to find name of the lastest local var"
 
+let internal lookupLatestType (m: Module) =
+    let types = Set.toList (m.GetTypes())
+    match List.last types with
+    | v -> v
+    | _ -> failwith "failed to find name of the lastest local var"
+
+
 let internal argsToLocals env args =
     List.map (fun (n, t) -> (Some(lookupLabel env n), (mapType t)[0])) args
 
@@ -403,7 +410,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let assignModule = (doCodegen env assignode m)
 
-        ((doCodegen env e m) + assignModule.ResetAccCode()).AddCode([ Drop(assignModule.GetAccCode()) ])
+        ((doCodegen env e m) + assignModule.ResetAccCode())
+            .AddCode([ Drop(assignModule.GetAccCode()) ])
     | MinAsg(lhs, rhs) ->
         doCodegen
             env
@@ -723,7 +731,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     | _ ->
                         let subTree = (doCodegen env node (m.ResetAccCode()))
                         // drop value if it is not needed
-                        (m + subTree.ResetAccCode()).AddCode([ (Drop(subTree.GetAccCode()), "drop value of subtree") ]))
+                        (m + subTree.ResetAccCode())
+                            .AddCode([ (Drop(subTree.GetAccCode()), "drop value of subtree") ]))
             m
             (List.indexed nodes)
 
@@ -746,7 +755,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       beginl,
                       [],
                       [ (BrIf(exitl, [ (I32Eqz(cond'.GetAccCode()), "evaluate loop condition") ]), "if false break") ]
-                      @ body'' 
+                      @ body''
                       @ [ (Br beginl, "jump to beginning of loop") ]
                   ) ]
 
@@ -756,7 +765,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     | DoWhile(cond, body) ->
 
-        let body' = (doCodegen env body m) 
+        let body' = (doCodegen env body m)
         // insert drop if body is not unit
         let mayDrop =
             if (expandType body.Env body.Type) = TUnit then
@@ -772,6 +781,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // the init expresstion is not allowed to return a value
         // therefore we drop the value if it is not unit
         let init' = (doCodegen env init m)
+
         let mayDrop =
             if (expandType init.Env init.Type) = TUnit then
                 init'.GetAccCode()
@@ -1274,17 +1284,25 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     match (expandType name.Env name.Type) with
                     | t when (isSubtypeOf value.Env t TUnit) -> [] // Nothing to do
                     | t when (isSubtypeOf value.Env t TFloat) ->
-                        [ (F32Store_(None, Some(offset * 4), selTargetCode.GetAccCode() @ rhsCode.GetAccCode()),
-                           "store float in struct") ]
                         // load value just to leave a value on the stack
-
-                        @ [ (F32Load_(None, Some(offset * 4), selTargetCode.GetAccCode()), "load float from struct") ]
+                        [ (F32Load_(
+                              None,
+                              Some(offset * 4),
+                              selTargetCode.GetAccCode()
+                              @ [ (F32Store_(None, Some(offset * 4), selTargetCode.GetAccCode() @ rhsCode.GetAccCode()),
+                                   "store float in struct") ]
+                           ),
+                           "load float from struct") ]
                     | _ ->
-                        [ (I32Store_(None, Some(offset * 4), selTargetCode.GetAccCode() @ rhsCode.GetAccCode()),
-                           "store int in struct") ]
                         // load value just to leave a value on the stack
-
-                        @ [ (I32Load_(None, Some(offset * 4), selTargetCode.GetAccCode()), "load int from struct") ]
+                        [ (I32Load_(
+                              None,
+                              Some(offset * 4),
+                              selTargetCode.GetAccCode()
+                              @ [ (I32Store_(None, Some(offset * 4), selTargetCode.GetAccCode() @ rhsCode.GetAccCode()),
+                                   "store int in struct") ]
+                           ),
+                           "load int from struct") ]
 
                 // Put everything together
                 assignCode ++ (rhsCode.ResetAccCode() + selTargetCode.ResetAccCode())
@@ -1499,6 +1517,25 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             ++ combi
                 .AddLocals([ (Some(Identifier(varName)), I32) ])
                 .AddCode([ Comment "End of let" ])
+        | TStruct _ when env.Config.AllocationStrategy = Heap ->
+            let varLabel = Named(varName)
+            let initCode = m'.GetAccCode()
+
+            let t = match lookupLatestType m' with 
+                                | StructType (l, _) -> l
+                                | _ -> failwith "not a struct"
+
+            let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
+
+            let scopeCode = (doCodegen env' scope (m'.ResetAccCode()))
+
+            let combi = (instrs ++ scopeCode + m.ResetAccCode())
+
+            C [ Comment "Start of let" ]
+            ++ m'.ResetAccCode()
+            ++ combi
+                .AddLocals([ (Some(Identifier(varName)), Ref(Named(t))) ])
+                .AddCode([ Comment "End of let" ])
         | TStruct _ ->
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
@@ -1659,14 +1696,23 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     // struct constructor
     | Struct(fields) when env.Config.AllocationStrategy = Heap ->
         let typeId = env.SymbolController.genSymbol $"sType"
+        let typeLabel = Named(typeId)
+        let structName = env.SymbolController.genSymbol $"Sptr"
 
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
 
         let typeParams: Param list =
             List.map (fun (name, t: TypedAST) -> (Some(name), ((mapType (expandType t.Env t.Type))[0], Mutable))) fields
+        
+        let initFields: Wasm Commented list = [(I32Const(2), "")]
 
-        m.AddTypedef(StructType(typeId, typeParams))
+        let m' = [ (LocalTee(Named(structName), [(StructNew(typeLabel, initFields), "")])) ]
+
+        m
+            .AddTypedef(StructType(typeId, typeParams))
+            .AddLocals([ (Some(Identifier(structName)), Ref(typeLabel)) ])
+            .AddCode(m')
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
@@ -2035,7 +2081,8 @@ let hoistingLocals (m: Module) (upgradeList: list<string>) : Module =
                     match t with
                     | I32 -> I32Const 0
                     | F32 -> F32Const 0.0f
-                    | _ -> failwith "not implemented"
+                    | Ref l -> Null l
+                    | _ -> failwith "global type not supported"
 
                 (n, (t, Mutable), (value, "")))
             upgradeList

@@ -205,6 +205,7 @@ let instrLabel i =
     | MemoryFill -> "memory.fill"
     | MemoryGrow(_) -> "memory.grow"
     | MemorySize -> "memory.size"
+    | StructNew(_, _) -> "struct.new"
     | Comment(_) -> ""
 
 /// generate the wat instruction for a list of instructions
@@ -266,6 +267,8 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | MemoryFill -> "memory.fill"
     | MemoryFill_(offset, value, size) -> $"memory.fill offset=%d{offset} value=%d{value} size=%d{size}"
     | Comment comment -> $";; %s{comment}"
+    | StructNew(name, instrs) -> $"struct.new %s{name.ToString()}"
+    | Null l -> $"ref.null {l.ToString()}"
     | _ -> failwith "not implemented"
 
 let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
@@ -372,7 +375,24 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                         + $"if {resultPrint types}\n{innerWatTrue}{gIndent (indent)}end\n"
 
                     aux tail s indent
+            | StructNew(label, instrs: Commented<Wasm> list) when style = Folded ->
+                let innerWat = aux instrs "" (indent + 1)
 
+                let s =
+                    watCode
+                    + space
+                    + $"(struct.new %s{label.ToString()}\n{innerWat}{gIndent (indent)})\n"
+
+                aux tail s indent
+            | StructNew(label, instrs: Commented<Wasm> list) when style = Linar ->
+                let innerWat = aux instrs "" (indent + 1)
+
+                let s =
+                    watCode
+                    + space
+                    + $"struct.new %s{label.ToString()}\n{innerWat}{gIndent (indent)}end\n"
+
+                aux tail s indent
             // foled instructions
             | I32Sub instrs
             | I32Mul instrs
@@ -406,6 +426,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
             | F32Store instrs
             | MemoryGrow instrs
             | Drop instrs
+            | StructNew (_, instrs)
             | I32Add instrs when style = Folded ->
                 let watCode =
                     watCode
@@ -413,6 +434,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"({instrLabel instr}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
+            | StructNew (_, instrs)
             | Drop instrs
             | MemoryGrow instrs
             | I32GeS instrs

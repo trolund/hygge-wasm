@@ -241,6 +241,9 @@ module Module =
                 this.hostinglist
             )
 
+        // get types
+        member this.GetTypes() = this.types
+
         // get temp code
         member this.GetAccCode() = this.tempCode
 
