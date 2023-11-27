@@ -1707,9 +1707,21 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         
         let initFields: Wasm Commented list = [(I32Const(2), "")]
 
-        let m' = [ (LocalTee(Named(structName), [(StructNew(typeLabel, initFields), "")])) ]
+        // fold over fields and add them to struct with indexes
+        let folder =
+            fun (acc: Module) (_: int, _: string, fieldInit: TypedAST) ->
+                // initialize field
+                let initField = doCodegen env fieldInit m
 
-        m
+                // accumulate code
+                acc ++ initField
+
+        let fieldsInitCode =
+            List.fold folder m (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
+
+        let m' = [ (LocalTee(Named(structName), [(StructNew(typeLabel, fieldsInitCode.GetAccCode()), "")])) ]
+
+        fieldsInitCode.ResetAccCode()
             .AddTypedef(StructType(typeId, typeParams))
             .AddLocals([ (Some(Identifier(structName)), Ref(typeLabel)) ])
             .AddCode(m')
@@ -1810,6 +1822,27 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         C [ Comment "start of struct contructor" ]
         ++ combined.AddCode(C [ Comment "end of struct contructor" ])
+    | FieldSelect(target, field) when env.Config.AllocationStrategy = Heap ->    
+        let selTargetCode = doCodegen env target m
+
+        let fieldAccessCode =
+            match (expandType target.Env target.Type) with
+            | TStruct(fields) ->
+                let fieldNames, fieldTypes = List.unzip fields
+                let offset = List.findIndex (fun f -> f = field) fieldNames
+                
+                // TODO: find type label dynamically
+                [(StructGet(Named("sType"), offset, selTargetCode.GetAccCode()), $"load field: {fieldNames[offset]}" )]
+
+            | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
+
+        // Put everything together: compile the target, access the field
+        selTargetCode.ResetAccCode()
+        ++ m.AddCode(
+            C [ Comment "Start of field select" ]
+            @ fieldAccessCode
+            @ C [ Comment "End of field select" ]
+        )
     | FieldSelect(target, field) ->
         let selTargetCode = doCodegen env target m
 
@@ -2022,6 +2055,8 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (MemoryGrow(instrs), c) :: rest -> [ (MemoryGrow(localSubst instrs var), c) ] @ localSubst rest var
     | (BrIf(l, instrs), c) :: rest -> [ (BrIf(l, localSubst instrs var), c) ] @ localSubst rest var
     | (Drop(instrs), c) :: rest -> [ (Drop(localSubst instrs var), c) ] @ localSubst rest var
+    | (StructNew(l, instrs), c) :: rest -> [ (StructNew(l, localSubst instrs var), c) ] @ localSubst rest var
+    | (StructGet(l, offset, instrs), c) :: rest -> [ (StructGet(l, offset, localSubst instrs var), c) ] @ localSubst rest var
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 

@@ -206,6 +206,7 @@ let instrLabel i =
     | MemoryGrow(_) -> "memory.grow"
     | MemorySize -> "memory.size"
     | StructNew(_, _) -> "struct.new"
+    | StructGet(name, index, _) -> $"struct.get %s{name.ToString()} %d{index}"
     | Comment(_) -> ""
 
 /// generate the wat instruction for a list of instructions
@@ -268,6 +269,7 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | MemoryFill_(offset, value, size) -> $"memory.fill offset=%d{offset} value=%d{value} size=%d{size}"
     | Comment comment -> $";; %s{comment}"
     | StructNew(name, instrs) -> $"struct.new %s{name.ToString()}"
+    | StructGet(name, index, instrs) -> $"struct.get %s{name.ToString()} %d{index}"
     | Null l -> $"ref.null {l.ToString()}"
     | _ -> failwith "not implemented"
 
@@ -394,6 +396,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail s indent
             // foled instructions
+            | StructGet (_, _, instrs)
             | I32Sub instrs
             | I32Mul instrs
             | I32DivS instrs
@@ -434,6 +437,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"({instrLabel instr}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
+            | StructGet (_, _, instrs)
             | StructNew (_, instrs)
             | Drop instrs
             | MemoryGrow instrs
