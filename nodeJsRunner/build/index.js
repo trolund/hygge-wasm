@@ -53,8 +53,6 @@ const run = (wasmModule) => __awaiter(void 0, void 0, void 0, function* () {
     const combinedImports = Object.assign(Object.assign({}, wasiImports), (0, ImportService_1.getImports)(memoryAllocator, isDebug));
     const instance = yield WebAssembly.instantiate(wasmModule, combinedImports);
     console.log("👍 Instantiated!");
-    const exports = WebAssembly.Module.exports(wasmModule);
-    console.log(exports);
     let growMemory = (n) => {
         instance.exports.memory.grow(n);
     };

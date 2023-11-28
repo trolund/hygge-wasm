@@ -36,3 +36,7 @@ test.wasm
 
 temp
 data
+nodeJsRunner/build/index.js
+.gitignore
+./build
+build

@@ -184,6 +184,41 @@ let mapType t =
     | TFun _ -> [ I32 ] // passing function as a index to function table
     | TVar _ -> [ I32 ]
 
+/// generate struct type string
+/// <summary>Generate struct type name</summary>
+/// <param name="t">Struct type</param>
+/// <returns>Struct type name</returns>
+/// <example>
+let GenStructTypeID (t: list<string * Node<TypingEnv, Type>>) : string =
+    let fieldNames = List.map (fun (n, _) -> n) t
+    let fieldTypes = List.map (fun (_, t) -> t) t
+    let l =
+        List.fold
+            (fun str (i, x: Node<TypingEnv, Type>) ->
+                // let (_, t) = x
+                let wasmType = (mapType x.Type)[0]
+                str + (if i > 0 then "_" else "") + fieldNames[i] + "*" + wasmType.ToString()
+            )
+            ""
+            (List.indexed fieldTypes)
+
+    $"struct_{l}"
+
+let GenStructTypeIDType (t: list<string * Type>) : string =
+    let fieldNames = List.map (fun (n, _) -> n) t
+    let fieldTypes = List.map (fun (_, t) -> t) t
+    let l =
+        List.fold
+            (fun str (i, x: Type) ->
+                // let (_, t) = x
+                let wasmType = (mapType x)[0]
+                str + (if i > 0 then "_" else "") + fieldNames[i] + "*" + wasmType.ToString()
+            )
+            ""
+            (List.indexed fieldTypes)
+
+    $"struct_{l}"
+
 // look up variable in var env
 // TODO: remove this function
 let internal lookupVar (env: CodegenEnv) (e: TypedAST) =
@@ -218,6 +253,7 @@ let internal lookupLatestLocal (m: Module) =
 
 let internal lookupLatestType (m: Module) =
     let types = Set.toList (m.GetTypes())
+
     match List.last types with
     | v -> v
     | _ -> failwith "failed to find name of the lastest local var"
@@ -1521,9 +1557,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
 
-            let t = match lookupLatestType m' with 
-                                | StructType (l, _) -> l
-                                | _ -> failwith "not a struct"
+            let t =
+                match lookupLatestType m' with
+                | StructType(l, _) -> l
+                | _ -> failwith "not a struct"
 
             let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
 
@@ -1695,9 +1732,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     // struct constructor
     | Struct(fields) when env.Config.AllocationStrategy = Heap ->
-        let typeId = env.SymbolController.genSymbol $"sType"
-        let typeLabel = Named(typeId)
+       // let typeId = env.SymbolController.genSymbol $"sType"
+       
         let structName = env.SymbolController.genSymbol $"Sptr"
+
+        let typeId = GenStructTypeID fields
+        let typeLabel = Named(typeId)
 
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
@@ -1717,9 +1757,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let fieldsInitCode =
             List.fold folder m (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
 
-        let m' = [ (LocalTee(Named(structName), [(StructNew(typeLabel, fieldsInitCode.GetAccCode()), "")])) ]
+        let m' =
+            [ (LocalTee(Named(structName), [ (StructNew(typeLabel, fieldsInitCode.GetAccCode()), "") ])) ]
 
-        fieldsInitCode.ResetAccCode()
+        fieldsInitCode
+            .ResetAccCode()
             .AddTypedef(StructType(typeId, typeParams))
             .AddLocals([ (Some(Identifier(structName)), Ref(typeLabel)) ])
             .AddCode(m')
@@ -1820,17 +1862,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         C [ Comment "start of struct contructor" ]
         ++ combined.AddCode(C [ Comment "end of struct contructor" ])
-    | FieldSelect(target, field) when env.Config.AllocationStrategy = Heap ->    
+    | FieldSelect(target, field) when env.Config.AllocationStrategy = Heap ->
         let selTargetCode = doCodegen env target m
+
+        
 
         let fieldAccessCode =
             match (expandType target.Env target.Type) with
             | TStruct(fields) ->
                 let fieldNames, fieldTypes = List.unzip fields
                 let offset = List.findIndex (fun f -> f = field) fieldNames
-                
+                let typeId = GenStructTypeIDType fields
                 // TODO: find type label dynamically
-                [(StructGet(Named("sType"), offset, selTargetCode.GetAccCode()), $"load field: {fieldNames[offset]}" )]
+                [ (StructGet(Named(typeId), offset, selTargetCode.GetAccCode()), $"load field: {fieldNames[offset]}") ]
 
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 
@@ -2054,7 +2098,8 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (BrIf(l, instrs), c) :: rest -> [ (BrIf(l, localSubst instrs var), c) ] @ localSubst rest var
     | (Drop(instrs), c) :: rest -> [ (Drop(localSubst instrs var), c) ] @ localSubst rest var
     | (StructNew(l, instrs), c) :: rest -> [ (StructNew(l, localSubst instrs var), c) ] @ localSubst rest var
-    | (StructGet(l, offset, instrs), c) :: rest -> [ (StructGet(l, offset, localSubst instrs var), c) ] @ localSubst rest var
+    | (StructGet(l, offset, instrs), c) :: rest ->
+        [ (StructGet(l, offset, localSubst instrs var), c) ] @ localSubst rest var
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 
