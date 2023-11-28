@@ -18,9 +18,9 @@ type Label =
 
     override this.ToString() =
         match this with
-        | Named s -> $"$%s{s}"
-        | Index i -> i.ToString()
-        | Address i -> $"%d{i}"
+        | Named s -> $"${s}"
+        | Index i -> $"{i}"
+        | Address i -> $"{i}"
 
 type Identifier = string
 

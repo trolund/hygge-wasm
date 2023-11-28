@@ -207,6 +207,7 @@ let instrLabel i =
     | MemorySize -> "memory.size"
     | StructNew(_, _) -> "struct.new"
     | StructGet(name, index, _) -> $"struct.get"
+    | StructSet(name, index, _) -> $"struct.set"
     | Comment(_) -> ""
 
 /// generate the wat instruction for a list of instructions
@@ -269,7 +270,8 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | MemoryFill_(offset, value, size) -> $"memory.fill offset=%d{offset} value=%d{value} size=%d{size}"
     | Comment comment -> $";; %s{comment}"
     | StructNew(name, instrs) -> $"struct.new %s{name.ToString()}"
-    | StructGet(name, index, instrs) -> $"struct.get %s{name.ToString()} %d{index}"
+    | StructGet(name, index, instrs) -> $"struct.get {name.ToString()} {index.ToString()}"
+    | StructSet(name, index, instrs) -> $"struct.set {name.ToString()} {index.ToString()}"
     | Null l -> $"ref.null {l.ToString()}"
     | _ -> failwith "not implemented"
 
@@ -396,27 +398,28 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"struct.new %s{label.ToString()}\n"
 
                 aux tail s indent
-            | StructGet(label, index, instrs: Commented<Wasm> list) when style = Folded ->
+            | StructSet(typeLabel, fieldLabel, instrs: Commented<Wasm> list)
+            | StructGet(typeLabel, fieldLabel, instrs: Commented<Wasm> list) when style = Folded ->
                 let innerWat = aux instrs "" (indent + 1)
 
                 let s =
                     watCode
                     + space
-                    + $"(struct.get %s{label.ToString()} %d{index}\n{innerWat}{gIndent (indent)})\n"
+                    + $"({instrLabel instr} {typeLabel.ToString()} {fieldLabel.ToString()}\n{innerWat}{gIndent (indent)})\n"
 
                 aux tail s indent
-            | StructGet(label, index, instrs: Commented<Wasm> list) when style = Linar ->
+            | StructSet(typeLabel, fieldLabel, instrs: Commented<Wasm> list)
+            | StructGet(typeLabel, fieldLabel, instrs: Commented<Wasm> list) when style = Linar ->
                 let innerWat = aux instrs "" (indent)
 
                 let s =
                     watCode
                     + innerWat
                     + space
-                    + $"struct.get %s{label.ToString()} %d{index}\n"
+                    + $"{instrLabel instr} {typeLabel.ToString()} {fieldLabel.ToString()}\n"
 
                 aux tail s indent
             // foled instructions
-            | StructGet (_, _, instrs)
             | I32Sub instrs
             | I32Mul instrs
             | I32DivS instrs
@@ -457,7 +460,6 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"({instrLabel instr}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
-            | StructGet (_, _, instrs)
             | StructNew (_, instrs)
             | Drop instrs
             | MemoryGrow instrs

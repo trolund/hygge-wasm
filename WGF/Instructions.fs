@@ -125,7 +125,9 @@ type Wasm =
     // (struct.new $tup (i64.const 1) (i64.const 2) (i64.const 1))
     | StructNew of Label * Wasm Commented list
     // (struct.get $tup 1 (local.get $t))
-    | StructGet of Label * int * Wasm Commented list
+    | StructGet of Label * Label * Wasm Commented list
+    // (struct.set $point $y (local.get $p) (i32.const 3))
+    | StructSet of Label * Label * Wasm Commented list 
     // (array.new $vec3d (f64.const 1) (i32.const 3))
     | ArrayNew of Label * Wasm Commented * Wasm Commented 
     // (array.set $vec3d (local.get $v) (i32.const 2) (i32.const 5))

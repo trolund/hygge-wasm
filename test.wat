@@ -91,6 +91,32 @@
         (unreachable) ;; exit program
       )
     )
+    (drop ;; drop value of subtree
+      (struct.set $struct_x*i32 0
+        (i32.const 42) ;; push 42 on stack
+      )
+      (struct.get $struct_x*i32 0
+        (local.get $var_s1$1) ;; get local var: var_s1$1
+      )
+    )
+    (if 
+        (i32.eqz ;; invert assertion
+          (i32.eq ;; equality check
+            ;; Start of field select
+            (struct.get $struct_x*i32 0
+              (local.get $var_s1$1) ;; get local var: var_s1$1
+            )
+            ;; End of field select
+            (i32.const 42) ;; push 42 on stack
+          )
+        )
+      (then
+        (global.set $exit_code ;; set exit code
+          (i32.const 42) ;; error exit code push to stack
+        )
+        (unreachable) ;; exit program
+      )
+    )
     ;; End of let
   )
   (data (i32.const 0) "\00")

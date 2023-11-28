@@ -4,7 +4,9 @@ assert(s1.f = 3);
 
 let f: () -> unit = fun() -> {
     let s1: struct {x: int} = struct {x = 1 + 2 + 3};
-    assert(s1.x = 6)
+    assert(s1.x = 6);
+    s1.x <- 42;
+    assert(s1.x = 42)
 };
 
 f()

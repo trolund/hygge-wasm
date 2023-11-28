@@ -192,13 +192,13 @@ let mapType t =
 let GenStructTypeID (t: list<string * Node<TypingEnv, Type>>) : string =
     let fieldNames = List.map (fun (n, _) -> n) t
     let fieldTypes = List.map (fun (_, t) -> t) t
+
     let l =
         List.fold
             (fun str (i, x: Node<TypingEnv, Type>) ->
                 // let (_, t) = x
                 let wasmType = (mapType x.Type)[0]
-                str + (if i > 0 then "_" else "") + fieldNames[i] + "*" + wasmType.ToString()
-            )
+                str + (if i > 0 then "_" else "") + fieldNames[i] + "*" + wasmType.ToString())
             ""
             (List.indexed fieldTypes)
 
@@ -207,13 +207,13 @@ let GenStructTypeID (t: list<string * Node<TypingEnv, Type>>) : string =
 let GenStructTypeIDType (t: list<string * Type>) : string =
     let fieldNames = List.map (fun (n, _) -> n) t
     let fieldTypes = List.map (fun (_, t) -> t) t
+
     let l =
         List.fold
             (fun str (i, x: Type) ->
                 // let (_, t) = x
                 let wasmType = (mapType x)[0]
-                str + (if i > 0 then "_" else "") + fieldNames[i] + "*" + wasmType.ToString()
-            )
+                str + (if i > 0 then "_" else "") + fieldNames[i] + "*" + wasmType.ToString())
             ""
             (List.indexed fieldTypes)
 
@@ -1299,7 +1299,31 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     )
             | _ -> failwith "not implemented"
 
+        | FieldSelect(target, field) when env.Config.AllocationStrategy = Heap ->
+            let selTargetCode = doCodegen env target m
+            /// Code for the 'rhs' expression of the assignment
+            let rhsCode = doCodegen env value m
 
+            match (expandType target.Env target.Type) with
+            | TStruct(fields) ->
+                /// Names of the struct fields
+                let fieldNames, _ = List.unzip fields
+                /// offset of the selected struct field from the beginning of
+                /// the struct
+                let offset = List.findIndex (fun f -> f = field) fieldNames
+
+                // typeid
+                let typeId = GenStructTypeIDType(fields)
+
+                let assignCode =
+                    Module()
+                        .AddCode(
+                            [ (StructSet(Named(typeId), Index(offset), rhsCode.GetAccCode()), "set field")
+                              (StructGet(Named(typeId), Index(offset), selTargetCode.GetAccCode()), "get field") ]
+                        )
+
+                assignCode ++ (rhsCode.ResetAccCode() + selTargetCode.ResetAccCode())
+            | _ -> failwith "failed to assign to field"
         | FieldSelect(target, field) ->
 
             let selTargetCode = doCodegen env target m
@@ -1732,8 +1756,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     // struct constructor
     | Struct(fields) when env.Config.AllocationStrategy = Heap ->
-       // let typeId = env.SymbolController.genSymbol $"sType"
-       
+        // let typeId = env.SymbolController.genSymbol $"sType"
+
         let structName = env.SymbolController.genSymbol $"Sptr"
 
         let typeId = GenStructTypeID fields
@@ -1865,8 +1889,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | FieldSelect(target, field) when env.Config.AllocationStrategy = Heap ->
         let selTargetCode = doCodegen env target m
 
-        
-
         let fieldAccessCode =
             match (expandType target.Env target.Type) with
             | TStruct(fields) ->
@@ -1874,7 +1896,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let offset = List.findIndex (fun f -> f = field) fieldNames
                 let typeId = GenStructTypeIDType fields
                 // TODO: find type label dynamically
-                [ (StructGet(Named(typeId), offset, selTargetCode.GetAccCode()), $"load field: {fieldNames[offset]}") ]
+                [ (StructGet(Named(typeId), Index(offset), selTargetCode.GetAccCode()),
+                   $"load field: {fieldNames[offset]}") ]
 
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 
