@@ -187,37 +187,38 @@ let mapType t =
     | TFun _ -> [ I32 ] // passing function as a index to function table
     | TVar _ -> [ I32 ]
 
-
+let rec mapTypeHeap (t: Type) = match t with
+                                | TStruct l -> Ref(Named(GenStructTypeIDType l))
+                                | TArray _ -> I32 // TODO: change
+                                | _ -> (mapType t)[0]
 
 /// generate struct type string
 /// <summary>Generate struct type name</summary>
 /// <param name="t">Struct type</param>
 /// <returns>Struct type name</returns>
 /// <example>
-let GenStructTypeID (t: list<string * Node<TypingEnv, Type>>) : string =
+and GenStructTypeID (t: list<string * Node<TypingEnv, Type>>) : string =
     let fieldNames = List.map (fun (n, _) -> n) t
     let fieldTypes = List.map (fun (_, t) -> t) t
 
     let l =
         List.fold
             (fun str (i, x: Node<TypingEnv, Type>) ->
-                // let (_, t) = x
-                let wasmType = (mapType x.Type)[0]
+                let wasmType = (mapTypeHeap x.Type)
                 str + (if i > 0 then "_" else "") + fieldNames[i] + "*" + wasmType.ToString())
             ""
             (List.indexed fieldTypes)
 
     $"struct_{l}"
 
-let GenStructTypeIDType (t: list<string * Type>) : string =
+and GenStructTypeIDType (t: list<string * Type>) : string =
     let fieldNames = List.map (fun (n, _) -> n) t
     let fieldTypes = List.map (fun (_, t) -> t) t
 
     let l =
         List.fold
             (fun str (i, x: Type) ->
-                // let (_, t) = x
-                let wasmType = (mapType x)[0]
+                let wasmType = (mapTypeHeap x)
                 str + (if i > 0 then "_" else "") + fieldNames[i] + "*" + wasmType.ToString())
             ""
             (List.indexed fieldTypes)
@@ -225,10 +226,11 @@ let GenStructTypeIDType (t: list<string * Type>) : string =
     $"struct_{l}"
 
 
+
 let createStructType (fields: list<string * Node<TypingEnv, Type>>) =
 
     let typeParams: Param list =
-        List.map (fun (name, t: TypedAST) -> (Some(name), ((mapType (expandType t.Env t.Type))[0], Mutable))) fields
+        List.map (fun (name, t: TypedAST) -> (Some(name), ((mapTypeHeap (expandType t.Env t.Type)), Mutable))) fields
 
     let typeId = GenStructTypeID fields
 
@@ -267,18 +269,7 @@ let findBestMatchType (m: Module) (fields: List<string * Type>) =
 
     fst bestMatch
 
-let mapTypeHeap t =
-    match t with
-    | TUnit -> []
-    | TInt -> [ I32 ]
-    | TFloat -> [ F32 ]
-    | TBool -> [ I32 ]
-    | TString -> [ I32 ]
-    | TStruct l -> [ Ref (Named(GenStructTypeIDType l))  ] // return ref type when in heap mode
-    | TUnion _ -> [ I32 ]
-    | TArray _ -> [ I32 ]
-    | TFun _ -> [ I32 ] // passing function as a index to function table
-    | TVar _ -> [ I32 ]
+
 
 // look up variable in var env
 // TODO: remove this function
@@ -1844,8 +1835,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let fieldsInitCode =
             List.fold folder m (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
 
+        // TODO: maybe temp var is not needed
         let m' =
-            [ (LocalTee(Named(structName), [ (StructNew(typeLabel, fieldsInitCode.GetAccCode()), "") ])) ]
+            [ (LocalTee(Named(structName), [ (StructNew(typeLabel, fieldsInitCode.GetAccCode()), "set temp var and leave value on stack") ])) ]
 
         fieldsInitCode
             .ResetAccCode()

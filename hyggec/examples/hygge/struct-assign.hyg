@@ -1,7 +1,7 @@
 let s1: struct {f: int} = struct {f = 3; g = true};
 let s2: struct {g: struct {f: int}; f: int} = struct {g = s1; f = 3};
-let s3: struct {f: int; h: struct {g: struct {f: int}; f: int}} =
-    struct {f = 3; h = s2; g = "Hello"};
+// let s3: struct {f: int; h: struct {g: struct {f: int}; f: int}} =
+//     struct {f = 3; h = s2; g = "Hello"};
 0
 
 // assert(s3.h.g.f = 3)

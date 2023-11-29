@@ -50,7 +50,8 @@ type ValueType =
             | Externref -> "externref"
             | Funcref -> "funcref"
             // todo: ref null
-            | Ref l -> $"(ref null {l})"
+            // | Ref l -> $"(ref null {l})"
+            | Ref l -> $"ref*{l}_"
             | Nullref -> "ref.null"
             | Null -> "null"
 

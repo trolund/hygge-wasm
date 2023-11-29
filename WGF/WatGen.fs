@@ -90,6 +90,7 @@ let printType (i: int, t) (withName: bool) =
 
         let formatVar = fun (var: Variable) ->
             match var with
+            | (Ref(l), _) -> $"(ref null {l.ToString()})"
             | (t, Mutable) -> $"(mut {t.ToString()})"
             | (t, Immutable) -> t.ToString()
 
@@ -832,11 +833,13 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 /// format global as a string
 let printGlobal (i: int, g: Global) =
     let name, (valueType, mutability), instr = g
-    let valueType = valueType.ToString()
+    let valueTypeS = match valueType with
+                        | Ref(l) -> $"(ref null {l.ToString()})"
+                        | _ -> valueType.ToString()
 
     let gType =
         match mutability with
-        | Mutable -> $"(mut %s{valueType})"
-        | Immutable -> $"%s{valueType}"
+        | Mutable -> $"(mut %s{valueTypeS})"
+        | Immutable -> $"%s{valueTypeS}"
 
     sprintf "%s(global $%s %s %s%s %s)\n" (gIndent 1) name (ic i) gType (commentS "") $"({printInstr instr})"
