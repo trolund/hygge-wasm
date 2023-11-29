@@ -187,6 +187,8 @@ let mapType t =
     | TFun _ -> [ I32 ] // passing function as a index to function table
     | TVar _ -> [ I32 ]
 
+
+
 /// generate struct type string
 /// <summary>Generate struct type name</summary>
 /// <param name="t">Struct type</param>
@@ -264,6 +266,19 @@ let findBestMatchType (m: Module) (fields: List<string * Type>) =
     let bestMatch = List.maxBy snd maches
 
     fst bestMatch
+
+let mapTypeHeap t =
+    match t with
+    | TUnit -> []
+    | TInt -> [ I32 ]
+    | TFloat -> [ F32 ]
+    | TBool -> [ I32 ]
+    | TString -> [ I32 ]
+    | TStruct l -> [ Ref (Named(GenStructTypeIDType l))  ] // return ref type when in heap mode
+    | TUnion _ -> [ I32 ]
+    | TArray _ -> [ I32 ]
+    | TFun _ -> [ I32 ] // passing function as a index to function table
+    | TVar _ -> [ I32 ]
 
 // look up variable in var env
 // TODO: remove this function
@@ -1359,7 +1374,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let offset = List.findIndex (fun f -> f = field) fieldNames
 
                 // typeid
-                let typeId = GenStructTypeIDType(fields)
+                let typeId = findBestMatchType selTargetCode fields
 
                 let assignCode =
                     Module()
@@ -1937,8 +1952,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | FieldSelect(target, field) when env.Config.AllocationStrategy = Heap ->
         let selTargetCode = doCodegen env target m
 
-        let var = lookupVar env target
-
         let fieldAccessCode =
             match (expandType target.Env target.Type) with
             | TStruct(fields) ->
@@ -2175,6 +2188,9 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (StructNew(l, instrs), c) :: rest -> [ (StructNew(l, localSubst instrs var), c) ] @ localSubst rest var
     | (StructGet(l, offset, instrs), c) :: rest ->
         [ (StructGet(l, offset, localSubst instrs var), c) ] @ localSubst rest var
+    | (StructSet(l, offset, instrs), c) :: rest ->
+        [ (StructSet(l, offset, localSubst instrs var), c) ] @ localSubst rest var
+    
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 
