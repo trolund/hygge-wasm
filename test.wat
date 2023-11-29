@@ -1,13 +1,13 @@
 (module
   (type $i32_=>_unit (;0;) (func (param i32) ))
-  (type $struct_f*i32 (;1;) (struct (field $f (mut i32))))
+  (type $struct_f*i32_g*i32 (;1;) (struct (field $f (mut i32)) (field $g (mut i32))))
   (type $struct_x*i32 (;2;) (struct (field $x (mut i32))))
   (memory (;0;) (export "memory") 1)
-  (global $Sptr (;0;) (mut (ref null $struct_f*i32)) (ref.null $struct_f*i32))
+  (global $Sptr (;0;) (mut (ref null $struct_f*i32_g*i32)) (ref.null $struct_f*i32_g*i32))
   (global $exit_code (;1;) (mut i32) (i32.const 0))
   (global $fun_f*ptr (;2;) (mut i32) (i32.const 0))
   (global $heap_base (;3;) (mut i32) (i32.const 4))
-  (global $var_s1 (;4;) (mut (ref null $struct_f*i32)) (ref.null $struct_f*i32))
+  (global $var_s1 (;4;) (mut (ref null $struct_f*i32_g*i32)) (ref.null $struct_f*i32_g*i32))
   (table $func_table (;0;) 1 funcref)
   (elem (i32.const 0) (;0;) $fun_f)
   (func $_start (;0;)   
@@ -15,11 +15,12 @@
     ;; Start of let
     (global.set $var_s1 ;; set local var, have been hoisted
       (global.set $Sptr ;; , have been hoisted
-        (struct.new $struct_f*i32
+        (struct.new $struct_f*i32_g*i32
           (i32.add
             (i32.const 1) ;; push 1 on stack
             (i32.const 2) ;; push 2 on stack
           )
+          (i32.const 1) ;; push true on stack
         )
       )
       (global.get $Sptr) ;; , have been hoisted
@@ -28,7 +29,7 @@
         (i32.eqz ;; invert assertion
           (i32.eq ;; equality check
             ;; Start of field select
-            (struct.get $struct_f*i32 0
+            (struct.get $struct_f*i32_g*i32 0 ;; load field: f
               (global.get $var_s1) ;; get local var: var_s1, have been hoisted
             )
             ;; End of field select
@@ -77,7 +78,7 @@
         (i32.eqz ;; invert assertion
           (i32.eq ;; equality check
             ;; Start of field select
-            (struct.get $struct_x*i32 0
+            (struct.get $struct_x*i32 0 ;; load field: x
               (local.get $var_s1$1) ;; get local var: var_s1$1
             )
             ;; End of field select
@@ -92,10 +93,11 @@
       )
     )
     (drop ;; drop value of subtree
-      (struct.set $struct_x*i32 0
+      (struct.set $struct_x*i32 $x ;; set field: x
+        (local.get $var_s1$1) ;; get local var: var_s1$1
         (i32.const 42) ;; push 42 on stack
       )
-      (struct.get $struct_x*i32 0
+      (struct.get $struct_x*i32 $x ;; get field: x
         (local.get $var_s1$1) ;; get local var: var_s1$1
       )
     )
@@ -103,7 +105,7 @@
         (i32.eqz ;; invert assertion
           (i32.eq ;; equality check
             ;; Start of field select
-            (struct.get $struct_x*i32 0
+            (struct.get $struct_x*i32 0 ;; load field: x
               (local.get $var_s1$1) ;; get local var: var_s1$1
             )
             ;; End of field select

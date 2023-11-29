@@ -1,4 +1,4 @@
-let s1: struct {f: int} = struct {f = 1 + 2};
+let s1: struct {f: int} = struct {f = 1 + 2; g = true};
 
 assert(s1.f = 3);
 

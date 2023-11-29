@@ -164,10 +164,8 @@ let instrLabel i =
     | I32Load _ -> "i32.load"
     | F32Load_ _ -> "f32.load"
     | F32Load _ -> "f32.load"
-
     | I32Store_ _ -> "i32.store"
     | I32Store _ -> "i32.store"
-
     | F32Store_ _ -> "f32.store"
     | F32Store _ -> "f32.store"
     | LocalGet _ -> "local.get"
@@ -206,8 +204,8 @@ let instrLabel i =
     | MemoryGrow(_) -> "memory.grow"
     | MemorySize -> "memory.size"
     | StructNew(_, _) -> "struct.new"
-    | StructGet(name, index, _) -> $"struct.get"
-    | StructSet(name, index, _) -> $"struct.set"
+    | StructGet(_, _, _) -> $"struct.get"
+    | StructSet(_, _, _) -> $"struct.set"
     | Comment(_) -> ""
 
 /// generate the wat instruction for a list of instructions
@@ -273,6 +271,7 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | StructGet(name, index, instrs) -> $"struct.get {name.ToString()} {index.ToString()}"
     | StructSet(name, index, instrs) -> $"struct.set {name.ToString()} {index.ToString()}"
     | Null l -> $"ref.null {l.ToString()}"
+    | RefCast _ -> $"ref.cast"
     | _ -> failwith "not implemented"
 
 let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
@@ -405,7 +404,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                 let s =
                     watCode
                     + space
-                    + $"({instrLabel instr} {typeLabel.ToString()} {fieldLabel.ToString()}\n{innerWat}{gIndent (indent)})\n"
+                    + $"({instrLabel instr} {typeLabel.ToString()} {fieldLabel.ToString()}{commentS c}\n{innerWat}{gIndent (indent)})\n"
 
                 aux tail s indent
             | StructSet(typeLabel, fieldLabel, instrs: Commented<Wasm> list)
@@ -416,10 +415,11 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     watCode
                     + innerWat
                     + space
-                    + $"{instrLabel instr} {typeLabel.ToString()} {fieldLabel.ToString()}\n"
+                    + $"{instrLabel instr} {typeLabel.ToString()} {fieldLabel.ToString()}{commentS c}\n"
 
                 aux tail s indent
             // foled instructions
+            | RefCast instrs
             | I32Sub instrs
             | I32Mul instrs
             | I32DivS instrs
@@ -460,6 +460,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"({instrLabel instr}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
+            | RefCast instrs
             | StructNew (_, instrs)
             | Drop instrs
             | MemoryGrow instrs

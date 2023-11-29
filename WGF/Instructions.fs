@@ -134,6 +134,7 @@ type Wasm =
     | ArraySet of Label * Wasm Commented * Wasm Commented * Wasm Commented
     // (array.get $vec3d (local.get $v) (i32.const 1))
     | ArrayGet of Label * Wasm Commented * Wasm Commented
+    | RefCast of Wasm Commented list
     | Null of Label
 
 and Instrs = Wasm list

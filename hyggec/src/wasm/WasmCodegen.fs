@@ -170,7 +170,10 @@ let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) 
     // return compontents needed to create a function pointer
     (FunctionPointer, funcindex, ptr_label)
 
+
+
 // map a hygge type to a wasm type
+// TODO: add env to function
 let mapType t =
     match t with
     | TUnit -> []
@@ -178,7 +181,7 @@ let mapType t =
     | TFloat -> [ F32 ]
     | TBool -> [ I32 ]
     | TString -> [ I32 ]
-    | TStruct _ -> [ I32 ]
+    | TStruct _ -> [ I32 ] // return ref type when in heap mode
     | TUnion _ -> [ I32 ]
     | TArray _ -> [ I32 ]
     | TFun _ -> [ I32 ] // passing function as a index to function table
@@ -218,6 +221,49 @@ let GenStructTypeIDType (t: list<string * Type>) : string =
             (List.indexed fieldTypes)
 
     $"struct_{l}"
+
+
+let createStructType (fields: list<string * Node<TypingEnv, Type>>) =
+
+    let typeParams: Param list =
+        List.map (fun (name, t: TypedAST) -> (Some(name), ((mapType (expandType t.Env t.Type))[0], Mutable))) fields
+
+    let typeId = GenStructTypeID fields
+
+    StructType(typeId, typeParams)
+
+let findBestMatchType (m: Module) (fields: List<string * Type>) =
+
+    // Tjek for ecsakt match
+
+    let structTypes =
+        Set.fold
+            (fun acc (t) ->
+                match t with
+                | StructType(id, params) -> (id, params) :: acc
+                | _ -> acc)
+            []
+            (m.GetTypes())
+
+    let typeParams: Param list =
+        List.map (fun (name, t) -> (Some(name), ((mapType t)[0], Mutable))) fields
+
+    // count number of matching types
+    let maches =
+        List.fold
+            (fun acc (currId, currParams) ->
+                // find number of matching types between currParams and fields
+                // let matches = List.map2 (fun a b ->  a = b ) currParams typeParams
+                // let numberOfMatches = List.sum (List.map (fun x -> if x then 1 else 0) matches)
+                let numberOfMatches = List.length (List.filter (fun x -> List.exists (fun y -> x = y) currParams) typeParams)
+                (currId, numberOfMatches) :: acc
+                )
+                []
+                structTypes
+
+    let bestMatch = List.maxBy snd maches
+
+    fst bestMatch
 
 // look up variable in var env
 // TODO: remove this function
@@ -1318,8 +1364,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let assignCode =
                     Module()
                         .AddCode(
-                            [ (StructSet(Named(typeId), Index(offset), rhsCode.GetAccCode()), "set field")
-                              (StructGet(Named(typeId), Index(offset), selTargetCode.GetAccCode()), "get field") ]
+                            [ (StructSet(
+                                  Named(typeId),
+                                  Named(fieldNames[offset]), // could also be Index(offset)
+                                  // struct pointer on stack and value to store
+                                  selTargetCode.GetAccCode() @ rhsCode.GetAccCode()
+                               ),
+                               $"set field: {fieldNames[offset]}")
+                              (StructGet(Named(typeId), Named(fieldNames[offset]), selTargetCode.GetAccCode()),
+                               $"get field: {fieldNames[offset]}") ]
                         )
 
                 assignCode ++ (rhsCode.ResetAccCode() + selTargetCode.ResetAccCode())
@@ -1756,8 +1809,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     // struct constructor
     | Struct(fields) when env.Config.AllocationStrategy = Heap ->
-        // let typeId = env.SymbolController.genSymbol $"sType"
-
         let structName = env.SymbolController.genSymbol $"Sptr"
 
         let typeId = GenStructTypeID fields
@@ -1765,9 +1816,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
-
-        let typeParams: Param list =
-            List.map (fun (name, t: TypedAST) -> (Some(name), ((mapType (expandType t.Env t.Type))[0], Mutable))) fields
 
         // fold over fields and add them to struct with indexes
         let folder =
@@ -1786,7 +1834,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         fieldsInitCode
             .ResetAccCode()
-            .AddTypedef(StructType(typeId, typeParams))
+            .AddTypedef(createStructType fields)
             .AddLocals([ (Some(Identifier(structName)), Ref(typeLabel)) ])
             .AddCode(m')
     | Struct(fields) ->
@@ -1889,15 +1937,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | FieldSelect(target, field) when env.Config.AllocationStrategy = Heap ->
         let selTargetCode = doCodegen env target m
 
+        let var = lookupVar env target
+
         let fieldAccessCode =
             match (expandType target.Env target.Type) with
             | TStruct(fields) ->
                 let fieldNames, fieldTypes = List.unzip fields
                 let offset = List.findIndex (fun f -> f = field) fieldNames
-                let typeId = GenStructTypeIDType fields
+                // let typeId = GenStructTypeIDType fields
+
+                let typeId = findBestMatchType selTargetCode fields
+
                 // TODO: find type label dynamically
-                [ (StructGet(Named(typeId), Index(offset), selTargetCode.GetAccCode()),
-                   $"load field: {fieldNames[offset]}") ]
+                [ (StructGet(Named(typeId), Index(offset), selTargetCode.GetAccCode()), $"load field: {field}") ]
 
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 
