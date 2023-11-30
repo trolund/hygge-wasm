@@ -190,7 +190,7 @@ let mapType t =
 let rec mapTypeHeap (t: Type) =
     match t with
     | TStruct l -> Ref(Named(GenStructTypeIDType l))
-    | TArray _ -> I32 // TODO: change
+    | TArray l -> Ref(Named("temp")) // TODO: change
     | _ -> (mapType t)[0]
 
 /// generate struct type string
@@ -896,6 +896,47 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                                     ) }
                         ) }
                 m)
+    // array constructor for heap allocation
+    | Array(length, data) when env.Config.AllocationStrategy = Heap ->
+        let length' = doCodegen env length m
+        let data' = doCodegen env data m
+
+        let structLabel = env.SymbolController.genSymbol $"struct_label"
+        let structType = env.SymbolController.genSymbol $"struct_type"
+        let arrayType = env.SymbolController.genSymbol $"array_type"
+
+        let arrayModule =
+            m
+                .AddTypedef(ArrayType(arrayType, I32))
+                .AddTypedef(
+                    StructType(
+                        structType,
+                        [ (Some("data"), (Ref(Named(arrayType)), Mutable))
+                          (Some("length"), (I32, Mutable)) ]
+                    )
+                )
+
+        // check that length is bigger then 1 - if not return 42
+        let lengthCheck =
+            [ (If(
+                  [],
+                  [ (I32LeS(length'.GetAccCode() @ [ (I32Const 1, "put one on stack") ]), "check if length is <= 1") ],
+                  trap,
+                  None
+               ),
+               "check that length of array is bigger then 1 - if not return 42") ]
+
+        let createArray =
+            [ (StructNew(
+                  Named(structType),
+                  [ (ArrayNew(Named(arrayType), data'.GetAccCode() @ length'.GetAccCode()), "create new array") ]
+                  @ length'.GetAccCode()
+               ),
+               "set temp var and leave value on stack") ]
+
+        arrayModule
+            .AddLocals([ (Some(Identifier(structLabel)), Ref(Named(structType))) ])
+            .AddCode(lengthCheck @ createArray)
     | Array(length, data) ->
         let length' = doCodegen env length m
         let data' = doCodegen env data m
@@ -1658,6 +1699,26 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             ++ combi
                 .AddLocals([ (Some(Identifier(varName)), Ref(Named(t))) ])
                 .AddCode([ Comment "End of let" ])
+        | TArray _ when env.Config.AllocationStrategy = Heap ->
+            let varLabel = Named(varName)
+            let initCode = m'.GetAccCode()
+
+            let t =
+                match lookupLatestType m' with
+                | StructType(l, _) -> l
+                | _ -> failwith "not a struct"
+
+            let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
+
+            let scopeCode = (doCodegen env' scope (m'.ResetAccCode()))
+
+            let combi = (instrs ++ scopeCode + m.ResetAccCode())
+
+            C [ Comment "Start of let" ]
+            ++ m'.ResetAccCode()
+            ++ combi
+                .AddLocals([ (Some(Identifier(varName)), Ref(Named(t))) ])
+                .AddCode([ Comment "End of let" ])
         | TStruct _ ->
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
@@ -1839,10 +1900,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // TODO: maybe temp var is not needed
         let m' =
-            [ (LocalTee(
-                  Named(structName),
-                  [ (StructNew(typeLabel, fieldsInitCode.GetAccCode()), "set temp var and leave value on stack") ]
-              )) ]
+            [ (StructNew(typeLabel, fieldsInitCode.GetAccCode()), "set temp var and leave value on stack") ]
+
 
         fieldsInitCode
             .ResetAccCode()
@@ -1954,21 +2013,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | TStruct(fields) ->
                 let fieldNames, fieldTypes = List.unzip fields
                 let offset = List.findIndex (fun f -> f = field) fieldNames
-                // let typeId = GenStructTypeIDType fields
 
-                let typeId = GenStructTypeIDType fields
-
-                // let m =
-                //     List.fold
-                //         (fun (m: Module) f ->
-                //             match f with
-                //             | _, TStruct(fl) -> m.AddTypedef(createStructType fl)
-                //             | _ -> m)
-                //         (Module())
-                //         fields
-
-                // TODO: find type label dynamically
-                [ (StructGet(Named(typeId), Index(offset), selTargetCode.GetAccCode()), $"load field: {field}") ]
+                [ (StructGet(Named(GenStructTypeIDType fields), Index(offset), selTargetCode.GetAccCode()),
+                   $"load field: {field}") ]
 
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 

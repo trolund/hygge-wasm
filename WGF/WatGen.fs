@@ -103,8 +103,8 @@ let printType (i: int, t) (withName: bool) =
             String.concat " " (List.map (fun (param) -> printParam param) types)
 
         $"{gIndent 1}(type ${name} {ic i} (struct {paramsString}))\n"
-    | ArrayType(name: Identifier, t: ValueType, size: int) ->
-        $"{gIndent 1}(type ${name} {ic i} (array {t.ToString()} {size}))\n"
+    | ArrayType(name: Identifier, t: ValueType) ->
+        $"{gIndent 1}(type ${name} {ic i} (array (mut {t.ToString()})))\n"
 
 // function that only return the label of the instruction
 // I32Const should return "i32.const"
@@ -273,6 +273,10 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | StructSet(name, index, instrs) -> $"struct.set {name.ToString()} {index.ToString()}"
     | Null l -> $"ref.null {l.ToString()}"
     | RefCast _ -> $"ref.cast"
+    | ArrayNew _ -> $"array.new"
+    | ArrayGet _ -> $"array.get"
+    | ArraySet _ -> $"array.set"
+    | ArrayLen _ -> $"array.len"
     | _ -> failwith "not implemented"
 
 let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
@@ -417,6 +421,25 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + innerWat
                     + space
                     + $"{instrLabel instr} {typeLabel.ToString()} {fieldLabel.ToString()}{commentS c}\n"
+
+                aux tail s indent
+            | ArrayNew(label, instrs: Commented<Wasm> list) when style = Folded ->
+                let innerWat = aux instrs "" (indent + 1)
+
+                let s =
+                    watCode
+                    + space
+                    + $"(array.new %s{label.ToString()}\n{innerWat}{gIndent (indent)})\n"
+
+                aux tail s indent
+            | ArrayNew(label, instrs: Commented<Wasm> list) when style = Linar ->
+                let innerWat = aux instrs "" (indent)
+
+                let s =
+                    watCode
+                    + innerWat
+                    + space
+                    + $"array.new %s{label.ToString()}\n"
 
                 aux tail s indent
             // foled instructions

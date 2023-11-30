@@ -129,11 +129,13 @@ type Wasm =
     // (struct.set $point $y (local.get $p) (i32.const 3))
     | StructSet of Label * Label * Wasm Commented list 
     // (array.new $vec3d (f64.const 1) (i32.const 3))
-    | ArrayNew of Label * Wasm Commented * Wasm Commented 
+    // data type, init value, size
+    | ArrayNew of Label * Wasm Commented list
     // (array.set $vec3d (local.get $v) (i32.const 2) (i32.const 5))
-    | ArraySet of Label * Wasm Commented * Wasm Commented * Wasm Commented
+    | ArraySet of Label * Wasm Commented list
     // (array.get $vec3d (local.get $v) (i32.const 1))
-    | ArrayGet of Label * Wasm Commented * Wasm Commented
+    | ArrayGet of Label * Wasm Commented list
+    | ArrayLen of Wasm Commented list
     | RefCast of Wasm Commented list
     | Null of Label
 

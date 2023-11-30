@@ -49,5 +49,5 @@ let distinctTypes types =
             match l with
             | FuncType(name, _) -> name
             | StructType(name, _) -> name
-            | ArrayType(name, _, _) -> name)
+            | ArrayType(name, _) -> name)
         (types)

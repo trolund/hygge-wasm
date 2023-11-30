@@ -123,4 +123,4 @@ type TypeDef =
         | FuncType of Identifier * FunctionSignature
         // (type $buf (struct (field $pos (mut i64)) (field $chars (ref $char-array))))
         | StructType of Identifier * Param list
-        | ArrayType of Identifier * ValueType * int
+        | ArrayType of Identifier * ValueType
