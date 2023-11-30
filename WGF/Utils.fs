@@ -50,4 +50,4 @@ let distinctTypes types =
             | FuncType(name, _) -> name
             | StructType(name, _) -> name
             | ArrayType(name, _, _) -> name)
-        (Set.toList types)
+        (types)

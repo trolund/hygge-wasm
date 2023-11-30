@@ -187,10 +187,11 @@ let mapType t =
     | TFun _ -> [ I32 ] // passing function as a index to function table
     | TVar _ -> [ I32 ]
 
-let rec mapTypeHeap (t: Type) = match t with
-                                | TStruct l -> Ref(Named(GenStructTypeIDType l))
-                                | TArray _ -> I32 // TODO: change
-                                | _ -> (mapType t)[0]
+let rec mapTypeHeap (t: Type) =
+    match t with
+    | TStruct l -> Ref(Named(GenStructTypeIDType l))
+    | TArray _ -> I32 // TODO: change
+    | _ -> (mapType t)[0]
 
 /// generate struct type string
 /// <summary>Generate struct type name</summary>
@@ -241,7 +242,7 @@ let findBestMatchType (m: Module) (fields: List<string * Type>) =
     // Tjek for ecsakt match
 
     let structTypes =
-        Set.fold
+        List.fold
             (fun acc (t) ->
                 match t with
                 | StructType(id, params) -> (id, params) :: acc
@@ -259,11 +260,12 @@ let findBestMatchType (m: Module) (fields: List<string * Type>) =
                 // find number of matching types between currParams and fields
                 // let matches = List.map2 (fun a b ->  a = b ) currParams typeParams
                 // let numberOfMatches = List.sum (List.map (fun x -> if x then 1 else 0) matches)
-                let numberOfMatches = List.length (List.filter (fun x -> List.exists (fun y -> x = y) currParams) typeParams)
-                (currId, numberOfMatches) :: acc
-                )
-                []
-                structTypes
+                let numberOfMatches =
+                    List.length (List.filter (fun x -> List.exists (fun y -> x = y) currParams) typeParams)
+
+                (currId, numberOfMatches) :: acc)
+            []
+            structTypes
 
     let bestMatch = List.maxBy snd maches
 
@@ -304,7 +306,7 @@ let internal lookupLatestLocal (m: Module) =
     | None, _ -> failwith "failed to find name of the lastest local var"
 
 let internal lookupLatestType (m: Module) =
-    let types = Set.toList (m.GetTypes())
+    let types = m.GetTypes()
 
     match List.last types with
     | v -> v
@@ -1365,7 +1367,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let offset = List.findIndex (fun f -> f = field) fieldNames
 
                 // typeid
-                let typeId = findBestMatchType selTargetCode fields
+                let typeId = GenStructTypeIDType fields
 
                 let assignCode =
                     Module()
@@ -1837,7 +1839,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // TODO: maybe temp var is not needed
         let m' =
-            [ (LocalTee(Named(structName), [ (StructNew(typeLabel, fieldsInitCode.GetAccCode()), "set temp var and leave value on stack") ])) ]
+            [ (LocalTee(
+                  Named(structName),
+                  [ (StructNew(typeLabel, fieldsInitCode.GetAccCode()), "set temp var and leave value on stack") ]
+              )) ]
 
         fieldsInitCode
             .ResetAccCode()
@@ -1951,7 +1956,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let offset = List.findIndex (fun f -> f = field) fieldNames
                 // let typeId = GenStructTypeIDType fields
 
-                let typeId = findBestMatchType selTargetCode fields
+                let typeId = GenStructTypeIDType fields
+
+                // let m =
+                //     List.fold
+                //         (fun (m: Module) f ->
+                //             match f with
+                //             | _, TStruct(fl) -> m.AddTypedef(createStructType fl)
+                //             | _ -> m)
+                //         (Module())
+                //         fields
 
                 // TODO: find type label dynamically
                 [ (StructGet(Named(typeId), Index(offset), selTargetCode.GetAccCode()), $"load field: {field}") ]
@@ -2182,7 +2196,7 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
         [ (StructGet(l, offset, localSubst instrs var), c) ] @ localSubst rest var
     | (StructSet(l, offset, instrs), c) :: rest ->
         [ (StructSet(l, offset, localSubst instrs var), c) ] @ localSubst rest var
-    
+
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 

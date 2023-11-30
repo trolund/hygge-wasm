@@ -13,7 +13,7 @@ module Module =
     type Module
         private
         (
-            types: Set<TypeDef>,
+            types: list<TypeDef>,
             functions: Map<string, Commented<FunctionInstance>>,
             tables: seq<Table>,
             memories: Set<Memory>,
@@ -28,7 +28,7 @@ module Module =
             funcTableSize: int,
             hostinglist
         ) =
-        member private this.types: Set<TypeDef> = types
+        member private this.types: List<TypeDef> = types
         member private this.functions = functions
         member private this.tables = tables
         member private this.memories: Set<Memory> = memories
@@ -49,7 +49,7 @@ module Module =
         // empty constructor
         new() =
             Module(
-                Set.empty,
+                List.empty,
                 Map.empty,
                 [],
                 Set.empty,
@@ -68,7 +68,7 @@ module Module =
         // module constructor that take temp code
         new(tempCode: list<Commented<Instr.Wasm>>) =
             Module(
-                Set.empty,
+                List.empty,
                 Map.empty,
                 [],
                 Set.empty,
@@ -475,7 +475,7 @@ module Module =
             )
 
         member this.AddTypedef(typedef: TypeDef) =
-            let types = Set.add typedef this.types
+            let types = this.types @ [typedef]
 
             Module(
                 types,
@@ -502,7 +502,7 @@ module Module =
             // add typedef to types
             let (types, f') =
                 if addTypedef then
-                    let typeIndex = this.types.Count
+                    let typeIndex = this.types.Length
 
                     // get instance
                     let instance = fst f
@@ -515,11 +515,11 @@ module Module =
 
                     let typedef = FuncType(typeS, typedef)
 
-                    let newTypes = (Set.add typedef this.types)
+                    let newTypes = (this.types @ [typedef])
 
                     let set = distinctTypes newTypes
 
-                    Set(set), f'
+                    set, f'
                 else
                     this.types, f
 
@@ -673,7 +673,7 @@ module Module =
         // combine two wasm modules
         member this.Combine(m: Module) =
             Module(
-                Set(distinctTypes (Set.union this.types m.types)),
+                distinctTypes (this.types @ m.types),
                 Map.fold (fun acc key value -> Map.add key value acc) this.functions m.functions,
                 Seq.append this.tables m.tables,
                 Set.union this.memories m.memories,
@@ -720,7 +720,7 @@ module Module =
             result <- result + "(module\n"
 
             // print all types
-            for type_ in List.indexed (Set.toList this.types) do
+            for type_ in List.indexed (this.types) do
                 result <- result + (printType type_ false)
 
             // print all imports
