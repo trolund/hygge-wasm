@@ -1,5 +1,5 @@
 let arr: array {int} = array(2 + 2, 40 + 2);
-0
-// let len: int = arrayLength(arr);
 
-// assert(len = 4)
+let len: int = arrayLength(arr);
+
+assert(len = 4)

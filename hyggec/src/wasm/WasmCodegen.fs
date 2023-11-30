@@ -190,7 +190,7 @@ let mapType t =
 let rec mapTypeHeap (t: Type) =
     match t with
     | TStruct l -> Ref(Named(GenStructTypeIDType l))
-    | TArray l -> Ref(Named("temp")) // TODO: change
+    | TArray t -> Ref(Named((mapTypeHeap t).ToString()))
     | _ -> (mapType t)[0]
 
 /// generate struct type string
@@ -226,11 +226,12 @@ and GenStructTypeIDType (t: list<string * Type>) : string =
 
     $"struct_{l}"
 
-
+let GenArrayTypeIDType t = $"arr_{mapTypeHeap t}"
 
 let createStructType (fields: list<string * Node<TypingEnv, Type>>) =
     let typeParams: Param list =
         List.map (fun (name, t: TypedAST) -> (Some(name), ((mapTypeHeap (expandType t.Env t.Type)), Mutable))) fields
+
     let typeId = GenStructTypeID fields
 
     StructType(typeId, typeParams)
@@ -900,7 +901,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let data' = doCodegen env data m
 
         let structType = env.SymbolController.genSymbol $"struct_type"
-        let arrayType = env.SymbolController.genSymbol $"array_type"
+        let arrayType = GenArrayTypeIDType data.Type
 
         // define WasmGC types.
         let arrayModule =
@@ -933,8 +934,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                ),
                "set temp var and leave value on stack") ]
 
-        arrayModule
-            .AddCode(lengthCheck @ createArray)
+        arrayModule.AddCode(lengthCheck @ createArray)
     | Array(length, data) ->
         let length' = doCodegen env length m
         let data' = doCodegen env data m
@@ -1071,13 +1071,27 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         ++ loopModule.AddCode(
             [ (LocalGet(Named(structPointerLabel)), "leave pointer to allocated array struct on stack") ]
         )
-    | ArrayLength(target) ->
-        let m' = doCodegen env target m
-
-        let instrs = [ (I32Load_(None, Some(4), m'.GetAccCode()), "load length") ]
+    | ArrayLength(target) when env.Config.AllocationStrategy = Heap ->
+        let target' = doCodegen env target m
+        let t = "arr_" + ((mapType target.Type)[0]).ToString()
 
         C [ Comment "start array length node" ]
-        ++ m'.ResetAccCode().AddCode(instrs @ C [ Comment "end array length node" ])
+        ++ target'
+            .ResetAccCode()
+            .AddCode(
+                [ (StructGet(Named("struct_type"), Named("length"), target'.GetAccCode()), "load length") ]
+                @ C [ Comment "end array length node" ]
+            )
+    | ArrayLength(target) ->
+        let target' = doCodegen env target m
+
+        target'
+            .ResetAccCode()
+            .AddCode(
+                C [ Comment "start array length node" ]
+                @ [ (I32Load_(None, Some(4), target'.GetAccCode()), "load length") ]
+                @ C [ Comment "end array length node" ]
+            )
 
     | ArrayElement(target, index) ->
         let m' = doCodegen env target m
@@ -1891,8 +1905,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             .ResetAccCode()
             .AddTypedef(createStructType fields)
             .AddCode(
-                [ (StructNew(Named(GenStructTypeID fields), fieldsInitCode.GetAccCode()),
-                   "leave ref of struct on stack") ]
+                [ (StructNew(Named(GenStructTypeID fields), fieldsInitCode.GetAccCode()), "leave ref of struct on stack") ]
             )
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
