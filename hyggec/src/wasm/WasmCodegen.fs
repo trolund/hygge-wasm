@@ -1890,14 +1890,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let fieldsInitCode = List.fold folder m fieldNodes
 
-        let createStruct: (Wasm * string) list =
-            [ (StructNew(Named(GenStructTypeID fields), fieldsInitCode.GetAccCode()),
-               "set temp var and leave value on stack") ]
-
         fieldsInitCode
             .ResetAccCode()
             .AddTypedef(createStructType fields)
-            .AddCode(createStruct)
+            .AddCode(
+                [ (StructNew(Named(GenStructTypeID fields), fieldsInitCode.GetAccCode()),
+                   "leave ref of struct on stack") ]
+            )
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
@@ -1942,7 +1941,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                            ),
                            "set struct pointer var") ]
                     )
-            | Heap -> failwith "WasmGC not implemented"
+            | Heap -> failwith "WasmGC is not implemented in this case"
 
         // fold over fields and add them to struct with indexes
         let folder =
