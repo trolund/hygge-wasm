@@ -1878,36 +1878,26 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
     // struct constructor
     | Struct(fields) when env.Config.AllocationStrategy = Heap ->
-        let structName = env.SymbolController.genSymbol $"Sptr"
-
-        let typeId = GenStructTypeID fields
-        let typeLabel = Named(typeId)
-
-        let fieldNames = List.map (fun (n, _) -> n) fields
-        let fieldTypes = List.map (fun (_, t) -> t) fields
+        let fieldNodes = List.map (fun (_, t) -> t) fields
 
         // fold over fields and add them to struct with indexes
         let folder =
-            fun (acc: Module) (_: int, _: string, fieldInit: TypedAST) ->
+            fun (acc: Module) (fieldInit: TypedAST) ->
                 // initialize field
                 let initField = doCodegen env fieldInit m
-
                 // accumulate code
                 acc ++ initField
 
-        let fieldsInitCode =
-            List.fold folder m (List.zip3 [ 0 .. fieldNames.Length - 1 ] fieldNames fieldTypes)
+        let fieldsInitCode = List.fold folder m fieldNodes
 
-        // TODO: maybe temp var is not needed
-        let m' =
-            [ (StructNew(typeLabel, fieldsInitCode.GetAccCode()), "set temp var and leave value on stack") ]
-
+        let createStruct: (Wasm * string) list =
+            [ (StructNew(Named(GenStructTypeID fields), fieldsInitCode.GetAccCode()),
+               "set temp var and leave value on stack") ]
 
         fieldsInitCode
             .ResetAccCode()
             .AddTypedef(createStructType fields)
-            .AddLocals([ (Some(Identifier(structName)), Ref(typeLabel)) ])
-            .AddCode(m')
+            .AddCode(createStruct)
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
