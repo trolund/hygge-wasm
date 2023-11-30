@@ -229,10 +229,8 @@ and GenStructTypeIDType (t: list<string * Type>) : string =
 
 
 let createStructType (fields: list<string * Node<TypingEnv, Type>>) =
-
     let typeParams: Param list =
         List.map (fun (name, t: TypedAST) -> (Some(name), ((mapTypeHeap (expandType t.Env t.Type)), Mutable))) fields
-
     let typeId = GenStructTypeID fields
 
     StructType(typeId, typeParams)
@@ -901,13 +899,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let length' = doCodegen env length m
         let data' = doCodegen env data m
 
-        let structLabel = env.SymbolController.genSymbol $"struct_label"
         let structType = env.SymbolController.genSymbol $"struct_type"
         let arrayType = env.SymbolController.genSymbol $"array_type"
 
+        // define WasmGC types.
         let arrayModule =
             m
-                .AddTypedef(ArrayType(arrayType, I32))
+                .AddTypedef(ArrayType(arrayType, mapTypeHeap data.Type))
                 .AddTypedef(
                     StructType(
                         structType,
@@ -926,6 +924,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                ),
                "check that length of array is bigger then 1 - if not return 42") ]
 
+        // create array and contruct struct to wrap it
         let createArray =
             [ (StructNew(
                   Named(structType),
@@ -935,7 +934,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                "set temp var and leave value on stack") ]
 
         arrayModule
-            .AddLocals([ (Some(Identifier(structLabel)), Ref(Named(structType))) ])
             .AddCode(lengthCheck @ createArray)
     | Array(length, data) ->
         let length' = doCodegen env length m
@@ -1875,7 +1873,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | AST.Type(_, _, scope) ->
         // A type alias does not produce any code --- but its scope does
         doCodegen env scope m
-
     // struct constructor
     | Struct(fields) when env.Config.AllocationStrategy = Heap ->
         let fieldNodes = List.map (fun (_, t) -> t) fields
@@ -2000,12 +1997,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let fieldAccessCode =
             match (expandType target.Env target.Type) with
             | TStruct(fields) ->
-                let fieldNames, fieldTypes = List.unzip fields
+                let fieldNames, _ = List.unzip fields
                 let offset = List.findIndex (fun f -> f = field) fieldNames
 
                 [ (StructGet(Named(GenStructTypeIDType fields), Index(offset), selTargetCode.GetAccCode()),
                    $"load field: {field}") ]
-
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
 
         // Put everything together: compile the target, access the field
