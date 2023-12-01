@@ -2222,19 +2222,26 @@ and internal createClosure (env: CodegenEnv) (node: TypedAST) (index: int) (m: M
 
     let returnStructModule = doCodegen env returnStruct m
 
-    // get name local var that stores pointer to struct
-    let localVarID = lookupLatestLocal returnStructModule
+    // temp var symbol
+    let tempVar = env.SymbolController.genSymbol $"temp"
 
     let instr =
-        [ (I32Store(
-              [ (I32Add(returnStructModule.GetAccCode() @ [ (I32Const 4, "4 byte offset") ]), "add offset") ]
+        [ (LocalSet(Named(tempVar), returnStructModule.GetAccCode()), "set temp var) ") ]
+         @ [ (I32Store(
+              [ (I32Add([ (LocalGet(Named(tempVar)), "get temp var"); (I32Const 4, "4 byte offset") ]), "add offset") ]
               @ capturedVarsStructCode.GetAccCode()
            ),
            "store poninter in return struct") ]
-        @ [ (LocalGet(Named(localVarID)), "get pointer to return struct") ]
+        @ [ (LocalGet(Named(tempVar)), "get pointer to return struct") ]
 
+    let structType =
+        if env.Config.AllocationStrategy = Heap then
+            Ref(Named(GenStructTypeID capturedStructFields))
+        else
+            I32
 
     (returnStructModule.ResetAccCode() + capturedVarsStructCode.ResetAccCode())
+        .AddLocals([ (Some(Identifier(tempVar)), structType) ])
         .AddCode(instr) // pointer becomes value to store
 
 /// function that recursively propagates the AST and substitutes all local get and set instructions of a specific variable

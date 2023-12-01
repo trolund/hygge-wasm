@@ -44,7 +44,7 @@ let genrate_name (name: string option) =
     | Some name -> $"$%s{name}"
     | _ -> ""
 
-let generate_local (locals: (string option * 'a) list) =
+let generate_local (locals: Local list) =
     if locals.Length > 0 then
         let comment = "local variables declarations:"
 
@@ -54,8 +54,14 @@ let generate_local (locals: (string option * 'a) list) =
                 (List.map
                     (fun x ->
                         match x with
-                        | (Some name, t) -> $"{gIndent 2}(local $%s{name} %s{t.ToString()})\n"
-                        | (None, t) -> $"{gIndent 2}(local %s{t.ToString()})\n")
+                        | (Some name, t) -> 
+                                match t with
+                                | Ref(l) -> $"{gIndent 2}(local $%s{name} (ref {l.ToString()}))\n"
+                                | _ -> $"{gIndent 2}(local $%s{name} %s{t.ToString()})\n"
+                        | (None, t) -> 
+                            match t with
+                            | Ref(l) -> $"{gIndent 2}(local (ref {l.ToString()}))\n"
+                            | _ -> $"{gIndent 2}(local %s{t.ToString()})\n")
                     locals)
 
         $"\n{gIndent 2}{commentS comment}\n{def}"
