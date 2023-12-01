@@ -51,7 +51,11 @@ type ValueType =
             | Funcref -> "funcref"
             // todo: ref null
             // | Ref l -> $"(ref null {l})"
-            | Ref l -> $"{l}"
+            | Ref l -> 
+                match l with
+                | Named s -> $"{s}"
+                | Index i -> $"%d{i}"
+                | Address i -> $"%d{i}"                        
             | Nullref -> "ref.null"
             | Null -> "null"
 

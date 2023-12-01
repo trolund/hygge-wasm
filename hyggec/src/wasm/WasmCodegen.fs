@@ -745,8 +745,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// generate code for the expression for the function to be applied
         let exprm: Module = (doCodegen env expr m)
 
-        // type to function signature
-        let typeId = GenFuncTypeID(typeToFuncSiganture (expandType expr.Env expr.Type))
+        // type to function signature 
+        let typeId = GenFuncTypeID(typeToFuncSiganture env (expandType expr.Env expr.Type))
 
         argm
             .ResetAccCode()
@@ -2103,7 +2103,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | _ -> failwith "not implemented"
 
 /// create a function signature from a type
-and typeToFuncSiganture (t: Type.Type) =
+and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
     match t with
     | TFun(args, ret) ->
 
@@ -2124,9 +2124,15 @@ and typeToFuncSiganture (t: Type.Type) =
                     | TUnit -> failwith "a function cannot have a unit argument")
                 args
 
+        let cenvType =
+            if env.Config.AllocationStrategy = Heap then
+                let args' = List.map (fun (t) -> ("",t)) args
+                Ref(Named(GenStructTypeIDType args'))
+            else
+                I32
 
         // added cenv var to args to pass closure env
-        let argTypes' = (None, I32) :: argTypes
+        let argTypes' = (None, cenvType) :: argTypes
         let signature: FunctionSignature = (argTypes', mapType ret)
 
         signature
@@ -2141,20 +2147,27 @@ and internal compileFunction
     (m: Module)
     : Module =
 
-    let cenvType = if env.Config.AllocationStrategy = Heap 
-                          then Ref(Named(GenStructTypeIDType args))
-                          else I32
+    // strip names
+    let args' = List.map (fun (_, t) -> ("",t)) args
 
-    let x = if env.Config.AllocationStrategy = Heap 
-                    then Module().AddTypedef(ArrayType(GenStructTypeIDType args, mapTypeHeap body.Type))
-                    else Module()
+    let cenvType =
+        if env.Config.AllocationStrategy = Heap then
+            Ref(Named(GenStructTypeIDType args'))
+        else
+            I32
+
+    let cenvHeapTypeDef =
+        if env.Config.AllocationStrategy = Heap then
+            Module().AddTypedef(ArrayType(GenStructTypeIDType args', mapTypeHeap body.Type))
+        else
+            Module()
 
     // map args to there types
     let argTypes': Local list = (Some("cenv"), cenvType) :: (argsToLocals env args)
     let signature: FunctionSignature = (argTypes', mapType body.Type)
 
     // compile function body
-    let m': Module = x ++ doCodegen { env with CurrFunc = name } body m
+    let m': Module = cenvHeapTypeDef ++ doCodegen { env with CurrFunc = name } body m
 
     // create function instance
     let f: Commented<FunctionInstance> =

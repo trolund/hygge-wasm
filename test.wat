@@ -1,6 +1,6 @@
 (module
-  (type $struct_x*i32_y*i32 (;0;) (array (mut i32)))
-  (type $$struct_x*i32_y*i32_i32_i32_=>_i32 (;1;) (func (param (ref $struct_x*i32_y*i32)) (param i32) (param i32) (result i32)))
+  (type $struct_*i32_*i32 (;0;) (array (mut i32)))
+  (type $struct_*i32_*i32_i32_i32_=>_i32 (;1;) (func (param (ref $struct_*i32_*i32)) (param i32) (param i32) (result i32)))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) (i32.const 0))
   (global $fun_f*ptr (;1;) (mut i32) (i32.const 0))
@@ -13,7 +13,7 @@
     ;; Start of let
     (global.set $var_result ;; set local var, have been hoisted
       ;; Load expression to be applied as a function
-      (call_indirect (type $i32_i32_i32_=>_i32) ;; call function
+      (call_indirect (type $struct_*i32_*i32_i32_i32_=>_i32) ;; call function
         (i32.load offset=4
           (global.get $fun_f*ptr) ;; get global var: fun_f*ptr
         )
@@ -41,7 +41,7 @@
     ;; End of let
     ;; if execution reaches here, the program is successful
   )
-  (func $fun_f (;1;) (param $cenv (ref $struct_x*i32_y*i32)) (param $arg_x i32) (param $arg_y i32) (result i32) 
+  (func $fun_f (;1;) (param $cenv (ref $struct_*i32_*i32)) (param $arg_x i32) (param $arg_y i32) (result i32) 
     (i32.add
       (local.get $arg_x) ;; get local var: arg_x
       (local.get $arg_y) ;; get local var: arg_y
