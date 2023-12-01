@@ -745,7 +745,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// generate code for the expression for the function to be applied
         let exprm: Module = (doCodegen env expr m)
 
-        // type to function signature 
+        // type to function signature
         let typeId = GenFuncTypeID(typeToFuncSiganture env (expandType expr.Env expr.Type))
 
         argm
@@ -2126,7 +2126,7 @@ and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
 
         let cenvType =
             if env.Config.AllocationStrategy = Heap then
-                let args' = List.map (fun (t) -> ("",t)) args
+                let args' = List.map (fun (t) -> ("", t)) args
                 Ref(Named(GenStructTypeIDType args'))
             else
                 I32
@@ -2148,7 +2148,7 @@ and internal compileFunction
     : Module =
 
     // strip names
-    let args' = List.map (fun (_, t) -> ("",t)) args
+    let args' = List.map (fun (_, t) -> ("", t)) args
 
     let cenvType =
         if env.Config.AllocationStrategy = Heap then
@@ -2197,14 +2197,6 @@ and internal createClosure (env: CodegenEnv) (node: TypedAST) (index: int) (m: M
     // map captured to a list of string * TypedAST where the string is the name of the captured variable
     let capturedStructFields = List.map (fun n -> (n, resolveNode n)) capturedList
 
-    // all captured variables are stored in a struct
-    let capturedVarsStruct =
-        { node with
-            Expr = Struct(capturedStructFields) }
-
-    // generate code for struct
-    let capturedVarsStructCode = doCodegen env capturedVarsStruct m
-
     // struct that contains env and function pointer
     let returnStruct =
         { node with
@@ -2216,33 +2208,10 @@ and internal createClosure (env: CodegenEnv) (node: TypedAST) (index: int) (m: M
                            Type = TInt })
                       ("env",
                        { node with
-                           Expr = IntVal(0) // env pointer, is later replaced with pointer to closure environment
-                           Type = TInt }) ]
+                           Expr = Struct(capturedStructFields) }) ]
                 ) }
 
-    let returnStructModule = doCodegen env returnStruct m
-
-    // temp var symbol
-    let tempVar = env.SymbolController.genSymbol $"temp"
-
-    let instr =
-        [ (LocalSet(Named(tempVar), returnStructModule.GetAccCode()), "set temp var) ") ]
-         @ [ (I32Store(
-              [ (I32Add([ (LocalGet(Named(tempVar)), "get temp var"); (I32Const 4, "4 byte offset") ]), "add offset") ]
-              @ capturedVarsStructCode.GetAccCode()
-           ),
-           "store poninter in return struct") ]
-        @ [ (LocalGet(Named(tempVar)), "get pointer to return struct") ]
-
-    let structType =
-        if env.Config.AllocationStrategy = Heap then
-            Ref(Named(GenStructTypeID capturedStructFields))
-        else
-            I32
-
-    (returnStructModule.ResetAccCode() + capturedVarsStructCode.ResetAccCode())
-        .AddLocals([ (Some(Identifier(tempVar)), structType) ])
-        .AddCode(instr) // pointer becomes value to store
+    doCodegen env returnStruct m
 
 /// function that recursively propagates the AST and substitutes all local get and set instructions of a specific variable
 /// with global get and set instructions

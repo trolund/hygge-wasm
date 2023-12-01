@@ -3,8 +3,8 @@
   (type $struct_value*i32 (;1;) (struct (field $value (mut i32))))
   (type $struct_ (;2;) (array (mut i32)))
   (type $struct__=>_i32 (;3;) (func (param (ref $struct_)) (result i32)))
-  (type $struct_f*i32_env*i32 (;4;) (struct (field $f (mut i32)) (field $env (mut i32))))
-  (type $struct_x*struct_value*i32_y*i32 (;5;) (struct (field $x (ref null $struct_value*i32)) (field $y (mut i32))))
+  (type $struct_x*struct_value*i32_y*i32 (;4;) (struct (field $x (ref null $struct_value*i32)) (field $y (mut i32))))
+  (type $struct_f*i32_env*i32 (;5;) (struct (field $f (mut i32)) (field $env (mut i32))))
   (type $struct_*i32_i32_=>_i32 (;6;) (func (param (ref $struct_*i32)) (param i32) (result i32)))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) (i32.const 0))
@@ -175,7 +175,6 @@
   )
   (func $fun_makeCounter (;1;) (param $cenv (ref $struct_*i32)) (param $arg_y i32) (result i32) 
      ;; local variables declarations:
-    (local $temp (ref $struct_x*struct_value*i32_y*i32))
     (local $var_x (ref $struct_value*i32))
 
     ;; Start of let
@@ -184,23 +183,13 @@
         (i32.const 2) ;; push 2 on stack
       )
     )
-    (local.set $temp ;; set temp var) 
-      (struct.new $struct_f*i32_env*i32
-        (i32.const 1) ;; push 1 on stack
-        (i32.const 0) ;; push 0 on stack
-      )
-    )
-    (i32.store ;; store poninter in return struct
-      (i32.add ;; add offset
-        (local.get $temp) ;; get temp var
-        (i32.const 4) ;; 4 byte offset
-      )
+    (struct.new $struct_f*i32_env*i32
+      (i32.const 1) ;; push 1 on stack
       (struct.new $struct_x*struct_value*i32_y*i32
         (local.get $var_x) ;; get local var: var_x
         (local.get $arg_y) ;; get local var: arg_y
       )
     )
-    (local.get $temp) ;; get pointer to return struct
     ;; End of let
   )
   (func $fun_makeCounter/anonymous (;2;) (param $cenv (ref $struct_)) (result i32) 
