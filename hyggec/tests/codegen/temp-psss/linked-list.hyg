@@ -1,16 +1,48 @@
-type OpNode = union {
-    Some: Node;
-    None: unit
+type Node = union {
+    Leaf: int;
+    Node: struct {value: int; next: Node}
 };
 
-type Node = struct { data: int;
-                     next: OpNode };
-
-fun appendTo(root: Node, data: int): Node = {
-    let newNode: Node = struct { data = data; 
-                                 next = None{()} };
-    root.next = newNode;
-    root
+fun reverseNode(lst: Node): Node = {
+    fun reverseHelper(current: Node, prev: Node): Node = {
+        match current with {
+            Leaf{_} -> prev;
+            Node{s} -> { 
+                let temp: Node = s.next;
+                s.next <- prev;
+                reverseHelper(temp, current) 
+                }
+        }
+    };
+    reverseHelper(lst, Leaf{0})
 };
 
-print("hej")
+fun printList(lst: Node): unit = {
+
+    fun printHelper(current: Node): unit = {
+        match current with {
+            Leaf{v} -> print(v); // Print the value
+            Node{s} -> { 
+                print(s.value); 
+                printHelper(s.next) 
+            }
+        }
+    };
+
+    printHelper(lst)
+};
+
+// list needs to start with 0
+let originalNode: Node =
+    Node{struct{value = 1; next = Node{struct{value = 2; next = Leaf{3}}}}};
+
+printList(originalNode);
+
+println("-------------------------");
+
+let reversedNode: Node = reverseNode(originalNode);
+
+// let newList: Node = appendNode(originalNode, 4);
+
+// Print the reversed list (for demonstration purposes)
+printList(reversedNode)

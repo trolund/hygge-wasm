@@ -25,7 +25,10 @@ let generate_signature signature (comment: string) =
             (List.map
                 (fun (n, t) ->
                     match n with
-                    | Some name -> $"(param $%s{name} %s{t.ToString()})"
+                    | Some name ->
+                        match t with
+                        | Ref(l) -> $"(param $%s{name} (ref {l.ToString()}))"
+                        | _ -> $"(param $%s{name} %s{t.ToString()})"
                     | None -> $"(param %s{t.ToString()})")
                 parameters)
 
@@ -74,9 +77,13 @@ let printType (i: int, t) (withName: bool) =
                         match n with
                         | Some name ->
                             if withName then
-                                $"(param $%s{name} %s{t.ToString()})"
+                                match t with
+                                | Ref(l) -> $"(param $%s{name} (ref {l.ToString()}))"
+                                | _ -> $"(param $%s{name} %s{t.ToString()})"
                             else
-                                $"(param %s{t.ToString()})"
+                                match t with
+                                | Ref(l) -> $"(param (ref {l.ToString()}))"
+                                | _ -> $"(param %s{t.ToString()})"
                         | None -> $"(param %s{t.ToString()})")
                     parameters)
 
@@ -88,11 +95,12 @@ let printType (i: int, t) (withName: bool) =
     | StructType(name: Identifier, types: Param list) ->
         // valid type: (type $buf (struct (field $pos (mut i32)) (field $chars (mut i32))))
 
-        let formatVar = fun (var: Variable) ->
-            match var with
-            | (Ref(l), _) -> $"(ref null {l.ToString()})"
-            | (t, Mutable) -> $"(mut {t.ToString()})"
-            | (t, Immutable) -> t.ToString()
+        let formatVar =
+            fun (var: Variable) ->
+                match var with
+                | (Ref(l), _) -> $"(ref null {l.ToString()})"
+                | (t, Mutable) -> $"(mut {t.ToString()})"
+                | (t, Immutable) -> t.ToString()
 
         let printParam (n: Identifier option, var: Variable) =
             match n with
@@ -103,8 +111,7 @@ let printType (i: int, t) (withName: bool) =
             String.concat " " (List.map (fun (param) -> printParam param) types)
 
         $"{gIndent 1}(type ${name} {ic i} (struct {paramsString}))\n"
-    | ArrayType(name: Identifier, t: ValueType) ->
-        $"{gIndent 1}(type ${name} {ic i} (array (mut {t.ToString()})))\n"
+    | ArrayType(name: Identifier, t: ValueType) -> $"{gIndent 1}(type ${name} {ic i} (array (mut {t.ToString()})))\n"
 
 // function that only return the label of the instruction
 // I32Const should return "i32.const"
@@ -315,8 +322,8 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"block ${label} {resultPrint valueTypes}\n{innerWat}{gIndent (indent)}end\n"
 
                 aux tail s indent
-            
-            | Loop(label, valueTypes, instrs: Commented<Instr.Wasm> list) when style = Folded  ->
+
+            | Loop(label, valueTypes, instrs: Commented<Instr.Wasm> list) when style = Folded ->
                 let innerWat = aux instrs "" (indent + 1)
 
                 let s =
@@ -335,7 +342,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"loop ${label} {resultPrint valueTypes}\n{innerWat}{gIndent (indent)}end\n"
 
                 aux tail s indent
-            
+
             | If(types, cond, ifInstrs, elseInstrs) when style = Folded ->
                 match elseInstrs with
                 | Some elseInstrs' ->
@@ -375,7 +382,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     aux tail s indent
                 | None ->
                     let condWat = aux cond "" (indent)
-                    let innerWatTrue = aux ifInstrs "" (indent + 1) 
+                    let innerWatTrue = aux ifInstrs "" (indent + 1)
 
                     let s =
                         watCode
@@ -396,11 +403,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
             | StructNew(label, instrs: Commented<Wasm> list) when style = Linar ->
                 let innerWat = aux instrs "" (indent)
 
-                let s =
-                    watCode
-                    + innerWat
-                    + space
-                    + $"struct.new %s{label.ToString()}\n"
+                let s = watCode + innerWat + space + $"struct.new %s{label.ToString()}\n"
 
                 aux tail s indent
             | StructSet(typeLabel, fieldLabel, instrs: Commented<Wasm> list)
@@ -436,14 +439,10 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
             | ArrayNew(label, instrs: Commented<Wasm> list) when style = Linar ->
                 let innerWat = aux instrs "" (indent)
 
-                let s =
-                    watCode
-                    + innerWat
-                    + space
-                    + $"array.new %s{label.ToString()}\n"
+                let s = watCode + innerWat + space + $"array.new %s{label.ToString()}\n"
 
                 aux tail s indent
-            
+
             | ArrayGet(label, instrs: Commented<Wasm> list) when style = Folded ->
                 let innerWat = aux instrs "" (indent + 1)
 
@@ -453,17 +452,13 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"(array.get %s{label.ToString()}\n{innerWat}{gIndent (indent)})\n"
 
                 aux tail s indent
-            
+
             | ArrayGet(label, instrs: Commented<Wasm> list) when style = Linar ->
                 let innerWat = aux instrs "" (indent)
 
-                let s =
-                    watCode
-                    + innerWat
-                    + space
-                    + $"array.get %s{label.ToString()}\n"
+                let s = watCode + innerWat + space + $"array.get %s{label.ToString()}\n"
 
-                aux tail s indent  
+                aux tail s indent
 
             | ArraySet(label, instrs: Commented<Wasm> list) when style = Folded ->
                 let innerWat = aux instrs "" (indent + 1)
@@ -474,15 +469,11 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"(array.set %s{label.ToString()}\n{innerWat}{gIndent (indent)})\n"
 
                 aux tail s indent
-            
+
             | ArraySet(label, instrs: Commented<Wasm> list) when style = Linar ->
                 let innerWat = aux instrs "" (indent)
 
-                let s =
-                    watCode
-                    + innerWat
-                    + space
-                    + $"array.set %s{label.ToString()}\n"
+                let s = watCode + innerWat + space + $"array.set %s{label.ToString()}\n"
 
                 aux tail s indent
             // foled instructions
@@ -520,7 +511,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
             | F32Store instrs
             | MemoryGrow instrs
             | Drop instrs
-            | StructNew (_, instrs)
+            | StructNew(_, instrs)
             | I32Add instrs when style = Folded ->
                 let watCode =
                     watCode
@@ -530,7 +521,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                 aux tail watCode indent
             | ArrayLen instrs
             | RefCast instrs
-            | StructNew (_, instrs)
+            | StructNew(_, instrs)
             | Drop instrs
             | MemoryGrow instrs
             | I32GeS instrs
@@ -901,9 +892,11 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 /// format global as a string
 let printGlobal (i: int, g: Global) =
     let name, (valueType, mutability), instr = g
-    let valueTypeS = match valueType with
-                        | Ref(l) -> $"(ref null {l.ToString()})"
-                        | _ -> valueType.ToString()
+
+    let valueTypeS =
+        match valueType with
+        | Ref(l) -> $"(ref null {l.ToString()})"
+        | _ -> valueType.ToString()
 
     let gType =
         match mutability with

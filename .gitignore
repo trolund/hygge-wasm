@@ -40,3 +40,4 @@ nodeJsRunner/build/index.js
 .gitignore
 ./build
 build
+nodeJsRunner/v8

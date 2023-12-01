@@ -107,7 +107,7 @@ function start() {
     return __awaiter(this, void 0, void 0, function* () {
         yield (0, wasi_1.init)();
         try {
-            const data = node_fs_1.default.readFileSync('./test_files/test.wasm');
+            const data = node_fs_1.default.readFileSync('./test_files/bubblesort.wasm');
             const module = yield WebAssembly.compile(data);
             yield run(module);
         }

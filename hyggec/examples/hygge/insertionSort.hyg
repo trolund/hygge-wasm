@@ -1,0 +1,84 @@
+// insertion sort in hygge language
+let insertionSort: (array{int}) -> unit = fun(arr: array{int}) -> {
+    let len: int = arrayLength(arr);
+    let mutable i: int = 0;
+    
+    for (i <- 1; i < len; ++i) {
+        let key: int = arrayElem(arr, i);
+        let mutable j: int = i - 1;
+
+        // Move elements of arr[0..i-1] that are greater than key to one position ahead of their current position
+        while (j >= 0 && (arrayElem(arr, j) > key)) do {
+            arrayElem(arr, j + 1) <- arrayElem(arr, j);
+            j <- j - 1
+        };
+        arrayElem(arr, j + 1) <- key
+    }
+};
+
+// let printArray: (array{int}) -> unit = fun(arr: array{int}) -> {
+//     let mutable x: int = 0; // read input
+
+//     do { // do-while to print array data
+//         println(arrayElem(arr, x)); // read array element
+//         x <- x + 1 // increment
+//     } while (x < arrayLength(arr)) // read length of array as part of condition to print array data
+// };
+
+// initialize array
+let arr: array {int} = array(10, 0);
+
+// insert random values
+arrayElem(arr, 0) <- 500;
+arrayElem(arr, 1) <- 3;
+arrayElem(arr, 2) <- 11;
+arrayElem(arr, 3) <- 22;
+arrayElem(arr, 4) <- 45;
+arrayElem(arr, 5) <- 61;
+arrayElem(arr, 6) <- 100;
+arrayElem(arr, 7) <- 200;
+arrayElem(arr, 8) <- 34;
+arrayElem(arr, 9) <- 80;
+
+// print initial array
+println("😰 initial array:");
+// printArray(arr);
+println("🤔 sorting array... (insertion sort)");
+// sort array
+
+insertionSort(arr);
+
+println("--------------------------------------");
+println("✅ sorted array:");
+// print sorted array
+// printArray(arr);
+
+// assert that list is sorted correctly
+assert(arrayElem(arr, 0) = 3);
+assert(arrayElem(arr, 1) = 11);
+assert(arrayElem(arr, 2) = 22);
+assert(arrayElem(arr, 3) = 34);
+assert(arrayElem(arr, 4) = 45);
+assert(arrayElem(arr, 5) = 61);
+assert(arrayElem(arr, 6) = 80);
+assert(arrayElem(arr, 7) = 100);
+assert(arrayElem(arr, 8) = 200);
+assert(arrayElem(arr, 9) = 500);
+
+println("done✅")
+
+// function insertionSort(arr) {
+//     var len = arr.length;
+//     for (var i = 1; i < len; i++) {
+//         var key = arr[i];
+//         var j = i - 1;
+
+//         // Move elements of arr[0..i-1] that are greater than key to one position ahead of their current position
+//         while (j >= 0 && arr[j] > key) {
+//             arr[j + 1] = arr[j];
+//             j = j - 1;
+//         }
+//         arr[j + 1] = key;
+//     }
+//     return arr;
+// }

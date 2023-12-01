@@ -1161,7 +1161,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         ++ (m' + m'')
             .ResetAccCode()
             .AddCode(instrs @ C [ Comment "end array element access node" ])
-
     // array slice creates a new struct with a pointer to the data of the original array
     | ArraySlice(target, start, ending) ->
 
@@ -2142,12 +2141,20 @@ and internal compileFunction
     (m: Module)
     : Module =
 
+    let cenvType = if env.Config.AllocationStrategy = Heap 
+                          then Ref(Named(GenStructTypeIDType args))
+                          else I32
+
+    let x = if env.Config.AllocationStrategy = Heap 
+                    then Module().AddTypedef(ArrayType(GenStructTypeIDType args, mapTypeHeap body.Type))
+                    else Module()
+
     // map args to there types
-    let argTypes': Local list = (Some("cenv"), I32) :: (argsToLocals env args)
+    let argTypes': Local list = (Some("cenv"), cenvType) :: (argsToLocals env args)
     let signature: FunctionSignature = (argTypes', mapType body.Type)
 
     // compile function body
-    let m': Module = doCodegen { env with CurrFunc = name } body m
+    let m': Module = x ++ doCodegen { env with CurrFunc = name } body m
 
     // create function instance
     let f: Commented<FunctionInstance> =
