@@ -1,54 +1,101 @@
 (module
-  (type $struct_f*i32 (;0;) (struct (field $f (mut i32))))
-  (type $struct_g*$struct_f*i32_f*i32 (;1;) (struct (field $g (ref null $struct_f*i32)) (field $f (mut i32))))
-  (type $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32 (;2;) (struct (field $f (mut i32)) (field $h (ref null $struct_g*$struct_f*i32_f*i32)) (field $g (mut i32))))
+  (type $arr_i32 (;0;) (array (mut i32)))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) (i32.const 0))
-  (global $heap_base (;1;) (mut i32) (i32.const 17))
-  (global $var_s1 (;2;) (mut (ref null $struct_f*i32)) (ref.null $struct_f*i32))
-  (global $var_s2 (;3;) (mut (ref null $struct_g*$struct_f*i32_f*i32)) (ref.null $struct_g*$struct_f*i32_f*i32))
-  (global $var_s3 (;4;) (mut (ref null $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32)) (ref.null $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32))
+  (global $heap_base (;1;) (mut i32) (i32.const 0))
+  (global $var_arr (;2;) (mut (ref null $arr_i32)) (ref.null $arr_i32))
+  (global $var_len (;3;) (mut i32) (i32.const 0))
+  (global $var_val (;4;) (mut i32) (i32.const 0))
+  (global $var_val2 (;5;) (mut i32) (i32.const 0))
   (table $func_table (;0;) 0 funcref)
   (func $_start (;0;)   
     ;; execution start here:
     ;; Start of let
-    (global.set $var_s1 ;; set local var, have been hoisted
-      (struct.new $struct_f*i32
-        (i32.const 3) ;; push 3 on stack
+    (global.set $var_arr ;; set local var, have been hoisted
+      (if 
+          (i32.le_s ;; check if length is <= 1
+            (i32.add
+              (i32.const 2) ;; push 2 on stack
+              (i32.const 2) ;; push 2 on stack
+            )
+            (i32.const 1) ;; put one on stack
+          )
+        (then
+          (global.set $exit_code ;; set exit code
+            (i32.const 42) ;; error exit code push to stack
+          )
+          (unreachable) ;; exit program
+        )
+      )
+      (array.new $arr_i32
+        (i32.add
+          (i32.const 40) ;; push 40 on stack
+          (i32.const 2) ;; push 2 on stack
+        )
+        (i32.add
+          (i32.const 2) ;; push 2 on stack
+          (i32.const 2) ;; push 2 on stack
+        )
       )
     )
     ;; Start of let
-    (global.set $var_s2 ;; set local var, have been hoisted
-      (struct.new $struct_g*$struct_f*i32_f*i32
-        (global.get $var_s1) ;; get local var: var_s1, have been hoisted
-        (i32.const 3) ;; push 3 on stack
+    (global.set $var_len ;; set local var, have been hoisted
+      (array.len ;; get length
+        (global.get $var_arr) ;; get local var: var_arr, have been hoisted
       )
     )
     ;; Start of let
-    (global.set $var_s3 ;; set local var, have been hoisted
-      (struct.new $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32
-        (i32.const 3) ;; push 3 on stack
-        (global.get $var_s2) ;; get local var: var_s2, have been hoisted
-        (i32.const 0) ;; leave pointer to string on stack
+    (global.set $var_val ;; set local var, have been hoisted
+      (if 
+          (i32.lt_s ;; check if index is >= 0
+            (i32.const 1) ;; push 1 on stack
+            (i32.const 0) ;; put zero on stack
+          )
+        (then
+          (global.set $exit_code ;; set exit code
+            (i32.const 42) ;; error exit code push to stack
+          )
+          (unreachable) ;; exit program
+        )
+      )
+      (if 
+          (i32.ge_s ;; check if index is < length
+            (i32.const 1) ;; push 1 on stack
+            (array.len ;; get length
+              (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+            )
+          )
+        (then
+          (global.set $exit_code ;; set exit code
+            (i32.const 42) ;; error exit code push to stack
+          )
+          (unreachable) ;; exit program
+        )
+      )
+      (array.get $arr_i32
+        (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        (i32.const 1) ;; push 1 on stack
       )
     )
     (if 
         (i32.eqz ;; invert assertion
           (i32.eq ;; equality check
-            ;; Start of field select
-            (struct.get $struct_f*i32 0 ;; load field: f
-              ;; Start of field select
-              (struct.get $struct_g*$struct_f*i32_f*i32 0 ;; load field: g
-                ;; Start of field select
-                (struct.get $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32 1 ;; load field: h
-                  (global.get $var_s3) ;; get local var: var_s3, have been hoisted
-                )
-                ;; End of field select
-              )
-              ;; End of field select
-            )
-            ;; End of field select
-            (i32.const 3) ;; push 3 on stack
+            (global.get $var_len) ;; get local var: var_len, have been hoisted
+            (i32.const 4) ;; push 4 on stack
+          )
+        )
+      (then
+        (global.set $exit_code ;; set exit code
+          (i32.const 42) ;; error exit code push to stack
+        )
+        (unreachable) ;; exit program
+      )
+    )
+    (if 
+        (i32.eqz ;; invert assertion
+          (i32.eq ;; equality check
+            (global.get $var_val) ;; get local var: var_val, have been hoisted
+            (i32.const 42) ;; push 42 on stack
           )
         )
       (then
@@ -59,59 +106,77 @@
       )
     )
     (drop ;; drop value of subtree
-      (struct.set $struct_f*i32 $f ;; set field: f
-        ;; Start of field select
-        (struct.get $struct_g*$struct_f*i32_f*i32 0 ;; load field: g
-          ;; Start of field select
-          (struct.get $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32 1 ;; load field: h
-            (global.get $var_s3) ;; get local var: var_s3, have been hoisted
+      (if 
+          (i32.lt_s ;; check if index is >= 0
+            (i32.const 1) ;; push 1 on stack
+            (i32.const 0) ;; put zero on stack
           )
-          ;; End of field select
-        )
-        ;; End of field select
-        (struct.set $struct_g*$struct_f*i32_f*i32 $f ;; set field: f
-          ;; Start of field select
-          (struct.get $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32 1 ;; load field: h
-            (global.get $var_s3) ;; get local var: var_s3, have been hoisted
+        (then
+          (global.set $exit_code ;; set exit code
+            (i32.const 42) ;; error exit code push to stack
           )
-          ;; End of field select
-          (struct.set $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32 $f ;; set field: f
-            (global.get $var_s3) ;; get local var: var_s3, have been hoisted
-            (i32.const 42) ;; push 42 on stack
-          )
-          (struct.get $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32 $f ;; get field: f
-            (global.get $var_s3) ;; get local var: var_s3, have been hoisted
-          )
-        )
-        (struct.get $struct_g*$struct_f*i32_f*i32 $f ;; get field: f
-          ;; Start of field select
-          (struct.get $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32 1 ;; load field: h
-            (global.get $var_s3) ;; get local var: var_s3, have been hoisted
-          )
-          ;; End of field select
+          (unreachable) ;; exit program
         )
       )
-      (struct.get $struct_f*i32 $f ;; get field: f
-        ;; Start of field select
-        (struct.get $struct_g*$struct_f*i32_f*i32 0 ;; load field: g
-          ;; Start of field select
-          (struct.get $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32 1 ;; load field: h
-            (global.get $var_s3) ;; get local var: var_s3, have been hoisted
+      (if 
+          (i32.ge_s ;; check if index is < length
+            (i32.const 1) ;; push 1 on stack
+            (array.len ;; get length
+              (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+            )
           )
-          ;; End of field select
+        (then
+          (global.set $exit_code ;; set exit code
+            (i32.const 42) ;; error exit code push to stack
+          )
+          (unreachable) ;; exit program
         )
-        ;; End of field select
+      )
+      (array.set $arr_i32
+        (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        (i32.const 1) ;; push 1 on stack
+        (i32.const 200) ;; push 200 on stack
+      )
+      (i32.const 200) ;; push 200 on stack
+    )
+    ;; Start of let
+    (global.set $var_val2 ;; set local var, have been hoisted
+      (if 
+          (i32.lt_s ;; check if index is >= 0
+            (i32.const 1) ;; push 1 on stack
+            (i32.const 0) ;; put zero on stack
+          )
+        (then
+          (global.set $exit_code ;; set exit code
+            (i32.const 42) ;; error exit code push to stack
+          )
+          (unreachable) ;; exit program
+        )
+      )
+      (if 
+          (i32.ge_s ;; check if index is < length
+            (i32.const 1) ;; push 1 on stack
+            (array.len ;; get length
+              (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+            )
+          )
+        (then
+          (global.set $exit_code ;; set exit code
+            (i32.const 42) ;; error exit code push to stack
+          )
+          (unreachable) ;; exit program
+        )
+      )
+      (array.get $arr_i32
+        (global.get $var_arr) ;; get local var: var_arr, have been hoisted
+        (i32.const 1) ;; push 1 on stack
       )
     )
     (if 
         (i32.eqz ;; invert assertion
           (i32.eq ;; equality check
-            ;; Start of field select
-            (struct.get $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32 0 ;; load field: f
-              (global.get $var_s3) ;; get local var: var_s3, have been hoisted
-            )
-            ;; End of field select
-            (i32.const 42) ;; push 42 on stack
+            (global.get $var_val2) ;; get local var: var_val2, have been hoisted
+            (i32.const 200) ;; push 200 on stack
           )
         )
       (then
@@ -121,61 +186,12 @@
         (unreachable) ;; exit program
       )
     )
-    (if 
-        (i32.eqz ;; invert assertion
-          (i32.eq ;; equality check
-            ;; Start of field select
-            (struct.get $struct_g*$struct_f*i32_f*i32 1 ;; load field: f
-              ;; Start of field select
-              (struct.get $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32 1 ;; load field: h
-                (global.get $var_s3) ;; get local var: var_s3, have been hoisted
-              )
-              ;; End of field select
-            )
-            ;; End of field select
-            (i32.const 42) ;; push 42 on stack
-          )
-        )
-      (then
-        (global.set $exit_code ;; set exit code
-          (i32.const 42) ;; error exit code push to stack
-        )
-        (unreachable) ;; exit program
-      )
-    )
-    (if 
-        (i32.eqz ;; invert assertion
-          (i32.eq ;; equality check
-            ;; Start of field select
-            (struct.get $struct_f*i32 0 ;; load field: f
-              ;; Start of field select
-              (struct.get $struct_g*$struct_f*i32_f*i32 0 ;; load field: g
-                ;; Start of field select
-                (struct.get $struct_f*i32_h*$struct_g*$struct_f*i32_f*i32_g*i32 1 ;; load field: h
-                  (global.get $var_s3) ;; get local var: var_s3, have been hoisted
-                )
-                ;; End of field select
-              )
-              ;; End of field select
-            )
-            ;; End of field select
-            (i32.const 42) ;; push 42 on stack
-          )
-        )
-      (then
-        (global.set $exit_code ;; set exit code
-          (i32.const 42) ;; error exit code push to stack
-        )
-        (unreachable) ;; exit program
-      )
-    )
+    ;; End of let
     ;; End of let
     ;; End of let
     ;; End of let
     ;; if execution reaches here, the program is successful
   )
-  (data (i32.const 0) "\0c\00\00\00\05\00\00\00\05\00\00\00")
-  (data (i32.const 12) "Hello")
   (export "_start" (func $_start))
   (export "exit_code" (global $exit_code))
   (export "heap_base_ptr" (global $heap_base))

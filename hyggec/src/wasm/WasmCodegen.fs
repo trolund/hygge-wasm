@@ -1070,6 +1070,43 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 @ [ (I32Load_(None, Some(4), target'.GetAccCode()), "load length") ]
                 @ C [ Comment "end array length node" ]
             )
+    | ArrayElement(target, index) when env.Config.AllocationStrategy = Heap ->
+        let target' = doCodegen env target m
+        let index' = doCodegen env index m
+        let length' = doCodegen env { node with Expr = ArrayLength(target) } m
+
+        let arrayType = GenArrayTypeIDType target.Type
+
+        // check that index is bigger then 0 - if not return 42
+        // and that index is smaller then length - if not return 42
+        let indexCheck =
+            [ (If(
+                  [],
+                  [ (I32LtS(
+                        index'.GetAccCode() // index on stack
+                        @ [ (I32Const 0, "put zero on stack") ]
+                     ),
+                     "check if index is >= 0") ],
+                  trap,
+                  None
+               ),
+               "check that index is >= 0 - if not return 42") ]
+            @ [ (If(
+                    [],
+                    [ (I32GeS(
+                          index'.GetAccCode() // index on stack
+                          @ length'.GetAccCode() // length on stack
+                       ),
+                       "check if index is < length") ],
+                    trap,
+                    None
+                 ),
+                 "check that index is < length - if not return 42") ]
+
+        indexCheck
+        ++ (target' + index' + length'.ResetAccCode())
+            .ResetAccCode()
+            .AddCode([ (ArrayGet(Named(arrayType), target'.GetAccCode() @ index'.GetAccCode()), "get element") ])
 
     | ArrayElement(target, index) ->
         let m' = doCodegen env target m
@@ -1459,6 +1496,45 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // Put everything together
                 assignCode ++ (rhsCode.ResetAccCode() + selTargetCode.ResetAccCode())
             | _ -> failwith "failed to assign to field"
+        | ArrayElement(target, index) when env.Config.AllocationStrategy = Heap ->
+            let target' = doCodegen env target m
+            let index' = doCodegen env index m
+            let value' = doCodegen env value m
+            let length' = doCodegen env { node with Expr = ArrayLength(target) } m
+            let arrayType = GenArrayTypeIDType value.Type
+
+            // Check index >= 0 and index < length
+            let indexCheck =
+                [ (If(
+                      [],
+                      [ (I32LtS(
+                            index'.GetAccCode() // index on stack
+                            @ [ (I32Const 0, "put zero on stack") ]
+                         ),
+                         "check if index is >= 0") ],
+                      trap,
+                      None
+                   ),
+                   "check that index is >= 0 - if not return 42") ]
+                @ [ (If(
+                        [],
+                        [ (I32GeS(
+                              index'.GetAccCode() // index on stack
+                              @ length'.GetAccCode() // length on stack
+                           ),
+                           "check if index is < length") ],
+                        trap,
+                        None
+                     ),
+                     "check that index is < length - if not return 42") ]
+
+            let instrs =
+                [ (ArraySet(Named(arrayType), target'.GetAccCode() @ index'.GetAccCode() @ value'.GetAccCode()),
+                   "write to element") ]
+                @ value'.GetAccCode()
+
+            (value'.ResetAccCode() + index'.ResetAccCode() + target'.ResetAccCode())
+                .AddCode(indexCheck @ instrs)
         | ArrayElement(target, index) ->
             let selTargetCode = doCodegen env target m
             let indexCode = doCodegen env index m

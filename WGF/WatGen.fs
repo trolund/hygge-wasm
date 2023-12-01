@@ -444,6 +444,47 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail s indent
             
+            | ArrayGet(label, instrs: Commented<Wasm> list) when style = Folded ->
+                let innerWat = aux instrs "" (indent + 1)
+
+                let s =
+                    watCode
+                    + space
+                    + $"(array.get %s{label.ToString()}\n{innerWat}{gIndent (indent)})\n"
+
+                aux tail s indent
+            
+            | ArrayGet(label, instrs: Commented<Wasm> list) when style = Linar ->
+                let innerWat = aux instrs "" (indent)
+
+                let s =
+                    watCode
+                    + innerWat
+                    + space
+                    + $"array.get %s{label.ToString()}\n"
+
+                aux tail s indent  
+
+            | ArraySet(label, instrs: Commented<Wasm> list) when style = Folded ->
+                let innerWat = aux instrs "" (indent + 1)
+
+                let s =
+                    watCode
+                    + space
+                    + $"(array.set %s{label.ToString()}\n{innerWat}{gIndent (indent)})\n"
+
+                aux tail s indent
+            
+            | ArraySet(label, instrs: Commented<Wasm> list) when style = Linar ->
+                let innerWat = aux instrs "" (indent)
+
+                let s =
+                    watCode
+                    + innerWat
+                    + space
+                    + $"array.set %s{label.ToString()}\n"
+
+                aux tail s indent
             // foled instructions
             | ArrayLen instrs
             | RefCast instrs
