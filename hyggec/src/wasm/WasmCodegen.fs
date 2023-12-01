@@ -190,7 +190,7 @@ let mapType t =
 let rec mapTypeHeap (t: Type) =
     match t with
     | TStruct l -> Ref(Named(GenStructTypeIDType l))
-    | TArray t -> Ref(Named((mapTypeHeap t).ToString()))
+    | TArray t -> mapTypeHeap t
     | _ -> (mapType t)[0]
 
 /// generate struct type string
@@ -900,20 +900,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let length' = doCodegen env length m
         let data' = doCodegen env data m
 
-        let structType = env.SymbolController.genSymbol $"struct_type"
         let arrayType = GenArrayTypeIDType data.Type
-
-        // define WasmGC types.
-        let arrayModule =
-            m
-                .AddTypedef(ArrayType(arrayType, mapTypeHeap data.Type))
-                .AddTypedef(
-                    StructType(
-                        structType,
-                        [ (Some("data"), (Ref(Named(arrayType)), Mutable))
-                          (Some("length"), (I32, Mutable)) ]
-                    )
-                )
 
         // check that length is bigger then 1 - if not return 42
         let lengthCheck =
@@ -925,16 +912,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                ),
                "check that length of array is bigger then 1 - if not return 42") ]
 
-        // create array and contruct struct to wrap it
-        let createArray =
-            [ (StructNew(
-                  Named(structType),
-                  [ (ArrayNew(Named(arrayType), data'.GetAccCode() @ length'.GetAccCode()), "create new array") ]
-                  @ length'.GetAccCode()
-               ),
-               "set temp var and leave value on stack") ]
-
-        arrayModule.AddCode(lengthCheck @ createArray)
+        (length'.ResetAccCode() + data'.ResetAccCode())
+            .AddTypedef(ArrayType(arrayType, mapTypeHeap data.Type))
+            .AddCode(
+                lengthCheck
+                @ [ (ArrayNew(Named(arrayType), data'.GetAccCode() @ length'.GetAccCode()), "create new array") ]
+            )
     | Array(length, data) ->
         let length' = doCodegen env length m
         let data' = doCodegen env data m
@@ -1073,15 +1056,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         )
     | ArrayLength(target) when env.Config.AllocationStrategy = Heap ->
         let target' = doCodegen env target m
-        let t = "arr_" + ((mapType target.Type)[0]).ToString()
 
-        C [ Comment "start array length node" ]
-        ++ target'
+        target'
             .ResetAccCode()
-            .AddCode(
-                [ (StructGet(Named("struct_type"), Named("length"), target'.GetAccCode()), "load length") ]
-                @ C [ Comment "end array length node" ]
-            )
+            .AddCode([ (ArrayLen(target'.GetAccCode()), "get length") ])
     | ArrayLength(target) ->
         let target' = doCodegen env target m
 
@@ -1715,10 +1693,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
 
-            let t =
-                match lookupLatestType m' with
-                | StructType(l, _) -> l
-                | _ -> failwith "not a struct"
+            let t = GenArrayTypeIDType init.Type
 
             let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
 
@@ -2241,6 +2216,11 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
         [ (StructGet(l, offset, localSubst instrs var), c) ] @ localSubst rest var
     | (StructSet(l, offset, instrs), c) :: rest ->
         [ (StructSet(l, offset, localSubst instrs var), c) ] @ localSubst rest var
+    | (ArrayNew(l, instrs), c) :: rest -> [ (ArrayNew(l, localSubst instrs var), c) ] @ localSubst rest var
+    | (ArrayGet(l, instrs), c) :: rest -> [ (ArrayGet(l, localSubst instrs var), c) ] @ localSubst rest var
+    | (ArraySet(l, instrs), c) :: rest -> [ (ArraySet(l, localSubst instrs var), c) ] @ localSubst rest var
+    | (ArrayLen(instrs), c) :: rest -> [ (ArrayLen(localSubst instrs var), c) ] @ localSubst rest var
+
 
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var

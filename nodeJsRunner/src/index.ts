@@ -137,7 +137,7 @@ async function start() {
     try {
         // Read the contents of the binary file synchronously
         // load wasm demo file
-        const data = fs.readFileSync('./test_files/bubblesort.wasm');
+        const data = fs.readFileSync('./test_files/test.wasm');
 
         // instantiate the wasm module
         const module: WebAssembly.Module = await WebAssembly.compile(data);

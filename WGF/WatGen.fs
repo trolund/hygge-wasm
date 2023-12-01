@@ -207,6 +207,7 @@ let instrLabel i =
     | StructNew(_, _) -> "struct.new"
     | StructGet(_, _, _) -> $"struct.get"
     | StructSet(_, _, _) -> $"struct.set"
+    | ArrayLen(_) -> $"array.len"
     | Comment(_) -> ""
 
 /// generate the wat instruction for a list of instructions
@@ -442,7 +443,9 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"array.new %s{label.ToString()}\n"
 
                 aux tail s indent
+            
             // foled instructions
+            | ArrayLen instrs
             | RefCast instrs
             | I32Sub instrs
             | I32Mul instrs
@@ -484,6 +487,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"({instrLabel instr}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
+            | ArrayLen instrs
             | RefCast instrs
             | StructNew (_, instrs)
             | Drop instrs

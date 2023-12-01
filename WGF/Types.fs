@@ -51,7 +51,7 @@ type ValueType =
             | Funcref -> "funcref"
             // todo: ref null
             // | Ref l -> $"(ref null {l})"
-            | Ref l -> $"ref*{l}_"
+            | Ref l -> $"{l}"
             | Nullref -> "ref.null"
             | Null -> "null"
 
