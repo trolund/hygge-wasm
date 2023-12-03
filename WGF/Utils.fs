@@ -51,3 +51,47 @@ let distinctTypes types =
             | StructType(name, _) -> name
             | ArrayType(name, _) -> name)
         (types)
+
+
+let formatStructString (tl:ValueType list): string = 
+
+    let l =
+        List.fold
+            (fun str (i, x: ValueType) ->
+                str + (if i > 0 then "-" else "") + $"{tl[i]}_{x.ToString()}")
+            ""
+            (List.indexed tl)
+
+    $"s_{l}"
+
+/// generate struct type string
+/// <summary>Generate struct type name</summary>
+/// <param name="t">Struct type</param>
+/// <returns>Struct type name</returns>
+/// <example>
+let GenStructTypeID (t: list<string * ValueType>) : string =
+    let fieldTypes = List.map (fun (_, t) -> t) t
+    formatStructString fieldTypes
+
+let GenStructTypeIDType (t: list<string * ValueType>) : string =
+    // let fieldNames = List.map (fun (n, _) -> n) t
+    let fieldTypes = List.map (fun (_, t) -> t) t
+    formatStructString fieldTypes
+
+let GenArrayTypeIDType (vt: ValueType) = $"arr_{vt}"
+
+let createStructTypeNode (fields: list<string * ValueType>) =
+    let typeParams: Param list =
+        List.map (fun (name, t: ValueType) -> (Some(name), ((t), Mutable))) fields
+
+    let typeId = GenStructTypeID fields
+
+    StructType(typeId, typeParams)
+
+let createStructType (fields: list<string * ValueType>) =
+    let typeParams: Param list =
+        List.map (fun (name, t: ValueType) -> (Some(name), ((t), Mutable))) fields
+
+    let typeId = GenStructTypeIDType fields
+
+    StructType(typeId, typeParams)

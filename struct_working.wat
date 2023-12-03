@@ -1,8 +1,10 @@
 (module
   ;; types
   (type $A (struct (field (mut i32))))
-  (type $B (struct (field (mut i32) (mut i32))))
-  (type $C (struct (field (mut i32) (mut i32))))
+  (type $B (struct (field (mut i32)) (field (mut i32))))
+  (type $C (struct (field (mut i32)) (field (mut i32))))
+
+  (global $var (;2;) (mut (ref null $A)) (ref.null $A))
 
   ;; functions
   (func $_start (;0;)  (result i32 i32 i32 i32 i32) 
@@ -40,6 +42,7 @@
       )
     )
 
+    (;
     
     (drop
       (ref.cast (ref $C) ;; casts! 
@@ -49,7 +52,8 @@
         )
       )
     )
-    
+    ;)
+
     (;
     (drop
       (ref.cast (ref $A) ;; failes cast! 
@@ -67,7 +71,19 @@
         )
       )
     )
-    
+
+    (global.set $var
+      (struct.new $A
+        (i32.const 20)
+      )
+    )
+
+    (drop 
+      (ref.cast (ref $B)
+        (global.get $var)
+      )
+    )
+
   )
   (export "_start" (func $_start))
 )

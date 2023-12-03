@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getImports = void 0;
-function getImports(memoryAllocator, isDebug = false) {
+export function getImports(memoryAllocator, isDebug = false) {
     return {
         env: {
             abort(_msg, _file, line, column) {
@@ -56,5 +53,4 @@ function getImports(memoryAllocator, isDebug = false) {
         }
     };
 }
-exports.getImports = getImports;
 //# sourceMappingURL=ImportService.js.map

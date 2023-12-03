@@ -40,6 +40,7 @@ type ValueType =
         | Ref of Label
         | Nullref
         | Null
+        | EqRef // https://webassembly.github.io/gc/core/syntax/types.html#id2
 
         override this.ToString() =
             match this with
@@ -58,6 +59,7 @@ type ValueType =
                 | Address i -> $"%d{i}"                        
             | Nullref -> "ref.null"
             | Null -> "null"
+            | EqRef -> "eqref" 
 
 type BlockType =
         | Type of ValueType

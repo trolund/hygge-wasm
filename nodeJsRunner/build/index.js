@@ -1,4 +1,3 @@
-"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -8,15 +7,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-console.log('Node.js V8 - Hygge Runner');
-const node_fs_1 = __importDefault(require("node:fs"));
-const wasi_1 = require("@wasmer/wasi");
-const MemoryAllocator_1 = require("./MemoryAllocator");
-const ImportService_1 = require("./ImportService");
+console.log('V8 - Hygge Runner');
+import fs from 'node:fs';
+import { WASI, init, MemFS } from "@wasmer/wasi";
+import { MemoryAllocator } from './MemoryAllocator';
+import { getImports } from './ImportService';
 const isDebug = true;
 const { program } = require('commander');
 program
@@ -27,9 +22,9 @@ const options = program.opts();
 const limit = options.first ? 1 : undefined;
 const run = (wasmModule) => __awaiter(void 0, void 0, void 0, function* () {
     console.log("🏃‍♂️ Running...");
-    const memoryAllocator = new MemoryAllocator_1.MemoryAllocator(isDebug);
-    const fs = new wasi_1.MemFS();
-    let wasi = new wasi_1.WASI({
+    const memoryAllocator = new MemoryAllocator(isDebug);
+    const fs = new MemFS();
+    let wasi = new WASI({
         env: {},
         args: [],
         fs: fs,
@@ -50,7 +45,7 @@ const run = (wasmModule) => __awaiter(void 0, void 0, void 0, function* () {
     catch (e) {
         console.log("WASI not used.");
     }
-    const combinedImports = Object.assign(Object.assign({}, wasiImports), (0, ImportService_1.getImports)(memoryAllocator, isDebug));
+    const combinedImports = Object.assign(Object.assign({}, wasiImports), getImports(memoryAllocator, isDebug));
     const instance = yield WebAssembly.instantiate(wasmModule, combinedImports);
     console.log("👍 Instantiated!");
     let growMemory = (n) => {
@@ -105,9 +100,9 @@ const handleExitCode = (instance) => {
 };
 function start() {
     return __awaiter(this, void 0, void 0, function* () {
-        yield (0, wasi_1.init)();
+        yield init();
         try {
-            const data = node_fs_1.default.readFileSync('./test_files/bubblesort.wasm');
+            const data = fs.readFileSync('./test_files/bubblesort.wasm');
             const module = yield WebAssembly.compile(data);
             yield run(module);
         }

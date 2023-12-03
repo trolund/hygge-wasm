@@ -1,7 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.MemoryAllocator = void 0;
-class MemoryAllocator {
+export class MemoryAllocator {
     constructor(isDebug = false) {
         this.offset = 0;
         this.currentSize = 1;
@@ -42,5 +39,4 @@ class MemoryAllocator {
         this.offset = 0;
     }
 }
-exports.MemoryAllocator = MemoryAllocator;
 //# sourceMappingURL=MemoryAllocator.js.map

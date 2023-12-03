@@ -1,10 +1,10 @@
-const fs = require('fs');
-const util = require('util');
-const readFile = util.promisify(fs.readFile);
+// import { readFile as _readFile } from 'fs';
+// import { promisify } from 'util';
+// const readFile = promisify(_readFile);
 
-async function runWasm() {
+async function runWasm() {  
   // Read the Wasm file
-  const wasmBuffer = await readFile('./test_files/test.wasm');
+  // const wasmBuffer = await readFile('./test_files/test.wasm');
 
   // Create a WebAssembly module
   const wasmModule = new WebAssembly.Module(wasmBuffer);

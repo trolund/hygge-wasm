@@ -502,16 +502,18 @@ module Module =
             // add typedef to types
             let (types, f') =
                 if addTypedef then
-                    let typeIndex = this.types.Length
-
                     // get instance
                     let instance = fst f
 
                     // add instance to function
                     let f' = (instance, snd f)
-                    let typedef = instance.signature
+                    let typedef: Local list * ValueType list = instance.signature
+                    // unzip typedef
+                    let (locals, vars) = typedef
 
-                    let typeS = GenFuncTypeID typedef
+                    let locals': Local list = List.map (fun (name, t) -> (None, t)) locals
+
+                    let typeS = GenFuncTypeID (locals', vars)
 
                     let typedef = FuncType(typeS, typedef)
 
