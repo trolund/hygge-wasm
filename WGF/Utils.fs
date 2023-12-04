@@ -58,7 +58,7 @@ let formatStructString (tl:ValueType list): string =
     let l =
         List.fold
             (fun str (i, x: ValueType) ->
-                str + (if i > 0 then "-" else "") + $"{tl[i]}_{x.ToString()}")
+                str + (if i > 0 then "-" else "") + $"{x.ToString()}")
             ""
             (List.indexed tl)
 

@@ -1,0 +1,9 @@
+fun outer(x: int): (int) -> int = {
+    let a: int = x + 1;
+    fun (y: int) -> {
+        y + a + x
+    }
+};
+
+let c1: (int) -> int = outer(2);
+assert(c1(2) = 7)

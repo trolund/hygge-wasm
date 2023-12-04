@@ -151,7 +151,7 @@ type internal CodegenEnv =
       VarStorage: Map<string, Storage>
       Config: Config.CompileConfig }
 
-let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) =
+let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) : Module * int * string =
     let ptr_label = $"{name}*ptr"
     
     // get the index of the function
@@ -159,12 +159,13 @@ let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) 
 
     if env.Config.AllocationStrategy = Heap then
         
+        let stypeId = GenStructTypeIDType [ ("", I32); ("", EqRef) ]
         // Should hold ref to struct with function pointer and cenv
         // TODO: change to generated value
         let FunctionPointer =
             m
                 .AddFuncRefElement(name, funcindex) // add function to function table
-                .AddGlobal((ptr_label, (Ref(Named("s_i32_i32-eqref_eqref")), Mutable), (Null(Named("s_i32_i32-eqref_eqref")), "")))
+                .AddGlobal((ptr_label, (Ref(Named(stypeId)), Mutable), (Null(Named(stypeId)), "")))
 
         // return compontents needed to create a function pointer
         (FunctionPointer, funcindex, ptr_label)
@@ -2302,6 +2303,7 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (ArrayGet(l, instrs), c) :: rest -> [ (ArrayGet(l, localSubst instrs var), c) ] @ localSubst rest var
     | (ArraySet(l, instrs), c) :: rest -> [ (ArraySet(l, localSubst instrs var), c) ] @ localSubst rest var
     | (ArrayLen(instrs), c) :: rest -> [ (ArrayLen(localSubst instrs var), c) ] @ localSubst rest var
+    | (Null(l), c) :: rest -> [ (Null(l), c) ] @ localSubst rest var
 
 
     // keep all other instructions

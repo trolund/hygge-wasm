@@ -1,0 +1,9 @@
+fun makeCounter(y: int): () -> int = {
+    let mutable x: int = 2;
+    fun () -> {
+        x <- x * y // x is captured from the surrounding scope
+    }
+};
+
+let c1: () -> int = makeCounter(2);
+assert(c1() = 4)
