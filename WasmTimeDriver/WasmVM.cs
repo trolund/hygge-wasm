@@ -91,15 +91,6 @@ namespace WasmTimeDriver
             );
 
             _linker.Define(
-                "env",
-                "write",
-                Function.FromCallback(_store, (string s) =>
-               {
-                   Console.WriteLine(s);
-               })
-            );
-
-            _linker.Define(
                "env",
                "readInt",
                Function.FromCallback(_store, () =>
@@ -153,25 +144,33 @@ namespace WasmTimeDriver
             _linker.Define(
                 "env",
                 "writeInt",
-                Function.FromCallback(_store, (int i) =>
-                {
-                    Console.WriteLine(i);
+                Function.FromCallback(_store, (int i, int nl) =>
+                {   
+                    if (nl == 1) {
+                        Console.WriteLine(i);
+                    } else {
+                        Console.Write(i);
+                    }
                 })
             );
 
             _linker.Define(
                 "env",
                 "writeFloat",
-                Function.FromCallback(_store, (float i) =>
+                Function.FromCallback(_store, (float i, int nl) =>
                 {
-                    Console.WriteLine(i);
+                    if (nl == 1) {
+                        Console.WriteLine(i);
+                    } else {
+                        Console.Write(i);
+                    }
                 })
             );
 
             _linker.Define(
                 "env",
                 "writeS",
-                Function.FromCallback(_store, (Caller caller, int address, int length) =>
+                Function.FromCallback(_store, (Caller caller, int address, int length, int nl) =>
                 {
                     // memory == export name
                     var memory = caller.GetMemory("memory");
@@ -181,7 +180,12 @@ namespace WasmTimeDriver
                         return;
                     }
                     var message = memory.ReadString(address, length);
-                    Console.WriteLine(message);
+                    
+                    if (nl == 1) {
+                        Console.WriteLine(message);
+                    } else {
+                        Console.Write(message);
+                    }
                 })
             );
 

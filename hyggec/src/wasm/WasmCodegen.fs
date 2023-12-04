@@ -697,12 +697,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // TODO: make print and println different
         let m' = doCodegen env e m
 
+        // use new line if printLn
+        let nl = if node.Expr = PrintLn e then 1 else 0
+
         match (expandType e.Env e.Type) with
         | t when (isSubtypeOf node.Env t TFloat) ->
             // perform host (system) call
             m'
                 .AddImport(getImport "writeFloat") // import writeF function
-                .AddCode([ (Call "writeFloat", "call host function") ])
+                .AddCode([ (I32Const nl, "newline");  (Call "writeFloat", "call host function") ])
         | t when (isSubtypeOf node.Env t TString) ->
             // import writeS function
             let m'' =
@@ -711,7 +714,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     .AddCode(
                         // push string pointer to stack
                         [ (I32Load(m'.GetAccCode()), "Load string pointer") ]
-                        @ [ (I32Load_(None, Some(4), m'.GetAccCode()), "Load string length") ]
+                        @ [ (I32Load_(None, Some(4), m'.GetAccCode()), "Load string length"); (I32Const nl, "newline") ]
                     )
 
             // perform host (system) call
@@ -720,7 +723,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             // import writeInt function
             let m'' = m'.AddImport(getImport "writeInt")
             // perform host (system) call
-            m''.AddCode([ (Call "writeInt", "call host function") ])
+            m''.AddCode([ (I32Const nl, "newline"); (Call "writeInt", "call host function") ])
     | AST.If(condition, ifTrue, ifFalse) ->
         let m' = doCodegen env condition m
         let m'' = doCodegen env ifTrue m
