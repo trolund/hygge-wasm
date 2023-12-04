@@ -44,14 +44,16 @@ namespace WasmTimeDriver
 
                     var requiredPages = (this._offset.ToInt32() + size) / this._pageSize;
                     // round required pages to the next integer
-                    var roundedPages = (int)Math.Ceiling((double)requiredPages);
 
-                    mem.Grow(roundedPages);
-                    _heapSize = roundedPages;
+                    var growBy = requiredPages + 1 - _heapSize;
+
+                    mem.Grow(growBy);
+                    _heapSize += growBy;
+
                     if (_debugMode)
                     {
                         Console.ForegroundColor = ConsoleColor.Cyan;
-                        Console.WriteLine($"MemoryAllocator: growing memory by {roundedPages} pages");
+                        Console.WriteLine($"MemoryAllocator: growing memory by {growBy} pages");
                         Console.ResetColor();
                     }
                 }

@@ -153,35 +153,21 @@ type internal CodegenEnv =
 
 let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) : Module * int * string =
     let ptr_label = $"{name}*ptr"
-    
+
     // get the index of the function
     let funcindex = env.TableController.next ()
 
-    if env.Config.AllocationStrategy = Heap then
-        
-        let stypeId = GenStructTypeIDType [ ("", I32); ("", EqRef) ]
-        // Should hold ref to struct with function pointer and cenv
-        // TODO: change to generated value
-        let FunctionPointer =
-            m
-                .AddFuncRefElement(name, funcindex) // add function to function table
-                .AddGlobal((ptr_label, (Ref(Named(stypeId)), Mutable), (Null(Named(stypeId)), "")))
+    // allocate memory for function pointer
+    let memoryAddress = env.MemoryAllocator.Allocate(4)
 
-        // return compontents needed to create a function pointer
-        (FunctionPointer, funcindex, ptr_label)
+    let FunctionPointer =
+        m
+            .AddFuncRefElement(name, funcindex) // add function to function table
+            .AddData((I32Const memoryAddress, ""), Util.intToHex funcindex) // index as hex string
+            .AddGlobal((ptr_label, (I32, Mutable), (I32Const memoryAddress, "")))
 
-    else 
-        // allocate memory for function pointer
-        let memoryAddress = env.MemoryAllocator.Allocate(4)
-
-        let FunctionPointer =
-            m
-                .AddFuncRefElement(name, funcindex) // add function to function table
-                .AddData((I32Const memoryAddress, ""), Util.intToHex funcindex) // index as hex string
-                .AddGlobal((ptr_label, (I32, Mutable), (I32Const memoryAddress, "")))
-
-        // return compontents needed to create a function pointer
-        (FunctionPointer, funcindex, ptr_label)
+    // return compontents needed to create a function pointer
+    (FunctionPointer, funcindex, ptr_label)
 
 
 // map a hygge type to a wasm type
@@ -204,7 +190,7 @@ let mapType t =
 
 let rec mapTypeHeap (t: Type) =
     match t with
-    | TStruct l -> 
+    | TStruct l ->
         let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) l
         Ref(Named(GenStructTypeIDType fieldTypes))
     | TArray t -> mapTypeHeap t
@@ -759,7 +745,59 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                    ),
                    "call function") ]
             )
+    | Lambda(args, body) when env.Config.AllocationStrategy = Heap ->
+        // Label to mark the position of the lambda term body
+        let funLabel = env.SymbolController.genSymbol $"{env.CurrFunc}/anonymous"
 
+        // struct with function pointer and closure environment pointer
+        let stypeId = GenStructTypeIDType [ ("", I32); ("", EqRef) ]
+
+        let ptr_label = $"{funLabel}*ptr"
+
+        // get the index of the function
+        let funcindex = env.TableController.next ()
+
+        let funcPointer =
+            { node with
+                Expr =
+                    Struct(
+                        [ ("f",
+                           { node with
+                               Expr = IntVal(funcindex) // function pointer
+                               Type = TInt })
+                          //   ("env",
+                          //    { node with
+                          //        Expr = UnitVal
+                          //        Type = TUnit })
+                          ]
+
+                    )
+                Type = TStruct([ ("f", TInt); ("cenv", TAny) ]) }
+
+        // compile function pointer
+        let funcPointerModule =
+            (doCodegen env funcPointer (Module()))
+                .AddFuncRefElement(funLabel, funcindex) // add function to function table
+                .AddGlobal((ptr_label, (Ref(Named(stypeId)), Mutable), (Null(Named(stypeId)), "")))
+
+
+        /// Names of the lambda term arguments
+        let argNames, _ = List.unzip args
+        /// List of pairs associating each function argument to its type
+        let argNamesTypes = List.map (fun a -> (a, body.Env.Vars[a])) argNames
+
+        let env' = addArgsToEnv env args
+
+        let captured = Set.toList (ASTUtil.capturedVars node)
+
+        let env'' = addCapturedToEnv env' captured
+
+        /// Compiled function body
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' (Module())
+
+        let closure = createClosure env node funcindex funcPointerModule captured
+
+        (funcPointerModule + bodyCode + closure)
     | Lambda(args, body) ->
         // Label to mark the position of the lambda term body
         let funLabel = env.SymbolController.genSymbol $"{env.CurrFunc}/anonymous"
@@ -889,7 +927,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let length' = doCodegen env length m
         let data' = doCodegen env data m
 
-        let arrayType = GenArrayTypeIDType (mapTypeHeap data.Type)
+        let arrayType = GenArrayTypeIDType(mapTypeHeap data.Type)
 
         // check that length is bigger then 1 - if not return 42
         let lengthCheck =
@@ -1064,7 +1102,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let index' = doCodegen env index m
         let length' = doCodegen env { node with Expr = ArrayLength(target) } m
 
-        let arrayType = GenArrayTypeIDType (mapTypeHeap target.Type)
+        let arrayType = GenArrayTypeIDType(mapTypeHeap target.Type)
 
         // check that index is bigger then 0 - if not return 42
         // and that index is smaller then length - if not return 42
@@ -1491,7 +1529,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let index' = doCodegen env index m
             let value' = doCodegen env value m
             let length' = doCodegen env { node with Expr = ArrayLength(target) } m
-            let arrayType = GenArrayTypeIDType (mapTypeHeap value.Type)
+            let arrayType = GenArrayTypeIDType(mapTypeHeap value.Type)
 
             // Check index >= 0 and index < length
             let indexCheck =
@@ -1604,6 +1642,92 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // A type ascription does not produce code --- but the type-annotated
         // AST node does
         doCodegen env node m
+
+    | Let(name,
+          _,
+          { Node.Expr = Lambda(args, body)
+            Node.Type = TFun(targs, _) },
+          scope,
+          export) when env.Config.AllocationStrategy = Heap ->
+        /// Assembly label to mark the position of the compiled function body.
+        /// For readability, we make the label similar to the function name
+        let funLabel = env.SymbolController.genSymbol $"fun_%s{name}"
+
+        let m =
+            if export then
+                m.AddExport(name, FunctionType(funLabel, None))
+            else
+                m
+
+        // struct with function pointer and closure environment pointer
+        let stypeId = GenStructTypeIDType [ ("", I32); ("", EqRef) ]
+
+        let ptr_label = $"{funLabel}*ptr"
+
+        // get the index of the function
+        let funcindex = env.TableController.next ()
+
+        let funcPointer =
+            { node with
+                Expr =
+                    Struct(
+                        [ ("f",
+                           { node with
+                               Expr = IntVal(funcindex) // function pointer
+                               Type = TInt })
+                          //   ("env",
+                          //    { node with
+                          //        Expr = UnitVal
+                          //        Type = TUnit })
+                          ]
+
+                    )
+                Type = TStruct([ ("f", TInt); ("cenv", TAny) ]) }
+
+        // compile function pointer
+        let funcPointerModule =
+            (doCodegen env funcPointer (m))
+                .AddFuncRefElement(funLabel, funcindex) // add function to function table
+                .AddGlobal((ptr_label, (Ref(Named(stypeId)), Mutable), (Null(Named(stypeId)), "")))
+
+        /// Storage info where the name of the compiled function points to the
+        /// label 'funLabel'
+        let funcref = env.VarStorage.Add(name, Storage.Global ptr_label)
+
+        // add each arg to var storage (all local vars)
+        let env' = addArgsToEnv env args
+
+        /// Names of the lambda term arguments
+        let argNames, _ = List.unzip args
+        /// List of pairs associating each function argument to its type
+        let argNamesTypes = List.zip argNames targs
+
+        let captured = Set.toList (ASTUtil.capturedVars node)
+
+        let env'' =
+            if isTopLevel env then
+                env'
+            else
+                addCapturedToEnv env' captured
+
+        /// Compiled function body
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' (Module())
+
+        let closure =
+            if isTopLevel env then
+                Module()
+            else
+                let closureModule = (createClosure env' node funcindex funcPointerModule captured)
+
+                closureModule
+                    .ResetAccCode()
+                    .AddCode([ GlobalSet(Named(ptr_label), closureModule.GetAccCode()) ])
+
+        let scopeModule: Module =
+            (doCodegen { env with VarStorage = funcref } scope funcPointerModule)
+
+        // Set the function pointer to the closure struct
+        bodyCode + closure + scopeModule
 
     // special case for function definitions
     | Let(name,
@@ -1754,7 +1878,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
 
-            let t = GenArrayTypeIDType (mapTypeHeap init.Type)
+            let t = GenArrayTypeIDType(mapTypeHeap init.Type)
 
             let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
 
@@ -1844,7 +1968,96 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 { node with
                     Expr = Let(name, tpe, init, scope, export) }
                 m)
+    | LetRec(name,
+             _,
+             { Node.Expr = Lambda(args, body)
+               Node.Type = TFun(targs, _) },
+             scope,
+             export) when env.Config.AllocationStrategy = Heap ->
 
+        let funLabel = env.SymbolController.genSymbol $"fun_%s{name}"
+
+        let m =
+            if export then
+                m.AddExport(name, FunctionType(funLabel, None))
+            else
+                m
+
+        // struct with function pointer and closure environment pointer
+        let stypeId = GenStructTypeIDType [ ("", I32); ("", EqRef) ]
+
+        let ptr_label = $"{funLabel}*ptr"
+
+        // get the index of the function
+        let funcindex = env.TableController.next ()
+
+        let funcPointer =
+            { node with
+                Expr =
+                    Struct(
+                        [ ("f",
+                           { node with
+                               Expr = IntVal(funcindex) // function pointer
+                               Type = TInt })
+                          //   ("env",
+                          //    { node with
+                          //        Expr = UnitVal
+                          //        Type = TUnit })
+                          ]
+
+                    )
+                Type =
+                    TStruct(
+                        [ ("f", TInt)
+                          // ("cenv", TAny)
+                          ]
+                    ) }
+
+        // compile function pointer
+        let funcPointerModule =
+            (doCodegen env funcPointer (m))
+                .AddFuncRefElement(funLabel, funcindex) // add function to function table
+                .AddGlobal((ptr_label, (Ref(Named(stypeId)), Mutable), (Null(Named(stypeId)), "")))
+
+
+        /// Storage info where the name of the compiled function points to the
+        /// label 'funLabel'
+        let funcref = env.VarStorage.Add(name, Storage.Global ptr_label)
+        let env' = { env with VarStorage = funcref }
+
+        // add each arg to var storage (all local vars)
+        let env'' = addArgsToEnv env' args
+
+        /// Names of the lambda term arguments
+        let argNames, _ = List.unzip args
+        /// List of pairs associating each function argument to its type
+        let argNamesTypes = List.zip argNames targs
+
+        let captured = Set.toList (ASTUtil.capturedVars node)
+
+        let env'' =
+            if isTopLevel env then
+                env''
+            else
+                addCapturedToEnv env'' captured
+
+        /// Compiled function body
+        let bodyCode: Module = compileFunction funLabel argNamesTypes body env'' (Module())
+
+        let closure =
+            if isTopLevel env then
+                Module()
+            else
+                let closureModule = (createClosure env' node funcindex (Module()) captured)
+
+                closureModule
+                    .ResetAccCode()
+                    .AddCode([ GlobalSet(Named(ptr_label), closureModule.GetAccCode()) ])
+
+        let scopeModule: Module = (doCodegen env' scope funcPointerModule)
+
+        // Set the function pointer to the closure struct
+        bodyCode + closure + scopeModule
     | LetRec(name,
              _,
              { Node.Expr = Lambda(args, body)
@@ -1909,26 +2122,26 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m
     | Pointer _ -> failwith "BUG: pointers cannot be compiled (by design!)"
     | AST.Type(name, def, scope) ->
-        if env.Config.AllocationStrategy = Heap then 
+        if env.Config.AllocationStrategy = Heap then
             let result = resolvePretype node.Env def
 
             match result with
             | Ok(t) ->
-                    match (expandType node.Env t) with
-                    | TStruct(fields) ->
-                        //let td = createStructType fields
-                        let typeParams: Param list =
-                            List.map (fun (name, t: Type) -> (Some(name), ((mapTypeHeap t), Mutable))) fields
-                        
-                        let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) fields
-                        let id = GenStructTypeIDType fieldTypes
-                        let td = StructType(name, typeParams)
-                        (doCodegen env scope m).AddTypedef(td)
-                    | TArray(t) ->
-                        let id = GenArrayTypeIDType (mapTypeHeap t)
-                        let td = ArrayType(name, mapTypeHeap t)
-                        (doCodegen env scope m).AddTypedef(td)
-                    | _ -> (doCodegen env scope m)
+                match (expandType node.Env t) with
+                | TStruct(fields) ->
+                    //let td = createStructType fields
+                    let typeParams: Param list =
+                        List.map (fun (name, t: Type) -> (Some(name), ((mapTypeHeap t), Mutable))) fields
+
+                    let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) fields
+                    let id = GenStructTypeIDType fieldTypes
+                    let td = StructType(name, typeParams)
+                    (doCodegen env scope m).AddTypedef(td)
+                | TArray(t) ->
+                    let id = GenArrayTypeIDType(mapTypeHeap t)
+                    let td = ArrayType(name, mapTypeHeap t)
+                    (doCodegen env scope m).AddTypedef(td)
+                | _ -> (doCodegen env scope m)
             | Error(e) -> doCodegen env scope m
         else
             doCodegen env scope m
@@ -1946,13 +2159,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let fieldsInitCode = List.fold folder m fieldNodes
 
-        let fieldTypes = List.map (fun (n, t: Node<TypingEnv, Type>) -> (n, mapTypeHeap (expandType t.Env t.Type))) fields
+        let fieldTypes =
+            List.map (fun (n, t: Node<TypingEnv, Type>) -> (n, mapTypeHeap (expandType t.Env t.Type))) fields
 
         fieldsInitCode
             .ResetAccCode()
             .AddTypedef(createStructTypeNode fieldTypes)
             .AddCode(
-                [ (StructNew(Named(GenStructTypeID fieldTypes), fieldsInitCode.GetAccCode()), "leave ref of struct on stack") ]
+                [ (StructNew(Named(GenStructTypeID fieldTypes), fieldsInitCode.GetAccCode()),
+                   "leave ref of struct on stack") ]
             )
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
@@ -2060,6 +2275,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let fieldNames, _ = List.unzip fields
                 let offset = List.findIndex (fun f -> f = field) fieldNames
                 let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) fields
+
                 [ (StructGet(Named(GenStructTypeIDType fieldTypes), Index(offset), selTargetCode.GetAccCode()),
                    $"load field: {field}") ]
             | t -> failwith $"BUG: FieldSelect codegen on invalid target type: %O{t}"
@@ -2112,10 +2328,11 @@ and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
                     | TUnion _ -> (None, I32)
                     | TVar _ -> (None, I32)
                     | TFun _ -> (None, I32) // passing function as a index to function table
-                    | TStruct (fields) when env.Config.AllocationStrategy = Heap -> 
+                    | TStruct(fields) when env.Config.AllocationStrategy = Heap ->
                         let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) fields
                         (None, Ref(Named(GenStructTypeIDType fieldTypes)))
-                    | TArray t when env.Config.AllocationStrategy = Heap -> (None, Ref(Named(GenArrayTypeIDType (mapTypeHeap t))))
+                    | TArray t when env.Config.AllocationStrategy = Heap ->
+                        (None, Ref(Named(GenArrayTypeIDType(mapTypeHeap t))))
                     | TStruct _ -> (None, I32)
                     | TArray _ -> (None, I32)
                     | TInt -> (None, I32)
