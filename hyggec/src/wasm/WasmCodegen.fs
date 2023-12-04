@@ -650,6 +650,49 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             .AddImport(getImport "readFloat") // import readFloat function
             .AddCode([ (Call "readFloat", "call host function") ]) // call host function
     | PrintLn e
+    | Print e when env.Config.Si = WASI ->
+        // TODO: make print and println different
+        let m' = doCodegen env e m
+
+        match (expandType e.Env e.Type) with
+        | t when (isSubtypeOf node.Env t TFloat) ->
+            failwith "not implemented"
+        | t when (isSubtypeOf node.Env t TString) ->
+            // import writeS function
+            m'.ResetAccCode()
+                .AddImport(
+                    ("wasi_snapshot_preview1",
+                     "fd_write",
+                     FunctionType("fd_write", Some([ (None, I32); (None, I32); (None, I32); (None, I32) ], [ I32 ])))
+                )
+                .AddCode(
+                    // push string pointer to stack
+                    [ (I32Const 1, "1 for stdout") ]
+                      @ m'.GetAccCode()
+                      @ [
+                      (I32Add([(I32Const 4, "offset to length")] @ m'.GetAccCode()), "Load string length")
+                      (I32Const 0, "1 for stdout") ]
+                )
+                .AddCode([ Drop([ (Call "fd_write", "call host function") ]) ])
+        | _ ->
+            // import writeInt function
+            // import writeS function
+            m'.ResetAccCode()
+                .AddImport(
+                    ("wasi_snapshot_preview1",
+                     "fd_write",
+                     FunctionType("fd_write", Some([ (None, I32); (None, I32); (None, I32); (None, I32) ], [ I32 ])))
+                )
+                .AddCode(
+                    // push string pointer to stack
+                    [ (I32Const 1, "1 for stdout") ]
+                      @ m'.GetAccCode()
+                      @ [
+                      (I32Add([(I32Const 4, "offset to length")] @ m'.GetAccCode()), "Load string length")
+                      (I32Const 0, "1 for stdout") ]
+                )
+                .AddCode([ Drop([ (Call "fd_write", "call host function") ]) ])
+    | PrintLn e
     | Print e ->
         // TODO: make print and println different
         let m' = doCodegen env e m
@@ -2615,6 +2658,11 @@ let codegen (node: TypedAST) (config: CompileConfig option) : Module =
         | Some(c) -> c.AllocationStrategy
         | None -> Internal
 
+    let si =
+        match config with
+        | Some(c) -> c.Si
+        | None -> HyggeSI
+
     /// Environment used during code generation
     let env =
         { CurrFunc = funcName
@@ -2624,7 +2672,7 @@ let codegen (node: TypedAST) (config: CompileConfig option) : Module =
           VarStorage = Map.empty
           Config =
             { AllocationStrategy = allocationStrategy
-              Si = HyggeSI } }
+              Si = si } }
 
     // add function to module and export it
     let m' =

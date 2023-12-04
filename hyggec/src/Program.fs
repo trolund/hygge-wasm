@@ -223,9 +223,18 @@ let compileWasm (opt: CmdLine.CompilerOptions) tast =
             | _ -> Config.External
         | None -> Config.External
 
+    let interfac = 
+            match opt.inter with
+            | Some(v) ->
+                match v with
+                | 0u -> Config.SI.HyggeSI
+                | 1u -> Config.SI.WASI
+                | _ -> Config.SI.HyggeSI
+            | None -> Config.SI.HyggeSI
+
     let config: Config.CompileConfig =
         { AllocationStrategy = MemoryStrategy
-          Si = Config.SI.HyggeSI }
+          Si = interfac }
 
     let asm = WASMCodegen.codegen tast (Some(config))
 

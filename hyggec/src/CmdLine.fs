@@ -97,6 +97,9 @@ type CompilerOptions = {
     [<Option('m', "memory", HelpText="Memory allocation strategy (default: 0, i.e. external, internal: 1, heap using WasmGC: 2.)")>]
     MemoryStrategy: Option<uint>
 
+    [<Option('i', "interface", HelpText="Interface (default: 0, i.e. HyggeSI, WASI: 1)")>]
+    inter: Option<uint>
+
     [<Option('s', "style", HelpText="WAT writing style (linar (l, Default)  or folded (f))")>]
     Style: Option<string>;
 
