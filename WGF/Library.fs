@@ -511,7 +511,10 @@ module Module =
                     // unzip typedef
                     let (locals, vars) = typedef
 
-                    let locals': Local list = List.map (fun (name, t) -> (None, t)) locals
+                    let locals': Local list = List.map (fun (name, t) -> 
+                                                        match t with
+                                                        | NullableRef l -> (name, Ref(l)) // replace with normal ref
+                                                        | _ -> (name, t)) locals
 
                     let typeS = GenFuncTypeID (locals', vars)
 

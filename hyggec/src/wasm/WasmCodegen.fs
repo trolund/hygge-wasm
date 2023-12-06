@@ -2413,7 +2413,7 @@ and internal compileFunction
 
     let closuretype =
         if env.Config.AllocationStrategy = Heap then
-            Ref(Named(GenStructTypeIDType [ ("", I32); ("", EqRef) ]))
+            NullableRef(Named(GenStructTypeIDType [ ("", I32); ("", EqRef) ]))
         else
             I32
 

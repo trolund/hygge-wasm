@@ -1,314 +1,88 @@
 (module
-  (type $i32_i32_=>_unit (;0;) (func (param i32) (param i32) ))
-  (import "env" "malloc" (;0;) (func $malloc (param i32) (result i32)))
-  (import "env" "writeFloat" (;1;) (func $writeFloat (param f32) (param i32) ))
-  (import "env" "writeS" (;2;) (func $writeS (param i32) (param i32) (param i32) ))
+  (type $s_i32-eqref (;0;) (struct (field $f (mut i32)) (field $cenv (mut eqref))))
+  (type $s_i32 (;1;) (struct (field $f (mut i32))))
+  (type $s_i32-eqref_i32_=>_i32 (;2;) (func (param (ref null $s_i32-eqref)) (param i32) (result i32)))
+  (type $s_i32-i32 (;3;) (struct (field $a (mut i32)) (field $x (mut i32))))
+  (type $s_i32-s_i32-i32 (;4;) (struct (field $f (mut i32)) (field $env (ref null $s_i32-i32))))
   (memory (;0;) (export "memory") 1)
-  (global $Sptr (;0;) (mut i32) (i32.const 0))
-  (global $Sptr$0 (;1;) (mut i32) (i32.const 0))
-  (global $Sptr$1 (;2;) (mut i32) (i32.const 0))
-  (global $exit_code (;3;) (mut i32) (i32.const 0))
-  (global $fun_displayShape*ptr (;4;) (mut i32) (i32.const 0))
-  (global $heap_base (;5;) i32 (i32.const 99))
-  (global $var_c (;6;) (mut i32) (i32.const 0))
-  (global $var_r (;7;) (mut i32) (i32.const 0))
-  (global $var_s (;8;) (mut i32) (i32.const 0))
-  (table $func_table (;0;) 1 funcref)
-  (elem (i32.const 0) (;0;) $fun_displayShape)
-  (func $_start (;0;)   
+  (global $exit_code (;0;) (mut i32) (i32.const 0))
+  (global $fun_outer*ptr (;1;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
+  (global $fun_outer/anonymous*ptr (;2;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
+  (global $heap_base (;3;) (mut i32) (i32.const 0))
+  (table $func_table (;0;) 2 funcref)
+  (elem (i32.const 0) (;0;) $fun_outer)
+  (elem (i32.const 1) (;1;) $fun_outer/anonymous)
+  (func $_start (;0;)  (result i32) 
     ;; execution start here:
-    ;; Start of let
-    (global.set $var_c ;; set local var, have been hoisted
-      ;; start of struct contructor
-      (global.set $Sptr ;; set struct pointer var, have been hoisted
-        (i32.const 12) ;; size of struct
-        (call $malloc) ;; call malloc function
-      )
-      (i32.store ;; store int field in memory
-        (i32.add ;; add offset to base address
-          (global.get $Sptr) ;; get struct pointer var, have been hoisted
-          (i32.const 0) ;; push field offset to stack
-        )
-        ;; init field (name)
-        (i32.const 42) ;; leave pointer to string on stack
-      )
-      (f32.store ;; store int field in memory
-        (i32.add ;; add offset to base address
-          (global.get $Sptr) ;; get struct pointer var, have been hoisted
-          (i32.const 4) ;; push field offset to stack
-        )
-        ;; init field (area)
-        (f32.mul
-          (f32.mul
-            (f32.const 10.000000) ;; push 10.000000 on stack
-            (f32.const 10.000000) ;; push 10.000000 on stack
-          )
-          (f32.const 3.140000) ;; push 3.140000 on stack
-        )
-      )
-      (f32.store ;; store int field in memory
-        (i32.add ;; add offset to base address
-          (global.get $Sptr) ;; get struct pointer var, have been hoisted
-          (i32.const 8) ;; push field offset to stack
-        )
-        ;; init field (radius)
-        (f32.const 10.000000) ;; push 10.000000 on stack
-      )
-      (global.get $Sptr) ;; push struct address to stack, have been hoisted
-      ;; end of struct contructor
-    )
-    ;; Start of let
-    (global.set $var_s ;; set local var, have been hoisted
-      ;; start of struct contructor
-      (global.set $Sptr$0 ;; set struct pointer var, have been hoisted
-        (i32.const 12) ;; size of struct
-        (call $malloc) ;; call malloc function
-      )
-      (i32.store ;; store int field in memory
-        (i32.add ;; add offset to base address
-          (global.get $Sptr$0) ;; get struct pointer var, have been hoisted
-          (i32.const 0) ;; push field offset to stack
-        )
-        ;; init field (name)
-        (i32.const 60) ;; leave pointer to string on stack
-      )
-      (f32.store ;; store int field in memory
-        (i32.add ;; add offset to base address
-          (global.get $Sptr$0) ;; get struct pointer var, have been hoisted
-          (i32.const 4) ;; push field offset to stack
-        )
-        ;; init field (area)
-        (f32.mul
-          (f32.const 2.000000) ;; push 2.000000 on stack
-          (f32.const 2.000000) ;; push 2.000000 on stack
-        )
-      )
-      (f32.store ;; store int field in memory
-        (i32.add ;; add offset to base address
-          (global.get $Sptr$0) ;; get struct pointer var, have been hoisted
-          (i32.const 8) ;; push field offset to stack
-        )
-        ;; init field (side)
-        (f32.const 2.000000) ;; push 2.000000 on stack
-      )
-      (global.get $Sptr$0) ;; push struct address to stack, have been hoisted
-      ;; end of struct contructor
-    )
-    ;; Start of let
-    (global.set $var_r ;; set local var, have been hoisted
-      ;; start of struct contructor
-      (global.set $Sptr$1 ;; set struct pointer var, have been hoisted
-        (i32.const 16) ;; size of struct
-        (call $malloc) ;; call malloc function
-      )
-      (i32.store ;; store int field in memory
-        (i32.add ;; add offset to base address
-          (global.get $Sptr$1) ;; get struct pointer var, have been hoisted
-          (i32.const 0) ;; push field offset to stack
-        )
-        ;; init field (name)
-        (i32.const 78) ;; leave pointer to string on stack
-      )
-      (f32.store ;; store int field in memory
-        (i32.add ;; add offset to base address
-          (global.get $Sptr$1) ;; get struct pointer var, have been hoisted
-          (i32.const 4) ;; push field offset to stack
-        )
-        ;; init field (area)
-        (f32.mul
-          (f32.const 3.000000) ;; push 3.000000 on stack
-          (f32.const 4.000000) ;; push 4.000000 on stack
-        )
-      )
-      (f32.store ;; store int field in memory
-        (i32.add ;; add offset to base address
-          (global.get $Sptr$1) ;; get struct pointer var, have been hoisted
-          (i32.const 8) ;; push field offset to stack
-        )
-        ;; init field (width)
-        (f32.const 3.000000) ;; push 3.000000 on stack
-      )
-      (f32.store ;; store int field in memory
-        (i32.add ;; add offset to base address
-          (global.get $Sptr$1) ;; get struct pointer var, have been hoisted
-          (i32.const 12) ;; push field offset to stack
-        )
-        ;; init field (height)
-        (f32.const 4.000000) ;; push 4.000000 on stack
-      )
-      (global.get $Sptr$1) ;; push struct address to stack, have been hoisted
-      ;; end of struct contructor
-    )
-    ;; Load expression to be applied as a function
-    (call_indirect (type $i32_i32_=>_unit) ;; call function
-      (i32.load offset=4
-        (global.get $fun_displayShape*ptr) ;; get global var: fun_displayShape*ptr
-      )
-      (global.get $var_c) ;; get local var: var_c, have been hoisted
-      (i32.load ;; load table index
-        (global.get $fun_displayShape*ptr) ;; get global var: fun_displayShape*ptr
-      )
-    )
-    ;; Load expression to be applied as a function
-    (call_indirect (type $i32_i32_=>_unit) ;; call function
-      (i32.load offset=4
-        (global.get $fun_displayShape*ptr) ;; get global var: fun_displayShape*ptr
-      )
-      (global.get $var_s) ;; get local var: var_s, have been hoisted
-      (i32.load ;; load table index
-        (global.get $fun_displayShape*ptr) ;; get global var: fun_displayShape*ptr
-      )
-    )
-    ;; Load expression to be applied as a function
-    (call_indirect (type $i32_i32_=>_unit) ;; call function
-      (i32.load offset=4
-        (global.get $fun_displayShape*ptr) ;; get global var: fun_displayShape*ptr
-      )
-      (global.get $var_r) ;; get local var: var_r, have been hoisted
-      (i32.load ;; load table index
-        (global.get $fun_displayShape*ptr) ;; get global var: fun_displayShape*ptr
-      )
+    (struct.new $s_i32
+      (i32.const 0) ;; push 0 on stack
     )
     (drop ;; drop value of subtree
-      (f32.load offset=4
-        (global.get $var_c) ;; get local var: var_c, have been hoisted
-        (f32.store offset=4 ;; store float in struct
-          (global.get $var_c) ;; get local var: var_c, have been hoisted
-          (f32.load offset=4
-            (global.get $var_s) ;; get local var: var_s, have been hoisted
-            (f32.store offset=4 ;; store float in struct
-              (global.get $var_s) ;; get local var: var_s, have been hoisted
-              (f32.load offset=4
-                (global.get $var_r) ;; get local var: var_r, have been hoisted
-                (f32.store offset=4 ;; store float in struct
-                  (global.get $var_r) ;; get local var: var_r, have been hoisted
-                  (f32.const 0.000000) ;; push 0.000000 on stack
-                )
-              )
-            )
-          )
+      ;; Load expression to be applied as a function
+      (call_indirect (type $s_i32-eqref_i32_=>_i32) ;; call function
+        (struct.get $s_i32-eqref 1 ;; load closure environment pointer
+          (global.get $fun_outer*ptr) ;; get global var: fun_outer*ptr
+        )
+        (i32.const 2) ;; push 2 on stack
+        (struct.get $s_i32-eqref 0 ;; load table index
+          (global.get $fun_outer*ptr) ;; get global var: fun_outer*ptr
         )
       )
     )
-    (if 
-        (i32.eqz ;; invert assertion
-          (f32.eq ;; equality check
-            ;; Start of field select
-            (f32.load offset=4
-              (global.get $var_c) ;; get local var: var_c, have been hoisted
-            )
-            ;; End of field select
-            ;; Start of field select
-            (f32.load offset=4
-              (global.get $var_s) ;; get local var: var_s, have been hoisted
-            )
-            ;; End of field select
-          )
-        )
-      (then
-        (global.set $exit_code ;; set exit code
-          (i32.const 42) ;; error exit code push to stack
-        )
-        (unreachable) ;; exit program
-      )
-    )
-    (if 
-        (i32.eqz ;; invert assertion
-          (f32.eq ;; equality check
-            ;; Start of field select
-            (f32.load offset=4
-              (global.get $var_s) ;; get local var: var_s, have been hoisted
-            )
-            ;; End of field select
-            ;; Start of field select
-            (f32.load offset=4
-              (global.get $var_r) ;; get local var: var_r, have been hoisted
-            )
-            ;; End of field select
-          )
-        )
-      (then
-        (global.set $exit_code ;; set exit code
-          (i32.const 42) ;; error exit code push to stack
-        )
-        (unreachable) ;; exit program
-      )
-    )
-    (if 
-        (i32.eqz ;; invert assertion
-          (f32.eq ;; equality check
-            ;; Start of field select
-            (f32.load offset=4
-              (global.get $var_r) ;; get local var: var_r, have been hoisted
-            )
-            ;; End of field select
-            (f32.const 0.000000) ;; push 0.000000 on stack
-          )
-        )
-      (then
-        (global.set $exit_code ;; set exit code
-          (i32.const 42) ;; error exit code push to stack
-        )
-        (unreachable) ;; exit program
-      )
-    )
-    ;; End of let
-    ;; End of let
-    ;; End of let
+    (i32.const 10) ;; push 10 on stack
     ;; if execution reaches here, the program is successful
   )
-  (func $fun_displayShape (;1;) (param $cenv i32) (param $arg_shape i32)  
-    (i32.load ;; Load string pointer
-      (i32.const 4) ;; leave pointer to string on stack
-    )
-    (i32.load offset=4
-      (i32.const 4) ;; leave pointer to string on stack
-    )
-    (i32.const 0) ;; newline
-    (call $writeS) ;; call host function
-    (i32.load ;; Load string pointer
-      ;; Start of field select
-      (i32.load offset=0
-        (local.get $arg_shape) ;; get local var: arg_shape
+  (func $fun_outer (;1;) (param $cenv (ref null $s_i32-eqref)) (param $arg_x i32) (result i32) 
+     ;; local variables declarations:
+    (local $var_a i32)
+
+    ;; Start of let
+    (local.set $var_a ;; set local var
+      (i32.add
+        (local.get $arg_x) ;; get local var: arg_x
+        (i32.const 1) ;; push 1 on stack
       )
-      ;; End of field select
     )
-    (i32.load offset=4
-      ;; Start of field select
-      (i32.load offset=0
-        (local.get $arg_shape) ;; get local var: arg_shape
+    (struct.new $s_i32
+      (i32.const 1) ;; push 1 on stack
+    )
+    (struct.new $s_i32-s_i32-i32
+      (struct.new $s_i32
+        (i32.const 1) ;; push 1 on stack
       )
-      ;; End of field select
+      (struct.new $s_i32
+        (i32.const 1) ;; push 1 on stack
+      )
+      (i32.const 1) ;; push 1 on stack
+      (struct.new $s_i32-i32
+        (struct.new $s_i32
+          (i32.const 1) ;; push 1 on stack
+        )
+        (struct.new $s_i32
+          (i32.const 1) ;; push 1 on stack
+        )
+        (local.get $var_a) ;; get local var: var_a
+        (struct.new $s_i32
+          (i32.const 1) ;; push 1 on stack
+        )
+        (local.get $arg_x) ;; get local var: arg_x
+      )
     )
-    (i32.const 0) ;; newline
-    (call $writeS) ;; call host function
-    (i32.load ;; Load string pointer
-      (i32.const 22) ;; leave pointer to string on stack
-    )
-    (i32.load offset=4
-      (i32.const 22) ;; leave pointer to string on stack
-    )
-    (i32.const 0) ;; newline
-    (call $writeS) ;; call host function
-    ;; Start of field select
-    (f32.load offset=4
-      (local.get $arg_shape) ;; get local var: arg_shape
-    )
-    ;; End of field select
-    (i32.const 1) ;; newline
-    (call $writeFloat) ;; call host function
+    ;; End of let
   )
-  (data (i32.const 0) "\00")
-  (data (i32.const 4) "\10\00\00\00\06\00\00\00\06\00\00\00")
-  (data (i32.const 16) "Name: ")
-  (data (i32.const 22) "\22\00\00\00\08\00\00\00\08\00\00\00")
-  (data (i32.const 34) "; area: ")
-  (data (i32.const 42) "\36\00\00\00\06\00\00\00\06\00\00\00")
-  (data (i32.const 54) "Circle")
-  (data (i32.const 60) "\48\00\00\00\06\00\00\00\06\00\00\00")
-  (data (i32.const 72) "Square")
-  (data (i32.const 78) "\5a\00\00\00\09\00\00\00\09\00\00\00")
-  (data (i32.const 90) "Rectangle")
+  (func $fun_outer/anonymous (;2;) (param $cenv (ref null $s_i32-eqref)) (param $arg_y i32) (result i32) 
+    (i32.add
+      (i32.add
+        (local.get $arg_y) ;; get local var: arg_y
+        (i32.load offset=0
+          (local.get 0) ;; get env pointer
+        )
+      )
+      (i32.load offset=4
+        (local.get 0) ;; get env pointer
+      )
+    )
+  )
   (export "_start" (func $_start))
   (export "exit_code" (global $exit_code))
   (export "heap_base_ptr" (global $heap_base))

@@ -40,6 +40,7 @@ type ValueType =
         | Ref of Label
         | Nullref
         | Null
+        | NullableRef of Label
         | EqRef // https://webassembly.github.io/gc/core/syntax/types.html#id2
 
         override this.ToString() =
@@ -50,8 +51,7 @@ type ValueType =
             | F64 -> "f64"
             | Externref -> "externref"
             | Funcref -> "funcref"
-            // todo: ref null
-            // | Ref l -> $"(ref null {l})"
+            | NullableRef l -> $"(ref null {l})"
             | Ref l -> 
                 match l with
                 | Named s -> $"{s}"
