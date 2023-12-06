@@ -42,6 +42,7 @@ type ValueType =
         | Null
         | NullableRef of Label
         | EqRef // https://webassembly.github.io/gc/core/syntax/types.html#id2
+        | Eq
 
         override this.ToString() =
             match this with
@@ -60,6 +61,7 @@ type ValueType =
             | Nullref -> "ref.null"
             | Null -> "null"
             | EqRef -> "eqref" 
+            | Eq -> $"eq"
 
 type BlockType =
         | Type of ValueType

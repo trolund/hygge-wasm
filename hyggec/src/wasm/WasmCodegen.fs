@@ -583,7 +583,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         (m'.ResetAccCode() + m''.ResetAccCode())
             .AddCode([ (opcode (m'.GetAccCode() @ m''.GetAccCode()), "") ])
-    | Eq(lhs, rhs) ->
+    | AST.Eq(lhs, rhs) ->
         let m' = doCodegen env lhs m
         let m'' = doCodegen env rhs m
 
@@ -655,11 +655,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let m' = doCodegen env e m
 
         match (expandType e.Env e.Type) with
-        | t when (isSubtypeOf node.Env t TFloat) ->
-            failwith "not implemented"
+        | t when (isSubtypeOf node.Env t TFloat) -> failwith "not implemented"
         | t when (isSubtypeOf node.Env t TString) ->
             // import writeS function
-            m'.ResetAccCode()
+            m'
+                .ResetAccCode()
                 .AddImport(
                     ("wasi_snapshot_preview1",
                      "fd_write",
@@ -668,16 +668,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 .AddCode(
                     // push string pointer to stack
                     [ (I32Const 1, "1 for stdout") ]
-                      @ m'.GetAccCode()
-                      @ [
-                      (I32Add([(I32Const 4, "offset to length")] @ m'.GetAccCode()), "Load string length")
-                      (I32Const 0, "1 for stdout") ]
+                    @ m'.GetAccCode()
+                    @ [ (I32Add([ (I32Const 4, "offset to length") ] @ m'.GetAccCode()), "Load string length")
+                        (I32Const 0, "1 for stdout") ]
                 )
                 .AddCode([ Drop([ (Call "fd_write", "call host function") ]) ])
         | _ ->
             // import writeInt function
             // import writeS function
-            m'.ResetAccCode()
+            m'
+                .ResetAccCode()
                 .AddImport(
                     ("wasi_snapshot_preview1",
                      "fd_write",
@@ -686,10 +686,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 .AddCode(
                     // push string pointer to stack
                     [ (I32Const 1, "1 for stdout") ]
-                      @ m'.GetAccCode()
-                      @ [
-                      (I32Add([(I32Const 4, "offset to length")] @ m'.GetAccCode()), "Load string length")
-                      (I32Const 0, "1 for stdout") ]
+                    @ m'.GetAccCode()
+                    @ [ (I32Add([ (I32Const 4, "offset to length") ] @ m'.GetAccCode()), "Load string length")
+                        (I32Const 0, "1 for stdout") ]
                 )
                 .AddCode([ Drop([ (Call "fd_write", "call host function") ]) ])
     | PrintLn e
@@ -705,7 +704,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             // perform host (system) call
             m'
                 .AddImport(getImport "writeFloat") // import writeF function
-                .AddCode([ (I32Const nl, "newline");  (Call "writeFloat", "call host function") ])
+                .AddCode([ (I32Const nl, "newline"); (Call "writeFloat", "call host function") ])
         | t when (isSubtypeOf node.Env t TString) ->
             // import writeS function
             let m'' =
@@ -714,7 +713,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     .AddCode(
                         // push string pointer to stack
                         [ (I32Load(m'.GetAccCode()), "Load string pointer") ]
-                        @ [ (I32Load_(None, Some(4), m'.GetAccCode()), "Load string length"); (I32Const nl, "newline") ]
+                        @ [ (I32Load_(None, Some(4), m'.GetAccCode()), "Load string length")
+                            (I32Const nl, "newline") ]
                     )
 
             // perform host (system) call
@@ -2030,40 +2030,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 m
 
         // struct with function pointer and closure environment pointer
-        let stypeId = GenStructTypeIDType [ ("", I32); ("", EqRef) ]
+
 
         let ptr_label = $"{funLabel}*ptr"
 
         // get the index of the function
         let funcindex = env.TableController.next ()
 
-        let funcPointer =
-            { node with
-                Expr =
-                    Struct(
-                        [ ("f",
-                           { node with
-                               Expr = IntVal(funcindex) // function pointer
-                               Type = TInt })
-                          //   ("env",
-                          //    { node with
-                          //        Expr = UnitVal
-                          //        Type = TUnit })
-                          ]
-
-                    )
-                Type =
-                    TStruct(
-                        [ ("f", TInt)
-                          // ("cenv", TAny)
-                          ]
-                    ) }
-
         // compile function pointer
-        let funcPointerModule =
-            (doCodegen env funcPointer (m))
-                .AddFuncRefElement(funLabel, funcindex) // add function to function table
-                .AddGlobal((ptr_label, (Ref(Named(stypeId)), Mutable), (Null(Named(stypeId)), "")))
+        // let funcPointerModule =
+        //     (doCodegen env funcPointer (m))
+        //         .AddFuncRefElement(funLabel, funcindex) // add function to function table
+        //         .AddGlobal((ptr_label, (Ref(Named(stypeId)), Mutable), (Null(Named(stypeId)), "")))
 
 
         /// Storage info where the name of the compiled function points to the
@@ -2080,6 +2058,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let argNamesTypes = List.zip argNames targs
 
         let captured = Set.toList (ASTUtil.capturedVars node)
+
+        let closType =
+            GenStructTypeIDType(List.map (fun (n) -> (n, mapTypeHeap node.Env.Vars[n])) captured)
+
+        let stypeId = GenStructTypeIDType [ ("", I32); ("", Ref(Named(closType))) ]
+
+        let s =
+            [ StructNew(
+                  Named(stypeId),
+                  [ (I32Const funcindex, "put function index on stack")
+                    (Null(Named(closType)), "null ref") ]
+              ) ]
+
+        let clos = [ GlobalSet(Named(ptr_label), C s) ]
 
         let env'' =
             if isTopLevel env then
@@ -2100,10 +2092,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     .ResetAccCode()
                     .AddCode([ GlobalSet(Named(ptr_label), closureModule.GetAccCode()) ])
 
-        let scopeModule: Module = (doCodegen env' scope funcPointerModule)
+        let scopeModule: Module = (doCodegen env' scope m)
 
         // Set the function pointer to the closure struct
-        bodyCode + closure + scopeModule
+        C clos ++ bodyCode
+        + closure
+        + scopeModule
+            .AddFuncRefElement(funLabel, funcindex)
+            .AddGlobal((ptr_label, (Ref(Named(stypeId)), Mutable), (Null(Named(stypeId)), "")))
+            // add closType type def
+            .AddTypedef(StructType(closType, []))
+            .AddTypedef(
+                StructType(stypeId, [ (Some("f"), (I32, Mutable)); (Some("cenv"), (Ref(Named(closType)), Mutable)) ])
+            )
     | LetRec(name,
              _,
              { Node.Expr = Lambda(args, body)
@@ -2430,8 +2431,12 @@ and internal compileFunction
         else
             Module()
 
+
+
+    let cenvType = if env.Config.AllocationStrategy = Heap then Eq else I32
+
     // map args to there types
-    let argTypes': Local list = (Some("cenv"), closuretype) :: (argsToLocals env args)
+    let argTypes': Local list = (Some("cenv"), cenvType) :: (argsToLocals env args)
     let signature: FunctionSignature = (argTypes', mapType body.Type)
 
     // compile function body

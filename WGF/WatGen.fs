@@ -28,6 +28,7 @@ let generate_signature signature (comment: string) =
                     | Some name ->
                         match t with
                         | Ref(l) -> $"(param $%s{name} (ref {l.ToString()}))"
+                        | Eq -> $"(param $%s{name} (ref null eq))"
                         | _ -> $"(param $%s{name} %s{t.ToString()})"
                     | None -> $"(param %s{t.ToString()})")
                 parameters)
@@ -85,10 +86,12 @@ let printType (i: int, t) (withName: bool) =
                             if withName then
                                 match t with
                                 | Ref(l) -> $"(param $%s{name} (ref {l.ToString()}))"
+                                | Eq -> $"(param $%s{name} (ref null eq))"
                                 | _ -> $"(param $%s{name} %s{t.ToString()})"
                             else
                                 match t with
                                 | Ref(l) -> $"(param (ref {l.ToString()}))"
+                                | Eq -> $"(param (ref null eq))"
                                 | _ -> $"(param %s{t.ToString()})"
                         | None -> $"(param %s{t.ToString()})")
                     parameters)

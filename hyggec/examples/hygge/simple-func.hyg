@@ -4,7 +4,6 @@ fun outer(x: int): (int) -> int = {
         y + a + x
     }
 };
-// let c1: (int) -> int = outer(2);
-outer(2);
-10
-// assert(c1(2) = 7)
+let c1: (int) -> int = outer(2);
+
+assert(c1(2) = 7)
