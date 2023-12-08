@@ -111,6 +111,20 @@ type internal SymbolController() =
             // We return the symbol position in 'knownSymsWithIds' as unique id
             id + 1
 
+/// keep track of the current function nesting level
+type internal FuncController() =
+    // stack of function names
+    let mutable funcStack: List<string> = []
+
+    member this.currentFunc() : string =
+        match funcStack with
+        | h :: _ -> h
+        | _ -> failwith "no function on stack"
+
+    member this.setCurrentFunc(name: string) =
+        funcStack <- name :: funcStack    
+
+
 /// code that is executed when an error occurs
 let trap =
     [ (GlobalSet(Named("exit_code"), [ (I32Const errorExitCode, "error exit code push to stack") ]), "set exit code")
@@ -194,7 +208,7 @@ let rec mapTypeHeap (t: Type) =
         let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) l
         Ref(Named(GenStructTypeIDType fieldTypes))
     | TArray t -> mapTypeHeap t
-    | TFun _ -> Ref(Named(funcp)) 
+    | TFun _ -> Ref(Named(funcp))
     | _ -> (mapType t)[0]
 
 let findBestMatchType (m: Module) (fields: List<string * Type>) =
@@ -812,6 +826,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     (List.map (fun (n) -> (Some(n), (mapTypeHeap node.Env.Vars[n], Mutable))) captured)
 
                 Module().AddTypedef(StructType($"clos_{funLabel}", args))
+                        .AddLocals([])
             else
                 Module()
 
@@ -831,7 +846,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             compileFunction funLabel argNamesTypes body env'' (Module()) captured
 
         let closure = createClosure env node funcindex (Module()) captured
-        let funcp = GenStructTypeIDType [ ("func", (I32)); ("cenv", (EqRef)) ]
 
         (bodyCode + closure + closTypeModule)
             .AddFuncRefElement(funLabel, funcindex)
@@ -1890,8 +1904,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let combi = (instrs ++ scopeCode)
 
-            let funcp = GenStructTypeIDType [ ("func", (I32)); ("cenv", (EqRef)) ]
-
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
@@ -2050,8 +2062,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let ptr_label = $"{funLabel}*ptr"
 
-        let funcp = GenStructTypeIDType [ ("func", (I32)); ("cenv", (EqRef)) ]
-
         // get the index of the function
         let funcindex = env.TableController.next ()
 
@@ -2078,9 +2088,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 Module().AddTypedef(StructType($"clos_{name}", args))
             else
                 Module()
-
-        // let closType =
-        //     GenStructTypeIDType(List.map (fun (n) -> (n, mapTypeHeap node.Env.Vars[n])) captured)
 
         let clos =
             [ GlobalSet(
@@ -2419,7 +2426,12 @@ and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
 
         // added cenv var to args to pass closure env
         let argTypes': Local list = (None, funcPointerStruct) :: argTypes
-        let signature: FunctionSignature = (argTypes', mapType ret)
+
+        let signature: FunctionSignature =
+            if env.Config.AllocationStrategy = Heap then
+                (argTypes', [ mapTypeHeap ret ])
+            else
+                (argTypes', mapType ret)
 
         signature
     | _ -> failwith "type is not a function"

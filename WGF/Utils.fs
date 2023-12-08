@@ -9,25 +9,30 @@ let GenFuncTypeID (t) =
     let locals: Local list = fst t
     let ret: ValueType list = snd t
 
+    let locals': Local list =
+        List.map
+            (fun (name, t) ->
+                match t with
+                | NullableRef l -> (name, Ref(l)) // replace with normal ref
+                | _ -> (name, t))
+            locals
+
     let unit = "_unit"
 
-    let folder = 
+    let folder =
         fun str (i, x) ->
-                            let (n: Identifier option, t: ValueType) = x
-                            // TODO: use names of types in function type
-                            match t with
-                            | Ref l -> str + (if i > 0 then "_" else "") + "eq"
-                            // | ValueType.NullableRef l -> str + (if i > 0 then "_" else "") + "eq"
-                            | _ -> str + (if i > 0 then "_" else "") + t.ToString()
-                            
+            let (n: Identifier option, t: ValueType) = x
+            // TODO: use names of types in function type
+            match t with
+            | Ref l -> str + (if i > 0 then "_" else "") + "eq"
+            // | ValueType.NullableRef l -> str + (if i > 0 then "_" else "") + "eq"
+            | _ -> str + (if i > 0 then "_" else "") + t.ToString()
+
     let l =
         if List.isEmpty locals then
             unit
         else
-            List.fold
-                folder
-                ""
-                (List.indexed locals)
+            List.fold folder "" (List.indexed locals')
 
     let r =
         if List.isEmpty ret then
@@ -60,12 +65,11 @@ let distinctTypes types =
         (types)
 
 
-let formatStructString (tl:ValueType list): string = 
+let formatStructString (tl: ValueType list) : string =
 
     let l =
         List.fold
-            (fun str (i, x: ValueType) ->
-                str + (if i > 0 then "-" else "") + $"{x.ToString()}")
+            (fun str (i, x: ValueType) -> str + (if i > 0 then "-" else "") + $"{x.ToString()}")
             ""
             (List.indexed tl)
 
@@ -89,13 +93,15 @@ let GenArrayTypeIDType (vt: ValueType) = $"arr_{vt}"
 
 let createStructTypeNode (fields: list<string * ValueType>) =
     let typeParams: Param list =
-        List.map (fun (name, t: ValueType) -> 
+        List.map
+            (fun (name, t: ValueType) ->
 
                 match name with
                 | "cenv" -> (Some(name), ((EqRef), Mutable))
                 | _ -> (Some(name), ((t), Mutable))
-                
-        ) fields
+
+            )
+            fields
 
     let typeId = GenStructTypeID fields
 

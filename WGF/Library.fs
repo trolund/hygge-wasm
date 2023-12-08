@@ -509,14 +509,9 @@ module Module =
                     let f' = (instance, snd f)
                     let typedef: Local list * ValueType list = instance.signature
                     // unzip typedef
-                    let (locals, vars) = typedef
+                    let (locals, returnValues) = typedef
 
-                    let locals': Local list = List.map (fun (name, t) -> 
-                                                        match t with
-                                                        | NullableRef l -> (name, Ref(l)) // replace with normal ref
-                                                        | _ -> (name, t)) locals
-
-                    let typeS = GenFuncTypeID (locals', vars)
+                    let typeS = GenFuncTypeID (locals, returnValues)
 
                     let typedef = FuncType(typeS, typedef)
 
