@@ -380,18 +380,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | Some(Storage.Global l) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ] // push global variable on stack
 
             | Some(Storage.Offset(i)) when env.Config.AllocationStrategy = Heap ->
-                let castedClosEnv = Named("clos")
-
-                // get load instruction based on type
-                let li: WGF.Instr.Wasm =
-                        // struct get
-                        StructGet(
-                            Named($"clos_{env.CurrFunc}"),
-                            Index(i),
-                            [ (LocalGet(castedClosEnv), "get env pointer") ]
-                        )
-
-                [ (li, $"load value at index: {i}") ]
+                [ (StructGet(Named($"clos_{env.CurrFunc}"), Index(i), [ (LocalGet(Named("clos")), "get env pointer") ]),
+                   $"load value at index: {i}") ]
 
             | Some(Storage.Offset(i)) -> // push variable from offset on stack
                 // get load instruction based on type
@@ -2489,9 +2479,11 @@ and internal compileFunction
                 m
             else
                 let clos_name = $"clos_{name}"
-                let cast = [ RefCast(Named(clos_name), [ (LocalGet (Index 0), "get cenv")])  ]
-                m.AddLocals([ (Some("clos"), Ref(Named(clos_name))) ])
-                 .AddCode([LocalSet(Named("clos"), C cast)])
+                let cast = [ RefCast(Named(clos_name), [ (LocalGet(Index 0), "get cenv") ]) ]
+
+                m
+                    .AddLocals([ (Some("clos"), Ref(Named(clos_name))) ])
+                    .AddCode([ LocalSet(Named("clos"), C cast) ])
         else
             Module()
 
