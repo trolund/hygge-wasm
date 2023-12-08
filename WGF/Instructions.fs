@@ -138,6 +138,7 @@ type Wasm =
     | ArrayLen of Wasm Commented list
     | RefCast of Wasm Commented list
     | Null of Label
+    | NullValue of ValueType
 
 and Instrs = Wasm list
 

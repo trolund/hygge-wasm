@@ -6,19 +6,26 @@ open System.Text
 /// generate function type string
 let GenFuncTypeID (t) =
     // generate function type name
-    let locals = fst t
-    let ret = snd t
+    let locals: Local list = fst t
+    let ret: ValueType list = snd t
 
     let unit = "_unit"
 
+    let folder = 
+        fun str (i, x) ->
+                            let (n: Identifier option, t: ValueType) = x
+                            // TODO: use names of types in function type
+                            match t with
+                            | ValueType.Ref l -> str + (if i > 0 then "_" else "") + "eq"
+                            // | ValueType.NullableRef l -> str + (if i > 0 then "_" else "") + "eq"
+                            | _ -> str + (if i > 0 then "_" else "") + t.ToString()
+                            
     let l =
         if List.isEmpty locals then
             unit
         else
             List.fold
-                (fun str (i, x) ->
-                    let (_, t) = x
-                    str + (if i > 0 then "_" else "") + t.ToString())
+                folder
                 ""
                 (List.indexed locals)
 
@@ -82,7 +89,13 @@ let GenArrayTypeIDType (vt: ValueType) = $"arr_{vt}"
 
 let createStructTypeNode (fields: list<string * ValueType>) =
     let typeParams: Param list =
-        List.map (fun (name, t: ValueType) -> (Some(name), ((t), Mutable))) fields
+        List.map (fun (name, t: ValueType) -> 
+
+                match name with
+                | "cenv" -> (Some(name), ((EqRef), Mutable))
+                | _ -> (Some(name), ((t), Mutable))
+                
+        ) fields
 
     let typeId = GenStructTypeID fields
 

@@ -224,6 +224,7 @@ let instrLabel i =
     | StructGet(_, _, _) -> $"struct.get"
     | StructSet(_, _, _) -> $"struct.set"
     | ArrayLen(_) -> $"array.len"
+    | NullValue l -> $"null {l.ToString()}"
     | Comment(_) -> ""
 
 /// generate the wat instruction for a list of instructions
@@ -294,6 +295,7 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | ArrayGet _ -> $"array.get"
     | ArraySet _ -> $"array.set"
     | ArrayLen _ -> $"array.len"
+    | NullValue l -> $"ref.null {l.ToString()}"
     | _ -> failwith "not implemented"
 
 let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
