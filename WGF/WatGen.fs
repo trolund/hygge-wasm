@@ -33,8 +33,13 @@ let generate_signature signature (comment: string) =
                     | None -> $"(param %s{t.ToString()})")
                 parameters)
 
+    let retPrint t = 
+        match t with
+        | Ref(l) -> $"(result (ref {l.ToString()}))"
+        | _ -> $"(result %s{t.ToString()})"
+    
     let returnValuesString =
-        String.concat "" (List.map (fun x -> $"(result {x.ToString()})") returnValues)
+        String.concat "" (List.map (fun (x: ValueType) -> retPrint x) returnValues)
 
     $"{parametersString} {returnValuesString}"
 
@@ -96,8 +101,14 @@ let printType (i: int, t) (withName: bool) =
                         | None -> $"(param %s{t.ToString()})")
                     parameters)
 
+        
+        let retPrint t = 
+            match t with
+            | Ref(l) -> $"(result (ref {l.ToString()}))"
+            | _ -> $"(result %s{t.ToString()})"
+
         let returnValuesString =
-            String.concat " " (List.map (fun x -> $"(result %s{x.ToString()})") returnValues)
+            String.concat " " (List.map (fun x -> retPrint x) returnValues)
 
         // name with suffix
         $"{gIndent 1}(type ${name} %s{ic i} (func {parametersString} {returnValuesString}))\n"

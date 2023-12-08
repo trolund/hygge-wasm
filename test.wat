@@ -3,6 +3,7 @@
   (type $eq_i32_=>_i32 (;1;) (func (param (ref null eq)) (param i32) (result i32)))
   (type $s_i32-i32 (;2;) (struct (field $a (mut i32)) (field $x (mut i32))))
   (type $clos_fun_outer/anonymous (;3;) (struct (field $a (mut i32)) (field $x (mut i32))))
+  (type $eq_i32_=>_s_i32-eqref (;4;) (func (param (ref null eq)) (param i32) (result (ref $s_i32-eqref))))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) (i32.const 0))
   (global $fun_outer*ptr (;1;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
@@ -23,7 +24,7 @@
     ;; Start of let
     (global.set $var_c1 ;; set local var, have been hoisted
       ;; Load expression to be applied as a function
-      (call_indirect (type $eq_i32_=>_i32) ;; call function
+      (call_indirect (type $eq_i32_=>_s_i32-eqref) ;; call function
         (struct.get $s_i32-eqref 1 ;; load closure environment pointer
           (global.get $fun_outer*ptr) ;; get global var: fun_outer*ptr
         )

@@ -186,7 +186,7 @@ let mapType t =
     | TVar _ -> [ I32 ]
     | TAny -> [ EqRef ]
 
-
+let funcp = GenStructTypeIDType [ ("func", (I32)); ("cenv", (EqRef)) ]
 
 let rec mapTypeHeap (t: Type) =
     match t with
@@ -194,6 +194,7 @@ let rec mapTypeHeap (t: Type) =
         let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) l
         Ref(Named(GenStructTypeIDType fieldTypes))
     | TArray t -> mapTypeHeap t
+    | TFun _ -> Ref(Named(funcp)) 
     | _ -> (mapType t)[0]
 
 let findBestMatchType (m: Module) (fields: List<string * Type>) =
@@ -273,7 +274,10 @@ let internal lookupLatestType (m: Module) =
 
 
 let internal argsToLocals env args =
-    List.map (fun (n, t) -> (Some(lookupLabel env n), (mapType t)[0])) args
+    if env.Config.AllocationStrategy = Heap then
+        List.map (fun (n, t) -> (Some(lookupLabel env n), (mapTypeHeap t))) args
+    else
+        List.map (fun (n, t) -> (Some(lookupLabel env n), (mapType t)[0])) args
 
 let internal addCapturedToEnv env captured =
     List.fold
@@ -827,7 +831,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             compileFunction funLabel argNamesTypes body env'' (Module()) captured
 
         let closure = createClosure env node funcindex (Module()) captured
-        let funcp = GenStructTypeIDType [("func", (I32)); ("cenv", (EqRef)) ]
+        let funcp = GenStructTypeIDType [ ("func", (I32)); ("cenv", (EqRef)) ]
 
         (bodyCode + closure + closTypeModule)
             .AddFuncRefElement(funLabel, funcindex)
@@ -1886,7 +1890,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let combi = (instrs ++ scopeCode)
 
-            let funcp = GenStructTypeIDType [("func", (I32)); ("cenv", (EqRef)) ]
+            let funcp = GenStructTypeIDType [ ("func", (I32)); ("cenv", (EqRef)) ]
 
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
@@ -2046,7 +2050,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let ptr_label = $"{funLabel}*ptr"
 
-        let funcp = GenStructTypeIDType [("func", (I32)); ("cenv", (EqRef)) ]
+        let funcp = GenStructTypeIDType [ ("func", (I32)); ("cenv", (EqRef)) ]
 
         // get the index of the function
         let funcindex = env.TableController.next ()
@@ -2430,26 +2434,29 @@ and internal compileFunction
     (captured: string list)
     : Module =
 
-    let closureType =
-        GenStructTypeIDType(List.map (fun (n) -> ("", mapTypeHeap body.Env.Vars[n])) captured)
-
-    let funcPointerStruct =
-        if env.Config.AllocationStrategy = Heap then
-            Eq
-        else
-            I32
+    let funcPointerStruct = if env.Config.AllocationStrategy = Heap then Eq else I32
 
     // map args to there types
     let argTypes': Local list =
         (Some("cenv"), funcPointerStruct) :: (argsToLocals env args)
 
-    let signature: FunctionSignature = (argTypes', mapType body.Type)
+    let signature: FunctionSignature =
+        (argTypes',
+         if env.Config.AllocationStrategy = Heap then
+             [ mapTypeHeap body.Type ]
+         else
+             mapType body.Type)
 
     // add cenv type def of a function pointer
     let cenvHeapTypeDef =
         if env.Config.AllocationStrategy = Heap then
             Module()
-                .AddTypedef(StructType(GenStructTypeIDType [("func", (I32)); ("cenv", (EqRef)) ], [ (Some("func"), (I32, Mutable)); (Some("cenv"), (EqRef, Mutable)) ]))
+                .AddTypedef(
+                    StructType(
+                        GenStructTypeIDType [ ("func", (I32)); ("cenv", (EqRef)) ],
+                        [ (Some("func"), (I32, Mutable)); (Some("cenv"), (EqRef, Mutable)) ]
+                    )
+                )
         else
             Module()
 

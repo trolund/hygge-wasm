@@ -16,7 +16,7 @@ let GenFuncTypeID (t) =
                             let (n: Identifier option, t: ValueType) = x
                             // TODO: use names of types in function type
                             match t with
-                            | ValueType.Ref l -> str + (if i > 0 then "_" else "") + "eq"
+                            | Ref l -> str + (if i > 0 then "_" else "") + "eq"
                             // | ValueType.NullableRef l -> str + (if i > 0 then "_" else "") + "eq"
                             | _ -> str + (if i > 0 then "_" else "") + t.ToString()
                             
