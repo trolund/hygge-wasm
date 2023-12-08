@@ -498,9 +498,23 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                 let s = watCode + innerWat + space + $"array.set %s{label.ToString()}\n"
 
                 aux tail s indent
+            | RefCast(label, instrs: Commented<Wasm> list) when style = Folded ->
+                let innerWat = aux instrs "" (indent + 1)
+
+                let s =
+                    watCode
+                    + space
+                    + $"(ref.cast (ref %s{label.ToString()})\n{innerWat}{gIndent (indent)})\n"
+
+                aux tail s indent
+            | RefCast(label, instrs: Commented<Wasm> list) when style = Linar ->
+                let innerWat = aux instrs "" (indent)
+
+                let s = watCode + innerWat + space + $"ref.cast (ref %s{label.ToString()})\n"
+
+                aux tail s indent
             // foled instructions
             | ArrayLen instrs
-            | RefCast instrs
             | I32Sub instrs
             | I32Mul instrs
             | I32DivS instrs
@@ -542,7 +556,6 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail watCode indent
             | ArrayLen instrs
-            | RefCast instrs
             | StructNew(_, instrs)
             | Drop instrs
             | MemoryGrow instrs

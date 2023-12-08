@@ -136,7 +136,7 @@ type Wasm =
     // (array.get $vec3d (local.get $v) (i32.const 1))
     | ArrayGet of Label * Wasm Commented list
     | ArrayLen of Wasm Commented list
-    | RefCast of Wasm Commented list
+    | RefCast of Label * Wasm Commented list
     | Null of Label
     | NullValue of ValueType
 

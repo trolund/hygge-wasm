@@ -121,8 +121,7 @@ type internal FuncController() =
         | h :: _ -> h
         | _ -> failwith "no function on stack"
 
-    member this.setCurrentFunc(name: string) =
-        funcStack <- name :: funcStack    
+    member this.setCurrentFunc(name: string) = funcStack <- name :: funcStack
 
 
 /// code that is executed when an error occurs
@@ -159,6 +158,7 @@ let checkMemory (size: Commented<Wasm> list) : Commented<Wasm> list =
 
 type internal CodegenEnv =
     { CurrFunc: string
+      PrevFunc: string
       MemoryAllocator: StaticMemoryAllocator
       TableController: TableController
       SymbolController: SymbolController
@@ -378,6 +378,21 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             match env.VarStorage.TryFind v with
             | Some(Storage.Local l) -> [ (LocalGet(Named(l)), $"get local var: {l}") ] // push local variable on stack
             | Some(Storage.Global l) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ] // push global variable on stack
+
+            | Some(Storage.Offset(i)) when env.Config.AllocationStrategy = Heap ->
+                let castedClosEnv = Named("clos")
+
+                // get load instruction based on type
+                let li: WGF.Instr.Wasm =
+                        // struct get
+                        StructGet(
+                            Named($"clos_{env.CurrFunc}"),
+                            Index(i),
+                            [ (LocalGet(castedClosEnv), "get env pointer") ]
+                        )
+
+                [ (li, $"load value at index: {i}") ]
+
             | Some(Storage.Offset(i)) -> // push variable from offset on stack
                 // get load instruction based on type
                 let li: WGF.Instr.Wasm =
@@ -826,7 +841,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     (List.map (fun (n) -> (Some(n), (mapTypeHeap node.Env.Vars[n], Mutable))) captured)
 
                 Module().AddTypedef(StructType($"clos_{funLabel}", args))
-                        .AddLocals([])
             else
                 Module()
 
@@ -847,7 +861,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let closure = createClosure env node funcindex (Module()) captured
 
-        (bodyCode + closure + closTypeModule)
+        (closTypeModule + bodyCode + closure)
             .AddFuncRefElement(funLabel, funcindex)
             .AddGlobal((ptr_label, (Ref(Named(funcp)), Mutable), (Null(Named(funcp)), "")))
     | Lambda(args, body) ->
@@ -2462,18 +2476,34 @@ and internal compileFunction
     // add cenv type def of a function pointer
     let cenvHeapTypeDef =
         if env.Config.AllocationStrategy = Heap then
-            Module()
-                .AddTypedef(
-                    StructType(
-                        GenStructTypeIDType [ ("func", (I32)); ("cenv", (EqRef)) ],
-                        [ (Some("func"), (I32, Mutable)); (Some("cenv"), (EqRef, Mutable)) ]
+            let m =
+                Module()
+                    .AddTypedef(
+                        StructType(
+                            GenStructTypeIDType [ ("func", (I32)); ("cenv", (EqRef)) ],
+                            [ (Some("func"), (I32, Mutable)); (Some("cenv"), (EqRef, Mutable)) ]
+                        )
                     )
-                )
+
+            if isTopLevel env then
+                m
+            else
+                let clos_name = $"clos_{name}"
+                let cast = [ RefCast(Named(clos_name), [ (LocalGet (Index 0), "get cenv")])  ]
+                m.AddLocals([ (Some("clos"), Ref(Named(clos_name))) ])
+                 .AddCode([LocalSet(Named("clos"), C cast)])
         else
             Module()
 
     // compile function body
-    let m': Module = cenvHeapTypeDef ++ doCodegen { env with CurrFunc = name } body m
+    let m': Module =
+        cenvHeapTypeDef
+        ++ doCodegen
+            { env with
+                PrevFunc = env.CurrFunc
+                CurrFunc = name }
+            body
+            m
 
     // create function instance
     let f: Commented<FunctionInstance> =
@@ -2704,6 +2734,7 @@ let codegen (node: TypedAST) (config: CompileConfig option) : Module =
     /// Environment used during code generation
     let env =
         { CurrFunc = funcName
+          PrevFunc = ""
           MemoryAllocator = StaticMemoryAllocator()
           TableController = TableController()
           SymbolController = SymbolController()

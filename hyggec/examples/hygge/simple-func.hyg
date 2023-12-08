@@ -6,4 +6,6 @@ fun outer(x: int): (int) -> int = {
 };
 let c1: (int) -> int = outer(2);
 
-assert(c1(2) = 7)
+assert(c1(2) = 7);
+
+0

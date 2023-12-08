@@ -1,8 +1,8 @@
 (module
   (type $s_i32-eqref (;0;) (struct (field $func (mut i32)) (field $cenv (mut eqref))))
-  (type $eq_i32_=>_i32 (;1;) (func (param (ref null eq)) (param i32) (result i32)))
-  (type $s_i32-i32 (;2;) (struct (field $a (mut i32)) (field $x (mut i32))))
-  (type $clos_fun_outer/anonymous (;3;) (struct (field $a (mut i32)) (field $x (mut i32))))
+  (type $clos_fun_outer/anonymous (;1;) (struct (field $a (mut i32)) (field $x (mut i32))))
+  (type $eq_i32_=>_i32 (;2;) (func (param (ref null eq)) (param i32) (result i32)))
+  (type $s_i32-i32 (;3;) (struct (field $a (mut i32)) (field $x (mut i32))))
   (type $eq_i32_=>_s_i32-eqref (;4;) (func (param (ref null eq)) (param i32) (result (ref $s_i32-eqref))))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) (i32.const 0))
@@ -13,7 +13,7 @@
   (table $func_table (;0;) 2 funcref)
   (elem (i32.const 0) (;0;) $fun_outer)
   (elem (i32.const 1) (;1;) $fun_outer/anonymous)
-  (func $_start (;0;)   
+  (func $_start (;0;)  (result i32) 
     ;; execution start here:
     (global.set $fun_outer*ptr
       (struct.new $s_i32-eqref
@@ -57,6 +57,7 @@
         (unreachable) ;; exit program
       )
     )
+    (i32.const 0) ;; push 0 on stack
     ;; End of let
     ;; if execution reaches here, the program is successful
   )
@@ -81,15 +82,23 @@
     ;; End of let
   )
   (func $fun_outer/anonymous (;2;) (param $cenv (ref null eq)) (param $arg_y i32) (result i32) 
+     ;; local variables declarations:
+    (local $clos (ref $clos_fun_outer/anonymous))
+
+    (local.set $clos
+      (ref.cast (ref $clos_fun_outer/anonymous)
+        (local.get 0) ;; get cenv
+      )
+    )
     (i32.add
       (i32.add
         (local.get $arg_y) ;; get local var: arg_y
-        (i32.load offset=0
-          (local.get 0) ;; get env pointer
+        (struct.get $clos_fun_outer/anonymous 0 ;; load value at index: 0
+          (local.get $clos) ;; get env pointer
         )
       )
-      (i32.load offset=4
-        (local.get 0) ;; get env pointer
+      (struct.get $clos_fun_outer/anonymous 1 ;; load value at index: 1
+        (local.get $clos) ;; get env pointer
       )
     )
   )
