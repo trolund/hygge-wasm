@@ -755,8 +755,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // get the return type of the ifTrue branch and subsequently the ifFalse branch
         let resultType = (expandType node.Env node.Type)
 
+        let mappedResultType =
+            if env.Config.AllocationStrategy = Heap then
+                [ mapTypeHeap resultType ]
+            else
+                mapType resultType
+
         let instrs =
-            C [ (If(mapType resultType, m'.GetAccCode(), m''.GetAccCode(), Some(m'''.GetAccCode()))) ]
+            C [ (If(mappedResultType, m'.GetAccCode(), m''.GetAccCode(), Some(m'''.GetAccCode()))) ]
 
         (m' + m'' + m''').ResetAccCode().AddCode(instrs)
     | Assertion(e) ->

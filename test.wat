@@ -337,7 +337,7 @@
     )
   )
   (func $fun_makeFun (;6;) (param $cenv (ref null eq)) (param $arg_addOne i32) (result (ref null $s_i32-eqref)) 
-    (if (result i32)
+    (if (result (ref null $s_i32-eqref))
         (local.get $arg_addOne) ;; get local var: arg_addOne
       (then
         (global.set $fun_inc*ptr
