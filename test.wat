@@ -1,53 +1,76 @@
 (module
   (type $s_i32-eqref (;0;) (struct (field $func (mut i32)) (field $cenv (mut eqref))))
-  (type $clos_fun_outer/anonymous (;1;) (struct (field $a (mut i32)) (field $x (mut i32))))
+  (type $eq_i32_i32_=>_i32 (;1;) (func (param (ref null eq)) (param i32) (param i32) (result i32)))
   (type $eq_i32_=>_i32 (;2;) (func (param (ref null eq)) (param i32) (result i32)))
-  (type $s_i32-i32 (;3;) (struct (field $a (mut i32)) (field $x (mut i32))))
-  (type $eq_i32_=>_s_i32-eqref (;4;) (func (param (ref null eq)) (param i32) (result (ref $s_i32-eqref))))
+  (type $s_ (;3;) (struct ))
+  (type $eq_eq_i32_=>_i32 (;4;) (func (param (ref null eq)) (param (ref $s_i32-eqref)) (param i32) (result i32)))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) (i32.const 0))
-  (global $fun_outer*ptr (;1;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
-  (global $fun_outer/anonymous*ptr (;2;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
-  (global $heap_base (;3;) (mut i32) (i32.const 0))
-  (global $var_c1 (;4;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
-  (table $func_table (;0;) 2 funcref)
-  (elem (i32.const 0) (;0;) $fun_outer)
-  (elem (i32.const 1) (;1;) $fun_outer/anonymous)
-  (func $_start (;0;)  (result i32) 
+  (global $fun_applyFunToInt*ptr (;1;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
+  (global $fun_f*ptr (;2;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
+  (global $fun_g*ptr (;3;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
+  (global $fun_h*ptr (;4;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
+  (global $fun_privateFun*ptr (;5;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
+  (global $heap_base (;6;) (mut i32) (i32.const 0))
+  (global $var_x (;7;) (mut i32) (i32.const 0))
+  (global $var_y (;8;) (mut i32) (i32.const 0))
+  (global $var_z (;9;) (mut i32) (i32.const 0))
+  (table $func_table (;0;) 5 funcref)
+  (elem (i32.const 0) (;0;) $fun_f)
+  (elem (i32.const 1) (;1;) $fun_g)
+  (elem (i32.const 2) (;2;) $fun_h)
+  (elem (i32.const 3) (;3;) $fun_privateFun)
+  (elem (i32.const 4) (;4;) $fun_applyFunToInt)
+  (func $_start (;0;)   
     ;; execution start here:
-    (global.set $fun_outer*ptr
+    (global.set $fun_f*ptr
       (struct.new $s_i32-eqref
         (i32.const 0) ;; put function index on stack
         (ref.null eq) ;; null ref
       )
     )
+    (global.set $fun_g*ptr
+      (struct.new $s_i32-eqref
+        (i32.const 1) ;; put function index on stack
+        (ref.null eq) ;; null ref
+      )
+    )
     ;; Start of let
-    (global.set $var_c1 ;; set local var, have been hoisted
+    (global.set $var_x ;; set local var, have been hoisted
       ;; Load expression to be applied as a function
-      (call_indirect (type $eq_i32_=>_s_i32-eqref) ;; call function
+      (call_indirect (type $eq_i32_i32_=>_i32) ;; call function
         (struct.get $s_i32-eqref 1 ;; load closure environment pointer
-          (global.get $fun_outer*ptr) ;; get global var: fun_outer*ptr
+          (global.get $fun_f*ptr) ;; get global var: fun_f*ptr
         )
+        (i32.const 1) ;; push 1 on stack
         (i32.const 2) ;; push 2 on stack
         (struct.get $s_i32-eqref 0 ;; load table index
-          (global.get $fun_outer*ptr) ;; get global var: fun_outer*ptr
+          (global.get $fun_f*ptr) ;; get global var: fun_f*ptr
+        )
+      )
+    )
+    ;; Start of let
+    (global.set $var_y ;; set local var, have been hoisted
+      ;; Load expression to be applied as a function
+      (call_indirect (type $eq_i32_i32_=>_i32) ;; call function
+        (struct.get $s_i32-eqref 1 ;; load closure environment pointer
+          (global.get $fun_g*ptr) ;; get global var: fun_g*ptr
+        )
+        (i32.const 1) ;; push 1 on stack
+        (i32.const 2) ;; push 2 on stack
+        (struct.get $s_i32-eqref 0 ;; load table index
+          (global.get $fun_g*ptr) ;; get global var: fun_g*ptr
         )
       )
     )
     (if 
         (i32.eqz ;; invert assertion
           (i32.eq ;; equality check
-            ;; Load expression to be applied as a function
-            (call_indirect (type $eq_i32_=>_i32) ;; call function
-              (struct.get $s_i32-eqref 1 ;; load closure environment pointer
-                (global.get $var_c1) ;; get local var: var_c1, have been hoisted
-              )
-              (i32.const 2) ;; push 2 on stack
-              (struct.get $s_i32-eqref 0 ;; load table index
-                (global.get $var_c1) ;; get local var: var_c1, have been hoisted
-              )
+            (i32.add
+              (global.get $var_x) ;; get local var: var_x, have been hoisted
+              (i32.const 1) ;; push 1 on stack
             )
-            (i32.const 7) ;; push 7 on stack
+            (global.get $var_y) ;; get local var: var_y, have been hoisted
           )
         )
       (then
@@ -57,49 +80,130 @@
         (unreachable) ;; exit program
       )
     )
-    (i32.const 0) ;; push 0 on stack
+    (global.set $fun_h*ptr
+      (struct.new $s_i32-eqref
+        (i32.const 2) ;; put function index on stack
+        (ref.null eq) ;; null ref
+      )
+    )
+    ;; Start of let
+    (global.set $var_z ;; set local var, have been hoisted
+      ;; Load expression to be applied as a function
+      (call_indirect (type $eq_i32_=>_i32) ;; call function
+        (struct.get $s_i32-eqref 1 ;; load closure environment pointer
+          (global.get $fun_h*ptr) ;; get global var: fun_h*ptr
+        )
+        (i32.const 40) ;; push 40 on stack
+        (struct.get $s_i32-eqref 0 ;; load table index
+          (global.get $fun_h*ptr) ;; get global var: fun_h*ptr
+        )
+      )
+    )
+    (if 
+        (i32.eqz ;; invert assertion
+          (i32.eq ;; equality check
+            (global.get $var_z) ;; get local var: var_z, have been hoisted
+            (i32.const 42) ;; push 42 on stack
+          )
+        )
+      (then
+        (global.set $exit_code ;; set exit code
+          (i32.const 42) ;; error exit code push to stack
+        )
+        (unreachable) ;; exit program
+      )
+    )
+    (global.set $fun_applyFunToInt*ptr
+      (struct.new $s_i32-eqref
+        (i32.const 4) ;; put function index on stack
+        (ref.null eq) ;; null ref
+      )
+    )
+    (if 
+        (i32.eqz ;; invert assertion
+          (i32.eq ;; equality check
+            ;; Load expression to be applied as a function
+            (call_indirect (type $eq_i32_i32_=>_i32) ;; call function
+              (struct.get $s_i32-eqref 1 ;; load closure environment pointer
+                (global.get $fun_applyFunToInt*ptr) ;; get global var: fun_applyFunToInt*ptr
+              )
+              (global.get $fun_h*ptr) ;; get global var: fun_h*ptr
+              (i32.const 1) ;; push 1 on stack
+              (struct.get $s_i32-eqref 0 ;; load table index
+                (global.get $fun_applyFunToInt*ptr) ;; get global var: fun_applyFunToInt*ptr
+              )
+            )
+            (i32.const 3) ;; push 3 on stack
+          )
+        )
+      (then
+        (global.set $exit_code ;; set exit code
+          (i32.const 42) ;; error exit code push to stack
+        )
+        (unreachable) ;; exit program
+      )
+    )
+    ;; End of let
+    ;; End of let
     ;; End of let
     ;; if execution reaches here, the program is successful
   )
-  (func $fun_outer (;1;) (param $cenv (ref null eq)) (param $arg_x i32) (result (ref $s_i32-eqref)) 
-     ;; local variables declarations:
-    (local $var_a i32)
-
-    ;; Start of let
-    (local.set $var_a ;; set local var
-      (i32.add
-        (local.get $arg_x) ;; get local var: arg_x
-        (i32.const 1) ;; push 1 on stack
+  (func $fun_applyFunToInt (;1;) (param $cenv (ref null eq)) (param $arg_f (ref $s_i32-eqref)) (param $arg_x$3 i32) (result i32) 
+    ;; Load expression to be applied as a function
+    (call_indirect (type $eq_i32_=>_i32) ;; call function
+      (struct.get $s_i32-eqref 1 ;; load closure environment pointer
+        (local.get $arg_f) ;; get local var: arg_f
+      )
+      (local.get $arg_x$3) ;; get local var: arg_x$3
+      (struct.get $s_i32-eqref 0 ;; load table index
+        (local.get $arg_f) ;; get local var: arg_f
       )
     )
-    (struct.new $s_i32-eqref
-      (i32.const 1) ;; push 1 on stack
-      (struct.new $s_i32-i32
-        (local.get $var_a) ;; get local var: var_a
-        (local.get $arg_x) ;; get local var: arg_x
-      )
-    )
-    ;; End of let
   )
-  (func $fun_outer/anonymous (;2;) (param $cenv (ref null eq)) (param $arg_y i32) (result i32) 
-     ;; local variables declarations:
-    (local $clos (ref $clos_fun_outer/anonymous))
-
-    (local.set $clos
-      (ref.cast (ref $clos_fun_outer/anonymous)
-        (local.get 0) ;; get cenv
-      )
+  (func $fun_f (;2;) (param $cenv (ref null eq)) (param $arg_x i32) (param $arg_y i32) (result i32) 
+    (i32.add
+      (local.get $arg_x) ;; get local var: arg_x
+      (local.get $arg_y) ;; get local var: arg_y
     )
+  )
+  (func $fun_g (;3;) (param $cenv (ref null eq)) (param $arg_x$0 i32) (param $arg_y$1 i32) (result i32) 
     (i32.add
       (i32.add
-        (local.get $arg_y) ;; get local var: arg_y
-        (struct.get $clos_fun_outer/anonymous 0 ;; load value at index: 0
-          (local.get $clos) ;; get env pointer
+        (local.get $arg_x$0) ;; get local var: arg_x$0
+        (local.get $arg_y$1) ;; get local var: arg_y$1
+      )
+      (i32.const 1) ;; push 1 on stack
+    )
+  )
+  (func $fun_h (;4;) (param $cenv (ref null eq)) (param $arg_x$2 i32) (result i32) 
+    (global.set $fun_privateFun*ptr
+      (struct.new $s_i32-eqref
+        (i32.const 3) ;; put function index on stack
+        (ref.null eq) ;; null ref
+      )
+    )
+    (global.set $fun_privateFun*ptr
+      (struct.new $s_i32-eqref
+        (i32.const 3) ;; push 3 on stack
+        (struct.new $s_
         )
       )
-      (struct.get $clos_fun_outer/anonymous 1 ;; load value at index: 1
-        (local.get $clos) ;; get env pointer
+    )
+    ;; Load expression to be applied as a function
+    (call_indirect (type $eq_i32_=>_i32) ;; call function
+      (struct.get $s_i32-eqref 1 ;; load closure environment pointer
+        (global.get $fun_privateFun*ptr) ;; get global var: fun_privateFun*ptr
       )
+      (local.get $arg_x$2) ;; get local var: arg_x$2
+      (struct.get $s_i32-eqref 0 ;; load table index
+        (global.get $fun_privateFun*ptr) ;; get global var: fun_privateFun*ptr
+      )
+    )
+  )
+  (func $fun_privateFun (;5;) (param $cenv (ref null eq)) (param $arg_z i32) (result i32) 
+    (i32.add
+      (local.get $arg_z) ;; get local var: arg_z
+      (i32.const 2) ;; push 2 on stack
     )
   )
   (export "_start" (func $_start))

@@ -474,8 +474,20 @@ module Module =
                 this.hostinglist
             )
 
+        // Type exsits
+        member this.TypeExists(name: string) =
+            let types =
+                this.types
+                |> List.filter (fun t ->
+                    match t with
+                    | FuncType(name', _) -> name = name'
+                    | StructType(name', _) -> name = name'
+                    | ArrayType(name', _) -> name = name')
+
+            types.Length > 0
+
         member this.AddTypedef(typedef: TypeDef) =
-            let types = this.types @ [typedef]
+            let types = this.types @ [ typedef ]
 
             Module(
                 types,
@@ -511,11 +523,11 @@ module Module =
                     // unzip typedef
                     let (locals, returnValues) = typedef
 
-                    let typeS = GenFuncTypeID (locals, returnValues)
+                    let typeS = GenFuncTypeID(locals, returnValues)
 
                     let typedef = FuncType(typeS, typedef)
 
-                    let newTypes = (this.types @ [typedef])
+                    let newTypes = (this.types @ [ typedef ])
 
                     let set = distinctTypes newTypes
 
