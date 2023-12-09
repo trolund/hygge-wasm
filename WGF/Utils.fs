@@ -9,13 +9,22 @@ let GenFuncTypeID (t) =
     let locals: Local list = fst t
     let ret: ValueType list = snd t
 
-    let locals': Local list =
+    // replace nullable ref with normal ref
+    let replaceNullableRef (l: Local list) =
         List.map
             (fun (name, t) ->
                 match t with
                 | NullableRef l -> (name, Ref(l)) // replace with normal ref
                 | _ -> (name, t))
-            locals
+            l
+
+    let locals': Local list = replaceNullableRef locals
+    let ret': ValueType list = List.map
+                                    (fun (t) ->
+                                        match t with
+                                        | NullableRef l -> Ref(l) // replace with normal ref
+                                        | _ -> t)
+                                    ret
 
     let unit = "_unit"
 
@@ -25,7 +34,7 @@ let GenFuncTypeID (t) =
             // TODO: use names of types in function type
             match t with
             | Ref l -> str + (if i > 0 then "_" else "") + "eq"
-            // | ValueType.NullableRef l -> str + (if i > 0 then "_" else "") + "eq"
+            | NullableRef l -> str + (if i > 0 then "_" else "") + "ref"
             | _ -> str + (if i > 0 then "_" else "") + t.ToString()
 
     let l =
@@ -38,7 +47,7 @@ let GenFuncTypeID (t) =
         if List.isEmpty ret then
             unit
         else
-            List.fold (fun str x -> str + "_" + x.ToString()) "" ret
+            List.fold (fun str x -> str + "_" + x.ToString()) "" ret'
 
     $"{l}_=>{r}"
 

@@ -208,7 +208,7 @@ let rec mapTypeHeap (t: Type) =
         let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) l
         Ref(Named(GenStructTypeIDType fieldTypes))
     | TArray t -> mapTypeHeap t
-    | TFun _ -> Ref(Named(funcp))
+    | TFun _ -> NullableRef(Named(funcp))
     | _ -> (mapType t)[0]
 
 let findBestMatchType (m: Module) (fields: List<string * Type>) =
@@ -776,7 +776,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         // type to function signature
         let typeId = GenFuncTypeID(typeToFuncSiganture env (expandType expr.Env expr.Type))
-        let stypeId = GenStructTypeIDType [ ("", I32); ("", EqRef) ]
 
         (argm)
             .ResetAccCode()
@@ -784,10 +783,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             .AddCode(
                 [ (CallIndirect(
                       Named(typeId),
-                      [ (StructGet(Named(stypeId), Index(1), exprm.GetAccCode()), "load closure environment pointer") ]
+                      [ (StructGet(Named(funcp), Index(1), exprm.GetAccCode()), "load closure environment pointer") ]
                       @ argm.GetAccCode() // load the rest of the arguments
                       // load function pointer
-                      @ [ (StructGet(Named(stypeId), Index(0), exprm.GetAccCode()), "load table index") ]
+                      @ [ (StructGet(Named(funcp), Index(0), exprm.GetAccCode()), "load table index") ]
                    ),
                    "call function") ]
             )
@@ -1701,11 +1700,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         doCodegen env node m
 
     | Let(name,
-             _,
-             { Node.Expr = Lambda(args, body)
-               Node.Type = TFun(targs, _) },
-             scope,
-             export) when env.Config.AllocationStrategy = Heap ->
+          _,
+          { Node.Expr = Lambda(args, body)
+            Node.Type = TFun(targs, _) },
+          scope,
+          export) when env.Config.AllocationStrategy = Heap ->
 
         let funLabel = env.SymbolController.genSymbol $"fun_%s{name}"
 
@@ -2404,6 +2403,7 @@ and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
                     match t with
                     | TUnion _ -> (None, I32)
                     | TVar _ -> (None, I32)
+                    | TFun _ when env.Config.AllocationStrategy = Heap -> (None, NullableRef(Named(funcp)))
                     | TFun _ -> (None, I32) // passing function as a index to function table
                     | TStruct(fields) when env.Config.AllocationStrategy = Heap ->
                         let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) fields
