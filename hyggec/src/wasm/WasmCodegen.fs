@@ -183,6 +183,17 @@ let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) 
     // return compontents needed to create a function pointer
     (FunctionPointer, funcindex, ptr_label)
 
+let resolveType n (node: TypedAST) =
+    if (Set.contains n node.Env.Mutables) then
+        TStruct([ ("value", node.Env.Vars[n]) ]) // mutable vars are stored in a struct after closure conversion
+    else
+        node.Env.Vars[n]
+
+let resolveNode n (node: TypedAST) =
+    { node with
+        Expr = Var(n)
+        Type = resolveType n node }
+
 
 // map a hygge type to a wasm type
 // TODO: add env to function
@@ -832,8 +843,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let closTypeModule =
             if List.length captured > 0 then
-                let args =
-                    (List.map (fun (n) -> (Some(n), (mapTypeHeap node.Env.Vars[n], Mutable))) captured)
+                let args = (List.map (fun (n) -> (Some(n), (mapTypeHeap (resolveType n node), Mutable))) captured)
 
                 Module().AddTypedef(StructType($"clos_{funLabel}", args))
             else
@@ -2520,17 +2530,8 @@ and internal compileFunction
 
 and internal createClosure (env: CodegenEnv) (node: TypedAST) (index: int) (m: Module) (capturedList: string list) =
 
-    let resolveNode n =
-        let t =
-            if (Set.contains n node.Env.Mutables) then
-                TStruct([ ("value", node.Env.Vars[n]) ]) // mutable vars are stored in a struct after closure conversion
-            else
-                node.Env.Vars[n]
-
-        { node with Expr = Var(n); Type = t }
-
     // map captured to a list of string * TypedAST where the string is the name of the captured variable
-    let capturedStructFields = List.map (fun n -> (n, resolveNode n)) capturedList
+    let capturedStructFields = List.map (fun n -> (n, resolveNode n node)) capturedList
 
     // struct that contains env and function pointer
     let returnStruct =
