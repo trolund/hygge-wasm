@@ -1,5 +1,10 @@
 let arr: array {int} = array(2 + 2, 40 + 2);
-let sliced: array {int} = arraySlice(arr, 1, 4);
+let sliced: array {int} = arraySlice(arr, 1, 5);
 
 // fails because of read this is an error
-print(arrayElem(sliced, 3))
+// print(arrayElem(sliced, 3))
+0
+
+// JS test:
+// const animals = [42, 42, 42, 42];
+// console.log(animals.slice(1, 5));
