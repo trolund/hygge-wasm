@@ -126,6 +126,11 @@ let rec hasSideEffects (instrs: Commented<WGF.Instr.Wasm> list) : bool =
     | _ :: rest -> hasSideEffects rest
     | [] -> false
 
+let isLocalTee instr = 
+    match instr with
+    | (LocalTee _, _) -> true
+    | _ -> false
+
 /// Optimize a list of Text segment statements.
 /// TODO: make sure that optimizeInstr are applied until the result stops changing
 let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Commented<WGF.Instr.Wasm> list) =
@@ -222,6 +227,19 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
     // // Replace `i32.mul` with `i32.mul` for squaring a value.
     // | (I32Mul, c1) :: (I32Mul, c2) :: rest -> 
     //     (I32Mul, c1 + c2) :: optimizeInstr rest
+
+    // check if the sub-tree of drop has a local.tee as the last instrction
+    | (Drop(subTree), _) :: rest when isLocalTee (List.last subTree) -> 
+        // if it does, we can remove the drop
+        // and replace the local.tee with a local.set
+        let subTree' = List.take (List.length subTree - 1) subTree
+
+        match List.last subTree with 
+        | (LocalTee (x, instrs), c) -> 
+            let localSet = (LocalSet (x, instrs), c)
+            let rest' = optimizeInstr rest
+            subTree' @ [localSet] @ rest'
+        | _ -> failwith "should not happen"
 
     | (Drop(subTree), _) :: rest when (not (hasSideEffects subTree)) -> 
         optimizeInstr rest
