@@ -298,7 +298,7 @@ let internal lookupLatestType (m: Module) =
     | _ -> failwith "failed to find name of the lastest local var"
 
 
-let internal argsToLocals env args =
+let internal argsToLocals (env: CodegenEnv) (args): Local list  =
     if env.Config.AllocationStrategy = Heap then
         List.map (fun (n, t) -> (Some(lookupLabel env n), (mapTypeHeap t))) args
     else
@@ -727,7 +727,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 .AddCode([ Drop([ (Call "fd_write", "call host function") ]) ])
     | PrintLn e
     | Print e ->
-        // TODO: make print and println different
         let m' = doCodegen env e m
 
         // use new line if printLn
@@ -843,7 +842,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let closTypeModule =
             if List.length captured > 0 then
-                let args = (List.map (fun (n) -> (Some(n), (mapTypeHeap (resolveType n node), Mutable))) captured)
+                let args =
+                    (List.map (fun (n) -> (Some(n), (mapTypeHeap (resolveType n node), Mutable))) captured)
 
                 Module().AddTypedef(StructType($"clos_{funLabel}", args))
             else
@@ -1554,7 +1554,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 assignCode ++ (rhsCode.ResetAccCode() + selTargetCode.ResetAccCode())
             | _ -> failwith "failed to assign to field"
         | FieldSelect(target, field) ->
-
             let selTargetCode = doCodegen env target m
 
             /// Code for the 'rhs' expression of the assignment
@@ -2214,28 +2213,36 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m
     | Pointer _ -> failwith "BUG: pointers cannot be compiled (by design!)"
     | AST.Type(name, def, scope) ->
-        if env.Config.AllocationStrategy = Heap then
-            let result = resolvePretype node.Env def
+        // if env.Config.AllocationStrategy = Heap then
+        //     let result = resolvePretype node.Env def
 
-            match result with
-            | Ok(t) ->
-                match (expandType node.Env t) with
-                | TStruct(fields) ->
-                    //let td = createStructType fields
-                    let typeParams: Param list =
-                        List.map (fun (name, t: Type) -> (Some(name), ((mapTypeHeap t), Mutable))) fields
+        //     match result with
+        //     | Ok(t) ->
+        //         match (expandType node.Env t) with
+        //         | TStruct(fields) ->
+        //             //let td = createStructType fields
+        //             // TODO map correcly 
+        //             let typeParams: Param list =
+        //                 List.map (fun (name, t: Type) -> (Some(name), ((mapTypeHeap t), Mutable))) fields
 
-                    let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) fields
-                    let id = GenStructTypeIDType fieldTypes
-                    let td = StructType(name, typeParams)
-                    (doCodegen env scope m).AddTypedef(td)
-                | TArray(t) ->
-                    let id = GenArrayTypeIDType(mapTypeHeap t)
-                    let td = ArrayType(name, mapTypeHeap t)
-                    (doCodegen env scope m).AddTypedef(td)
-                | _ -> (doCodegen env scope m)
-            | Error(e) -> doCodegen env scope m
-        else
+        //             let td = StructType(name, typeParams)
+        //             (doCodegen env scope m).AddTypedef(td)
+        //         | TArray(t) ->
+        //             let td = ArrayType(name, mapTypeHeap t)
+        //             (doCodegen env scope m).AddTypedef(td)
+        //         // | TFun(args, ret) ->
+        //         //     let locals = List.map (fun (t) -> (None, (mapTypeHeap (expandType node.Env t)))) args
+
+        //         //     let signature: FunctionSignature =
+        //         //             (locals, [ mapTypeHeap ret ])
+
+        //         //     let typeS = GenFuncTypeID(locals, [mapTypeHeap ret])
+
+        //         //     let td = FuncType(name, signature)
+        //         //     (doCodegen env scope m).AddTypedef(td)
+        //         | _ -> (doCodegen env scope m)
+        //     | Error(e) -> doCodegen env scope m
+        // else
             doCodegen env scope m
     // struct constructor
     | Struct(fields) when env.Config.AllocationStrategy = Heap ->
@@ -2413,7 +2420,7 @@ and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
     | TFun(args, ret) ->
 
         // map args to there types
-        let argTypes: Local list =
+        let mapArgTypes (args: Type list): Local list =
             List.map
                 (fun t ->
                     match t with
@@ -2435,6 +2442,8 @@ and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
                     | TAny -> (None, EqRef)
                     | TUnit -> failwith "a function cannot have a unit argument")
                 args
+        
+        let argTypes = mapArgTypes args
 
         let funcPointerStruct =
             if env.Config.AllocationStrategy = Heap then

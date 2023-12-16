@@ -3,8 +3,6 @@
   (type $i32_=>_funcp (;2;) (func (param (ref null eq)) (param i32) (result (ref $funcp))))
   (type $i32_=>_i32 (;2;) (func (param (ref null eq)) (param i32) (result i32)))
   (type $clos_inner (;3;) (struct (field $a (mut i32)) (field $x (mut i32))))
-  ;; (type $clos_outer (;3;) (struct))
-  ;; (type $mutable_i32 (;4;) (struct (field $value (mut i32))))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) (i32.const 0))
   (global $fun_outer*ptr (;1;) (mut (ref null $funcp)) (ref.null $funcp))

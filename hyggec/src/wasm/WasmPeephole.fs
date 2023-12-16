@@ -17,8 +17,11 @@ let rec hasSideEffects (instrs: Commented<WGF.Instr.Wasm> list) : bool =
     | (LocalTee _, _) :: rest -> true   
     | (Call _, _) :: rest -> true
     | (CallIndirect _, _) :: rest -> true
+    | (StructSet _, _) :: rest -> true
+    | (ArraySet _, _) :: rest -> true
 
-    | (If (_, _, ifTrue, ifFalse), _) :: rest -> 
+    | (If (_, con, ifTrue, ifFalse), _) :: rest -> 
+        hasSideEffects con ||
         hasSideEffects ifTrue || 
         match ifFalse with
         | Some ifFalse -> hasSideEffects ifFalse
@@ -116,6 +119,9 @@ let rec hasSideEffects (instrs: Commented<WGF.Instr.Wasm> list) : bool =
     
     | (F32Div(instrs), _) :: rest ->
         hasSideEffects instrs || hasSideEffects rest
+
+    | (Drop(subTree), _) :: rest when (hasSideEffects subTree) -> 
+        true
 
     | _ :: rest -> hasSideEffects rest
     | [] -> false
@@ -217,8 +223,8 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
     // | (I32Mul, c1) :: (I32Mul, c2) :: rest -> 
     //     (I32Mul, c1 + c2) :: optimizeInstr rest
 
-    // | subTree :: (Drop, _) :: rest when (not (hasSideEffects [subTree])) -> 
-    //     optimizeInstr rest
+    | (Drop(subTree), _) :: rest when (not (hasSideEffects subTree)) -> 
+        optimizeInstr rest
 
     // // tee local drop
     // | (LocalTee (x, instrs), c) :: (Drop, _) :: rest ->

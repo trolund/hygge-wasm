@@ -7,7 +7,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-console.log('V8 - Hygge Runner');
+console.log('Node.js V8 - Hygge Runner');
 import fs from 'node:fs';
 import { WASI, init, MemFS } from "@wasmer/wasi";
 import { MemoryAllocator } from './MemoryAllocator';
