@@ -391,6 +391,12 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
     | (F32Div(instrs), c) :: rest ->
         (F32Div(optimizeInstr instrs), c) :: optimizeInstr rest
 
+    | (Drop(instrs), c) :: rest ->
+        (Drop(optimizeInstr instrs), c) :: optimizeInstr rest
+    
+    | (MemoryGrow(instrs), c) :: rest ->
+        (MemoryGrow(optimizeInstr instrs), c) :: optimizeInstr rest
+    
     // no optimization case matched: continue with the rest
     | stmt :: rest ->
         // If we are here, we did not find any pattern to optimize: we skip the
