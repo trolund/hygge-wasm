@@ -49,6 +49,7 @@
     <Compile Include="src/WasmTime.fs" />
     <Compile Include="src/wasm/SI.fs" />
     <Compile Include="src/wasm/WasmCodegen.fs" />
+    <Compile Include="src/wasm/WasmPeepholeHelper.fs" />
     <Compile Include="src/wasm/WasmPeephole.fs" />
     <!-- Command line parsing -->
     <PackageReference Include="CommandLineParser.FSharp" Version="2.9.1" />
