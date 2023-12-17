@@ -437,7 +437,7 @@ let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     | (LocalTee (_, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (Call (_), _) :: rest -> 1 + countFunctionInstrs rest
     | (CallIndirect (_), _) :: rest -> 1 + countFunctionInstrs rest
-    | (If (_, _, ifTrue, ifFalse), _) :: rest -> 1 + (countFunctionInstrs ifTrue) + (match ifFalse with | Some ifFalse -> countFunctionInstrs ifFalse | None -> 0) + countFunctionInstrs rest
+    | (If (_, con, ifTrue, ifFalse), _) :: rest -> 1 + (countFunctionInstrs con) + (countFunctionInstrs ifTrue) + (match ifFalse with | Some ifFalse -> countFunctionInstrs ifFalse | None -> 0) + countFunctionInstrs rest
     | (Block (_, _, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (Loop (_, _, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (I32Load(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
@@ -469,7 +469,47 @@ let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     | (F32Sub(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (F32Mul(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (F32Div(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
-    | _ :: rest -> countFunctionInstrs rest
+    | (Drop(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (MemoryGrow(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Const _, _) :: rest -> 1 + countFunctionInstrs rest
+    | (I32Const _, _) :: rest -> 1 + countFunctionInstrs rest
+    
+    | (LocalGet _, _) :: rest -> 1 + countFunctionInstrs rest
+    | (GlobalGet _, _) :: rest -> 1 + countFunctionInstrs rest
+    | (MemorySize, _) :: rest -> 1 + countFunctionInstrs rest
+    | (Br _, _) :: rest -> 1 + countFunctionInstrs rest
+    | (BrIf _, _) :: rest -> 1 + countFunctionInstrs rest
+    | (BrTable _, _) :: rest -> 1 + countFunctionInstrs rest
+    | (Return, _) :: rest -> 1 + countFunctionInstrs rest
+    | (F32Sqrt, _) :: rest -> 1 + countFunctionInstrs rest
+    | (F32Ceil, _) :: rest -> 1 + countFunctionInstrs rest
+    | (F32Floor, _) :: rest -> 1 + countFunctionInstrs rest
+    | (F32Trunc, _) :: rest -> 1 + countFunctionInstrs rest
+    | (F32Nearest, _) :: rest -> 1 + countFunctionInstrs rest
+    | (F32Abs, _) :: rest -> 1 + countFunctionInstrs rest
+    | (F32Neg, _) :: rest -> 1 + countFunctionInstrs rest
+    | (F32Copysign, _) :: rest -> 1 + countFunctionInstrs rest
+    | (I32Clz, _) :: rest -> 1 + countFunctionInstrs rest
+    | (I32Ctz, _) :: rest -> 1 + countFunctionInstrs rest
+    | (I32Popcnt, _) :: rest -> 1 + countFunctionInstrs rest
+    | (I32Rotl, _) :: rest -> 1 + countFunctionInstrs rest
+    | (I32Rotr, _) :: rest -> 1 + countFunctionInstrs rest
+    | (I32Shl, _) :: rest -> 1 + countFunctionInstrs rest
+    | (I32ShrS, _) :: rest -> 1 + countFunctionInstrs rest
+    | (I32ShrU, _) :: rest -> 1 + countFunctionInstrs rest
+    | (Select, _) :: rest -> 1 + countFunctionInstrs rest
+    | (F32Max, _) :: rest -> 1 + countFunctionInstrs rest
+    | (F32Min, _) :: rest -> 1 + countFunctionInstrs rest
+
+    
+
+
+
+    | (Unreachable, _) :: rest -> 1 + countFunctionInstrs rest
+
+    | (Comment _, _) :: rest -> countFunctionInstrs rest
+
+    | _ :: rest -> failwith "did not recognize instruction"
     | [] -> 0
 
 
