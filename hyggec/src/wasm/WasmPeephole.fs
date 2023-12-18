@@ -14,6 +14,7 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
     // variables as temporaries.
     | (LocalSet(l1, instrs), c1) :: (LocalGet(l2), c2) :: rest when l1 = l2 -> (LocalTee(l1, instrs), c1 + c2) :: optimizeInstr rest
 
+
     // // Constant Multiplication by Powers of 2: replace `i32.const x` followed by `i32.mul` with `i32.shl x`. This is more efficient for multiplication by powers of 2
     // | (I32Const x, c1) :: (I32Mul, c2) :: rest when Peephole.isPowerOfTwo x -> 
 
@@ -119,6 +120,107 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
 
     | (Drop(subTree), _) :: rest when (not (hasSideEffects subTree)) -> 
         optimizeInstr rest
+
+    // constant folding
+    // authmatic constant folding
+    | (I32Add(instrs), c1) :: rest when isConstConst instrs  -> 
+        let (v1, v2) = (getI32ConstConst instrs)
+        (I32Const (v1 + v2), c1) :: optimizeInstr rest
+    | (I32Sub(instrs), c1) :: rest when isConstConst instrs  -> 
+        let (v1, v2) = (getI32ConstConst instrs)
+        (I32Const (v1 - v2), c1) :: optimizeInstr rest
+    | (I32Mul(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        (I32Const (v1 * v2), c1) :: optimizeInstr rest
+    | (I32DivS(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        (I32Const (v1 / v2), c1) :: optimizeInstr rest
+    | (I32DivU(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        (I32Const (v1 / v2), c1) :: optimizeInstr rest
+    | (I32RemS(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        (I32Const (v1 % v2), c1) :: optimizeInstr rest
+    | (I32RemU(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        (I32Const (v1 % v2), c1) :: optimizeInstr rest
+    | (I32And(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        (I32Const (v1 &&& v2), c1) :: optimizeInstr rest
+    | (I32Or(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        (I32Const (v1 ||| v2), c1) :: optimizeInstr rest
+    | (I32Xor(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        (I32Const (v1 ^^^ v2), c1) :: optimizeInstr rest
+    | (I32Shl, c1) :: rest when isConstConst rest  ->
+        let (v1, v2) = (getI32ConstConst rest)
+        (I32Const (v1 <<< v2), c1) :: optimizeInstr rest
+    | (I32ShrS, c1) :: rest when isConstConst rest  ->
+        let (v1, v2) = (getI32ConstConst rest)
+        (I32Const (v1 >>> v2), c1) :: optimizeInstr rest
+    | (I32ShrU, c1) :: rest when isConstConst rest  ->
+        let (v1, v2) = (getI32ConstConst rest)
+        (I32Const (v1 >>> v2), c1) :: optimizeInstr rest
+    | (F32Add(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getF32ConstConst instrs)
+        (F32Const (v1 + v2), c1) :: optimizeInstr rest
+    | (F32Sub(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getF32ConstConst instrs)
+        (F32Const (v1 - v2), c1) :: optimizeInstr rest
+    | (F32Mul(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getF32ConstConst instrs)
+        (F32Const (v1 * v2), c1) :: optimizeInstr rest
+    | (F32Div(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getF32ConstConst instrs)
+        (F32Const (v1 / v2), c1) :: optimizeInstr rest
+
+    // logical 
+    | (I32Eq(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        if v1 = v2 then (I32Const 1, c1) :: optimizeInstr rest
+        else (I32Const 0, c1) :: optimizeInstr rest
+    | (I32LtS(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        if v1 < v2 then (I32Const 1, c1) :: optimizeInstr rest
+        else (I32Const 0, c1) :: optimizeInstr rest
+    | (I32GtS(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        if v1 > v2 then (I32Const 1, c1) :: optimizeInstr rest
+        else (I32Const 0, c1) :: optimizeInstr rest
+    | (I32LeS(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        if v1 <= v2 then (I32Const 1, c1) :: optimizeInstr rest
+        else (I32Const 0, c1) :: optimizeInstr rest
+    | (I32GeS(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getI32ConstConst instrs)
+        if v1 >= v2 then (I32Const 1, c1) :: optimizeInstr rest
+        else (I32Const 0, c1) :: optimizeInstr rest
+    | (F32Eq(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getF32ConstConst instrs)
+        if v1 = v2 then (I32Const 1, c1) :: optimizeInstr rest
+        else (I32Const 0, c1) :: optimizeInstr rest
+    | (F32Lt(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getF32ConstConst instrs)
+        if v1 < v2 then (I32Const 1, c1) :: optimizeInstr rest
+        else (I32Const 0, c1) :: optimizeInstr rest
+    | (F32Gt(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getF32ConstConst instrs)
+        if v1 > v2 then (I32Const 1, c1) :: optimizeInstr rest
+        else (I32Const 0, c1) :: optimizeInstr rest
+    | (F32Le(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getF32ConstConst instrs)
+        if v1 <= v2 then (I32Const 1, c1) :: optimizeInstr rest
+        else (I32Const 0, c1) :: optimizeInstr rest
+    | (F32Ge(instrs), c1) :: rest when isConstConst instrs  ->
+        let (v1, v2) = (getF32ConstConst instrs)
+        if v1 >= v2 then (I32Const 1, c1) :: optimizeInstr rest
+        else (I32Const 0, c1) :: optimizeInstr rest
+    
+    | (I32Eqz(instrs), c1) :: rest when isI32Const instrs  ->
+        let v = (getI32Const instrs)
+        if v = 0 then (I32Const 1, c1) :: optimizeInstr rest
+        else (I32Const 0, c1) :: optimizeInstr rest
 
     // // tee local drop
     // | (LocalTee (x, instrs), c) :: (Drop, _) :: rest ->

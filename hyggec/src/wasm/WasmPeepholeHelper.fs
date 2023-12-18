@@ -130,6 +130,40 @@ let isLocalTee instr =
     | (LocalTee _, _) -> true
     | _ -> false
 
+// contains two I32Const instructions or two F32Const instructions
+let isConstConst (instrs: Commented<Wasm> list) =
+    if instrs.Length > 2 then
+        false
+    else
+
+    match instrs with
+    | (I32Const _, _) :: (I32Const _, _) :: _ -> true
+    | (F32Const _, _) :: (F32Const _, _) :: _ -> true
+    | _ -> false
+
+// getConstConst
+let getI32ConstConst (instrs: Commented<Wasm> list): int * int =
+    match instrs with
+    | (I32Const (i1), _) :: (I32Const (i2), _) :: _ -> (i1, i2)
+    | _ -> failwith "getConstConst: did not find two constants"
+
+let getF32ConstConst (instrs: Commented<Wasm> list) =
+    match instrs with
+    | (F32Const (f1), _) :: (F32Const (f2), _) :: _ -> (f1, f2)
+    | _ -> failwith "getConstConst: did not find two constants"
+
+// isConst
+let isI32Const (instrs: Commented<Wasm> list) =
+    match instrs with
+    | (I32Const _, _) :: _ -> true
+    | _ -> false
+
+// getI32Const
+let getI32Const (instrs: Commented<Wasm> list) =
+    match instrs with
+    | (I32Const (i), _) :: _ -> i
+    | _ -> failwith "getConst: did not find a constant"
+
 let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     match instrs with
     | (LocalSet (_, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
