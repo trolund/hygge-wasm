@@ -33,54 +33,6 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
 
     //     (I32Const shamt, c1) :: (I32ShrS, c2) :: optimizeInstr rest
 
-    // const x, const y, i32.add followed by drop can be replaced with nothing
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Add, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Sub, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Mul, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32DivS, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32RemS, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32And, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Or, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Xor, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Shl, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32ShrS, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32ShrU, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Rotl, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-    // | (I32Const x, c1) :: (I32Const y, c2) :: (I32Rotr, c3) :: (Drop, c4) :: rest ->
-    //     optimizeInstr rest
-
-    // // global get drop
-    // | (GlobalGet x, c1) :: (Drop, c2) :: rest ->
-    //     optimizeInstr rest
-    // // local get drop
-    // | (LocalGet x, c1) :: (Drop, c2) :: rest ->
-    //     optimizeInstr rest
-
-    // tee local drop
-    // | (LocalTee x, c1) :: (Drop, c2) :: rest ->
-    //     // should be just a local.set
-    //     (LocalSet x, c1) :: optimizeInstr rest
-
-    // // load drop
-    // | (I32Load, c1) :: (Drop, c2) :: rest
-    // | (I32Load_(_,_), c1) :: (Drop, c2) :: rest
-    // | (F32Load, c1) :: (Drop, c2) :: rest
-    // | (F32Load_(_,_), c1) :: (Drop, c2) :: rest ->
-    //     optimizeInstr rest
-
-
     // // Bitwise AND for Modulo by Power of 2:
     // // replace `i32.const x` followed by `i32.and` with `i32.and (x-1)`. This is more efficient for modulo by powers of 2
     // | (I32Const x, c1) :: (I32And, c2) :: rest when isPowerOfTwo x ->
