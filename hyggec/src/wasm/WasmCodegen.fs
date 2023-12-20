@@ -988,9 +988,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                                     Seq(
                                         [ body
                                           update
-                                          { node with
-                                              Expr = UnitVal
-                                              Type = TUnit } ]
+                                        //   { node with
+                                        //         Expr = UnitVal
+                                        //         Type = TUnit } 
+                                              ]
                                     ) }
                         ) }
                 m)

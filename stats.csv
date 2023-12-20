@@ -98,8 +98,10 @@ name of file,instr count,instr count after op,diff,% reduction
 023-struct-field-sel,227,206,21,9.25
 024-struct-field-assign,165,165,0,0.00
 025-struct-field-assign,165,165,0,0.00
-026-for-2,42,42,0,0.00
-026-for,42,42,0,0.00
+026-for-2,41,41,0,0.00
+026-for-3,30,30,0,0.00
+026-for-4,54,52,2,3.70
+026-for,41,41,0,0.00
 026-rec-suger,14,14,0,0.00
 026-rec,62,62,0,0.00
 026-union-match-2,106,105,1,0.94
@@ -128,7 +130,7 @@ name of file,instr count,instr count after op,diff,% reduction
 031-top-level,13,13,0,0.00
 032-pattern-matching,296,296,0,0.00
 binarySearch,601,487,114,18.97
-bubblesort,1182,972,210,17.77
+bubblesort,1180,970,210,17.80
 calcualtor,394,331,63,15.99
 counter-plus,256,221,35,13.67
 counter,232,197,35,15.09
@@ -156,7 +158,7 @@ hygge-union-arrays,242,242,0,0.00
 hygge-union-structs,210,206,4,1.90
 hygge-union,105,104,1,0.95
 if-return,774,468,306,39.53
-insertionSort,937,732,205,21.88
+insertionSort,936,732,204,21.79
 letClousure,244,237,7,2.87
 linearSearch,536,423,113,21.08
 memory-grow,142,142,0,0.00
@@ -165,14 +167,14 @@ mergeSort,1458,1247,211,14.47
 multiplier,82,68,14,17.07
 mut-var-export,10,10,0,0.00
 println,50,50,0,0.00
-quickSort,1095,890,205,18.72
+quickSort,1094,889,205,18.74
 rec-countdown-2,97,97,0,0.00
 rec-countdown-3,186,186,0,0.00
 rec-countdown-4,153,153,0,0.00
 rec-countdown,76,76,0,0.00
 rec-fun-1,16,16,0,0.00
 rec-fun,16,16,0,0.00
-selectionSort,979,772,207,21.14
+selectionSort,977,770,207,21.19
 simple-struct-field-sel,123,123,0,0.00
 string-length,33,33,0,0.00
 struct-simple,56,56,0,0.00
