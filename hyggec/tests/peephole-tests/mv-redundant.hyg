@@ -1,4 +1,0 @@
-let mutable a: int = 1;
-let mutable b: int = 2;
-a <- b;
-b <- a

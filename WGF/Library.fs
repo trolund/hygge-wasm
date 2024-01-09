@@ -5,7 +5,6 @@ module Module =
     open WGF.Types
     open WGF.WatGen
     open WGF.Instr
-    open Types
     open Utils
 
     /// define a module

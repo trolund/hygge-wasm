@@ -1,0 +1,18 @@
+let mutable i: int = 0;
+let n: int = 10;
+
+for (i <- 0; i < n; ++i) {
+   println(i)
+};
+
+assert(i = n)
+
+// js:
+// let i = 0;
+// let n = 10;
+
+// for (i = 0; i < n; i++) {
+//    console.log(i)
+// };
+
+// console.assert(i === n)

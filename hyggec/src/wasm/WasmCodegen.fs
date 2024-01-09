@@ -158,7 +158,6 @@ let checkMemory (size: Commented<Wasm> list) : Commented<Wasm> list =
 
 type internal CodegenEnv =
     { CurrFunc: string
-      PrevFunc: string
       MemoryAllocator: StaticMemoryAllocator
       TableController: TableController
       SymbolController: SymbolController
@@ -298,7 +297,7 @@ let internal lookupLatestType (m: Module) =
     | _ -> failwith "failed to find name of the lastest local var"
 
 
-let internal argsToLocals (env: CodegenEnv) (args): Local list  =
+let internal argsToLocals (env: CodegenEnv) (args) : Local list =
     if env.Config.AllocationStrategy = Heap then
         List.map (fun (n, t) -> (Some(lookupLabel env n), (mapTypeHeap t))) args
     else
@@ -988,10 +987,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                                     Seq(
                                         [ body
                                           update
-                                        //   { node with
-                                        //         Expr = UnitVal
-                                        //         Type = TUnit } 
-                                              ]
+                                          //   { node with
+                                          //         Expr = UnitVal
+                                          //         Type = TUnit }
+                                          ]
                                     ) }
                         ) }
                 m)
@@ -2222,7 +2221,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         //         match (expandType node.Env t) with
         //         | TStruct(fields) ->
         //             //let td = createStructType fields
-        //             // TODO map correcly 
+        //             // TODO map correcly
         //             let typeParams: Param list =
         //                 List.map (fun (name, t: Type) -> (Some(name), ((mapTypeHeap t), Mutable))) fields
 
@@ -2244,7 +2243,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         //         | _ -> (doCodegen env scope m)
         //     | Error(e) -> doCodegen env scope m
         // else
-            doCodegen env scope m
+        doCodegen env scope m
     // struct constructor
     | Struct(fields) when env.Config.AllocationStrategy = Heap ->
         let fieldNodes = List.map (fun (_, t) -> t) fields
@@ -2421,7 +2420,7 @@ and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
     | TFun(args, ret) ->
 
         // map args to there types
-        let mapArgTypes (args: Type list): Local list =
+        let mapArgTypes (args: Type list) : Local list =
             List.map
                 (fun t ->
                     match t with
@@ -2443,7 +2442,7 @@ and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
                     | TAny -> (None, EqRef)
                     | TUnit -> failwith "a function cannot have a unit argument")
                 args
-        
+
         let argTypes = mapArgTypes args
 
         let funcPointerStruct =
@@ -2519,7 +2518,6 @@ and internal compileFunction
         cenvHeapTypeDef
         ++ doCodegen
             { env with
-                PrevFunc = env.CurrFunc
                 CurrFunc = name }
             body
             m
@@ -2744,7 +2742,6 @@ let codegen (node: TypedAST) (config: CompileConfig option) : Module =
     /// Environment used during code generation
     let env =
         { CurrFunc = funcName
-          PrevFunc = ""
           MemoryAllocator = StaticMemoryAllocator()
           TableController = TableController()
           SymbolController = SymbolController()

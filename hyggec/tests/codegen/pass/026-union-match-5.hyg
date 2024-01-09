@@ -1,0 +1,28 @@
+type T = union {
+    I: int;
+    F: float
+};
+
+type U = union {
+    Some: T;
+    None: unit
+};
+
+fun matcher(x: U): int =
+    match x with {
+        Some{x} -> match x with {
+                        I{v} -> v;
+                        F{_} -> 0
+                    };
+        None{_} -> 0
+    };
+
+
+
+let x: U = Some{I{42}};
+let y: U = None{()};
+let z: U = Some{F{3.14f}};
+
+assert(matcher(x) = 42);
+assert(matcher(y) = 0);
+assert(matcher(z) = 0)

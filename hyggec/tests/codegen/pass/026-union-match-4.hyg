@@ -1,0 +1,16 @@
+type U = union {
+    foo: float;
+    bar: unit
+};
+
+fun matcher(x: U): float =
+    match x with {
+        foo{x} -> x;
+        bar{_} -> 0.0f
+    };
+
+let x: U = foo{42.0f};
+let y: U = bar{()};
+
+assert(matcher(x) = 42.0f);
+assert(matcher(y) = 0.0f)
