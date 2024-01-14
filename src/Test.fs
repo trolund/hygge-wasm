@@ -19,7 +19,7 @@ let internal getFilesInTestDir paths =
     let curDir = System.IO.Directory.GetCurrentDirectory()
 
     let dir =
-        List.toArray (curDir :: "hyggec" :: "tests" :: paths) |> System.IO.Path.Combine
+        List.toArray (curDir :: "tests" :: paths) |> System.IO.Path.Combine
 
     System.IO.Directory.EnumerateFiles(dir, "*.hyg") |> Seq.toList |> List.sort
 

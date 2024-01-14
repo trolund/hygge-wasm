@@ -2,7 +2,7 @@
   <PropertyGroup>
     <!-- General -->
     <AssemblyName>hyggec</AssemblyName>
-    <Version>0.0.2</Version>
+    <Version>0.0.3</Version>
     <Description>A didactic compiler for the Hygge programming language. Based on work of Alceste Scalas.</Description>
     <Copyright>Copyright 2023 DTU - Technical University of Denmark</Copyright>
     <Authors>Troels Lund</Authors>
@@ -65,7 +65,7 @@
     <Compile Include="src/Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WasmTimeDriver\WasmTimeDriver.csproj" />
-    <ProjectReference Include="..\WGF\WGF.fsproj" />
+    <ProjectReference Include="WasmTimeDriver\WasmTimeDriver.csproj" />
+    <ProjectReference Include="WGF\WGF.fsproj" />
   </ItemGroup>
 </Project>
