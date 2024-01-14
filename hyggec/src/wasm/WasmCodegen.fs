@@ -2568,13 +2568,13 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     match code with
     | [] -> code // end of code
     | (LocalGet(Named(n)), c) :: rest when n = var ->
-        [ (GlobalGet(Named(n)), c + ", have been hoisted") ] @ localSubst rest var
+        [ (GlobalGet(Named(n)), c + ", have been promoted") ] @ localSubst rest var
     | (LocalSet(Named(n), instrs), c) :: rest when n = var ->
-        [ (GlobalSet(Named(n), localSubst instrs var), c + ", have been hoisted") ]
+        [ (GlobalSet(Named(n), localSubst instrs var), c + ", have been promoted") ]
         @ localSubst rest var
     | (LocalTee(Named(n), instrs), c) :: rest when n = var ->
-        [ (GlobalSet(Named(n), localSubst instrs var), c + ", have been hoisted")
-          (GlobalGet(Named(n)), c + ", have been hoisted") ]
+        [ (GlobalSet(Named(n), localSubst instrs var), c + ", have been promoted")
+          (GlobalGet(Named(n)), c + ", have been promoted") ]
         @ localSubst rest var
     // block instructions
     | (Block(l, vt, instrs), c) :: rest -> [ (Block(l, vt, (localSubst instrs var)), c) ] @ localSubst rest var
