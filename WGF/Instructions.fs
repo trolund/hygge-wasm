@@ -73,15 +73,15 @@ type Wasm =
     | F32Sub of Wasm Commented list
     | F32Mul of Wasm Commented list
     | F32Div of Wasm Commented list
-    | F32Min
-    | F32Max
-    | F32Copysign
+    | F32Min // TODO fold
+    | F32Max // TODO fold
+    // | F32Copysign
     | MemorySize
     | MemoryGrow of Wasm Commented list
     // Parametric Instr
     | Drop of Wasm Commented list
-    | Drop_
-    | Select
+    // | Drop_
+    | Select // TODO fold
     // Variable Instr
     | Local of Label * ValueType // https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Variables/Local
     | LocalGet of Label
