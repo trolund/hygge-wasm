@@ -546,8 +546,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         (m' + m'').AddCode(instrs)
     | Sqrt e ->
         let m' = doCodegen env e m
-        let instrs = m'.GetAccCode() @ C [ F32Sqrt ]
-        m'.ResetAccCode().AddCode(instrs)
+        m'.ResetAccCode().AddCode([ (F32Sqrt(m'.GetAccCode()), "sqrt of f32 value") ])
     | Add(lhs, rhs)
     | Sub(lhs, rhs)
     | Rem(lhs, rhs)
@@ -2655,7 +2654,7 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (Null(l), c) :: rest -> [ (Null(l), c) ] @ localSubst rest var
     | (RefCast(l, instrs), c) :: rest -> [ (RefCast(l, localSubst instrs var), c) ] @ localSubst rest var
     | (Call(l, instrs), c) :: rest -> [ (Call(l, localSubst instrs var), c) ] @ localSubst rest var
-
+    | (F32Sqrt(instrs), c) :: rest -> [ (F32Sqrt(localSubst instrs var), c) ] @ localSubst rest var
 
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var

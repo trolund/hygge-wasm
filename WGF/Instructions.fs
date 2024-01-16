@@ -29,24 +29,24 @@ type Wasm =
     | F32Const of float32
     | I32Eqz of Wasm Commented list
     | I32Eq of Wasm Commented list
-    | I32Ne
+    // | I32Ne
     | I32LtS of Wasm Commented list
-    | I32LtU
+    // | I32LtU
     | I32GtS of Wasm Commented list
-    | I32GtU
+    // | I32GtU
     | I32LeS of Wasm Commented list
-    | I32LeU
+    // | I32LeU
     | I32GeS of Wasm Commented list
-    | I32GeU
+    // | I32GeU
     | F32Eq of Wasm Commented list
-    | F32Ne
+    // | F32Ne
     | F32Lt of Wasm Commented list
     | F32Gt of Wasm Commented list
     | F32Le of Wasm Commented list
     | F32Ge of Wasm Commented list
-    | I32Clz
-    | I32Ctz
-    | I32Popcnt
+    // | I32Clz
+    // | I32Ctz
+    // | I32Popcnt
     | I32Add of Wasm Commented list
     | I32Sub of Wasm Commented list
     | I32Mul of Wasm Commented list
@@ -57,18 +57,18 @@ type Wasm =
     | I32And of Wasm Commented list
     | I32Or of Wasm Commented list
     | I32Xor of Wasm Commented list
-    | I32Shl
-    | I32ShrS
-    | I32ShrU
-    | I32Rotl
-    | I32Rotr
-    | F32Abs
-    | F32Neg
-    | F32Ceil
-    | F32Floor
-    | F32Trunc
-    | F32Nearest
-    | F32Sqrt
+    // | I32Shl
+    // | I32ShrS
+    // | I32ShrU
+    // | I32Rotl
+    // | I32Rotr
+    // | F32Abs
+    // | F32Neg
+    // | F32Ceil
+    // | F32Floor
+    // | F32Trunc
+    // | F32Nearest
+    | F32Sqrt of Wasm Commented list
     | F32Add of Wasm Commented list
     | F32Sub of Wasm Commented list
     | F32Mul of Wasm Commented list

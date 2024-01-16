@@ -209,9 +209,9 @@ let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     | (F32Div(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (Drop(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (MemoryGrow(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Sqrt(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (F32Const _, _) :: rest -> 1 + countFunctionInstrs rest
     | (I32Const _, _) :: rest -> 1 + countFunctionInstrs rest
-    
     | (LocalGet _, _) :: rest -> 1 + countFunctionInstrs rest
     | (GlobalGet _, _) :: rest -> 1 + countFunctionInstrs rest
     | (MemorySize, _) :: rest -> 1 + countFunctionInstrs rest
@@ -219,7 +219,6 @@ let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     | (BrIf _, _) :: rest -> 1 + countFunctionInstrs rest
     | (BrTable _, _) :: rest -> 1 + countFunctionInstrs rest
     | (Return, _) :: rest -> 1 + countFunctionInstrs rest
-    | (F32Sqrt, _) :: rest -> 1 + countFunctionInstrs rest
     | (F32Ceil, _) :: rest -> 1 + countFunctionInstrs rest
     | (F32Floor, _) :: rest -> 1 + countFunctionInstrs rest
     | (F32Trunc, _) :: rest -> 1 + countFunctionInstrs rest
