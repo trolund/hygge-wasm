@@ -675,13 +675,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | ReadInt ->
         // perform host (system) call
         m
+            .ResetAccCode()
             .AddImport(getImport "readInt") // import readInt function
-            .AddCode([ (Call "readInt", "call host function") ]) // call host function
+            .AddCode([ (Call("readInt", m.GetAccCode()), "call host function") ]) // call host function
     | ReadFloat ->
         // perform host (system) call
         m
+            .ResetAccCode()
             .AddImport(getImport "readFloat") // import readFloat function
-            .AddCode([ (Call "readFloat", "call host function") ]) // call host function
+            .AddCode([ (Call("readFloat", m.GetAccCode()), "call host function") ]) // call host function
     | PrintLn e
     | Print e when env.Config.Si = WASI ->
         // TODO: make print and println different
@@ -699,13 +701,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                      FunctionType("fd_write", Some([ (None, I32); (None, I32); (None, I32); (None, I32) ], [ I32 ])))
                 )
                 .AddCode(
-                    // push string pointer to stack
-                    [ (I32Const 1, "1 for stdout") ]
-                    @ m'.GetAccCode()
-                    @ [ (I32Add([ (I32Const 4, "offset to length") ] @ m'.GetAccCode()), "Load string length")
-                        (I32Const 0, "1 for stdout") ]
+                    [ Drop(
+                          [ (Call(
+                                "fd_write",
+                                [ (I32Const 1, "1 for stdout") ]
+                                @ m'.GetAccCode()
+                                @ [ (I32Add([ (I32Const 4, "offset to length") ] @ m'.GetAccCode()),
+                                     "Load string length")
+                                    (I32Const 0, "1 for stdout") ]
+                             ),
+                             "call host function") ]
+                      ) ]
                 )
-                .AddCode([ Drop([ (Call "fd_write", "call host function") ]) ])
         | _ ->
             // import writeInt function
             // import writeS function
@@ -717,13 +724,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                      FunctionType("fd_write", Some([ (None, I32); (None, I32); (None, I32); (None, I32) ], [ I32 ])))
                 )
                 .AddCode(
-                    // push string pointer to stack
-                    [ (I32Const 1, "1 for stdout") ]
-                    @ m'.GetAccCode()
-                    @ [ (I32Add([ (I32Const 4, "offset to length") ] @ m'.GetAccCode()), "Load string length")
-                        (I32Const 0, "1 for stdout") ]
+                    [ Drop(
+                          [ (Call(
+                                "fd_write", // push string pointer to stack
+                                [ (I32Const 1, "1 for stdout") ]
+                                @ m'.GetAccCode()
+                                @ [ (I32Add([ (I32Const 4, "offset to length") ] @ m'.GetAccCode()),
+                                     "Load string length")
+                                    (I32Const 0, "1 for stdout") ]
+                             ),
+                             "call host function") ]
+                      ) ]
                 )
-                .AddCode([ Drop([ (Call "fd_write", "call host function") ]) ])
     | PrintLn e
     | Print e ->
         let m' = doCodegen env e m
@@ -735,8 +747,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         | t when (isSubtypeOf node.Env t TFloat) ->
             // perform host (system) call
             m'
+                .ResetAccCode()
                 .AddImport(getImport "writeFloat") // import writeF function
-                .AddCode([ (I32Const nl, "newline"); (Call "writeFloat", "call host function") ])
+                .AddCode([ (Call("writeFloat", m'.GetAccCode() @ [ (I32Const nl, "newline") ]), "call host function") ])
         | t when (isSubtypeOf node.Env t TString) ->
             // import writeS function
             let m'' =
@@ -750,12 +763,16 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     )
 
             // perform host (system) call
-            (m'.ResetAccCode() ++ m'').AddCode([ (Call "writeS", "call host function") ])
+            (m' ++ m'')
+                .ResetAccCode()
+                .AddCode([ (Call("writeS", m''.GetAccCode()), "call host function") ])
         | _ ->
             // import writeInt function
             let m'' = m'.AddImport(getImport "writeInt")
             // perform host (system) call
-            m''.AddCode([ (I32Const nl, "newline"); (Call "writeInt", "call host function") ])
+            m''
+                .ResetAccCode()
+                .AddCode([ (Call("writeInt", m''.GetAccCode() @ [ (I32Const nl, "newline") ]), "call host function") ])
     | AST.If(condition, ifTrue, ifFalse) ->
         let m' = doCodegen env condition m
         let m'' = doCodegen env ifTrue m
@@ -1059,9 +1076,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     .ResetAccCode() // length of array on stack
                     .AddImport(getImport "malloc") // import malloc function
                     .AddCode(
-                        [ (I32Mul(length'.GetAccCode() @ [ (I32Const 4, "4 bytes") ]),
-                           "multiply length with 4 to get size")
-                          (Call "malloc", "call malloc function") ]
+                        [ (Call(
+                              "malloc",
+                              [ (I32Mul(length'.GetAccCode() @ [ (I32Const 4, "4 bytes") ]),
+                                 "multiply length with 4 to get size") ]
+                           ),
+                           "call malloc function") ]
                     )
             | Internal ->
                 let size =
@@ -2287,8 +2307,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     .AddCode(
                         [ (LocalSet(
                               Named(structName),
-                              [ (I32Const(size * 4), "size of struct")
-                                (Call "malloc", "call malloc function") ]
+                              [ (Call("malloc", [ (I32Const(size * 4), "size of struct") ]), "call malloc function") ]
                            ),
                            "set struct pointer var") ]
                     )
@@ -2514,13 +2533,7 @@ and internal compileFunction
             Module()
 
     // compile function body
-    let m': Module =
-        cenvHeapTypeDef
-        ++ doCodegen
-            { env with
-                CurrFunc = name }
-            body
-            m
+    let m': Module = cenvHeapTypeDef ++ doCodegen { env with CurrFunc = name } body m
 
     // create function instance
     let f: Commented<FunctionInstance> =
@@ -2640,6 +2653,8 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (ArraySet(l, instrs), c) :: rest -> [ (ArraySet(l, localSubst instrs var), c) ] @ localSubst rest var
     | (ArrayLen(instrs), c) :: rest -> [ (ArrayLen(localSubst instrs var), c) ] @ localSubst rest var
     | (Null(l), c) :: rest -> [ (Null(l), c) ] @ localSubst rest var
+    | (RefCast(l, instrs), c) :: rest -> [ (RefCast(l, localSubst instrs var), c) ] @ localSubst rest var
+    | (Call(l, instrs), c) :: rest -> [ (Call(l, localSubst instrs var), c) ] @ localSubst rest var
 
 
     // keep all other instructions

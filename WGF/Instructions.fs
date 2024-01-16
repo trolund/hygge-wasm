@@ -98,7 +98,7 @@ type Wasm =
     | TableGrow of int
     | TableSize of int
     // Call Instr
-    | Call of string
+    | Call of string * Wasm Commented list
     /// type label
     | CallIndirect of Label * Wasm Commented list
     // ref

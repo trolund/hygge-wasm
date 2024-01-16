@@ -293,7 +293,7 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | Nop -> "nop"
     | Br id -> $"br $%s{id}"
     | Return -> "return"
-    | Call name -> $"call $%s{name}"
+    | Call (name, _)  -> $"call $%s{name}"
     | CallIndirect(label, instrs) -> $"call_indirect (type %s{label.ToString()})"
     | Drop _ -> "drop"
     | Drop_ -> "drop"
@@ -877,7 +877,20 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail watCode indent
 
+            | Call(label, instrs: Commented<Wasm> list) when style = Linar ->
+                aux
+                    tail
+                    (watCode
+                     + (aux instrs emptyS indent)
+                     + $"{gIndent indent}{instrLabel instr} $%s{label.ToString()}{commentS c}\n")
+                    indent
+            | Call(label, instrs: Commented<Wasm> list) when style = Folded ->
+                let watCode =
+                    watCode
+                    + space
+                    + $"({instrLabel instr} $%s{label.ToString()}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
+                aux tail watCode indent
             | CallIndirect(t, instrs: Commented<Wasm> list) when style = Linar ->
                 aux
                     tail

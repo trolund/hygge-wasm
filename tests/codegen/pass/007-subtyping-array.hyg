@@ -13,6 +13,6 @@ while (i < arrayLength(arr)) do {
 i <- 0;
 while (i < arrayLength(arr)) do {
     assert(arrayElem(arr, i) = 42 + i);
-    print(arrayElem(arr, i));
+    println(arrayElem(arr, i));
     i <- i + 1
 }
