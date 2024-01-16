@@ -81,7 +81,7 @@ type Wasm =
     // Parametric Instr
     | Drop of Wasm Commented list
     // | Drop_
-    | Select // of Wasm Commented list // TODO fold
+    | Select of Wasm Commented list
     // Variable Instr
     | Local of Label * ValueType // https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Variables/Local
     | LocalGet of Label
@@ -120,7 +120,7 @@ type Wasm =
     /// if (result type), condision, then (instrs) else (instrs)
     | If of ValueType list * list<Commented<Wasm>> * list<Commented<Wasm>> * list<Commented<Wasm>> option
     // comment
-    | Comment of string
+    | Comment of string // not wasm instr
     // wasmGC
     // (struct.new $tup (i64.const 1) (i64.const 2) (i64.const 1))
     | StructNew of Label * Wasm Commented list

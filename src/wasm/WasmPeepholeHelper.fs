@@ -212,6 +212,7 @@ let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     | (F32Sqrt(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (F32Max(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (F32Min(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (Select(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (F32Const _, _) :: rest -> 1 + countFunctionInstrs rest
     | (I32Const _, _) :: rest -> 1 + countFunctionInstrs rest
     | (LocalGet _, _) :: rest -> 1 + countFunctionInstrs rest
@@ -236,7 +237,7 @@ let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     // | (I32Shl, _) :: rest -> 1 + countFunctionInstrs rest
     // | (I32ShrS, _) :: rest -> 1 + countFunctionInstrs rest
     // | (I32ShrU, _) :: rest -> 1 + countFunctionInstrs rest
-    | (Select, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (Select, _) :: rest -> 1 + countFunctionInstrs rest
     // | (F32Max, _) :: rest -> 1 + countFunctionInstrs rest
     // | (F32Min, _) :: rest -> 1 + countFunctionInstrs rest
 

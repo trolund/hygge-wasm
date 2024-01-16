@@ -538,8 +538,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | _ -> failwith "not implemented"
             | t when (isSubtypeOf node.Env t TInt) ->
                 match node.Expr with
-                | Max _ -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32GtS(m'.GetAccCode() @ m''.GetAccCode()); Select ] 
-                | Min _ -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32LtS(m'.GetAccCode() @ m''.GetAccCode()); Select ]
+                | Max _ -> m'.GetAccCode() @ [ (Select(m''.GetAccCode() @ [ (I32GtS(m'.GetAccCode() @ m''.GetAccCode()), "determined the greater value")]), "select the max value") ] 
+                | Min _ -> m'.GetAccCode() @ [ (Select(m''.GetAccCode() @ [ (I32LtS(m'.GetAccCode() @ m''.GetAccCode()), "determined the lesser value")]), "select the min value") ]
                 | _ -> failwith "not implemented"
             | _ -> failwith "failed type of max/min"
 
