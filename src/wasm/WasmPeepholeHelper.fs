@@ -210,6 +210,8 @@ let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     | (Drop(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (MemoryGrow(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (F32Sqrt(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Max(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (F32Min(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (F32Const _, _) :: rest -> 1 + countFunctionInstrs rest
     | (I32Const _, _) :: rest -> 1 + countFunctionInstrs rest
     | (LocalGet _, _) :: rest -> 1 + countFunctionInstrs rest
@@ -219,24 +221,24 @@ let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     | (BrIf _, _) :: rest -> 1 + countFunctionInstrs rest
     | (BrTable _, _) :: rest -> 1 + countFunctionInstrs rest
     | (Return, _) :: rest -> 1 + countFunctionInstrs rest
-    | (F32Ceil, _) :: rest -> 1 + countFunctionInstrs rest
-    | (F32Floor, _) :: rest -> 1 + countFunctionInstrs rest
-    | (F32Trunc, _) :: rest -> 1 + countFunctionInstrs rest
-    | (F32Nearest, _) :: rest -> 1 + countFunctionInstrs rest
-    | (F32Abs, _) :: rest -> 1 + countFunctionInstrs rest
-    | (F32Neg, _) :: rest -> 1 + countFunctionInstrs rest
-    | (F32Copysign, _) :: rest -> 1 + countFunctionInstrs rest
-    | (I32Clz, _) :: rest -> 1 + countFunctionInstrs rest
-    | (I32Ctz, _) :: rest -> 1 + countFunctionInstrs rest
-    | (I32Popcnt, _) :: rest -> 1 + countFunctionInstrs rest
-    | (I32Rotl, _) :: rest -> 1 + countFunctionInstrs rest
-    | (I32Rotr, _) :: rest -> 1 + countFunctionInstrs rest
-    | (I32Shl, _) :: rest -> 1 + countFunctionInstrs rest
-    | (I32ShrS, _) :: rest -> 1 + countFunctionInstrs rest
-    | (I32ShrU, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (F32Ceil, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (F32Floor, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (F32Trunc, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (F32Nearest, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (F32Abs, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (F32Neg, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (F32Copysign, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (I32Clz, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (I32Ctz, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (I32Popcnt, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (I32Rotl, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (I32Rotr, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (I32Shl, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (I32ShrS, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (I32ShrU, _) :: rest -> 1 + countFunctionInstrs rest
     | (Select, _) :: rest -> 1 + countFunctionInstrs rest
-    | (F32Max, _) :: rest -> 1 + countFunctionInstrs rest
-    | (F32Min, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (F32Max, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (F32Min, _) :: rest -> 1 + countFunctionInstrs rest
 
     | (Unreachable, _) :: rest -> 1 + countFunctionInstrs rest
 

@@ -7,14 +7,15 @@
     ;; execution start here:
     (if 
         (i32.eqz ;; invert assertion
-          (f32.lt
-            (f32.sqrt ;; sqrt of f32 value
-              (f32.add
-                (f32.const 12.000000) ;; push 12.000000 on stack
-                (f32.const 0.100000) ;; push 0.100000 on stack
-              )
+          (i32.eq ;; equality check
+            (i32.const 12) ;; push 12 on stack
+            (i32.const 10) ;; push 10 on stack
+            (i32.gt_s
+              (i32.const 12) ;; push 12 on stack
+              (i32.const 10) ;; push 10 on stack
             )
-            (f32.const 3.500000) ;; push 3.500000 on stack
+            (select)
+            (i32.const 12) ;; push 12 on stack
           )
         )
       (then
@@ -26,65 +27,15 @@
     )
     (if 
         (i32.eqz ;; invert assertion
-          (f32.lt
-            (f32.sqrt ;; sqrt of f32 value
-              (f32.add
-                (f32.const 12.000000) ;; push 12.000000 on stack
-                (f32.const 0.200000) ;; push 0.200000 on stack
-              )
+          (i32.eq ;; equality check
+            (i32.const 120) ;; push 120 on stack
+            (i32.const 1) ;; push 1 on stack
+            (i32.gt_s
+              (i32.const 120) ;; push 120 on stack
+              (i32.const 1) ;; push 1 on stack
             )
-            (f32.const 3.500000) ;; push 3.500000 on stack
-          )
-        )
-      (then
-        (global.set $exit_code ;; set exit code
-          (i32.const 42) ;; error exit code push to stack
-        )
-        (unreachable) ;; exit program
-      )
-    )
-    (if 
-        (i32.eqz ;; invert assertion
-          (f32.lt
-            (f32.sqrt ;; sqrt of f32 value
-              (f32.add
-                (f32.const 12.000000) ;; push 12.000000 on stack
-                (f32.const 0.300000) ;; push 0.300000 on stack
-              )
-            )
-            (f32.const 3.550000) ;; push 3.550000 on stack
-          )
-        )
-      (then
-        (global.set $exit_code ;; set exit code
-          (i32.const 42) ;; error exit code push to stack
-        )
-        (unreachable) ;; exit program
-      )
-    )
-    (if 
-        (i32.eqz ;; invert assertion
-          (f32.lt
-            (f32.sqrt ;; sqrt of f32 value
-              (f32.const 2.000000) ;; push 2.000000 on stack
-            )
-            (f32.const 1.500000) ;; push 1.500000 on stack
-          )
-        )
-      (then
-        (global.set $exit_code ;; set exit code
-          (i32.const 42) ;; error exit code push to stack
-        )
-        (unreachable) ;; exit program
-      )
-    )
-    (if 
-        (i32.eqz ;; invert assertion
-          (f32.eq ;; equality check
-            (f32.sqrt ;; sqrt of f32 value
-              (f32.const 1.000000) ;; push 1.000000 on stack
-            )
-            (f32.const 1.000000) ;; push 1.000000 on stack
+            (select)
+            (i32.const 120) ;; push 120 on stack
           )
         )
       (then

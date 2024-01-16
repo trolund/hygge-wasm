@@ -533,17 +533,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             match (expandType node.Env node.Type) with
             | t when (isSubtypeOf node.Env t TFloat) ->
                 match node.Expr with
-                | Max _ -> C [ F32Max ]
-                | Min _ -> C [ F32Min ]
+                | Max _ -> C [ F32Max(m'.GetAccCode() @ m''.GetAccCode()) ]
+                | Min _ -> C [ F32Min(m'.GetAccCode() @ m''.GetAccCode()) ]
                 | _ -> failwith "not implemented"
             | t when (isSubtypeOf node.Env t TInt) ->
                 match node.Expr with
-                | Max _ -> C [ I32GtS(m'.GetAccCode() @ m''.GetAccCode()); Select ]
-                | Min _ -> C [ I32LtS(m'.GetAccCode() @ m''.GetAccCode()); Select ]
+                | Max _ -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32GtS(m'.GetAccCode() @ m''.GetAccCode()); Select ] 
+                | Min _ -> m'.GetAccCode() @ m''.GetAccCode() @ C [ I32LtS(m'.GetAccCode() @ m''.GetAccCode()); Select ]
                 | _ -> failwith "not implemented"
             | _ -> failwith "failed type of max/min"
 
-        (m' + m'').AddCode(instrs)
+        (m' + m'').ResetAccCode().AddCode(instrs)
     | Sqrt e ->
         let m' = doCodegen env e m
         m'.ResetAccCode().AddCode([ (F32Sqrt(m'.GetAccCode()), "sqrt of f32 value") ])
@@ -2655,6 +2655,8 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (RefCast(l, instrs), c) :: rest -> [ (RefCast(l, localSubst instrs var), c) ] @ localSubst rest var
     | (Call(l, instrs), c) :: rest -> [ (Call(l, localSubst instrs var), c) ] @ localSubst rest var
     | (F32Sqrt(instrs), c) :: rest -> [ (F32Sqrt(localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Max(instrs), c) :: rest -> [ (F32Max(localSubst instrs var), c) ] @ localSubst rest var
+    
 
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var

@@ -34,11 +34,11 @@ let generate_signature signature (comment: string) =
                     | None -> $"(param %s{t.ToString()})")
                 parameters)
 
-    let retPrint t = 
+    let retPrint t =
         match t with
         | Ref(l) -> $"(result (ref {l.ToString()}))"
         | _ -> $"(result %s{t.ToString()})"
-    
+
     let returnValuesString =
         String.concat "" (List.map (fun (x: ValueType) -> retPrint x) returnValues)
 
@@ -61,11 +61,11 @@ let generate_local (locals: Local list) =
                 (List.map
                     (fun x ->
                         match x with
-                        | (Some name, t) -> 
-                                match t with
-                                | Ref(l) -> $"{gIndent 2}(local $%s{name} (ref {l.ToString()}))\n"
-                                | _ -> $"{gIndent 2}(local $%s{name} %s{t.ToString()})\n"
-                        | (None, t) -> 
+                        | (Some name, t) ->
+                            match t with
+                            | Ref(l) -> $"{gIndent 2}(local $%s{name} (ref {l.ToString()}))\n"
+                            | _ -> $"{gIndent 2}(local $%s{name} %s{t.ToString()})\n"
+                        | (None, t) ->
                             match t with
                             | Ref(l) -> $"{gIndent 2}(local (ref {l.ToString()}))\n"
                             | _ -> $"{gIndent 2}(local %s{t.ToString()})\n")
@@ -104,8 +104,8 @@ let printType (i: int, t) (withName: bool) =
                         | None -> $"(param %s{t.ToString()})")
                     parameters)
 
-        
-        let retPrint t = 
+
+        let retPrint t =
             match t with
             | Ref(l) -> $"(result (ref {l.ToString()}))"
             | Eq -> $"(result (ref null eq))"
@@ -190,8 +190,8 @@ let instrLabel i =
     | F32Sub _ -> "f32.sub"
     | F32Mul _ -> "f32.mul"
     | F32Div _ -> "f32.div"
-    | F32Min -> "f32.min"
-    | F32Max -> "f32.max"
+    | F32Min _ -> "f32.min"
+    | F32Max _ -> "f32.max"
     // | F32Copysign -> "f32.copysign"
     | I32Load_ _ -> "i32.load"
     | I32Load _ -> "i32.load"
@@ -287,8 +287,8 @@ let printInstr (i: Commented<Instr.Wasm>) =
     // | F32Trunc -> "f32.trunc"
     // | F32Nearest -> "f32.nearest"
     | F32Sqrt _ -> "f32.sqrt"
-    | F32Min -> "f32.min"
-    | F32Max -> "f32.max"
+    | F32Min _ -> "f32.min"
+    | F32Max _ -> "f32.max"
     // | F32Copysign -> "f32.copysign"
     | MemoryGrow _ -> "memory.grow"
     | MemorySize -> "memory.size"
@@ -299,7 +299,7 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | Nop -> "nop"
     | Br id -> $"br $%s{id}"
     | Return -> "return"
-    | Call (name, _)  -> $"call $%s{name}"
+    | Call(name, _) -> $"call $%s{name}"
     | CallIndirect(label, instrs) -> $"call_indirect (type %s{label.ToString()})"
     | Drop _ -> "drop"
     // | Drop_ -> "drop"
@@ -525,6 +525,8 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail s indent
             // foled instructions
+            | F32Max instrs
+            | F32Min instrs
             | F32Sqrt instrs
             | ArrayLen instrs
             | I32Sub instrs
@@ -567,6 +569,8 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"({instrLabel instr}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
+            | F32Max instrs
+            | F32Min instrs
             | ArrayLen instrs
             | StructNew(_, instrs)
             | Drop instrs
