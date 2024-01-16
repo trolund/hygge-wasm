@@ -83,8 +83,6 @@ module Module =
                 []
             )
 
-        member this.GetFuncTableSize = this.elements.Count
-
         member this.GetHostingList() = this.hostinglist
 
         member this.AddToHostingList(name: string) =
@@ -285,61 +283,6 @@ module Module =
             )
 
         // add locals to module
-        member this.AddVars(t: VarType, vars: list<Local>) =
-            match t with
-            | VarType.Local ->
-                let locals = vars @ Set.toList this.locals
-
-                Module(
-                    this.types,
-                    this.functions,
-                    this.tables,
-                    this.memories,
-                    this.globals,
-                    this.exports,
-                    this.imports,
-                    this.start,
-                    this.elements,
-                    this.data,
-                    Set(locals),
-                    this.tempCode,
-                    this.funcTableSize,
-                    this.hostinglist
-                )
-            | Global ->
-                // map local to global
-                let vars: Global list =
-                    vars
-                    |> List.map (fun (name, t) ->
-                        match name with
-                        | Some name ->
-                            match t with
-                            | I32 -> (name, (I32, Mutable), (I32Const 0, ""))
-                            | F32 -> (name, (F32, Mutable), (F32Const 0.0f, ""))
-                            | _ -> failwith "keep it wasm32"
-                        | None -> failwith "global must have name")
-
-                let globals = vars @ Set.toList this.globals
-
-                Module(
-                    this.types,
-                    this.functions,
-                    this.tables,
-                    this.memories,
-                    Set(globals),
-                    this.exports,
-                    this.imports,
-                    this.start,
-                    this.elements,
-                    this.data,
-                    this.locals,
-                    this.tempCode,
-                    this.funcTableSize,
-                    this.hostinglist
-                )
-
-
-        // add locals to module
         member this.AddLocals(locals: list<Local>) =
             let locals = locals @ Set.toList this.locals
 
@@ -472,18 +415,6 @@ module Module =
                 this.funcTableSize,
                 this.hostinglist
             )
-
-        // Type exsits
-        member this.TypeExists(name: string) =
-            let types =
-                this.types
-                |> List.filter (fun t ->
-                    match t with
-                    | FuncType(name', _) -> name = name'
-                    | StructType(name', _) -> name = name'
-                    | ArrayType(name', _) -> name = name')
-
-            types.Length > 0
 
         member this.AddTypedef(typedef: TypeDef) =
             let types = this.types @ [ typedef ]
