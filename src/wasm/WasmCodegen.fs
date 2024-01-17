@@ -2656,6 +2656,8 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (Call(l, instrs), c) :: rest -> [ (Call(l, localSubst instrs var), c) ] @ localSubst rest var
     | (F32Sqrt(instrs), c) :: rest -> [ (F32Sqrt(localSubst instrs var), c) ] @ localSubst rest var
     | (F32Max(instrs), c) :: rest -> [ (F32Max(localSubst instrs var), c) ] @ localSubst rest var
+    | (Select(instrs), c) :: rest -> [ (Select(localSubst instrs var), c) ] @ localSubst rest var
+    | (F32Min(instrs), c) :: rest -> [ (F32Min(localSubst instrs var), c) ] @ localSubst rest var
     
 
     // keep all other instructions
@@ -2806,6 +2808,7 @@ let codegen (node: TypedAST) (config: CompileConfig option) : Module =
     // all top-level locals (in _start) are transformed to global vars
     let l = localsToID (m.GetLocals())
 
+    // exported vars are also promoted to global vars
     let h = (Set.toList (Set(m.GetHostingList())))
 
     // hoist all top level locals to global vars

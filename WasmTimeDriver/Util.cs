@@ -112,8 +112,10 @@ public static class Utils
         WriteToFile(path, wat);
 
         // validate wat file and create wasm file
-        // Wat2Wasm(path, type);
-        WasmTools(path, type);
+        Wat2Wasm(path, type);
+        // WasmTools(path, type);
+        // WasmAs(path, type);
+
         // only run wasm-as if folded
         // if (style == WGF.Types.WritingStyle.Folded) WasmAs(path, type);
 
