@@ -1,0 +1,11 @@
+let mutable x: int = 0;
+let stop: int = 10000;
+
+while (x < stop) do {
+    let s1: struct {f: int; i: int} = struct {f = 42 + x; i = 42};
+    assert(s1.i = 42);
+    assert(s1.f = 42 + x);
+    print(x);
+    print(", ");
+    x++
+}

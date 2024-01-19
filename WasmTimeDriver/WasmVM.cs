@@ -181,7 +181,7 @@ namespace WasmTimeDriver
                     }
                     var message = memory.ReadString(address, length);
                     
-                    if (nl == 1) {
+                    if (nl > 0) {
                         Console.WriteLine(message);
                     } else {
                         Console.Write(message);

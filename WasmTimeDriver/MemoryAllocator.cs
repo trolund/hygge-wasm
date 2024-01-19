@@ -41,11 +41,13 @@ namespace WasmTimeDriver
             {
                 if (mem != null)
                 {
-
-                    var requiredPages = (this._offset.ToInt32() + size) / this._pageSize;
+                    int offset = _offset.ToInt32();
+                    double requiredPages = (offset + size) / (double) _pageSize;
                     // round required pages to the next integer
+                    int roundedPages = (int)Math.Ceiling((double) requiredPages);
 
-                    var growBy = requiredPages + 1 - _heapSize;
+                    // difference between current size and the new required size
+                    int growBy = roundedPages - _heapSize;
 
                     mem.Grow(growBy);
                     _heapSize += growBy;
