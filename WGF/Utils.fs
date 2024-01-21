@@ -30,7 +30,7 @@ let GenFuncTypeID (t) =
 
     let folder =
         fun str (i, x) ->
-            let (n: Identifier option, t: ValueType) = x
+            let (n: Label option, t: ValueType) = x
             // TODO: use names of types in function type
             match t with
             | Ref l -> str + (if i > 0 then "_" else "") + "eq"

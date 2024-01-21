@@ -9,8 +9,8 @@ type Wasm =
     | Unreachable
     | Nop
     | Else of ValueType list * ValueType list * Wasm list * Wasm list
-    | Br of Identifier
-    | BrIf of Identifier * Wasm Commented list
+    | Br of Label
+    | BrIf of Label * Wasm Commented list
     // | BrTable of int list * int
     | Return
     // Memory Instrs
@@ -83,12 +83,12 @@ type Wasm =
     // | Drop_
     | Select of Wasm Commented list
     // Variable Instr
-    | Local of Label * ValueType // https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Variables/Local
-    | LocalGet of Label
-    | LocalSet of Label * Wasm Commented list
-    | LocalTee of Label * Wasm Commented list
-    | GlobalGet of Label 
-    | GlobalSet of Label * Wasm Commented list
+    | Local of Identifier * ValueType // https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/Variables/Local
+    | LocalGet of Identifier
+    | LocalSet of Identifier * Wasm Commented list
+    | LocalTee of Identifier * Wasm Commented list
+    | GlobalGet of Identifier 
+    | GlobalSet of Identifier * Wasm Commented list
     // Table Instr
     | TableGet of int
     | TableSet of int
@@ -98,11 +98,11 @@ type Wasm =
     | TableGrow of int
     | TableSize of int
     // Call Instr
-    | Call of string * Wasm Commented list
+    | Call of Label * Wasm Commented list
     /// type label
-    | CallIndirect of Label * Wasm Commented list
+    | CallIndirect of Identifier * Wasm Commented list
     // ref
-    | RefFunc of Label
+    | RefFunc of Identifier
     // memory instr
     | MemoryInit of int * int * int
     | DataDrop of int
@@ -111,10 +111,10 @@ type Wasm =
     | MemoryFill
     /// Block Instruction
     /// label * result type * instrs
-    | Block of Identifier * ValueType list * list<Commented<Wasm>>
+    | Block of Label * ValueType list * list<Commented<Wasm>>
     /// Loop Instruction
     /// label * result type * instrs
-    | Loop of Identifier * ValueType list * list<Commented<Wasm>>
+    | Loop of Label * ValueType list * list<Commented<Wasm>>
     /// If Instruction
     /// reuslt type of if, then block, else block
     /// if (result type), condision, then (instrs) else (instrs)
@@ -123,26 +123,26 @@ type Wasm =
     | Comment of string // not wasm instr
     // wasmGC
     // (struct.new $tup (i64.const 1) (i64.const 2) (i64.const 1))
-    | StructNew of Label * Wasm Commented list
+    | StructNew of Identifier * Wasm Commented list
     // (struct.get $tup 1 (local.get $t))
-    | StructGet of Label * Label * Wasm Commented list
+    | StructGet of Identifier * Identifier * Wasm Commented list
     // (struct.set $point $y (local.get $p) (i32.const 3))
-    | StructSet of Label * Label * Wasm Commented list 
+    | StructSet of Identifier * Identifier * Wasm Commented list 
     // (array.new $vec3d (f64.const 1) (i32.const 3))
     // data type, init value, size
-    | ArrayNew of Label * Wasm Commented list
+    | ArrayNew of Identifier * Wasm Commented list
     // (array.set $vec3d (local.get $v) (i32.const 2) (i32.const 5))
-    | ArraySet of Label * Wasm Commented list
+    | ArraySet of Identifier * Wasm Commented list
     // (array.get $vec3d (local.get $v) (i32.const 1))
-    | ArrayGet of Label * Wasm Commented list
+    | ArrayGet of Identifier * Wasm Commented list
     | ArrayLen of Wasm Commented list
-    | RefCast of Label * Wasm Commented list
-    | Null of Label
+    | RefCast of Identifier * Wasm Commented list
+    | Null of Identifier
     | NullValue of ValueType
 
 and Instrs = Wasm list
 
-and Global = Identifier * (ValueType * Mutability) * Commented<Wasm>
+and Global = Label * (ValueType * Mutability) * Commented<Wasm>
 
 and Data = Commented<Wasm> * string
 
@@ -155,7 +155,7 @@ and Function = string option * FunctionSignature * Variable list * Commented<Was
 and GlobalSegment = int * Wasm list
 
 and FunctionInstance =
-    { name: Identifier option
+    { name: Label option
       signature: FunctionSignature
       locals: Local list
       body: Commented<Wasm> list }

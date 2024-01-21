@@ -1065,7 +1065,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let structPointer =
             structm
                 .ResetAccCode() // pointer to struct on stack
-                .AddLocals([ (Some(Identifier(structPointerLabel)), I32) ]) // add local var
+                .AddLocals([ (Some(Label(structPointerLabel)), I32) ]) // add local var
                 .AddCode([ (LocalSet(Named(structPointerLabel), structm.GetAccCode()), "set struct pointer var") ]) // set struct pointer var
 
         let allocation = // allocate memory for array, return pointer to allocated memory
@@ -1165,7 +1165,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ LocalSet(Named(i), C [ I32Const 0 ]) ] @ C [ (Block(exitl, [], loop)) ]
 
         let loopModule =
-            data'.ResetAccCode().AddLocals([ (Some(Identifier(i)), I32) ]).AddCode(block)
+            data'.ResetAccCode().AddLocals([ (Some(Label(i)), I32) ]).AddCode(block)
 
         lengthCheck
         ++ structPointer.AddCode(instr)
@@ -1370,7 +1370,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let structm' =
             structm
                 .ResetAccCode() // pointer to struct on stack
-                .AddLocals([ (Some(Identifier(structPointerLabel)), I32) ]) // add local var
+                .AddLocals([ (Some(Label(structPointerLabel)), I32) ]) // add local var
                 .AddCode([ (LocalSet(Named(structPointerLabel), structm.GetAccCode()), "set struct pointer var") ]) // set struct pointer var
 
         // set data pointer of struct
@@ -1458,7 +1458,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
                 let scope =
                     (doCodegen scopeEnv expr m)
-                        .AddLocals([ (Some(Identifier(varName)), (if t.IsEmpty then I32 else (t)[0])) ])
+                        .AddLocals([ (Some(Label(varName)), (if t.IsEmpty then I32 else (t)[0])) ])
 
                 // resolve load and store instruction based on type
                 let loadInstr =
@@ -1908,7 +1908,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
-                .AddLocals([ (Some(Identifier(varName)), I32) ])
+                .AddLocals([ (Some(Label(varName)), I32) ])
                 .AddCode([ Comment "End of let" ])
         | t when (isSubtypeOf init.Env t TFloat) ->
             let varLabel = Named(varName)
@@ -1921,7 +1921,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ (instrs ++ scopeCode)
-                .AddLocals([ (Some(Identifier(varName)), F32) ])
+                .AddLocals([ (Some(Label(varName)), F32) ])
                 .AddCode([ Comment "End of let" ])
         | TFun _ when env.Config.AllocationStrategy = Heap ->
             // todo make function pointer
@@ -1943,7 +1943,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
-                .AddLocals([ (Some(Identifier(varName)), Ref(Named(funcp))) ])
+                .AddLocals([ (Some(Label(varName)), Ref(Named(funcp))) ])
                 .AddCode([ Comment "End of let" ])
         | TFun _ ->
             // todo make function pointer
@@ -1965,7 +1965,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
-                .AddLocals([ (Some(Identifier(varName)), I32) ])
+                .AddLocals([ (Some(Label(varName)), I32) ])
                 .AddCode([ Comment "End of let" ])
         | TStruct _ when env.Config.AllocationStrategy = Heap ->
             let varLabel = Named(varName)
@@ -1985,7 +1985,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
-                .AddLocals([ (Some(Identifier(varName)), Ref(Named(t))) ])
+                .AddLocals([ (Some(Label(varName)), Ref(Named(t))) ])
                 .AddCode([ Comment "End of let" ])
         | TArray _ when env.Config.AllocationStrategy = Heap ->
             let varLabel = Named(varName)
@@ -2002,7 +2002,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
-                .AddLocals([ (Some(Identifier(varName)), Ref(Named(t))) ])
+                .AddLocals([ (Some(Label(varName)), Ref(Named(t))) ])
                 .AddCode([ Comment "End of let" ])
         | TStruct _ ->
             let varLabel = Named(varName)
@@ -2017,7 +2017,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
-                .AddLocals([ (Some(Identifier(varName)), I32) ])
+                .AddLocals([ (Some(Label(varName)), I32) ])
                 .AddCode([ Comment "End of let" ])
         | _ ->
             // todo make function pointer
@@ -2033,7 +2033,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
-                .AddLocals([ (Some(Identifier(varName)), I32) ])
+                .AddLocals([ (Some(Label(varName)), I32) ])
                 .AddCode([ Comment "End of let" ])
 
     | LetMut(name, tpe, init, scope, export) ->
@@ -2302,7 +2302,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | External ->
                 m
                     .AddImport(getImport "malloc")
-                    .AddLocals([ (Some(Identifier(structName)), I32) ])
+                    .AddLocals([ (Some(Label(structName)), I32) ])
                     .AddCode(
                         [ (LocalSet(
                               Named(structName),
@@ -2312,7 +2312,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     )
             | Internal ->
                 m
-                    .AddLocals([ (Some(Identifier(structName)), I32) ])
+                    .AddLocals([ (Some(Label(structName)), I32) ])
                     .AddCode(checkMemory [ (I32Const(size * 4), "size of struct") ])
                     .AddCode(
                         [ (LocalSet(
@@ -2539,7 +2539,7 @@ and internal compileFunction
         ({ locals = m'.GetLocals()
            signature = signature
            body = m'.GetAccCode()
-           name = Some(Identifier(name)) },
+           name = Some(Label(name)) },
          $"function {name}")
 
     // add code and locals to function
@@ -2744,7 +2744,7 @@ let codegen (node: TypedAST) (config: CompileConfig option) : Module =
         ({ locals = List.Empty
            signature = signature
            body = List.Empty
-           name = Some(Identifier(funcName)) },
+           name = Some(Label(funcName)) },
          "entry point of program (main function)")
 
     let allocationStrategy =

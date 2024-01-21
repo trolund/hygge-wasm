@@ -11,18 +11,20 @@ type WritingStyle =
 
 type Commented<'a> = 'a * string
 
-type Label =
-    | Named of string
+type Label = string
+
+type Identifier =
+    | Named of Label
     | Index of int
-    | Address of int
+    // | Address of int
 
     override this.ToString() =
         match this with
         | Named s -> $"${s}"
         | Index i -> $"{i}"
-        | Address i -> $"{i}"
+        //| Address i -> $"{i}"
 
-type Identifier = string
+
 
 type VarType =
         | Local
@@ -37,10 +39,10 @@ type ValueType =
         // reference types
         | Externref
         | Funcref
-        | Ref of Label
+        | Ref of Identifier
         | Nullref
         | Null
-        | NullableRef of Label
+        | NullableRef of Identifier
         | EqRef // https://webassembly.github.io/gc/core/syntax/types.html#id2
         | Eq
 
@@ -57,7 +59,7 @@ type ValueType =
                 match l with
                 | Named s -> $"{s}"
                 | Index i -> $"%d{i}"
-                | Address i -> $"%d{i}"                        
+                // | Address i -> $"%d{i}"                        
             | Nullref -> "ref.null"
             | Null -> "null"
             | EqRef -> "eqref" 
@@ -88,14 +90,14 @@ type Limits =
             | Unbounded min -> $"%d{min}"
             | Bounded(min, max) -> $"%d{min} %d{max}"
 
-type Local = Identifier option * ValueType
+type Local = Label option * ValueType
 
 /// function parameters and return values.
 /// The signature declares what the function takes (parameters) and returns (return values)
 type FunctionSignature = Local list * ValueType list           
         
 
-type Table = Identifier * ValueType * Limits
+type Table = Label * ValueType * Limits
 
     // (memory (export $name) limits)
 type Memory = string * Limits
@@ -105,7 +107,7 @@ type ExternalType =
         | FunctionType of string * FunctionSignature option
         | TableType of Table
         | MemoryType of Memory
-        | GlobalType of Identifier
+        | GlobalType of Label
         | ElementType of ValueType // todo element type and not value type
         | EmptyType
 
@@ -115,20 +117,20 @@ type Import = string * string * ExternalType
 type Export = string * ExternalType
 
 // offset and type identifier
-type Element = int * Identifier
+type Element = int * Label
 
 type Start = int option
 
 type Variable = ValueType * Mutability
 
-type Param = Identifier option * Variable
+type Param = Label option * Variable
 
 type TableSegment = int * int list
 
 type MemorySegment = int * string
 
 type TypeDef = 
-        | FuncType of Identifier * FunctionSignature
+        | FuncType of Label * FunctionSignature
         // (type $buf (struct (field $pos (mut i64)) (field $chars (ref $char-array))))
-        | StructType of Identifier * Param list
-        | ArrayType of Identifier * ValueType
+        | StructType of Label * Param list
+        | ArrayType of Label * ValueType

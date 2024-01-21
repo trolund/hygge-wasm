@@ -78,7 +78,7 @@ let generate_local (locals: Local list) =
 /// format type as a string
 let printType (i: int, t) (withName: bool) =
     match t with
-    | FuncType(name: Identifier, signature: FunctionSignature) ->
+    | FuncType(name: Label, signature: FunctionSignature) ->
 
         let (parameters: Local list), (returnValues: ValueType list) = signature
 
@@ -117,7 +117,7 @@ let printType (i: int, t) (withName: bool) =
 
         // name with suffix
         $"{gIndent 1}(type ${name} %s{ic i} (func {parametersString} {returnValuesString}))\n"
-    | StructType(name: Identifier, types: Param list) ->
+    | StructType(name: Label, types: Param list) ->
         // valid type: (type $buf (struct (field $pos (mut i32)) (field $chars (mut i32))))
 
         let formatVar =
@@ -127,7 +127,7 @@ let printType (i: int, t) (withName: bool) =
                 | (t, Mutable) -> $"(mut {t.ToString()})"
                 | (t, Immutable) -> t.ToString()
 
-        let printParam (n: Identifier option, var: Variable) =
+        let printParam (n: Label option, var: Variable) =
             match n with
             | Some name -> $"(field ${name} {formatVar var})"
             | None -> $"(field %s{var.ToString()})"
@@ -136,7 +136,7 @@ let printType (i: int, t) (withName: bool) =
             String.concat " " (List.map (fun (param) -> printParam param) types)
 
         $"{gIndent 1}(type ${name} {ic i} (struct {paramsString}))\n"
-    | ArrayType(name: Identifier, t: ValueType) -> $"{gIndent 1}(type ${name} {ic i} (array (mut {t.ToString()})))\n"
+    | ArrayType(name: Label, t: ValueType) -> $"{gIndent 1}(type ${name} {ic i} (array (mut {t.ToString()})))\n"
 
 // function that only return the label of the instruction
 // I32Const should return "i32.const"
