@@ -220,7 +220,7 @@ let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     | (MemorySize, _) :: rest -> 1 + countFunctionInstrs rest
     | (Br _, _) :: rest -> 1 + countFunctionInstrs rest
     | (BrIf _, _) :: rest -> 1 + countFunctionInstrs rest
-    | (BrTable _, _) :: rest -> 1 + countFunctionInstrs rest
+    // | (BrTable _, _) :: rest -> 1 + countFunctionInstrs rest
     | (Return, _) :: rest -> 1 + countFunctionInstrs rest
     // | (F32Ceil, _) :: rest -> 1 + countFunctionInstrs rest
     // | (F32Floor, _) :: rest -> 1 + countFunctionInstrs rest

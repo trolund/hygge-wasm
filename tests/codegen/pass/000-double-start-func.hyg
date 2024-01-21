@@ -1,0 +1,10 @@
+fun _start(): () -> int = {
+    fun () -> 20 
+};
+
+fun _start(): () -> int = {
+    fun () -> 10 
+};
+
+let c1: () -> int = _start();
+assert(c1() = 10)

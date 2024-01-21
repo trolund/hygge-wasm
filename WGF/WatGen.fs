@@ -210,7 +210,7 @@ let instrLabel i =
     | Nop -> "nop"
     | Br _ -> "br"
     | BrIf _ -> "br_if"
-    | BrTable _ -> "br_table"
+    // | BrTable _ -> "br_table"
     | Return -> "return"
     | Call _ -> "call"
     | CallIndirect _ -> "call_indirect"
