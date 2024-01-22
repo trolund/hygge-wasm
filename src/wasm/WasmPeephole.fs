@@ -105,15 +105,15 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
     | (I32Xor(instrs), c1) :: rest when isConstConst instrs ->
         let (v1, v2) = (getI32ConstConst instrs)
         (I32Const(v1 ^^^ v2), c1) :: optimizeInstr rest
-    | (I32Shl, c1) :: rest when isConstConst rest ->
-        let (v1, v2) = (getI32ConstConst rest)
-        (I32Const(v1 <<< v2), c1) :: optimizeInstr rest
-    | (I32ShrS, c1) :: rest when isConstConst rest ->
-        let (v1, v2) = (getI32ConstConst rest)
-        (I32Const(v1 >>> v2), c1) :: optimizeInstr rest
-    | (I32ShrU, c1) :: rest when isConstConst rest ->
-        let (v1, v2) = (getI32ConstConst rest)
-        (I32Const(v1 >>> v2), c1) :: optimizeInstr rest
+    // | (I32Shl, c1) :: rest when isConstConst rest ->
+    //     let (v1, v2) = (getI32ConstConst rest)
+    //     (I32Const(v1 <<< v2), c1) :: optimizeInstr rest
+    // | (I32ShrS, c1) :: rest when isConstConst rest ->
+    //     let (v1, v2) = (getI32ConstConst rest)
+    //     (I32Const(v1 >>> v2), c1) :: optimizeInstr rest
+    // | (I32ShrU, c1) :: rest when isConstConst rest ->
+    //     let (v1, v2) = (getI32ConstConst rest)
+    //     (I32Const(v1 >>> v2), c1) :: optimizeInstr rest
     | (F32Add(instrs), c1) :: rest when isConstConst instrs ->
         let (v1, v2) = (getF32ConstConst instrs)
         (F32Const(v1 + v2), c1) :: optimizeInstr rest

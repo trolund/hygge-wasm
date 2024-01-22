@@ -1686,15 +1686,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
             let storeInstr =
                 match (expandType value.Env value.Type) with
-                | t when (isSubtypeOf value.Env t TInt) -> I32Store
                 | t when (isSubtypeOf value.Env t TFloat) -> F32Store
                 | _ -> I32Store
-
-            let loadInstr =
-                match (expandType value.Env value.Type) with
-                | t when (isSubtypeOf value.Env t TInt) -> I32Load
-                | t when (isSubtypeOf value.Env t TFloat) -> F32Load
-                | _ -> I32Load
 
             let instrs =
                 [ (storeInstr (
@@ -1712,17 +1705,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       @ rhsCode.GetAccCode()
                    ),
                    "store value in elem pos") ]
-                // load value just to leave a value on the stack
-                // struct pointer on stack
-                @ [ (loadInstr (
-                        [ (I32Add(
-                              [ (I32Load(selTargetCode.GetAccCode()), "load data pointer")
-                                (I32Mul(indexCode.GetAccCode() @ [ (I32Const 4, "byte offset") ]),
-                                 "multiply index with byte offset") ]
-                           ),
-                           "add offset to base address") ]
-                     ),
-                     "load int from elem pos") ]
+                   @ rhsCode.GetAccCode()
 
             (rhsCode.ResetAccCode() + indexCode.ResetAccCode() + selTargetCode.ResetAccCode())
                 .AddCode(indexCheck @ instrs)

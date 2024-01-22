@@ -696,15 +696,16 @@ module Module =
 
             // print tables and elements
             // func table
-            result <-
-                result
-                + sprintf
-                    "%s(table $%s %s %s %s)\n"
-                    (gIndent 1)
-                    "func_table"
-                    (ic 0)
-                    $"%d{this.elements.Count}"
-                    (ValueType.Funcref.ToString())
+            if this.elements.Count > 0 then
+                result <-
+                    result
+                    + sprintf
+                        "%s(table $%s %s %s %s)\n"
+                        (gIndent 1)
+                        "func_table"
+                        (ic 0)
+                        $"%d{this.elements.Count}"
+                        (ValueType.Funcref.ToString())
 
             // // print rest of tables
             // for table in this.tables do
