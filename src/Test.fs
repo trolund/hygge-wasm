@@ -269,7 +269,7 @@ let tests =
                                  file
                                  0
                                  false
-                                 Linar
+                                 Linear
                                  { AllocationStrategy = hyggec.Config.MemoryConfig.Internal
                                    Si = hyggec.Config.SI.HyggeSI }))
                 testList
@@ -282,7 +282,7 @@ let tests =
                                  file
                                  0
                                  true
-                                 Linar
+                                 Linear
                                  { AllocationStrategy = hyggec.Config.MemoryConfig.Internal
                                    Si = hyggec.Config.SI.HyggeSI }))
                 testList
@@ -295,7 +295,7 @@ let tests =
                                  file
                                  RISCVCodegen.assertExitCode
                                  false
-                                 Linar
+                                 Linear
                                  { AllocationStrategy = hyggec.Config.MemoryConfig.Internal
                                    Si = hyggec.Config.SI.HyggeSI }))
                 testList
@@ -308,7 +308,7 @@ let tests =
                                  file
                                  RISCVCodegen.assertExitCode
                                  true
-                                 Linar
+                                 Linear
                                  { AllocationStrategy = hyggec.Config.MemoryConfig.Internal
                                    Si = hyggec.Config.SI.HyggeSI }))
                 // folded style

@@ -1656,7 +1656,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         | ArrayElement(target, index) ->
             let selTargetCode = doCodegen env target m
             let indexCode = doCodegen env index m
-
             let rhsCode = doCodegen env value m
 
             // Check index >= 0 and index < length

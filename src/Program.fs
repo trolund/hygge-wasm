@@ -285,13 +285,13 @@ let internal compile (opt: CmdLine.CompilerOptions) : int =
                     let style =
                         match opt.Style with
                         | Some("linear")
-                        | Some("l") -> WGF.Types.WritingStyle.Linar
+                        | Some("l") -> WGF.Types.WritingStyle.Linear
                         | Some("folded")
                         | Some("f") -> WGF.Types.WritingStyle.Folded
                         | Some(s) ->
                             Log.error $"Invalid WAT writing style: %s{s}, proceeding with default (linear)"
-                            WGF.Types.WritingStyle.Linar
-                        | None -> WGF.Types.WritingStyle.Linar
+                            WGF.Types.WritingStyle.Linear
+                        | None -> WGF.Types.WritingStyle.Linear
 
                     m.ToWat(style)
 

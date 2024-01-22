@@ -1,12 +1,13 @@
 (module
   (type $i32_=>_i32 (;0;) (func (param i32) (result i32)))
+  (import "env" "malloc" (;0;) (func $malloc (param i32) (result i32)))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) (i32.const 0))
   (global $fun__start$1*ptr (;1;) (mut i32) (i32.const 8))
   (global $fun__start$1/anonymous*ptr (;2;) (mut i32) (i32.const 12))
   (global $fun__start*ptr (;3;) (mut i32) (i32.const 0))
   (global $fun__start/anonymous*ptr (;4;) (mut i32) (i32.const 4))
-  (global $heap_base (;5;) (mut i32) (i32.const 16))
+  (global $heap_base (;5;) i32 (i32.const 16))
   (global $var_c1 (;6;) (mut i32) (i32.const 0))
   (table $func_table (;0;) 4 funcref)
   (elem (i32.const 0) (;0;) $fun__start)
@@ -46,27 +47,8 @@
     (local $Sptr$0 i32)
 
     ;; start of struct contructor
-    global.get $heap_base ;; get heap base
     i32.const 8 ;; size of struct
-    i32.add ;; find size need to allocate
-    memory.size ;; memory size
-    i32.const 65536 ;; page size
-    i32.mul ;; find current size
-    i32.ge_s ;; size need > current size
-    if 
-      global.get $heap_base ;; get heap base
-      i32.const 8 ;; size of struct
-      i32.add ;; find size need to allocate
-      i32.const 65536 ;; page size
-      i32.div_s ;; grow memory!
-      memory.grow ;; grow memory if needed
-      drop ;; drop new size
-    end
-    global.get $heap_base ;; leave current heap base address
-    global.get $heap_base ;; get current heap base
-    i32.const 8 ;; size of struct
-    i32.add ;; add size to heap base
-    global.set $heap_base ;; set base pointer
+    call $malloc ;; call malloc function
     local.set $Sptr ;; set struct pointer var
     local.get $Sptr ;; get struct pointer var
     i32.const 0 ;; push field offset to stack
@@ -79,27 +61,8 @@
     i32.add ;; add offset to base address
     ;; init field (cenv)
     ;; start of struct contructor
-    global.get $heap_base ;; get heap base
     i32.const 0 ;; size of struct
-    i32.add ;; find size need to allocate
-    memory.size ;; memory size
-    i32.const 65536 ;; page size
-    i32.mul ;; find current size
-    i32.ge_s ;; size need > current size
-    if 
-      global.get $heap_base ;; get heap base
-      i32.const 0 ;; size of struct
-      i32.add ;; find size need to allocate
-      i32.const 65536 ;; page size
-      i32.div_s ;; grow memory!
-      memory.grow ;; grow memory if needed
-      drop ;; drop new size
-    end
-    global.get $heap_base ;; leave current heap base address
-    global.get $heap_base ;; get current heap base
-    i32.const 0 ;; size of struct
-    i32.add ;; add size to heap base
-    global.set $heap_base ;; set base pointer
+    call $malloc ;; call malloc function
     local.set $Sptr$0 ;; set struct pointer var
     local.get $Sptr$0 ;; push struct address to stack
     ;; end of struct contructor
@@ -113,27 +76,8 @@
     (local $Sptr$3 i32)
 
     ;; start of struct contructor
-    global.get $heap_base ;; get heap base
     i32.const 8 ;; size of struct
-    i32.add ;; find size need to allocate
-    memory.size ;; memory size
-    i32.const 65536 ;; page size
-    i32.mul ;; find current size
-    i32.ge_s ;; size need > current size
-    if 
-      global.get $heap_base ;; get heap base
-      i32.const 8 ;; size of struct
-      i32.add ;; find size need to allocate
-      i32.const 65536 ;; page size
-      i32.div_s ;; grow memory!
-      memory.grow ;; grow memory if needed
-      drop ;; drop new size
-    end
-    global.get $heap_base ;; leave current heap base address
-    global.get $heap_base ;; get current heap base
-    i32.const 8 ;; size of struct
-    i32.add ;; add size to heap base
-    global.set $heap_base ;; set base pointer
+    call $malloc ;; call malloc function
     local.set $Sptr$2 ;; set struct pointer var
     local.get $Sptr$2 ;; get struct pointer var
     i32.const 0 ;; push field offset to stack
@@ -146,27 +90,8 @@
     i32.add ;; add offset to base address
     ;; init field (cenv)
     ;; start of struct contructor
-    global.get $heap_base ;; get heap base
     i32.const 0 ;; size of struct
-    i32.add ;; find size need to allocate
-    memory.size ;; memory size
-    i32.const 65536 ;; page size
-    i32.mul ;; find current size
-    i32.ge_s ;; size need > current size
-    if 
-      global.get $heap_base ;; get heap base
-      i32.const 0 ;; size of struct
-      i32.add ;; find size need to allocate
-      i32.const 65536 ;; page size
-      i32.div_s ;; grow memory!
-      memory.grow ;; grow memory if needed
-      drop ;; drop new size
-    end
-    global.get $heap_base ;; leave current heap base address
-    global.get $heap_base ;; get current heap base
-    i32.const 0 ;; size of struct
-    i32.add ;; add size to heap base
-    global.set $heap_base ;; set base pointer
+    call $malloc ;; call malloc function
     local.set $Sptr$3 ;; set struct pointer var
     local.get $Sptr$3 ;; push struct address to stack
     ;; end of struct contructor

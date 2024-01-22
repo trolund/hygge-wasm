@@ -221,19 +221,19 @@ let instrLabel i =
     | Drop _ -> "drop"
     | Select _ -> "select"
     | Local(_, _) -> "local"
-    | TableGet(_) -> "table.get"
-    | TableSet(_) -> "table.set"
-    | TableInit(_, _, _) -> "table.init"
-    | ElemDrop(_) -> "elem.drop"
-    | TableCopy(_, _) -> "table.copy"
-    | TableGrow(_) -> "table.grow"
-    | TableSize(_) -> "table.size"
+    // | TableGet(_) -> "table.get"
+    // | TableSet(_) -> "table.set"
+    // | TableInit(_, _, _) -> "table.init"
+    // | ElemDrop(_) -> "elem.drop"
+    // | TableCopy(_, _) -> "table.copy"
+    // | TableGrow(_) -> "table.grow"
+    // | TableSize(_) -> "table.size"
     | RefFunc(_) -> "ref.func"
-    | MemoryInit(_, _, _) -> "memory.init"
-    | DataDrop(_) -> "data.drop"
-    | MemoryCopy(_, _) -> "memory.copy"
-    | MemoryFill_(_, _, _) -> "memory.fill"
-    | MemoryFill -> "memory.fill"
+    // | MemoryInit(_, _, _) -> "memory.init"
+    // | DataDrop(_) -> "data.drop"
+    // | MemoryCopy(_, _) -> "memory.copy"
+    // | MemoryFill_(_, _, _) -> "memory.fill"
+    // | MemoryFill -> "memory.fill"
     | MemoryGrow(_) -> "memory.grow"
     | MemorySize -> "memory.size"
     | StructNew(_, _) -> "struct.new"
@@ -305,8 +305,8 @@ let printInstr (i: Commented<Instr.Wasm>) =
     // | Drop_ -> "drop"
     | Select _ -> "select"
     | RefFunc label -> $"ref.func %s{label.ToString()}"
-    | MemoryFill -> "memory.fill"
-    | MemoryFill_(offset, value, size) -> $"memory.fill offset=%d{offset} value=%d{value} size=%d{size}"
+    // | MemoryFill -> "memory.fill"
+    // | MemoryFill_(offset, value, size) -> $"memory.fill offset=%d{offset} value=%d{value} size=%d{size}"
     | Comment comment -> $";; %s{comment}"
     | StructNew(name, instrs) -> $"struct.new %s{name.ToString()}"
     | StructGet(name, index, instrs) -> $"struct.get {name.ToString()} {index.ToString()}"
@@ -346,7 +346,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail s indent
 
-            | Block(label, valueTypes, instrs: Commented<Instr.Wasm> list) when style = Linar ->
+            | Block(label, valueTypes, instrs: Commented<Instr.Wasm> list) when style = Linear ->
                 let innerWat = aux instrs "" (indent + 1)
 
                 let s =
@@ -366,7 +366,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail s indent
 
-            | Loop(label, valueTypes, instrs: Commented<Instr.Wasm> list) when style = Linar ->
+            | Loop(label, valueTypes, instrs: Commented<Instr.Wasm> list) when style = Linear ->
                 let innerWat = aux instrs "" (indent + 1)
 
                 let s =
@@ -399,7 +399,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                         + $"(if {resultPrint types}\n{condWat}{gIndent (indent + 1)}(then\n{innerWatTrue}{gIndent (indent + 1)})\n{gIndent (indent)})\n"
 
                     aux tail s indent
-            | If(types, cond, ifInstrs, elseInstrs) when style = Linar ->
+            | If(types, cond, ifInstrs, elseInstrs) when style = Linear ->
                 match elseInstrs with
                 | Some elseInstrs' ->
                     let condWat = aux cond "" (indent)
@@ -433,7 +433,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"(struct.new %s{label.ToString()}\n{innerWat}{gIndent (indent)})\n"
 
                 aux tail s indent
-            | StructNew(label, instrs: Commented<Wasm> list) when style = Linar ->
+            | StructNew(label, instrs: Commented<Wasm> list) when style = Linear ->
                 let innerWat = aux instrs "" (indent)
 
                 let s = watCode + innerWat + space + $"struct.new %s{label.ToString()}\n"
@@ -450,7 +450,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail s indent
             | StructSet(typeLabel, fieldLabel, instrs: Commented<Wasm> list)
-            | StructGet(typeLabel, fieldLabel, instrs: Commented<Wasm> list) when style = Linar ->
+            | StructGet(typeLabel, fieldLabel, instrs: Commented<Wasm> list) when style = Linear ->
                 let innerWat = aux instrs "" (indent)
 
                 let s =
@@ -469,7 +469,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"(array.new %s{label.ToString()}\n{innerWat}{gIndent (indent)})\n"
 
                 aux tail s indent
-            | ArrayNew(label, instrs: Commented<Wasm> list) when style = Linar ->
+            | ArrayNew(label, instrs: Commented<Wasm> list) when style = Linear ->
                 let innerWat = aux instrs "" (indent)
 
                 let s = watCode + innerWat + space + $"array.new %s{label.ToString()}\n"
@@ -486,7 +486,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail s indent
 
-            | ArrayGet(label, instrs: Commented<Wasm> list) when style = Linar ->
+            | ArrayGet(label, instrs: Commented<Wasm> list) when style = Linear ->
                 let innerWat = aux instrs "" (indent)
 
                 let s = watCode + innerWat + space + $"array.get %s{label.ToString()}\n"
@@ -503,7 +503,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail s indent
 
-            | ArraySet(label, instrs: Commented<Wasm> list) when style = Linar ->
+            | ArraySet(label, instrs: Commented<Wasm> list) when style = Linear ->
                 let innerWat = aux instrs "" (indent)
 
                 let s = watCode + innerWat + space + $"array.set %s{label.ToString()}\n"
@@ -518,7 +518,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"(ref.cast (ref %s{label.ToString()})\n{innerWat}{gIndent (indent)})\n"
 
                 aux tail s indent
-            | RefCast(label, instrs: Commented<Wasm> list) when style = Linar ->
+            | RefCast(label, instrs: Commented<Wasm> list) when style = Linear ->
                 let innerWat = aux instrs "" (indent)
 
                 let s = watCode + innerWat + space + $"ref.cast (ref %s{label.ToString()})\n"
@@ -608,7 +608,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
             | F32Eq instrs
             | I32Store instrs
             | F32Store instrs
-            | I32Add instrs when style = Linar ->
+            | I32Add instrs when style = Linear ->
                 aux
                     tail
                     (watCode
@@ -618,7 +618,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
             | GlobalSet(l, instrs)
             | LocalTee(l, instrs)
-            | LocalSet(l, instrs: Commented<Wasm> list) when style = Linar ->
+            | LocalSet(l, instrs: Commented<Wasm> list) when style = Linear ->
                 aux
                     tail
                     (watCode
@@ -636,7 +636,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail watCode indent
 
-            | I32Load(instrs: Commented<Wasm> list) when style = Linar ->
+            | I32Load(instrs: Commented<Wasm> list) when style = Linear ->
                 aux
                     tail
                     (watCode
@@ -682,7 +682,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                     aux tail watCode indent
 
-            | F32Load_(align, offset, instrs) when style = Linar ->
+            | F32Load_(align, offset, instrs) when style = Linear ->
                 match align, offset with
                 | Some align, Some offset ->
                     aux
@@ -741,7 +741,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                         + $"({instrLabel instr}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                     aux tail watCode indent
-            | F32Load_(align, offset, instrs) when style = Linar ->
+            | F32Load_(align, offset, instrs) when style = Linear ->
                 aux
                     tail
                     (watCode
@@ -755,14 +755,14 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"({instrLabel instr}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
-            | F32Load(instrs) when style = Linar ->
+            | F32Load(instrs) when style = Linear ->
                 aux
                     tail
                     (watCode
                      + (aux instrs emptyS indent)
                      + $"{gIndent indent}{instrLabel instr}{commentS c}\n")
                     indent
-            | I32Load_(align, offset, instrs: Commented<Wasm> list) when style = Linar ->
+            | I32Load_(align, offset, instrs: Commented<Wasm> list) when style = Linear ->
                 let offset =
                     match offset with
                     | Some offset -> offset
@@ -784,7 +784,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail watCode indent
 
-            | F32Load_(align, offset, instrs: Commented<Wasm> list) when style = Linar ->
+            | F32Load_(align, offset, instrs: Commented<Wasm> list) when style = Linear ->
                 let offset =
                     match offset with
                     | Some offset -> offset
@@ -805,7 +805,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail watCode indent
 
-            | I32Store_(align, offset, instrs: Commented<Wasm> list) when style = Linar ->
+            | I32Store_(align, offset, instrs: Commented<Wasm> list) when style = Linear ->
                 let offset =
                     match offset with
                     | Some offset -> offset
@@ -848,7 +848,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail watCode indent
 
-            | F32Store_(align, offset, instrs: Commented<Wasm> list) when style = Linar ->
+            | F32Store_(align, offset, instrs: Commented<Wasm> list) when style = Linear ->
                 let offset =
                     match offset with
                     | Some offset -> offset
@@ -891,7 +891,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail watCode indent
 
-            | Call(label, instrs: Commented<Wasm> list) when style = Linar ->
+            | Call(label, instrs: Commented<Wasm> list) when style = Linear ->
                 aux
                     tail
                     (watCode
@@ -905,7 +905,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                     + $"({instrLabel instr} $%s{label.ToString()}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
 
                 aux tail watCode indent
-            | CallIndirect(t, instrs: Commented<Wasm> list) when style = Linar ->
+            | CallIndirect(t, instrs: Commented<Wasm> list) when style = Linear ->
                 aux
                     tail
                     (watCode
@@ -920,7 +920,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                 aux tail watCode indent
 
-            | BrIf(label, instrs: Commented<Wasm> list) when style = Linar ->
+            | BrIf(label, instrs: Commented<Wasm> list) when style = Linear ->
                 aux
                     tail
                     (watCode

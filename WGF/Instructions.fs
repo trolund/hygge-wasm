@@ -24,6 +24,8 @@ type Wasm =
     | I32Store of Wasm Commented list
     | F32Store_ of int option * int option * Wasm Commented list
     | F32Store of Wasm Commented list
+    | MemorySize
+    | MemoryGrow of Wasm Commented list
     // Numeric Instrs
     | I32Const of int32
     | F32Const of float32
@@ -75,9 +77,6 @@ type Wasm =
     | F32Div of Wasm Commented list
     | F32Min of Wasm Commented list
     | F32Max of Wasm Commented list
-    // | F32Copysign
-    | MemorySize
-    | MemoryGrow of Wasm Commented list
     // Parametric Instr
     | Drop of Wasm Commented list
     // | Drop_
@@ -90,13 +89,13 @@ type Wasm =
     | GlobalGet of Identifier 
     | GlobalSet of Identifier * Wasm Commented list
     // Table Instr
-    | TableGet of int
-    | TableSet of int
-    | TableInit of int * int * int
-    | ElemDrop of int
-    | TableCopy of int * int
-    | TableGrow of int
-    | TableSize of int
+    // | TableGet of int
+    // | TableSet of int
+    // | TableInit of int * int * int
+    // | ElemDrop of int
+    // | TableCopy of int * int
+    // | TableGrow of int
+    // | TableSize of int
     // Call Instr
     | Call of Label * Wasm Commented list
     /// type label
@@ -104,11 +103,11 @@ type Wasm =
     // ref
     | RefFunc of Identifier
     // memory instr
-    | MemoryInit of int * int * int
-    | DataDrop of int
-    | MemoryCopy of int * int
-    | MemoryFill_ of int * int * int
-    | MemoryFill
+    // | MemoryInit of int * int * int
+    // | DataDrop of int
+    // | MemoryCopy of int * int
+    // | MemoryFill_ of int * int * int
+    // | MemoryFill
     /// Block Instruction
     /// label * result type * instrs
     | Block of Label * ValueType list * list<Commented<Wasm>>

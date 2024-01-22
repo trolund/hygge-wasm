@@ -1,30 +1,25 @@
 module WGF.Types
 
 type WritingStyle =
-    | Linar
+    | Linear
     | Folded
 
     override this.ToString() =
         match this with
-        | Linar -> "linar"
+        | Linear -> "linar"
         | Folded -> "folded"
 
 type Commented<'a> = 'a * string
 
 type Label = string
-
 type Identifier =
     | Named of Label
     | Index of int
-    // | Address of int
 
     override this.ToString() =
         match this with
         | Named s -> $"${s}"
         | Index i -> $"{i}"
-        //| Address i -> $"{i}"
-
-
 
 type VarType =
         | Local

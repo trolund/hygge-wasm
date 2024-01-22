@@ -25,7 +25,7 @@ module Module =
             locals: Set<Local>,
             tempCode: list<Commented<Instr.Wasm>>,
             funcTableSize: int,
-            hostinglist
+            hostinglist: string list
         ) =
         member private this.types: List<TypeDef> = types
         member private this.functions = functions
@@ -146,19 +146,19 @@ module Module =
                 this.hostinglist
             )
 
-        member this.IsFunction(name: string) = this.functions.ContainsKey(name)
+        // member this.IsFunction(name: string) = this.functions.ContainsKey(name)
 
-        member this.LookupFuncInFuncTable(name: string) =
-            let (f, s) = this.functions.[name]
+        // member this.LookupFuncInFuncTable(name: string) =
+        //     let (f, s) = this.functions.[name]
 
-            let elems = this.elements |> Set.filter (fun (_, l) -> l = name)
+        //     let elems = this.elements |> Set.filter (fun (_, l) -> l = name)
 
-            if elems.Count = 0 then
-                None
-            else
-                let (index, _) = elems |> Set.toList |> List.head
+        //     if elems.Count = 0 then
+        //         None
+        //     else
+        //         let (index, _) = elems |> Set.toList |> List.head
 
-                Some(index, f, s)
+        //         Some(index, f, s)
 
         /// add func ref element and grow func table. GetFuncTableSize will be increased by 1
         /// <summary>add func ref element and grow func table</summary>
@@ -654,12 +654,10 @@ module Module =
             let style =
                 match style with
                 | Some style -> style
-                | None -> Linar
-
-            let mutable result = ""
+                | None -> Linear
 
             // open module tag
-            result <- result + "(module\n"
+            let mutable result = "(module\n"
 
             // print all types
             for type_ in List.indexed (this.types) do
