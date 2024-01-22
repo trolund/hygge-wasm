@@ -319,11 +319,9 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | ArrayLen _ -> $"array.len"
     | NullValue l -> $"ref.null {l.ToString()}"
     | _ -> failwith "not implemented"
+let emptyS = ""
 
 let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
-
-    let emptyS = ""
-
     let rec aux (instrs: Commented<Instr.Wasm> list) (watCode: string) (indent: int) =
         match instrs with
         | [] -> watCode

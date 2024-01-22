@@ -14,7 +14,7 @@ module Module =
         (
             types: list<TypeDef>,
             functions: Map<string, Commented<FunctionInstance>>,
-            tables: seq<Table>,
+            // tables: seq<Table>,
             memories: Set<Memory>,
             globals: Set<Global>,
             exports: Set<Export>,
@@ -29,7 +29,7 @@ module Module =
         ) =
         member private this.types: List<TypeDef> = types
         member private this.functions = functions
-        member private this.tables = tables
+        // member private this.tables = tables
         member private this.memories: Set<Memory> = memories
         member private this.globals: Set<Global> = globals
         member private this.exports: Set<Export> = exports
@@ -50,7 +50,6 @@ module Module =
             Module(
                 List.empty,
                 Map.empty,
-                [],
                 Set.empty,
                 Set.empty,
                 Set.empty,
@@ -69,7 +68,6 @@ module Module =
             Module(
                 List.empty,
                 Map.empty,
-                [],
                 Set.empty,
                 Set.empty,
                 Set.empty,
@@ -89,7 +87,6 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
                 this.memories,
                 this.globals,
                 this.exports,
@@ -112,7 +109,7 @@ module Module =
             Module(
                 this.types,
                 map,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -132,7 +129,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -166,21 +163,20 @@ module Module =
         /// <returns>new module</returns>
         member this.AddFuncRefElement(label: string, index: int) =
             // is there a tabel named func_table
-            let func_table =
-                this.tables |> Seq.tryFind (fun (name, _, _) -> name = "func_table")
+            //let func_table =
+            //    this.tables |> Seq.tryFind (fun (name, _, _) -> name = "func_table")
 
             // init table if no table named func_table exists
-            let (table: Table) =
-                match func_table with
-                | Some(name, valueType, limits) -> (name, valueType, limits)
-                | None -> ("func_table", Funcref, Unbounded 1)
+            // let (table: Table) =
+            //     match func_table with
+            //     | Some(name, valueType, limits) -> (name, valueType, limits)
+            //     | None -> ("func_table", Funcref, Unbounded 1)
 
             let elements: Element = (index, label)
 
             Module(
                 this.types,
                 this.functions,
-                Seq.append this.tables (seq { table }),
                 this.memories,
                 this.globals,
                 this.exports,
@@ -203,7 +199,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -224,7 +220,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -249,7 +245,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -268,7 +264,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -289,7 +285,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -322,7 +318,7 @@ module Module =
             Module(
                 this.types,
                 functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -352,7 +348,7 @@ module Module =
             Module(
                 this.types,
                 functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -381,7 +377,7 @@ module Module =
             Module(
                 this.types,
                 functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -402,7 +398,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -422,7 +418,7 @@ module Module =
             Module(
                 types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -468,7 +464,7 @@ module Module =
             Module(
                 types,
                 functions.Add(name, f'),
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -482,33 +478,32 @@ module Module =
                 this.hostinglist
             )
 
-        // Add a table to the module
-        member this.AddTable(t: Table) =
-            let tables = Seq.append this.tables (seq { t })
+        // // Add a table to the module
+        // member this.AddTable(t: Table) =
+        //     let tables = Seq.append this.tables (seq { t })
 
-            Module(
-                this.types,
-                this.functions,
-                tables,
-                this.memories,
-                this.globals,
-                this.exports,
-                this.imports,
-                this.start,
-                this.elements,
-                this.data,
-                this.locals,
-                this.tempCode,
-                this.funcTableSize,
-                this.hostinglist
-            )
+        //     Module(
+        //         this.types,
+        //         this.functions,
+        //         this.memories,
+        //         this.globals,
+        //         this.exports,
+        //         this.imports,
+        //         this.start,
+        //         this.elements,
+        //         this.data,
+        //         this.locals,
+        //         this.tempCode,
+        //         this.funcTableSize,
+        //         this.hostinglist
+        //     )
 
         // Add a memory to the module
         member this.AddMemory(m: Memory) =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 Set(m :: (Set.toList memories)),
                 this.globals,
                 this.exports,
@@ -536,7 +531,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 Set(globals),
                 this.exports,
@@ -556,7 +551,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 Set(globals),
                 this.exports,
@@ -577,7 +572,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 Set(exports),
@@ -598,7 +593,7 @@ module Module =
             Module(
                 this.types,
                 this.functions,
-                this.tables,
+
                 this.memories,
                 this.globals,
                 this.exports,
@@ -617,7 +612,6 @@ module Module =
             Module(
                 distinctTypes (this.types @ m.types),
                 Map.fold (fun acc key value -> Map.add key value acc) this.functions m.functions,
-                Seq.append this.tables m.tables,
                 Set.union this.memories m.memories,
                 Set.union this.globals m.globals,
                 Set.union this.exports m.exports,
