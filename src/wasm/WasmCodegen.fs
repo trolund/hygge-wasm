@@ -397,14 +397,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // get load instruction based on type
                 let li: WGF.Instr.Wasm =
                     match (expandType node.Env node.Type) with
-                    // | t when (isSubtypeOf node.Env t TBool) ->
-                    //     I32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env pointer") ])
-                    // | t when (isSubtypeOf node.Env t TInt) ->
-                    //     I32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env pointer") ])
                     | t when (isSubtypeOf node.Env t TFloat) ->
                         F32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env pointer") ])
-                    // | t when (isSubtypeOf node.Env t TString) ->
-                    //     I32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env pointer") ])
                     | _ -> I32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env pointer") ])
 
                 [ (li, $"load value at offset: {i * 4}") ]
