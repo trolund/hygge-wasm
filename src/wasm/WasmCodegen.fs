@@ -382,10 +382,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | _ -> failwith "negation of type not implemented"
 
         m'.ResetAccCode().AddCode(instrs)
-    | Var v ->
+    | Var name ->
         // load variable
         let instrs: List<Commented<WGF.Instr.Wasm>> =
-            match env.VarStorage.TryFind v with
+            match env.VarStorage.TryFind name with
             | Some(Storage.Local l) -> [ (LocalGet(Named(l)), $"get local var: {l}") ] // push local variable on stack
             | Some(Storage.Global l) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ] // push global variable on stack
 
@@ -532,8 +532,20 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 | _ -> failwith "not implemented"
             | t when (isSubtypeOf node.Env t TInt) ->
                 match node.Expr with
-                | Max _ -> m'.GetAccCode() @ [ (Select(m''.GetAccCode() @ [ (I32GtS(m'.GetAccCode() @ m''.GetAccCode()), "determined the greater value")]), "select the max value") ] 
-                | Min _ -> m'.GetAccCode() @ [ (Select(m''.GetAccCode() @ [ (I32LtS(m'.GetAccCode() @ m''.GetAccCode()), "determined the lesser value")]), "select the min value") ]
+                | Max _ ->
+                    m'.GetAccCode()
+                    @ [ (Select(
+                            m''.GetAccCode()
+                            @ [ (I32GtS(m'.GetAccCode() @ m''.GetAccCode()), "determined the greater value") ]
+                         ),
+                         "select the max value") ]
+                | Min _ ->
+                    m'.GetAccCode()
+                    @ [ (Select(
+                            m''.GetAccCode()
+                            @ [ (I32LtS(m'.GetAccCode() @ m''.GetAccCode()), "determined the lesser value") ]
+                         ),
+                         "select the min value") ]
                 | _ -> failwith "not implemented"
             | _ -> failwith "failed type of max/min"
 
@@ -780,10 +792,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             else
                 mapType resultType
 
-        let instrs =
-            C [ (If(mappedResultType, m'.GetAccCode(), m''.GetAccCode(), Some(m'''.GetAccCode()))) ]
-
-        (m' + m'' + m''').ResetAccCode().AddCode(instrs)
+        (m' + m'' + m''')
+            .ResetAccCode()
+            .AddCode(C [ (If(mappedResultType, m'.GetAccCode(), m''.GetAccCode(), Some(m'''.GetAccCode()))) ])
     | Assertion(e) ->
         let m' = doCodegen env e (m.ResetAccCode())
 
@@ -919,14 +930,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 // this may be a unit value
                 if (i = lastIndex) then
                     // return last node
-                    // todo just use new Module()
-                    m + doCodegen env node (m.ResetAccCode())
+                    m + doCodegen env node (Module())
                 else
-                    // return node
                     match node.Type with
-                    | TUnit -> m + doCodegen env node (m.ResetAccCode())
+                    | TUnit -> m + doCodegen env node (Module())
                     | _ ->
-                        let subTree = (doCodegen env node (m.ResetAccCode()))
+                        let subTree = (doCodegen env node (Module()))
                         // drop value if it is not needed
                         (m + subTree.ResetAccCode())
                             .AddCode([ (Drop(subTree.GetAccCode()), "drop value of subtree") ]))
@@ -1502,7 +1511,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         match name.Expr with
         | Var(name) ->
-
             match env.VarStorage.TryFind name with
             | Some(Storage.Local l) ->
                 value'
@@ -1510,19 +1518,17 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     .AddCode([ (LocalTee(Named(l), value'.GetAccCode()), "set local var") ])
             | Some(Storage.Offset(i)) ->
                 // get correct load and store instruction
-                let li, si =
+                let si =
                     match (expandType value.Env value.Type) with
                     | t when (isSubtypeOf value.Env t TInt) ->
-                        ((I32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ]), "load value i32 from env"),
-                         (I32Store_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode()),
-                          "store i32 value in env"))
+                        (I32Store_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode()),
+                         "store i32 value in env")
                     | t when (isSubtypeOf value.Env t TFloat) ->
-                        ((F32Load_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ]), "load value f32 from env"),
-                         (F32Store_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode()),
-                          "store f32 value in env"))
+                        (F32Store_(None, Some(i * 4), [ (LocalGet(Index(0)), "get env") ] @ value'.GetAccCode()),
+                         "store f32 value in env")
                     | _ -> failwith "not implemented"
 
-                value'.ResetAccCode().AddCode([ si ] @ [ li ])
+                value'.ResetAccCode().AddCode([ si ] @ value'.GetAccCode())
             | Some(Storage.Global g) ->
                 value'
                     .ResetAccCode()
@@ -1699,7 +1705,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       @ rhsCode.GetAccCode()
                    ),
                    "store value in elem pos") ]
-                   @ rhsCode.GetAccCode()
+                @ rhsCode.GetAccCode()
 
             (rhsCode.ResetAccCode() + indexCode.ResetAccCode() + selTargetCode.ResetAccCode())
                 .AddCode(indexCheck @ instrs)
@@ -2634,12 +2640,12 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (F32Max(instrs), c) :: rest -> [ (F32Max(localSubst instrs var), c) ] @ localSubst rest var
     | (Select(instrs), c) :: rest -> [ (Select(localSubst instrs var), c) ] @ localSubst rest var
     | (F32Min(instrs), c) :: rest -> [ (F32Min(localSubst instrs var), c) ] @ localSubst rest var
-    
+
 
     // keep all other instructions
     | instr :: rest -> [ instr ] @ localSubst rest var
 
-let hoistingLocals (m: Module) (upgradeList: list<string>) : Module =
+let promoteLocals (m: Module) (upgradeList: list<string>) : Module =
     // get all functions
     let funcs = m.GetAllFuncs()
 
@@ -2788,4 +2794,4 @@ let codegen (node: TypedAST) (config: CompileConfig option) : Module =
     let h = (Set.toList (Set(m.GetHostingList())))
 
     // hoist all top level locals to global vars
-    hoistingLocals topLevelModule (h @ l)
+    promoteLocals topLevelModule (h @ l)

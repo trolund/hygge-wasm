@@ -2,6 +2,9 @@ fun _start(): () -> int = {
     fun () -> 20 
 };
 
+let c0: () -> int = _start();
+assert(c0() = 20);
+
 fun _start(): () -> int = {
     fun () -> 10 
 };
