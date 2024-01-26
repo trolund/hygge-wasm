@@ -377,7 +377,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
             | If(types, cond, ifInstrs, elseInstrs) when style = Folded ->
                 match elseInstrs with
                 | Some elseInstrs' ->
-                    let condWat = aux cond "" (indent + 2)
+                    let condWat = aux cond "" (indent + 1)
                     let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
                     let innerWatFalse = aux elseInstrs' "" (indent + 2)
 
@@ -388,7 +388,7 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
 
                     aux tail s indent
                 | None ->
-                    let condWat = aux cond "" (indent + 2)
+                    let condWat = aux cond "" (indent + 1)
                     let innerWatTrue = aux ifInstrs "" (indent + 2) // indent + 2 because of (then\n)
 
                     let s =

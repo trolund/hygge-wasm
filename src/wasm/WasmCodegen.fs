@@ -363,9 +363,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | StringLength e ->
         let m' = doCodegen env e m
 
-        let instrs = [ (I32Load_(None, Some(8), m'.GetAccCode()), "load string length") ]
-
-        m'.ResetAccCode().AddCode(instrs)
+        m'
+            .ResetAccCode()
+            .AddCode([ (I32Load_(None, Some(8), m'.GetAccCode()), "load string length") ])
     | Neg({ Node.Expr = IntVal(v)
             Node.Type = TInt }) -> m.AddCode([ (I32Const(-v), $"push %i{-v} on stack") ])
     | Neg({ Node.Expr = FloatVal(v)
@@ -388,11 +388,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             match env.VarStorage.TryFind name with
             | Some(Storage.Local l) -> [ (LocalGet(Named(l)), $"get local var: {l}") ] // push local variable on stack
             | Some(Storage.Global l) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ] // push global variable on stack
-
             | Some(Storage.Offset(i)) when env.Config.AllocationStrategy = Heap ->
                 [ (StructGet(Named($"clos_{env.CurrFunc}"), Index(i), [ (LocalGet(Named("clos")), "get env pointer") ]),
                    $"load value at index: {i}") ]
-
             | Some(Storage.Offset(i)) -> // push variable from offset on stack
                 // get load instruction based on type
                 let li: WGF.Instr.Wasm =
@@ -2085,8 +2083,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
-        let funcref = env.VarStorage.Add(name, Storage.Global ptr_label)
-        let env' = { env with VarStorage = funcref }
+        /// The function pointer to this function is added to var storage to allow for recursive calls
+        let env' = { env with VarStorage = env.VarStorage.Add(name, Storage.Global ptr_label) }
 
         // add each arg to var storage (all local vars)
         let env'' = addArgsToEnv env' args
@@ -2128,7 +2126,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let bodyCode: Module =
             compileFunction funLabel argNamesTypes body env'' (Module()) captured
 
-        let closure =
+        let closure = // create closure struct if not top level
             if isTopLevel env then
                 Module()
             else
@@ -2168,8 +2166,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
-        let funcref = env.VarStorage.Add(name, Storage.Global ptr_label)
-        let env' = { env with VarStorage = funcref }
+        let env' = { env with VarStorage =  env.VarStorage.Add(name, Storage.Global ptr_label) }
 
         // add each arg to var storage (all local vars)
         let env'' = addArgsToEnv env' args
