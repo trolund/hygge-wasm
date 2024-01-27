@@ -654,7 +654,7 @@ module Module =
             let mutable result = "(module\n"
 
             // print all types
-            for type_ in List.indexed (this.types) do
+            for type_ in List.indexed (sortTypes this.types) do
                 result <- result + (printType type_ false)
 
             // print all imports

@@ -217,8 +217,11 @@ let rec mapTypeHeap (t: Type) =
     | TStruct l ->
         let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) l
         Ref(Named(GenStructTypeIDType fieldTypes))
-    | TArray t -> mapTypeHeap t
+    | TArray t -> 
+        let arrType = GenArrayTypeIDType (mapTypeHeap t)
+        NullableRef(Named(arrType))
     | TFun _ -> NullableRef(Named(funcp))
+    | TUnit -> Nullref
     | _ -> (mapType t)[0]
 
 let findBestMatchType (m: Module) (fields: List<string * Type>) =
@@ -1193,8 +1196,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let target' = doCodegen env target m
         let index' = doCodegen env index m
         let length' = doCodegen env { node with Expr = ArrayLength(target) } m
-
-        let arrayType = GenArrayTypeIDType(mapTypeHeap target.Type)
+      
+        let arrayType = match (mapTypeHeap target.Type) with
+                               | Ref(n) -> n
+                               | NullableRef n -> n
+                               | _ -> failwith "not implemented" 
 
         // check that index is bigger then 0 - if not return 42
         // and that index is smaller then length - if not return 42
@@ -1225,7 +1231,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         indexCheck
         ++ (target' + index' + length'.ResetAccCode())
             .ResetAccCode()
-            .AddCode([ (ArrayGet(Named(arrayType), target'.GetAccCode() @ index'.GetAccCode()), "get element") ])
+            .AddCode([ (ArrayGet(arrayType, target'.GetAccCode() @ index'.GetAccCode()), "get element") ])
 
     | ArrayElement(target, index) ->
         let m' = doCodegen env target m
@@ -1753,7 +1759,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let args =
                     (List.map (fun (n) -> (Some(n), (mapTypeHeap node.Env.Vars[n], Mutable))) captured)
 
-                Module().AddTypedef(StructType($"clos_{name}", args))
+                Module().AddTypedef(StructType($"clos_{funLabel}", args))
             else
                 Module()
 
@@ -1923,7 +1929,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
-                .AddLocals([ (Some(Label(varName)), Ref(Named(funcp))) ])
+                .AddLocals([ (Some(Label(varName)), NullableRef(Named(funcp))) ])
                 .AddCode([ Comment "End of let" ])
         | TFun _ ->
             // todo make function pointer
@@ -1965,13 +1971,14 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
-                .AddLocals([ (Some(Label(varName)), Ref(Named(t))) ])
+                .AddLocals([ (Some(Label(varName)), NullableRef(Named(t))) ])
                 .AddCode([ Comment "End of let" ])
         | TArray _ when env.Config.AllocationStrategy = Heap ->
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
 
-            let t = GenArrayTypeIDType(mapTypeHeap init.Type)
+            let tt = mapTypeHeap init.Type
+            let t = GenArrayTypeIDType(tt)
 
             let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
 
@@ -1982,7 +1989,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
-                .AddLocals([ (Some(Label(varName)), Ref(Named(t))) ])
+                .AddLocals([ (Some(Label(varName)), tt) ])
                 .AddCode([ Comment "End of let" ])
         | TStruct _ ->
             let varLabel = Named(varName)
@@ -2101,7 +2108,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let args =
                     (List.map (fun (n) -> (Some(n), (mapTypeHeap node.Env.Vars[n], Mutable))) captured)
 
-                Module().AddTypedef(StructType($"clos_{name}", args))
+                Module().AddTypedef(StructType($"clos_{funLabel}", args))
             else
                 Module()
 
@@ -2699,6 +2706,7 @@ let promoteLocals (m: Module) (upgradeList: list<string>) : Module =
                     | I32 -> I32Const 0
                     | F32 -> F32Const 0.0f
                     | Ref l -> Null l
+                    | NullableRef l -> Null l
                     | _ -> failwith "global type not supported"
 
                 (n, (t, Mutable), (value, "")))

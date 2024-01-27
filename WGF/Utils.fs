@@ -74,15 +74,15 @@ let distinctTypes types =
         (types)
 
 
-let formatStructString (tl: ValueType list) : string =
+let formatStructString (tl: list<string * ValueType>) : string =
 
     let l =
         List.fold
-            (fun str (i, x: ValueType) -> str + (if i > 0 then "-" else "") + $"{x.ToString()}")
+            (fun str (i, (n, x: ValueType)) -> str + (if i > 0 then "|" else "") + $"{n.ToString()}-{x.ToString()}")
             ""
             (List.indexed tl)
 
-    $"s_{l}"
+    $"s|{l}"
 
 /// generate struct type string
 /// <summary>Generate struct type name</summary>
@@ -90,13 +90,13 @@ let formatStructString (tl: ValueType list) : string =
 /// <returns>Struct type name</returns>
 /// <example>
 let GenStructTypeID (t: list<string * ValueType>) : string =
-    let fieldTypes = List.map (fun (_, t) -> t) t
-    formatStructString fieldTypes
+    // let fieldTypes = List.map (fun (n, t) -> t) t
+    formatStructString t
 
 let GenStructTypeIDType (t: list<string * ValueType>) : string =
     // let fieldNames = List.map (fun (n, _) -> n) t
-    let fieldTypes = List.map (fun (_, t) -> t) t
-    formatStructString fieldTypes
+    // let fieldTypes = List.map (fun (_, t) -> t) t
+    formatStructString t
 
 let GenArrayTypeIDType (vt: ValueType) = $"arr_{vt}"
 
@@ -123,3 +123,29 @@ let createStructType (fields: list<string * ValueType>) =
     let typeId = GenStructTypeIDType fields
 
     StructType(typeId, typeParams)
+
+
+/// sort types by function type and (struct type, array type)
+/// <summary>Sort types by function type and (struct type, array type), functions is last</summary>
+/// <param name="types">List of types</param>
+/// <returns>Sorted list of types</returns>
+/// <example>
+let sortTypes (types: TypeDef list) =
+    let funcTypes =
+        types
+        |> List.filter
+            (fun t ->
+                match t with
+                | FuncType(_, _) -> true
+                | _ -> false)
+
+    let otherTypes =
+        types
+        |> List.filter
+            (fun t ->
+                match t with
+                | StructType(_, _) -> true
+                | ArrayType(_, _) -> true
+                | _ -> false)
+
+    otherTypes @ funcTypes

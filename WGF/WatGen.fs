@@ -12,8 +12,17 @@ let commentS (b: string) =
     if b.Length > 0 then $" ;; %s{b}" else ""
 
 let resultPrint x =
+
+    let mapres = fun x ->
+        match x with
+        | Ref(l) -> $"(result (ref {l.ToString()}))"
+        | Eq -> $"(result (ref null eq))"
+        | NullableRef(l) -> $"(result (ref null {l.ToString()}))"
+        | Nullref -> $""
+        | _ -> $"(result %s{x.ToString()})"
+
     // print all value types as wasm result
-    List.fold (fun acc x -> acc + $"(result %s{x.ToString()})") "" x
+    List.fold (fun acc x -> acc + mapres x) "" x
 
 // create functions
 let generate_signature signature (comment: string) =
@@ -37,6 +46,7 @@ let generate_signature signature (comment: string) =
     let retPrint t =
         match t with
         | Ref(l) -> $"(result (ref {l.ToString()}))"
+        | Nullref -> $""
         | _ -> $"(result %s{t.ToString()})"
 
     let returnValuesString =
@@ -110,6 +120,7 @@ let printType (i: int, t) (withName: bool) =
             | Ref(l) -> $"(result (ref {l.ToString()}))"
             | Eq -> $"(result (ref null eq))"
             | NullableRef(l) -> $"(result (ref null {l.ToString()}))"
+            | Nullref -> $""
             | _ -> $"(result %s{t.ToString()})"
 
         let returnValuesString =
