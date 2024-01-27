@@ -1,34 +1,46 @@
 (module
-  (type $s_i32-eqref (;0;) (struct (field $func (mut i32)) (field $cenv (mut eqref))))
-  (type $eq_i32_=>_i32 (;1;) (func (param (ref null eq)) (param i32) (result i32)))
+  (type $s_i32-f32-i32 (;0;) (struct (field $i (mut i32)) (field $a (mut f32)) (field $b (mut i32))))
   (memory (;0;) (export "memory") 1)
   (global $exit_code (;0;) (mut i32) (i32.const 0))
-  (global $fun_g*ptr (;1;) (mut (ref null $s_i32-eqref)) (ref.null $s_i32-eqref))
-  (global $heap_base (;2;) (mut i32) (i32.const 0))
-  (table $func_table (;0;) 1 funcref)
-  (elem (i32.const 0) (;0;) $fun_g)
+  (global $heap_base (;1;) (mut i32) (i32.const 0))
+  (global $var_s (;2;) (mut (ref null $s_i32-f32-i32)) (ref.null $s_i32-f32-i32))
+  (global $var_s1 (;3;) (mut (ref null $s_i32-f32-i32)) (ref.null $s_i32-f32-i32))
   (func $_start (;0;)   
     ;; execution start here:
-    (global.set $fun_g*ptr
-      (struct.new $s_i32-eqref
-        (i32.const 0) ;; put function index on stack
-        (ref.null eq) ;; null ref
+    ;; Start of let
+    (global.set $var_s ;; set local var, have been promoted
+      (struct.new $s_i32-f32-i32
+        (i32.const 42) ;; push 42 on stack
+        (f32.const 93.199997) ;; push 93.199997 on stack
+        (i32.const 90) ;; push 90 on stack
+      )
+    )
+    ;; Start of let
+    (global.set $var_s1 ;; set local var, have been promoted
+      (struct.new $s_i32-f32-i32
+        (i32.const 42) ;; push 42 on stack
+        (f32.const 93.199997) ;; push 93.199997 on stack
+        (i32.const 90) ;; push 90 on stack
+      )
+    )
+    (drop ;; drop value of subtree
+      (struct.set $s_i32-f32-i32 $b ;; set field: b
+        (global.get $var_s) ;; get local var: var_s, have been promoted
+        (i32.const 100) ;; push 100 on stack
+      )
+      (struct.get $s_i32-f32-i32 $b ;; get field: b
+        (global.get $var_s) ;; get local var: var_s, have been promoted
       )
     )
     (if 
       (i32.eqz ;; invert assertion
         (i32.eq ;; equality check
-          ;; Load expression to be applied as a function
-          (call_indirect (type $eq_i32_=>_i32) ;; call function
-            (struct.get $s_i32-eqref 1 ;; load closure environment pointer
-              (global.get $fun_g*ptr) ;; get global var: fun_g*ptr
-            )
-            (i32.const 10) ;; push 10 on stack
-            (struct.get $s_i32-eqref 0 ;; load table index
-              (global.get $fun_g*ptr) ;; get global var: fun_g*ptr
-            )
+          ;; Start of field select
+          (struct.get $s_i32-f32-i32 2 ;; load field: b
+            (global.get $var_s) ;; get local var: var_s, have been promoted
           )
-          (i32.const 50) ;; push 50 on stack
+          ;; End of field select
+          (i32.const 100) ;; push 100 on stack
         )
       )
       (then
@@ -38,33 +50,45 @@
         (unreachable) ;; exit program
       )
     )
-    ;; if execution reaches here, the program is successful
-  )
-  (func $fun_g (;1;) (param $cenv (ref null eq)) (param $arg_z i32) (result i32) 
-    (if (result i32)
-      (i32.lt_s
-        (local.get $arg_z) ;; get local var: arg_z
-        (i32.const 50) ;; push 50 on stack
-      )
-      (then
-        ;; Load expression to be applied as a function
-        (call_indirect (type $eq_i32_=>_i32) ;; call function
-          (struct.get $s_i32-eqref 1 ;; load closure environment pointer
-            (global.get $fun_g*ptr) ;; get global var: fun_g*ptr
+    (if 
+      (i32.eqz ;; invert assertion
+        (i32.eq ;; equality check
+          ;; Start of field select
+          (struct.get $s_i32-f32-i32 0 ;; load field: i
+            (global.get $var_s) ;; get local var: var_s, have been promoted
           )
-          (i32.add
-            (local.get $arg_z) ;; get local var: arg_z
-            (i32.const 1) ;; push 1 on stack
-          )
-          (struct.get $s_i32-eqref 0 ;; load table index
-            (global.get $fun_g*ptr) ;; get global var: fun_g*ptr
-          )
+          ;; End of field select
+          (i32.const 42) ;; push 42 on stack
         )
       )
-      (else
-        (local.get $arg_z) ;; get local var: arg_z
+      (then
+        (global.set $exit_code ;; set exit code
+          (i32.const 42) ;; error exit code push to stack
+        )
+        (unreachable) ;; exit program
       )
     )
+    (if 
+      (i32.eqz ;; invert assertion
+        (f32.eq ;; equality check
+          ;; Start of field select
+          (struct.get $s_i32-f32-i32 1 ;; load field: a
+            (global.get $var_s) ;; get local var: var_s, have been promoted
+          )
+          ;; End of field select
+          (f32.const 93.199997) ;; push 93.199997 on stack
+        )
+      )
+      (then
+        (global.set $exit_code ;; set exit code
+          (i32.const 42) ;; error exit code push to stack
+        )
+        (unreachable) ;; exit program
+      )
+    )
+    ;; End of let
+    ;; End of let
+    ;; if execution reaches here, the program is successful
   )
   (export "_start" (func $_start))
   (export "exit_code" (global $exit_code))
