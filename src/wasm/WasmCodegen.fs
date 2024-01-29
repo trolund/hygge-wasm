@@ -678,6 +678,23 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         (m'.ResetAccCode() + m''.ResetAccCode())
             .AddCode([ (opcode (m'.GetAccCode() @ m''.GetAccCode()), "") ])
+
+    | ReadInt when env.Config.Si = WASI ->
+        let ptr = env.MemoryAllocator.Allocate(3 * 4)
+        let dataString = Util.dataString [ ptr + 8; 1; 0 ]
+
+        let drop = [ Drop([ (Call("fd_read", C [I32Const 0; I32Const ptr; I32Const 1; I32Const (ptr + 4)]), "call host function") ]) ]
+
+        m
+            .ResetAccCode()
+            .AddData((I32Const(ptr), ""), dataString) // store pointer an length in memory
+            .AddImport(
+                    ("wasi_snapshot_preview1",
+                     "fd_read",
+                     FunctionType("fd_read", Some([ (None, I32); (None, I32); (None, I32); (None, I32) ], [ I32 ])))
+                )
+            .AddCode(drop) // call host function
+            .AddCode([ (I32Load_(None, Some(8), C [I32Const ptr]), "load string length") ]) // load int from memory
     | ReadInt ->
         // perform host (system) call
         m

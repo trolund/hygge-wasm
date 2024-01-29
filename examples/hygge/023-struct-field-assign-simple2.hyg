@@ -1,0 +1,2 @@
+let s: struct {f: int} = struct {f = 1 + 2; g = true};
+assert(s.f = 3)

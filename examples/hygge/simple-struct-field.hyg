@@ -1,5 +1,4 @@
 let s: struct {i: int; a: float; b: int} = struct {i = 42; a = 93.2f; b = 90};
-let s1: struct {f: int; a: float; b: int} = struct {f = 42; a = 93.2f; b = 90};
 s.b <- 100;
 assert(s.b = 100);
 assert(s.i = 42);

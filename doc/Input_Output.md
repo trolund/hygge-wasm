@@ -82,3 +82,27 @@ println("Hello, World!")
   (export "_start" (func $main))
 )
 ```
+
+## Read to console with WASI
+
+```wat
+(module
+  (import "wasi_snapshot_preview1" "fd_read" (func $fd_read (param i32 i32 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 8) "Hello, WASI!\n")
+
+  (func $main (result i32)
+    (i32.store (i32.const 0) (i32.const 8))  ;; iov.iov_base - This is a pointer to the start of the 'hello world\n' string
+    (i32.store (i32.const 4) (i32.const 13))  ;; iov.iov_len - The length of the 'hello world\n' string
+    
+    (call $fd_read
+      (local.get $stdin_fd)
+      (local.get $iov_ptr)
+      (i32.const 1)  ;; number of iovecs
+      (local.get $nread_ptr)
+    )
+  )
+
+  (export "_start" (func $main))
+)
+```
