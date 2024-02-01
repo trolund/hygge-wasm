@@ -1,4 +1,4 @@
-println("Please insert two integer values:");
+println("Please insert one integer values:");
 let x: int = readInt();
 
 if (x > 5) then {

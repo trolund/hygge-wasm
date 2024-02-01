@@ -737,28 +737,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                       ) ]
                 )
         | _ ->
-            // import writeInt function
-            // import writeS function
-            m'
-                .ResetAccCode()
-                .AddImport(
-                    ("wasi_snapshot_preview1",
-                     "fd_write",
-                     FunctionType("fd_write", Some([ (None, I32); (None, I32); (None, I32); (None, I32) ], [ I32 ])))
-                )
-                .AddCode(
-                    [ Drop(
-                          [ (Call(
-                                "fd_write", // push string pointer to stack
-                                [ (I32Const 1, "1 for stdout") ]
-                                @ m'.GetAccCode()
-                                @ [ (I32Add([ (I32Const 4, "offset to length") ] @ m'.GetAccCode()),
-                                     "Load string length")
-                                    (I32Const 0, "1 for stdout") ]
-                             ),
-                             "call host function") ]
-                      ) ]
-                )
+            failwith "WASI print int is not implemented"
     | PrintLn e
     | Print e ->
         let m' = doCodegen env e m
