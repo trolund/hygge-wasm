@@ -11,20 +11,10 @@ Denmark.
 
 ## Software Requirements
 
-  * .NET 6.0 (for compiling and running `hyggec`)
-    - On Ubuntu and Debian GNU/Linux: `apt install dotnet6`
-    - On MacOS: `brew install dotnet@6`
+  * .NET 8.0 (for compiling and running `hyggec`)
+    - On Ubuntu and Debian GNU/Linux: `apt install dotnet8`
+    - On MacOS: `brew install dotnet@8`
     - On Windows: <https://dotnet.microsoft.com/en-us/download>
- 
-  * Java Runtime Environment, preferably version 17 (for running the included
-    copy of [RARS, the RISC-V Assembler and Runtime Simulator](https://github.com/TheThirdOne/rars))
-    - On Ubuntu and Debian GNU/Linux: `apt install openjdk-17-jre`
-    - On MacOS: `brew install openjdk@17`
-    - On Windows: <https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html>
-
-**NOTE:** you will need to have both the `dotnet` and `java` programs in your
-[executable PATH](https://janelbrandon.medium.com/understanding-the-path-variable-6eae0936e976) (their installation scripts should
-take care of it).
 
 ## Quick Start
 
@@ -81,3 +71,4 @@ These Visual Studio Code extensions are very helpful when working on `hyggec`:
 
   * [Ionide for F#](https://marketplace.visualstudio.com/items?itemName=Ionide.Ionide-fsharp)
   * [FSharp fsl and fsy](https://marketplace.visualstudio.com/items?itemName=mnxn.fsharp-fsl-fsy)
+  * [WebAssembly](https://marketplace.visualstudio.com/items?itemName=dtsvet.vscode-wasm)
