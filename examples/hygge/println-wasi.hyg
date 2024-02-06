@@ -1,0 +1,21 @@
+let s: string = "hygge println test";
+println(s);
+assert(stringLength(s) = 18);
+
+let s2: string = "hygge print test";
+print(s2)
+
+// can not be printed by wasi
+// let s3: string = "𝄞𝄞𝄞 - hygge print test";
+// print(s3);
+// assert(stringLength(s3) = 25)
+
+// works in chrome not in wasmtime
+// let s4: string = "✅";
+// print(s4)
+
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/length
+
+// const str = '𝄞𝄞𝄞 - hygge print test';
+
+// console.log(`${str} ${str.length}`);

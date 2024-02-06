@@ -44,12 +44,12 @@ let internal runRARS tast expected =
 let runWasmModule asm expected (name: string) =
 
     let explainExpected = RARS.explainExitCode expected
-
     // TODO: get args from cli input
-    let vm = WasmVM(true, true)
+    let vm: IWasmVM = WasmVM(true, true)
     let exit: int = vm.RunWatString(asm.ToString(), name) :?> int
     Log.debug (sprintf "WasmTime exit code: %d" exit)
     let explainExit = RARS.explainExitCode exit
+    vm.Dispose();
 
     Expect.equal
         exit
@@ -58,7 +58,8 @@ let runWasmModule asm expected (name: string) =
          + $"WasmTime should have exited with code %d{expected} (%s{explainExpected}), "
          + $"got %d{exit} (%s{explainExit})")
 
-let output = true
+// output all compiled files to the data directory
+let output = false
 
 let internal WasmPrepareTest tast expected (name: string) (peep: bool) (style: WritingStyle) (config: CompileConfig) =
     let asm =

@@ -16,14 +16,14 @@ let insertionSort: (array{int}) -> unit = fun(arr: array{int}) -> {
     }
 };
 
-// let printArray: (array{int}) -> unit = fun(arr: array{int}) -> {
-//     let mutable x: int = 0; // read input
+let printArray: (array{int}) -> unit = fun(arr: array{int}) -> {
+    let mutable x: int = 0; // read input
 
-//     do { // do-while to print array data
-//         println(arrayElem(arr, x)); // read array element
-//         x <- x + 1 // increment
-//     } while (x < arrayLength(arr)) // read length of array as part of condition to print array data
-// };
+    do { // do-while to print array data
+        println(arrayElem(arr, x)); // read array element
+        x <- x + 1 // increment
+    } while (x < arrayLength(arr)) // read length of array as part of condition to print array data
+};
 
 // initialize array
 let arr: array {int} = array(10, 0);
@@ -42,7 +42,7 @@ arrayElem(arr, 9) <- 80;
 
 // print initial array
 println("😰 initial array:");
-// printArray(arr);
+printArray(arr);
 println("🤔 sorting array... (insertion sort)");
 // sort array
 
@@ -51,7 +51,7 @@ insertionSort(arr);
 println("--------------------------------------");
 println("✅ sorted array:");
 // print sorted array
-// printArray(arr);
+printArray(arr);
 
 // assert that list is sorted correctly
 assert(arrayElem(arr, 0) = 3);

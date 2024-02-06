@@ -31,8 +31,8 @@ namespace WasmTimeDriver
             this._allocator = new MemoryAllocator(1, debug);
 
             var config = new Config()
-                .WithDebugInfo(true)
-                .WithCraneliftDebugVerifier(true)
+                // .WithDebugInfo(true)
+                // .WithCraneliftDebugVerifier(true)
                 .WithOptimizationLevel(0);
 
             _engine = new Engine(config);
@@ -320,7 +320,7 @@ namespace WasmTimeDriver
                     if (debug) Console.WriteLine("No exit code found");
                 }
             }
-            catch (Exception e)
+            catch
             {
                 // mashine trap error code
                 // Console.WriteLine($"Machine trap error: {e}");
@@ -329,19 +329,13 @@ namespace WasmTimeDriver
             return 0;
         }
 
-        private int GetExitCode(Instance instance) {
-                try
-                {
-                    var exitCode = instance.GetGlobal("exit_code").GetValue();
-                    return Int32.Parse(exitCode.ToString());
-                }
-                catch (Exception _)
-                {
-                    if (debug) Console.WriteLine("No exit code found");
-                    return 100;
-                }
-        }
+        public void Dispose()
+        {
+            _engine.Dispose();
+            _store.Dispose();
+            _linker.Dispose();
 
+        }
     }
 
 }

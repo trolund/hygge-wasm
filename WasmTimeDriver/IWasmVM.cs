@@ -9,6 +9,7 @@
 		public object?[] RunFileTimes(string path, int n);
 		object? RunWatString(string target, string wat, string name = "unknown");
 		object? RunWatString(string wat, string name = "unknown");
+		void Dispose();
 	}
 }
 
