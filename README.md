@@ -1,13 +1,8 @@
 # HyggeWasm - The Hygge to WebAssembly compiler
 
-This is the source code `hyggec`, the didactic compiler for the Hygge
-programming language.
+This is the source code HyggeWasm, the WebAssembly compiler for the Hygge programming language. HyggeWasm is based on `hyggec` by Alceste Scalas.
 
-Hygge and `hyggec` have been designed and developed as learning tools for the
-course *02247 Compiler Construction* at DTU Compute - Technical University of
-Denmark.
-
-`hyggec` is released under the terms of the [MIT license](LICENSE.md).
+HyggeWasm has been developed as part of the master thesis "Design and Implementation of a WebAssembly Compiler Back-End for the High-Level Programming Language Hygge" by Troels Lund at Technical University of Denmark. (DTU).
 
 ## Software Requirements
 
