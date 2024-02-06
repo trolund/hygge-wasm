@@ -407,7 +407,7 @@ let run (opts: CmdLine.TestOptions) : int =
         | null -> []
         | f -> [ "--filter"; $"tests.%s{f}" ]
 
-    let args = argsDebug @ output @ argsFilter
+    let args = argsDebug @ output @ argsFilter @ ["--no-spinner"]
     Expecto.Tests.runTestsWithCLIArgs [] (Array.ofList args) tests
 
 /// Run the tests according to command line options
