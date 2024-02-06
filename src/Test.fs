@@ -15,12 +15,16 @@ open hyggec.Config
 
 
 /// Collect and sort the test files in a test directory.
+/// Collect and sort the test files in a test directory.
 let internal getFilesInTestDir paths =
+    // FIXME: workaround to fix the current diretory when running 'dotnet test'
+    // See: https://github.com/microsoft/vstest/issues/2004
+    let dllPath = System.Reflection.Assembly.GetExecutingAssembly().Location
+    let newPath = System.IO.Path.Combine(dllPath, "../../../..")
+    System.IO.Directory.SetCurrentDirectory(newPath)
+
     let curDir = System.IO.Directory.GetCurrentDirectory()
-
-    let dir =
-        List.toArray (curDir :: "tests" :: paths) |> System.IO.Path.Combine
-
+    let dir = List.toArray(curDir :: "tests" :: paths) |> System.IO.Path.Combine
     System.IO.Directory.EnumerateFiles(dir, "*.hyg") |> Seq.toList |> List.sort
 
 
@@ -59,7 +63,7 @@ let runWasmModule asm expected (name: string) =
          + $"got %d{exit} (%s{explainExit})")
 
 // output all compiled files to the data directory
-let output = false
+let writeFiles = false
 
 let internal WasmPrepareTest tast expected (name: string) (peep: bool) (style: WritingStyle) (config: CompileConfig) =
     let asm =
@@ -70,7 +74,7 @@ let internal WasmPrepareTest tast expected (name: string) (peep: bool) (style: W
             (hyggec.WASMCodegen.codegen tast (Some(config))).ToWat(style)
 
     // Createfile
-    if (output) then
+    if (writeFiles) then
         Utils.Createfile(name, asm, style)
 
     runWasmModule asm expected name

@@ -12,7 +12,7 @@
     <FsLexOutputFolder>src/</FsLexOutputFolder>
     <FsYaccOutputFolder>src/</FsYaccOutputFolder>
     <!-- Build settings -->
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <GenerateProgramFile>false</GenerateProgramFile>
     <LangVersion>preview</LangVersion>
     <Title>A didactic compiler for the Hygge programming language producing Wasm</Title>
