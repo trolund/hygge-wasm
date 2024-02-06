@@ -1,4 +1,4 @@
-# hyggec - the Didactic Compiler for Hygge
+# HyggeWasm - The Hygge to WebAssembly compiler
 
 This is the source code `hyggec`, the didactic compiler for the Hygge
 programming language.
@@ -15,6 +15,12 @@ Denmark.
     - On Ubuntu and Debian GNU/Linux: `apt install dotnet8`
     - On MacOS: `brew install dotnet@8`
     - On Windows: <https://dotnet.microsoft.com/en-us/download>
+
+# Useful tools
+
+* [WABT](https://github.com/WebAssembly/wabt)
+* [wasm-tools](https://github.com/bytecodealliance/wasm-tools)
+* [WasmTime](https://docs.wasmtime.dev/cli-install.html)
 
 ## Quick Start
 
@@ -65,6 +71,8 @@ To clean up the results of a build, you can run:
 dotnet clean
 ```
 
+
+
 ## Recommended Visual Studio Code Extensions
 
 These Visual Studio Code extensions are very helpful when working on `hyggec`:
@@ -72,3 +80,31 @@ These Visual Studio Code extensions are very helpful when working on `hyggec`:
   * [Ionide for F#](https://marketplace.visualstudio.com/items?itemName=Ionide.Ionide-fsharp)
   * [FSharp fsl and fsy](https://marketplace.visualstudio.com/items?itemName=mnxn.fsharp-fsl-fsy)
   * [WebAssembly](https://marketplace.visualstudio.com/items?itemName=dtsvet.vscode-wasm)
+
+
+# Use of the CLI
+
+## Run test suite
+The CLI lets the user run the test suite.
+
+    ./hyggec test
+
+## Compile Hygge program
+
+    ./hyggec <path to hygge program> -s l -o <path to wat output file> -e -i 0 -m 1
+
+| Flag | Description               | Input's                                           |
+|------|---------------------------|---------------------------------------------------|
+| _    | Input                     | path to hygge program                             |
+| -s   | Writring style            | linar ("l") or folded ("f")                       |
+| -o   | Output file               | Path to wat output file                           |
+| -i   | System interface          | 0 - HyggeSI or 1 - WASI                           |
+| -m   | Memory mode               | 0 - External or 1 - Internal or 2 - Heap (WasmGC) |
+| -e   | Execute after compilation| _                                                 |
+
+## Run .wat file standalone
+
+The CLI lets the user run the ’.wat’-file with WasmTime and the HyggeWasm runtime.
+        
+        
+    ./hyggec wasm test.wat

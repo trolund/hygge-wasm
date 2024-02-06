@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!-- General -->
-    <AssemblyName>hyggec</AssemblyName>
+    <AssemblyName>hyggeWasm</AssemblyName>
     <Version>0.0.3</Version>
-    <Description>A didactic compiler for the Hygge programming language. Based on work of Alceste Scalas.</Description>
+    <Description>A WebAssembly compiler for the Hygge programming language. Based on work of Alceste Scalas.</Description>
     <Copyright>Copyright 2023 DTU - Technical University of Denmark</Copyright>
     <Authors>Troels Lund</Authors>
     <OutputType>Exe</OutputType>
@@ -15,8 +15,9 @@
     <TargetFramework>net8.0</TargetFramework>
     <GenerateProgramFile>false</GenerateProgramFile>
     <LangVersion>preview</LangVersion>
-    <Title>A didactic compiler for the Hygge programming language producing Wasm</Title>
+    <Title>A didactic compiler for the Hygge programming language producing WebAssembly (Wasm)</Title>
     <Company>Troels Lund</Company>
+    <RootNamespace>hyggeWasm</RootNamespace>
     <!-- Reverse indexes in Parser.fsy -->
   </PropertyGroup>
   <ItemGroup>
