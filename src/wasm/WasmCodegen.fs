@@ -217,8 +217,8 @@ let rec mapTypeHeap (t: Type) =
     | TStruct l ->
         let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) l
         Ref(Named(GenStructTypeIDType fieldTypes))
-    | TArray t -> 
-        let arrType = GenArrayTypeIDType (mapTypeHeap t)
+    | TArray t ->
+        let arrType = GenArrayTypeIDType(mapTypeHeap t)
         NullableRef(Named(arrType))
     | TFun _ -> NullableRef(Named(funcp))
     | TUnit -> Nullref
@@ -683,22 +683,25 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let ptr = env.MemoryAllocator.Allocate(3 * 4)
         let dataString = Util.dataString [ ptr + 8; 1; 0 ]
 
-        let drop = [ Drop([ (Call("fd_read", C [I32Const 0; I32Const ptr; I32Const 1; I32Const (ptr + 4)]), "call host function") ]) ]
+        let drop =
+            [ Drop(
+                  [ (Call("fd_read", C [ I32Const 0; I32Const ptr; I32Const 1; I32Const(ptr + 4) ]),
+                     "call host function") ]
+              ) ]
 
         m
             .ResetAccCode()
             .AddData((I32Const(ptr), ""), dataString) // store pointer an length in memory
             .AddImport(
-                    ("wasi_snapshot_preview1",
-                     "fd_read",
-                     FunctionType("fd_read", Some([ (None, I32); (None, I32); (None, I32); (None, I32) ], [ I32 ])))
-                )
+                ("wasi_snapshot_preview1",
+                 "fd_read",
+                 FunctionType("fd_read", Some([ (None, I32); (None, I32); (None, I32); (None, I32) ], [ I32 ])))
+            )
             .AddCode(drop) // call host function
-            .AddCode([ (I32Load_(None, Some(8), C [I32Const ptr]), "load string length") ]) // load int from memory
+            .AddCode([ (I32Load_(None, Some(8), C [ I32Const ptr ]), "load string length") ]) // load int from memory
     | ReadInt ->
         // perform host (system) call
-        m
-            .ResetAccCode()
+        m.ResetAccCode()
             .AddImport(getImport "readInt") // import readInt function
             .AddCode([ (Call("readInt", m.GetAccCode()), "call host function") ]) // call host function
     | ReadFloat ->
@@ -736,8 +739,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                              "call host function") ]
                       ) ]
                 )
-        | _ ->
-            failwith "WASI print int is not implemented"
+        | _ -> failwith "WASI print int is not implemented"
     | PrintLn e
     | Print e ->
         let m' = doCodegen env e m
@@ -1192,11 +1194,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let target' = doCodegen env target m
         let index' = doCodegen env index m
         let length' = doCodegen env { node with Expr = ArrayLength(target) } m
-      
-        let arrayType = match (mapTypeHeap target.Type) with
-                               | Ref(n) -> n
-                               | NullableRef n -> n
-                               | _ -> failwith "not implemented" 
+
+        let arrayType =
+            match (mapTypeHeap target.Type) with
+            | Ref(n) -> n
+            | NullableRef n -> n
+            | _ -> failwith "not implemented"
 
         // check that index is bigger then 0 - if not return 42
         // and that index is smaller then length - if not return 42
@@ -2087,7 +2090,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
         /// The function pointer to this function is added to var storage to allow for recursive calls
-        let env' = { env with VarStorage = env.VarStorage.Add(name, Storage.Global ptr_label) }
+        let env' =
+            { env with
+                VarStorage = env.VarStorage.Add(name, Storage.Global ptr_label) }
 
         // add each arg to var storage (all local vars)
         let env'' = addArgsToEnv env' args
@@ -2169,7 +2174,9 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         /// Storage info where the name of the compiled function points to the
         /// label 'funLabel'
-        let env' = { env with VarStorage =  env.VarStorage.Add(name, Storage.Global ptr_label) }
+        let env' =
+            { env with
+                VarStorage = env.VarStorage.Add(name, Storage.Global ptr_label) }
 
         // add each arg to var storage (all local vars)
         let env'' = addArgsToEnv env' args
@@ -2796,3 +2803,30 @@ let codegen (node: TypedAST) (config: CompileConfig option) : Module =
 
     // hoist all top level locals to global vars
     promoteLocals topLevelModule (h @ l)
+
+
+// function that determines if a function is a tail function
+// let rec isTailRecursive (func : TypedAST) (funcName: string) (m: Module) =
+//     let rec checkExpression (expr : TypedAST) =
+//         match expr.Expr with
+//         | LetRec(_, _, _, scope, _) ->
+//             checkExpression scope
+//         | Application _ ->
+            
+
+//             if callExpr.TargetFunction = func.Name then
+//                 true
+//             else
+//                 Array.exists checkExpression callExpr.Arguments
+//         | _ -> false
+    
+//     let rec checkBody (body : SyntaxTree.Expr) =
+//         match body with
+//         | :? SyntaxTree.SeqExpr as seqExpr ->
+//             Array.exists checkExpression seqExpr.Expressions
+//         | _ -> checkExpression body
+    
+//     checkBody func.Expr
+
+
+
