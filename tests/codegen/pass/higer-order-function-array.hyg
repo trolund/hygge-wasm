@@ -1,0 +1,57 @@
+fun doOperation(arr: array{int}, input: int, operation: (int, int) -> int): unit = {
+    let mutable x: int = 0; 
+    do { 
+        let value: int = arrayElem(arr, x);
+        arrayElem(arr, x) <- operation(value, input);
+        x <- x + 1
+    } while (x < arrayLength(arr)) 
+};
+
+fun add (a: int, b: int): int = {
+    a + b
+};
+
+fun mult (a: int, b: int): int = {
+    a * b
+};
+
+// initialize array
+let arr: array {int} = array(10, 0);
+
+// insert random values
+arrayElem(arr, 0) <- 50000;
+arrayElem(arr, 1) <- -3;
+arrayElem(arr, 2) <- -11;
+arrayElem(arr, 3) <- 22;
+arrayElem(arr, 4) <- 45;
+arrayElem(arr, 5) <- 61;
+arrayElem(arr, 6) <- 100;
+arrayElem(arr, 7) <- 200;
+arrayElem(arr, 8) <- 34;
+arrayElem(arr, 9) <- 80;
+
+doOperation(arr, 5, add);
+
+assert(arrayElem(arr, 0) = 50005);
+assert(arrayElem(arr, 1) = 2);
+assert(arrayElem(arr, 2) = -6);
+assert(arrayElem(arr, 3) = 27);
+assert(arrayElem(arr, 4) = 50);
+assert(arrayElem(arr, 5) = 66);
+assert(arrayElem(arr, 6) = 105);
+assert(arrayElem(arr, 7) = 205);
+assert(arrayElem(arr, 8) = 39);
+assert(arrayElem(arr, 9) = 85);
+
+doOperation(arr, 5, mult);
+
+assert(arrayElem(arr, 0) = 250025);
+assert(arrayElem(arr, 1) = 10);
+assert(arrayElem(arr, 2) = -30);
+assert(arrayElem(arr, 3) = 135);
+assert(arrayElem(arr, 4) = 250);
+assert(arrayElem(arr, 5) = 330);
+assert(arrayElem(arr, 6) = 525);
+assert(arrayElem(arr, 7) = 1025);
+assert(arrayElem(arr, 8) = 195);
+assert(arrayElem(arr, 9) = 425)
