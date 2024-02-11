@@ -1,0 +1,27 @@
+fun doOperation(x: int, y: int, operation: (int, int) -> int): int = {
+    operation(x, y)
+};
+
+fun add (a: int, b: int): int = {
+    a + b
+};
+
+assert(doOperation(5, 3, add) = 8);       // Output: 8
+
+fun subtract (a: int, b: int): int = {
+    a - b
+};
+
+assert(doOperation(5, 3, subtract) = 2);  // Output: 2
+
+fun multiply (a: int, b: int): int = {
+    a * b
+};
+
+assert(doOperation(5, 3, multiply) = 15); // Output: 15
+
+fun divide (a: int, b: int): int = {
+    a / b
+};
+
+assert(doOperation(5, 3, divide) = 1)    // Output: 1
