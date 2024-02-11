@@ -63,7 +63,7 @@ let runWasmModule asm expected (name: string) =
          + $"got %d{exit} (%s{explainExit})")
 
 // output all compiled files to the data directory
-let writeFiles = false
+let writeFiles = true
 
 let internal WasmPrepareTest tast expected (name: string) (peep: bool) (style: WritingStyle) (config: CompileConfig) =
     let asm =
