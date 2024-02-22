@@ -1,0 +1,13 @@
+let n: int = readInt(); // read the input
+// define a recursive function to calculate the nth term of the Fibonacci sequence
+fun fibRec(n: int): int = { 
+    if (n <= 1) then {
+        n
+    } 
+    else {
+        fibRec(n - 1) + fibRec(n - 2)
+    }
+};
+// print the result
+println("The term of the Fibonacci sequence is:");
+println(fibRec(n))

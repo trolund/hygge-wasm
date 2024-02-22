@@ -3,7 +3,6 @@ let n: int = 16;
 
 let mutable t0: int = 0;   // First term in the Fibonacci sequence
 let mutable t1: int = 1;   // Second term in the Fibonacci sequence
-
 println(t0);
 println(t1);
 

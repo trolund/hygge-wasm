@@ -2803,30 +2803,3 @@ let codegen (node: TypedAST) (config: CompileConfig option) : Module =
 
     // hoist all top level locals to global vars
     promoteLocals topLevelModule (h @ l)
-
-
-// function that determines if a function is a tail function
-// let rec isTailRecursive (func : TypedAST) (funcName: string) (m: Module) =
-//     let rec checkExpression (expr : TypedAST) =
-//         match expr.Expr with
-//         | LetRec(_, _, _, scope, _) ->
-//             checkExpression scope
-//         | Application _ ->
-            
-
-//             if callExpr.TargetFunction = func.Name then
-//                 true
-//             else
-//                 Array.exists checkExpression callExpr.Arguments
-//         | _ -> false
-    
-//     let rec checkBody (body : SyntaxTree.Expr) =
-//         match body with
-//         | :? SyntaxTree.SeqExpr as seqExpr ->
-//             Array.exists checkExpression seqExpr.Expressions
-//         | _ -> checkExpression body
-    
-//     checkBody func.Expr
-
-
-
