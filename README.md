@@ -1,8 +1,10 @@
 # HyggeWasm - The Hygge to WebAssembly compiler
 
-This is the source code `HyggeWasm`, the WebAssembly compiler for the Hygge programming language. HyggeWasm is based on `hyggec` by Alceste Scalas.
+This is the source code of the `HyggeWasm` compiler. `HyggeWasm` is a WebAssembly compiler for the Hygge programming language. `HyggeWasm` has been developed as part of the master thesis "Design and Implementation of a WebAssembly Compiler Back-End for the High-Level Programming Language Hygge" by Troels Lund at Technical University of Denmark. (DTU).
 
-HyggeWasm has been developed as part of the master thesis "Design and Implementation of a WebAssembly Compiler Back-End for the High-Level Programming Language Hygge" by Troels Lund at Technical University of Denmark. (DTU).
+The `HyggeWasm` compiler is based on `hyggec` and uses the Hygge programming language as the the *source language*. `hyggec` and Hygge programming language was created by Alceste Scalas at DTU. 
+
+<img src="img/logo.svg" width="250">
 
 ## Software Requirements
 
@@ -11,11 +13,17 @@ HyggeWasm has been developed as part of the master thesis "Design and Implementa
     - On MacOS: `brew install dotnet@8`
     - On Windows: <https://dotnet.microsoft.com/en-us/download>
 
-# Useful tools
+## Useful tools
 
 * [WABT](https://github.com/WebAssembly/wabt)
 * [wasm-tools](https://github.com/bytecodealliance/wasm-tools)
 * [WasmTime](https://docs.wasmtime.dev/cli-install.html)
+
+## Examples
+
+The folder *examples/hygge* contain a variety of example Hygge programs. 
+
+Futhermore can programs found in the *tests* be used for inspiration. 
 
 ## Quick Start
 
