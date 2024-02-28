@@ -177,7 +177,7 @@ The CLI lets the user run the ’.wat’-file with WasmTime and the HyggeWasm ru
         - Assert operator that will end the program or continue execution based on a boolean expression. ✅
 
 ## Should Have
-- The developer should be able to add line comments without a companion instruction.
+- The developer should be able to add line comments without a companion instruction. ✅
 - The backend should be able to produce functional WAT pertaining to the subsequent language features and operators: ✅
     - Typing and Pattern matching ✅
         - Discriminated Union Types ✅
