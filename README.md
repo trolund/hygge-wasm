@@ -112,13 +112,30 @@ The CLI lets the user run the ’.wat’-file with WasmTime and the HyggeWasm ru
         
     ./hyggec wasm test.wat
 
+# Input/Output
+Programs can use either WASI or the Hygge System Interface for I/O.
+
+![alt text](img/HyggeWasmRuntime.svg)
+# Architecture
+
+Overview of the compiler phases:![alt text](img/arc.png)
+
+
+Phases of the code generation:![alt text](<img/code generation phases.svg>)
+
+# Memory 
+
+Memory can be will be grown at **runtime** when using the *internal* and *external* modes. 
+![alt text](img/growingmem.svg)
+
 # Language features - Requirements
 
 ## Must Have
 - The generated code must be a valid WAT module. ✅
 - The developer must be able to add a comment to every instruction. ✅
 - The generated code must be formatted in a reasonable and readable way. ✅
-- The generated code must have only one entry point of execution (One main function) that will be implicit and therefore invisible for the Hygge programmer. ✅
+- The generated code must have only one entry point of execution (One main function) that will be implicit and therefore invisible for the Hygge 
+programmer. ✅
 - The backend must be able to produce functional WAT pertaining to the subsequent language features and operators:
     - Arithmetic operators ✅
         - Subtraction ✅
