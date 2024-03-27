@@ -112,11 +112,13 @@ The CLI lets the user run the ’.wat’-file with WasmTime and the HyggeWasm ru
 # Input/Output
 
 Programs can use either WASI or the Hygge System Interface for I/O.
+
 <img src="img/HyggeWasmRuntime.svg" width="300">
 
 # Architecture
 
 Overview of the compiler phases:
+
 <img src="img/arc.png" width="390">
 
 Phases of the code generation:
