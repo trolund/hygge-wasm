@@ -119,7 +119,9 @@ Programs can use either WASI or the Hygge System Interface for I/O.
 Overview of the compiler phases:
 <img src="img/arc.png" width="390">
 
-Phases of the code generation:![alt text](<img/code generation phases.svg>)
+Phases of the code generation:
+
+![alt text](<img/code generation phases.svg>)
 
 # Memory
 
