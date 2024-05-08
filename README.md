@@ -262,16 +262,16 @@ assert(x + y = 42)
 ### Closure to capture counter state
 
 ```hyg
-fun makeCounter(y: int): () -> int = {
+fun makeMultiplier(y: int): () -> int = {
     let mutable x: int = 2;
     fun () -> {
         x <- x * y // x is captured from the surrounding scope
     }
 };
 
-let c1: () -> int = makeCounter(2);
-let c2: () -> int = makeCounter(4);
-let c3: () -> int = makeCounter(8);
+let c1: () -> int = makeMultiplier(2);
+let c2: () -> int = makeMultiplier(4);
+let c3: () -> int = makeMultiplier(8);
 
 assert(c1() = 4);
 assert(c1() = 8);
