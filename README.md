@@ -1,6 +1,9 @@
 # HyggeWasm - The Hygge to WebAssembly compiler
 
-This is the source code of the `HyggeWasm` compiler. `HyggeWasm` is a WebAssembly compiler for the Hygge programming language. The compiler produces the WebAssembly textual format (WAT) as its output. `HyggeWasm` has been developed as part of the master thesis "Design and Implementation of a WebAssembly Compiler Back-End for the High-Level Programming Language Hygge" by Troels Lund at Technical University of Denmark. (DTU). A list of all language features implemented can be found in the section [Language features](#language-features---requirements).
+This is the source code of the `HyggeWasm` compiler. `HyggeWasm` is a WebAssembly compiler for the Hygge programming language. The compiler produces the WebAssembly textual format (WAT) as its output. `HyggeWasm` has been developed as part of the master thesis "Design and Implementation of a WebAssembly Compiler Back-End for the High-Level Programming Language Hygge" by Troels Lund at Technical University of Denmark. (DTU). The thesis can be found [here](thesis.pdf).
+
+
+A list of all language features implemented can be found in the section [Language features](#language-features---requirements).
 
 The `HyggeWasm` compiler is based on `hyggec` and uses the Hygge programming language as the the *source language*. `hyggec` and Hygge programming language was created by Alceste Scalas at DTU.
 
