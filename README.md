@@ -1,11 +1,11 @@
 # HyggeWasm - The Hygge to WebAssembly compiler
 
-This is the source code of the `HyggeWasm` compiler. `HyggeWasm` is a WebAssembly compiler for the Hygge programming language. The compiler produces the WebAssembly textual format (WAT) as its output. `HyggeWasm` has been developed as part of the master thesis "Design and Implementation of a WebAssembly Compiler Back-End for the High-Level Programming Language Hygge" by Troels Lund at Technical University of Denmark. (DTU). The thesis can be found [here](thesis.pdf).
+This is the source code of the `HyggeWasm` compiler. `HyggeWasm` is a WebAssembly compiler for the Hygge programming language. The compiler is written in F# and produces the WebAssembly textual format (WAT) as its output. `HyggeWasm` has been developed as part of the master thesis "Design and Implementation of a WebAssembly Compiler Back-End for the High-Level Programming Language Hygge" by Troels Lund at the Technical University of Denmark. (DTU). The thesis can be found [here](thesis.pdf). 
 
 
 A list of all language features implemented can be found in the section [Language features](#language-features---requirements).
 
-The `HyggeWasm` compiler is based on `hyggec` and uses the Hygge programming language as the the *source language*. `hyggec` and Hygge programming language was created by Alceste Scalas at DTU.
+The `HyggeWasm` compiler is based on `hyggec` and uses the Hygge programming language as the *source language*. `hyggec` and Hygge programming language were created by Alceste Scalas at DTU.
 
 <img src="img/logo.svg" width="250">
 
@@ -24,9 +24,9 @@ The `HyggeWasm` compiler is based on `hyggec` and uses the Hygge programming lan
 
 ## Examples
 
-The folder *examples/hygge* contain a variety of example Hygge programs.
+The folder *examples/hygge* contains a variety of example Hygge programs.
 
-Futhermore can programs found in the *tests* be used for inspiration.
+Furthermore, can programs found in the *tests* be used for inspiration.
 
 ## Quick Start
 
@@ -63,7 +63,7 @@ Here's something you can try:
 ## Building `HyggeWasm` from the Command Line
 
 Every time you invoke the script `./hyggec`, the compiler will be rebuilt if its
-source code was modified since the last execution.
+The source code was modified after the last execution.
 
 You can also (re)build the `HyggeWasm` executable by running:
 
@@ -100,7 +100,7 @@ The CLI lets the user run the test suite.
 | Flag | Description               | Input's                                           |
 |------|---------------------------|---------------------------------------------------|
 | _    | Input                     | path to hygge program                             |
-| -s   | Writring style            | linar ("l") or folded ("f")                       |
+| -s   | Writing style            | linear ("l") or folded ("f")                       |
 | -o   | Output file               | Path to wat output file                           |
 | -i   | System interface          | 0 - HyggeSI or 1 - WASI                           |
 | -m   | Memory mode               | 0 - External or 1 - Internal or 2 - Heap (WasmGC) |
@@ -130,7 +130,7 @@ Phases of the code generation:
 
 # Memory
 
-Memory can be will be grown at **runtime** when using the *internal* and *external* modes.
+Memory can be grown at **runtime** when using the *internal* and *external* modes.
 ![alt text](img/growingmem.svg)
 
 # Language features - Requirements
@@ -195,7 +195,7 @@ programmer. ✅
     * Strings ✅
       * String length - Can obtain the length of a string with a pointer to the string data.
   * I/O ✅
-    * Read integer or float values into module. ✅
+    * Read integer or float values into the module. ✅
     * Write integer, float, and string values value to output stream ✅
   * Test specific features ✅
     * Assert operator that will end the program or continue execution based on a boolean expression. ✅
