@@ -11,7 +11,6 @@ type Wasm =
     | Else of ValueType list * ValueType list * Wasm list * Wasm list
     | Br of Label
     | BrIf of Label * Wasm Commented list
-    // | BrTable of int list * int
     | Return
     // Memory Instrs
     | I32Load_ of int option * int option * Wasm Commented list

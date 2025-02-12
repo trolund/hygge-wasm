@@ -126,6 +126,5 @@ type MemorySegment = int * string
 
 type TypeDef = 
         | FuncType of Label * FunctionSignature
-        // (type $buf (struct (field $pos (mut i64)) (field $chars (ref $char-array))))
         | StructType of Label * Param list
         | ArrayType of Label * ValueType

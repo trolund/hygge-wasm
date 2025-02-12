@@ -1,9 +1,11 @@
+namespace WasmTimeDriver;
+
 public static class Utils
 {   
 
     private static string _tempPath = "./data";
 
-    public static void WriteToFile(string filePath, string content)
+    private static void WriteToFile(string filePath, string content)
     {
         // create directory if not exists
         var directory = Path.GetDirectoryName(filePath);
@@ -19,7 +21,7 @@ public static class Utils
     }
 
     // exstract file name from path
-    public static string GetFileName(string path)
+    private static string GetFileName(string path)
     {   
         var fileName = Path.GetFileNameWithoutExtension(path);
         return fileName;
@@ -122,7 +124,7 @@ public static class Utils
     }
 
     // get last folder name from path
-    public static string GetFolderName(string path)
+    private static string GetFolderName(string path)
     {
         var folderName = Path.GetFileName(Path.GetDirectoryName(path));
         return folderName;

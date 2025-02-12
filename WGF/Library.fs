@@ -7,14 +7,12 @@ module Module =
     open WGF.Instr
     open Utils
 
-    /// define a module
     [<RequireQualifiedAccess>]
     type Module
         private
         (
             types: list<TypeDef>,
             functions: Map<string, Commented<FunctionInstance>>,
-            // tables: seq<Table>,
             memories: Set<Memory>,
             globals: Set<Global>,
             exports: Set<Export>,
@@ -25,7 +23,7 @@ module Module =
             locals: Set<Local>,
             tempCode: list<Commented<Instr.Wasm>>,
             funcTableSize: int,
-            hostinglist: string list
+            hostingList: string list
         ) =
         member private this.types: List<TypeDef> = types
         member private this.functions = functions
@@ -43,9 +41,8 @@ module Module =
         member private this.funcTableSize: int = funcTableSize
         member private this.tempCode: list<Commented<Instr.Wasm>> = tempCode
 
-        member private this.hostinglist: string list = hostinglist
+        member private this.hostinglist: string list = hostingList
 
-        // empty constructor
         new() =
             Module(
                 List.empty,
@@ -63,7 +60,6 @@ module Module =
                 []
             )
 
-        // module constructor that take temp code
         new(tempCode: list<Commented<Instr.Wasm>>) =
             Module(
                 List.empty,
@@ -104,12 +100,14 @@ module Module =
 
         member this.ReplaceFuncs(list: list<(string * FunctionInstance) * string>) =
             // map list to map
-            let map = list |> List.map (fun ((name, f), s) -> (name, (f, s))) |> Map.ofList
+            let map =
+                list
+                |> List.map (fun ((name, f), s) -> (name, (f, s)))
+                |> Map.ofList
 
             Module(
                 this.types,
                 map,
-
                 this.memories,
                 this.globals,
                 this.exports,
@@ -124,7 +122,9 @@ module Module =
             )
 
         member this.RemoveLocal(name: string) =
-            let locals = this.locals |> Set.filter (fun (n, _) -> n <> Some name)
+            let locals =
+                this.locals
+                |> Set.filter (fun (n, _) -> n <> Some name)
 
             Module(
                 this.types,
@@ -339,7 +339,9 @@ module Module =
             let newInstance: Commented<FunctionInstance> =
                 ({ locals = f.locals
                    signature = f.signature
-                   body = f.body @ (instrs |> List.map (fun x -> Commented(x, "")))
+                   body =
+                     f.body
+                     @ (instrs |> List.map (fun x -> Commented(x, "")))
                    name = f.name },
                  s)
 
@@ -671,7 +673,7 @@ module Module =
                         func_name
                         (ic i)
                         (match func_signature with
-                         | FunctionType(name, signature) ->
+                         | FunctionType (name, signature) ->
                              match signature with
                              | Some signature -> sprintf "(func $%s %s)" name (generate_signature signature "")
                              | _ -> $"(func $%s{name})"
@@ -727,7 +729,9 @@ module Module =
                 x <- x + 1
 
             for (instr, data) in this.data do
-                result <- result + $"{gIndent 1}(data (%s{printInstr instr}) \"%s{data.ToString()}\")\n"
+                result <-
+                    result
+                    + $"{gIndent 1}(data (%s{printInstr instr}) \"%s{data.ToString()}\")\n"
 
             // create exports
             for export in this.exports do
@@ -738,7 +742,7 @@ module Module =
                         (gIndent 1)
                         (fst export)
                         (match snd export with
-                         | FunctionType(name, _) -> $"(func $%s{name})"
+                         | FunctionType (name, _) -> $"(func $%s{name})"
                          | TableType table -> $"(table %s{table.ToString()})"
                          | MemoryType memory -> $"(memory %s{memory.ToString()})"
                          | GlobalType global_ -> $"(global $%s{global_.ToString()})"
