@@ -27,6 +27,9 @@ type internal Storage =
     | Global of label: string
     /// offset in as indecies of element in structure
     | Offset of offset: int
+    /// captured variable in a Heap-mode closure environment: index into the
+    /// env struct, plus that struct's type id (needed by struct.get/struct.set)
+    | ClosureField of offset: int * envTypeId: string
 
 /// A memory allocator that allocates memory in pages of 64KB.
 /// The allocator keeps track of the current allocation position.
@@ -182,11 +185,13 @@ let internal createFunctionPointer (name: string) (env: CodegenEnv) (m: Module) 
     // return compontents needed to create a function pointer
     (FunctionPointer, funcindex, ptr_label)
 
-let resolveType n (node: TypedAST) =
-    if (Set.contains n node.Env.Mutables) then
-        TStruct([ ("value", node.Env.Vars[n]) ]) // mutable vars are stored in a struct after closure conversion
+let resolveTypeEnv (tenv: TypingEnv) (n: string) =
+    if (Set.contains n tenv.Mutables) then
+        TStruct([ ("value", tenv.Vars[n]) ]) // mutable vars are stored in a struct after closure conversion
     else
-        node.Env.Vars[n]
+        tenv.Vars[n]
+
+let resolveType n (node: TypedAST) = resolveTypeEnv node.Env n
 
 let resolveNode n (node: TypedAST) =
     { node with
@@ -212,17 +217,132 @@ let mapType t =
 
 let funcp = GenStructTypeIDType [ ("func", (I32)); ("cenv", (EqRef)) ]
 
+/// Fields of the struct used to represent a Heap-mode array value:
+/// {backing: the raw GC array; offset: i32; length: i32}.
+/// Arrays are wrapped (instead of using the raw GC array directly) so that
+/// arraySlice can alias the source array's storage - sharing 'backing' and
+/// only varying 'offset'/'length' - matching the aliasing semantics of the
+/// Internal/External {data,length} pointer-based array representation.
+let arrayWrapperFields (elemHeap: ValueType) : list<string * ValueType> =
+    [ ("backing", NullableRef(Named(GenArrayTypeIDType elemHeap)))
+      ("offset", I32)
+      ("length", I32) ]
+
+let arrayWrapperTypeId (elemHeap: ValueType) = GenStructTypeIDType(arrayWrapperFields elemHeap)
+
+/// Type aliases (e.g. a struct field typed as a named 'type Shopping = ...')
+/// are only resolved shallowly by 'expandType' at the top level; mapTypeHeap
+/// recurses into nested field/element types where callers can't easily
+/// thread a TypingEnv through, so it expands those nested types itself
+/// against the whole program's root typing environment (type aliases are
+/// global declarations in Hygge, so this is valid anywhere). Set once by
+/// 'codegen' before any Heap-mode codegen runs.
+let mutable private rootTypingEnv: TypingEnv option = None
+
+/// Heap-allocated values (structs, arrays, closures) are mapped to nullable
+/// ref types uniformly: a freshly-constructed value is always non-null, but
+/// it immediately gets stored into a nullable-typed local/global/field/param
+/// slot (see the 'Let' cases and 'arrayWrapperFields'), so every consumer
+/// must accept null - nullable-by-default avoids a non-null/nullable
+/// mismatch at every one of those storage boundaries.
+let expandNested (t: Type) =
+    match rootTypingEnv with
+    | Some(tenv) -> expandType tenv t
+    | None -> t
+
 let rec mapTypeHeap (t: Type) =
-    match t with
+    match (expandNested t) with
     | TStruct l ->
         let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) l
-        Ref(Named(GenStructTypeIDType fieldTypes))
-    | TArray t ->
-        let arrType = GenArrayTypeIDType(mapTypeHeap t)
-        NullableRef(Named(arrType))
+        NullableRef(Named(GenStructTypeIDType fieldTypes))
+    | TArray t -> NullableRef(Named(arrayWrapperTypeId (mapTypeHeap t)))
     | TFun _ -> NullableRef(Named(funcp))
+    // unions are rewritten by UnionCons into {id: i32, data: eqref} structs
+    // (see UnionCons/Match); every case shares this one struct type
+    | TUnion _ -> NullableRef(Named(GenStructTypeIDType [ ("id", I32); ("data", EqRef) ]))
     | TUnit -> Nullref
     | _ -> (mapType t)[0]
+
+/// All typedefs needed to reference a value of this Hygge type in Heap mode,
+/// including nested ones (e.g. a struct field, array element, or a box's
+/// 'value' field that is itself a struct/array/union). Needed anywhere a
+/// type is declared without an accompanying value construction to recurse
+/// through naturally (e.g. Match's per-case box types) - constructing a
+/// value (Struct/Array literals) already registers its own nested types as
+/// a side effect of compiling each sub-expression, but a bare type
+/// annotation does not.
+let rec heapTypedefsFor (t: Type) : TypeDef list =
+    match t with
+    | TStruct fields ->
+        let fieldTypes = List.map (fun (n, ft) -> (n, mapTypeHeap ft)) fields
+        let nested = List.collect (fun (_, ft) -> heapTypedefsFor ft) fields
+        nested @ createStructTypeNodeWithPrefixes fieldTypes
+    | TArray et ->
+        let elemHeap = mapTypeHeap et
+        heapTypedefsFor et
+        @ [ ArrayType(GenArrayTypeIDType elemHeap, elemHeap) ]
+        @ createStructTypeNodeWithPrefixes (arrayWrapperFields elemHeap)
+    | TUnion _ -> createStructTypeNodeWithPrefixes [ ("id", I32); ("data", EqRef) ]
+    | _ -> []
+
+/// {payload: T} boxes for a union case's payload type T (see UnionCons/Match:
+/// every case is stored in a struct's 'data' field, typed eqref, so all
+/// cases share one outer shape - the payload is boxed to give 'match'
+/// something concrete to ref.cast 'data' back down to). When T is itself a
+/// struct, one box is generated per field-prefix of T, chained via 'sub' in
+/// the same order as T's own prefix chain (see
+/// 'createStructTypeNodeWithPrefixes'): this lets a case constructed with a
+/// WIDER struct (via Hygge's structural subtyping, e.g. 'Shape{c}' where
+/// 'c: Circle') still ref.cast down to the box for whatever NARROWER type a
+/// 'match' declares for that case (e.g. 'Shape{s} -> s.area').
+///
+/// The 'payload' field must be IMMUTABLE: WasmGC only allows covariant field
+/// subtyping (a subtype's field may be a narrower ref) for immutable fields,
+/// never for mutable ones - hence a field name distinct from the
+/// mutable-variable box's 'value' field (see LetMut), which must stay
+/// mutable and would otherwise collide on the same structural type name.
+let rec payloadBoxTypedefsFor (t: Type) : TypeDef list =
+    match (expandNested t) with
+    | TStruct fields when not fields.IsEmpty ->
+        let prefixBoxId k =
+            let prefix = fields[0 .. k - 1]
+            let innerHeap = NullableRef(Named(GenStructTypeIDType(List.map (fun (fn, ft) -> (fn, mapTypeHeap ft)) prefix)))
+            GenStructTypeIDType [ ("payload", innerHeap) ], innerHeap
+
+        [ 1 .. fields.Length ]
+        |> List.map (fun k ->
+            let (boxId, innerHeap) = prefixBoxId k
+            let param = [ (Some("payload"), (innerHeap, Immutable)) ]
+
+            if k = 1 then
+                StructSubType(None, boxId, param)
+            else
+                let (superBoxId, _) = prefixBoxId (k - 1)
+                StructSubType(Some(superBoxId), boxId, param))
+    | t ->
+        let heap = mapTypeHeap t
+        [ StructSubType(None, GenStructTypeIDType [ ("payload", heap) ], [ (Some("payload"), (heap, Immutable)) ]) ]
+
+/// The box type id for a union case's payload type (see 'payloadBoxTypedefsFor').
+let payloadBoxTypeId (t: Type) : string =
+    GenStructTypeIDType [ ("payload", mapTypeHeap t) ]
+
+/// Heap-mode closure-environment struct fields for a set of captured variable
+/// names, resolved against the given typing environment (mutable captures
+/// are boxed - see 'resolveTypeEnv'). Used both where the closure-env value
+/// is constructed and where its type is referenced (e.g. for 'ref.cast'),
+/// so both sides agree on the exact same structural type id.
+let capturedEnvFields (tenv: TypingEnv) (captured: string list) : list<string * ValueType> =
+    List.map (fun n -> (n, mapTypeHeap (resolveTypeEnv tenv n))) captured
+
+/// Resolve the element heap type, backing array type id, and array-wrapper
+/// struct type id for a Hygge array type (see 'arrayWrapperFields').
+let arrayHeapInfo (tenv: TypingEnv) (t: Type) =
+    match (expandType tenv t) with
+    | TArray et ->
+        let elemHeap = mapTypeHeap et
+        (elemHeap, GenArrayTypeIDType elemHeap, arrayWrapperTypeId elemHeap)
+    | _ -> failwith "expected an array type"
 
 let findBestMatchType (m: Module) (fields: List<string * Type>) =
 
@@ -287,30 +407,43 @@ let internal lookupLabel (env: CodegenEnv) (name: string) =
     | Some(Storage.Global l) -> l
     | _ -> failwith "not implemented"
 
-let internal lookupLatestLocal (m: Module) =
-    match List.last (m.GetLocals()) with
-    | Some(n), _ -> n
-    | None, _ -> failwith "failed to find name of the lastest local var"
-
-let internal lookupLatestType (m: Module) =
-    let types = m.GetTypes()
-
-    match List.last types with
-    | v -> v
-    | _ -> failwith "failed to find name of the lastest local var"
 
 
-let internal argsToLocals (env: CodegenEnv) (args) : Local list =
+/// Module declaring the closure-environment struct type (and its prefix
+/// chain) for a set of captured variables, plus the type's own id. Using the
+/// same structural fields/id here as at the closure-value construction site
+/// (createClosure's 'Struct(capturedStructFields)') is required for
+/// 'ref.cast' to accept the constructed value: WasmGC compares types by
+/// declared identity, not just field shape, so two independently-named
+/// declarations with identical fields are NOT interchangeable.
+let internal closureEnvTypedef (tenv: TypingEnv) (captured: string list) : Module * string =
+    let fields = capturedEnvFields tenv captured
+    let typeId = GenStructTypeIDType fields
+
+    let m =
+        List.fold (fun (acc: Module) td -> acc.AddTypedef(td)) (Module()) (createStructTypeNodeWithPrefixes fields)
+
+    (m, typeId)
+
+let internal argsToLocals (env: CodegenEnv) (tenv: TypingEnv) (args) : Local list =
     if env.Config.AllocationStrategy = Heap then
-        List.map (fun (n, t) -> (Some(lookupLabel env n), (mapTypeHeap t))) args
+        // expand type aliases (e.g. a 'type Shape = struct {...}' parameter
+        // annotation) before mapping, otherwise an alias falls through
+        // mapTypeHeap's catch-all and is (wrongly) treated as a plain i32
+        List.map (fun (n, t) -> (Some(lookupLabel env n), (mapTypeHeap (expandType tenv t)))) args
     else
         List.map (fun (n, t) -> (Some(lookupLabel env n), (mapType t)[0])) args
 
-let internal addCapturedToEnv env captured =
+let internal addCapturedToEnv (env: CodegenEnv) (captured: string list) (closTypeId: string option) =
     List.fold
         (fun env (index, n) ->
+            let storage =
+                match closTypeId with
+                | Some typeId -> Storage.ClosureField(index, typeId)
+                | None -> Storage.Offset(index)
+
             { env with
-                VarStorage = env.VarStorage.Add(n, Storage.Offset(index)) })
+                VarStorage = env.VarStorage.Add(n, storage) })
         env
         (List.indexed captured)
 
@@ -391,8 +524,8 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             match env.VarStorage.TryFind name with
             | Some(Storage.Local l) -> [ (LocalGet(Named(l)), $"get local var: {l}") ] // push local variable on stack
             | Some(Storage.Global l) -> [ (GlobalGet(Named(l)), $"get global var: {l}") ] // push global variable on stack
-            | Some(Storage.Offset(i)) when env.Config.AllocationStrategy = Heap ->
-                [ (StructGet(Named($"clos_{env.CurrFunc}"), Index(i), [ (LocalGet(Named("clos")), "get env pointer") ]),
+            | Some(Storage.ClosureField(i, typeId)) ->
+                [ (StructGet(Named(typeId), Index(i), [ (LocalGet(Named("clos")), "get env pointer") ]),
                    $"load value at index: {i}") ]
             | Some(Storage.Offset(i)) -> // push variable from offset on stack
                 // get load instruction based on type
@@ -810,7 +943,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let exprm: Module = (doCodegen env expr m)
 
         // type to function signature
-        let typeId = GenFuncTypeID(typeToFuncSiganture env (expandType expr.Env expr.Type))
+        let typeId = GenFuncTypeID(typeToFuncSiganture env expr.Env (expandType expr.Env expr.Type))
 
         (argm)
             .ResetAccCode()
@@ -833,7 +966,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let exprm: Module = (doCodegen env expr m)
 
         // type to function signature
-        let typeId = GenFuncTypeID(typeToFuncSiganture env (expandType expr.Env expr.Type))
+        let typeId = GenFuncTypeID(typeToFuncSiganture env expr.Env (expandType expr.Env expr.Type))
 
         (argm)
             .ResetAccCode()
@@ -861,10 +994,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let closTypeModule =
             if List.length captured > 0 then
-                let args =
-                    (List.map (fun (n) -> (Some(n), (mapTypeHeap (resolveType n node), Mutable))) captured)
-
-                Module().AddTypedef(StructType($"clos_{funLabel}", args))
+                fst (closureEnvTypedef node.Env captured)
             else
                 Module()
 
@@ -877,7 +1007,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let captured = Set.toList (ASTUtil.capturedVars node)
 
-        let env'' = addCapturedToEnv env' captured
+        let env'' = addCapturedToEnv env' captured (Some(snd (closureEnvTypedef node.Env captured)))
 
         /// Compiled function body
         let bodyCode: Module =
@@ -903,7 +1033,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let captured = Set.toList (ASTUtil.capturedVars node)
 
-        let env'' = addCapturedToEnv env' captured
+        let env'' = addCapturedToEnv env' captured None
 
         /// Compiled function body
         let bodyCode: Module =
@@ -1017,7 +1147,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let length' = doCodegen env length m
         let data' = doCodegen env data m
 
-        let arrayType = GenArrayTypeIDType(mapTypeHeap data.Type)
+        let elemHeap = mapTypeHeap data.Type
+        let backingType = GenArrayTypeIDType elemHeap
+        let wrapperFields = arrayWrapperFields elemHeap
+        let wrapperType = GenStructTypeIDType wrapperFields
 
         // check that length is bigger then 1 - if not return 42
         let lengthCheck =
@@ -1030,10 +1163,18 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                "check that length of array is bigger then 1 - if not return 42") ]
 
         (length'.ResetAccCode() + data'.ResetAccCode())
-            .AddTypedef(ArrayType(arrayType, mapTypeHeap data.Type))
+            .AddTypedef(ArrayType(backingType, elemHeap))
+            .AddTypedef(createStructTypeNode wrapperFields)
             .AddCode(
                 lengthCheck
-                @ [ (ArrayNew(Named(arrayType), data'.GetAccCode() @ length'.GetAccCode()), "create new array") ]
+                @ [ (StructNew(
+                        Named(wrapperType),
+                        [ (ArrayNew(Named(backingType), data'.GetAccCode() @ length'.GetAccCode()),
+                           "create backing array")
+                          (I32Const 0, "offset") ]
+                        @ length'.GetAccCode()
+                     ),
+                     "wrap array") ]
             )
     | Array(length, data) ->
         let length' = doCodegen env length m
@@ -1100,7 +1241,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                            ),
                            "set heap base") ]
                     )
-            | Heap -> failwith "WasmGc not implemented"
 
         // set data pointer of struct
         let instr =
@@ -1176,10 +1316,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         )
     | ArrayLength(target) when env.Config.AllocationStrategy = Heap ->
         let target' = doCodegen env target m
+        let (_, _, wrapperType) = arrayHeapInfo target.Env target.Type
 
         target'
             .ResetAccCode()
-            .AddCode([ (ArrayLen(target'.GetAccCode()), "get length") ])
+            .AddCode([ (StructGet(Named(wrapperType), Named("length"), target'.GetAccCode()), "get length") ])
     | ArrayLength(target) ->
         let target' = doCodegen env target m
 
@@ -1195,11 +1336,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let index' = doCodegen env index m
         let length' = doCodegen env { node with Expr = ArrayLength(target) } m
 
-        let arrayType =
-            match (mapTypeHeap target.Type) with
-            | Ref(n) -> n
-            | NullableRef n -> n
-            | _ -> failwith "not implemented"
+        let (_, backingType, wrapperType) = arrayHeapInfo target.Env target.Type
+
+        let backing = [ (StructGet(Named(wrapperType), Named("backing"), target'.GetAccCode()), "get backing array") ]
+        let offset = [ (StructGet(Named(wrapperType), Named("offset"), target'.GetAccCode()), "get offset") ]
 
         // check that index is bigger then 0 - if not return 42
         // and that index is smaller then length - if not return 42
@@ -1230,7 +1370,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         indexCheck
         ++ (target' + index' + length'.ResetAccCode())
             .ResetAccCode()
-            .AddCode([ (ArrayGet(arrayType, target'.GetAccCode() @ index'.GetAccCode()), "get element") ])
+            .AddCode(
+                [ (ArrayGet(
+                      Named(backingType),
+                      backing @ [ (I32Add(offset @ index'.GetAccCode()), "offset + index") ]
+                   ),
+                   "get element") ]
+            )
 
     | ArrayElement(target, index) ->
         let m' = doCodegen env target m
@@ -1285,6 +1431,87 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         ++ (m' + m'')
             .ResetAccCode()
             .AddCode(instrs @ C [ Comment "end array element access node" ])
+    // array slice for heap allocation: copy the requested range into a new GC array
+    // a heap-mode slice shares the source array's backing storage - only
+    // 'offset' and 'length' differ - so mutations to the source array remain
+    // visible through the slice, matching the linear-memory representation's
+    // aliasing semantics (a {data,length} struct sharing the same pointer).
+    | ArraySlice(target, start, ending) when env.Config.AllocationStrategy = Heap ->
+        let length =
+            { node with
+                Expr = Sub(ending, start)
+                Type = TInt }
+
+        let targetm = doCodegen env target m
+        let startm = doCodegen env start m
+        let endingm = doCodegen env ending m
+        let lengthm = doCodegen env length m
+        let lengthOfTargetm = doCodegen env { node with Expr = ArrayLength(target) } m
+
+        let (elemHeap, _, wrapperType) = arrayHeapInfo target.Env target.Type
+        let wrapperFields = arrayWrapperFields elemHeap
+
+        let backing = [ (StructGet(Named(wrapperType), Named("backing"), targetm.GetAccCode()), "get backing array") ]
+        let offset = [ (StructGet(Named(wrapperType), Named("offset"), targetm.GetAccCode()), "get offset") ]
+
+        // check that start is >= 0 and < length
+        let startCheck =
+            [ (If(
+                  [],
+                  [ (I32LtS(startm.GetAccCode() @ [ (I32Const 0, "put zero on stack") ]), "check if start is >= 0") ],
+                  trap,
+                  None
+               ),
+               "check that start is >= 0 - if not return 42") ]
+            @ [ (If(
+                    [],
+                    [ (I32GeS(startm.GetAccCode() @ lengthOfTargetm.GetAccCode()), "check if start is < length") ],
+                    trap,
+                    None
+                 ),
+                 "check that start is < length - if not return 42") ]
+
+        // check that end is <= length
+        let endCheck =
+            [ (If(
+                  [],
+                  [ (I32GtS(endingm.GetAccCode() @ lengthOfTargetm.GetAccCode()), "check if end is <= length") ],
+                  trap,
+                  None
+               ),
+               "check that end is <= length - if not return 42") ]
+
+        // check that end - start is at least 1
+        let atleastOne =
+            [ (If(
+                  [],
+                  [ (I32LtS(
+                        [ (I32Sub(endingm.GetAccCode() @ startm.GetAccCode()), "subtract end from start")
+                          (I32Const 1, "put one on stack") ]
+                     ),
+                     "check if difference is < 1") ],
+                  trap,
+                  None
+               ),
+               "check that difference is >= 1 - if not return 42") ]
+
+        (C [ Comment "start heap array slice" ] @ atleastOne @ endCheck @ startCheck)
+        ++ (targetm.ResetAccCode()
+            + startm.ResetAccCode()
+            + endingm.ResetAccCode()
+            + lengthm.ResetAccCode()
+            + lengthOfTargetm.ResetAccCode())
+            .AddTypedef(createStructTypeNode wrapperFields)
+            .AddCode(
+                [ (StructNew(
+                      Named(wrapperType),
+                      backing
+                      @ [ (I32Add(offset @ startm.GetAccCode()), "new offset = offset + start") ]
+                      @ lengthm.GetAccCode()
+                   ),
+                   "wrap shared backing array into a new slice")
+                  (Comment "end heap array slice", "") ]
+            )
     // array slice creates a new struct with a pointer to the data of the original array
     | ArraySlice(target, start, ending) ->
 
@@ -1405,6 +1632,43 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 [ (LocalGet(Named(structPointerLabel)), "leave pointer to allocated array struct on stack")
                   (Comment "end array slice", "") ]
             )
+    // Heap mode: every case of a union must produce the SAME struct type for
+    // the union value, regardless of the case's own payload type, so 'match'
+    // can read 'id'/'data' generically. The payload is therefore boxed in a
+    // {value: T} struct (T varying per case) and stored in a 'data' field
+    // declared as TAny (-> eqref, a supertype of every struct ref), uniform
+    // across all cases. 'match' downcasts 'data' back to the right box type.
+    | UnionCons(label, expr) when env.Config.AllocationStrategy = Heap ->
+        let id = env.SymbolController.genSymbolId label
+
+        // in case there is no data aka a unit - we need to add a zero
+        let data =
+            match (expandType expr.Env expr.Type) with
+            | TUnit -> { node with Expr = IntVal 0; Type = TInt } // unitvalue
+            | _ -> expr
+
+        let payloadType = expandType data.Env data.Type
+        let boxId = payloadBoxTypeId payloadType
+        let dataCode = doCodegen env data m
+
+        let unionType = GenStructTypeIDType [ ("id", I32); ("data", EqRef) ]
+
+        let allTypedefs =
+            createStructTypeNodeWithPrefixes [ ("id", I32); ("data", EqRef) ] @ payloadBoxTypedefsFor payloadType
+
+        let withTypedefs =
+            List.fold (fun (acc: Module) td -> acc.AddTypedef(td)) (dataCode.ResetAccCode()) allTypedefs
+
+        C [ Comment "Start of union contructor" ]
+        ++ withTypedefs.AddCode(
+            [ (StructNew(
+                  Named(unionType),
+                  [ (I32Const id, "put label id on stack")
+                    (StructNew(Named(boxId), dataCode.GetAccCode()), "box union payload") ]
+               ),
+               "construct union value")
+              (Comment "End of union contructor", "") ]
+        )
     | UnionCons(label, expr) ->
         // compute label id
         let id = env.SymbolController.genSymbolId label
@@ -1425,6 +1689,101 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         // codegen structNode
         C [ Comment "Start of union contructor" ]
         ++ (doCodegen env structNode m).AddCode([ (Comment "End of union contructor") ])
+    | Match(target, cases) when env.Config.AllocationStrategy = Heap ->
+        let targetm = doCodegen env target m
+
+        let labels, vars, exprs = List.unzip3 cases
+        let indexedLabels = List.indexed labels
+
+        // matches the shape UnionCons builds: {id: i32, data: eqref}
+        let unionType = GenStructTypeIDType [ ("id", I32); ("data", EqRef) ]
+
+        // resolve result type of match expression
+        let resultType = [ mapTypeHeap (expandType exprs[0].Env exprs[0].Type) ]
+
+        let matchEndLabel = env.SymbolController.genSymbol $"match_end"
+
+        let folder =
+            fun (acc: Module) (i: int * string) ->
+                let index, label = i
+                let id = env.SymbolController.genSymbolId label
+                let expr = exprs[index]
+                let var = vars[index]
+
+                // unit-payload cases are boxed as int 0 by UnionCons - mirror
+                // that here so the box/local type stays a real value type
+                let varType =
+                    match (expandType expr.Env expr.Env.Vars[var]) with
+                    | TUnit -> TInt
+                    | t -> t
+
+                let boxType = payloadBoxTypeId varType
+
+                let varName = env.SymbolController.genSymbol $"match_var_{var}"
+
+                let scopeVarStorage = env.VarStorage.Add(var, Storage.Local varName)
+
+                let scopeEnv =
+                    { env with
+                        VarStorage = scopeVarStorage }
+
+                // the box type must be declared here too: a case's payload
+                // type may never be constructed via a UnionCons literal
+                // elsewhere in the program (e.g. a 'None: unit' case that's
+                // only ever matched, never built), so its typedef wouldn't
+                // otherwise exist
+                let scopeWithBoxType =
+                    List.fold
+                        (fun (acc: Module) td -> acc.AddTypedef(td))
+                        (doCodegen scopeEnv expr m)
+                        (heapTypedefsFor varType @ payloadBoxTypedefsFor varType)
+
+                let scope =
+                    scopeWithBoxType.AddLocals([ (Some(Label(varName)), mapTypeHeap varType) ])
+
+                // downcast 'data' (eqref) to this case's box type, then unbox
+                let dataPointer =
+                    [ (LocalSet(
+                          Named(varName),
+                          [ (StructGet(
+                                Named(boxType),
+                                Named("payload"),
+                                [ (RefCast(
+                                      Named(boxType),
+                                      [ (StructGet(Named(unionType), Named("data"), targetm.GetAccCode()), "get data") ]
+                                   ),
+                                   "cast to case's box type") ]
+                             ),
+                             "unbox value") ]
+                       ),
+                       "set local var") ]
+
+                let caseCode =
+                    dataPointer ++ scope.AddCode([ (Br matchEndLabel, "break out of match") ])
+
+                let condition =
+                    [ (I32Eq(
+                          [ (StructGet(Named(unionType), Named("id"), targetm.GetAccCode()), "load label")
+                            (I32Const id, $"put label id {id} on stack") ]
+                       ),
+                       "check if index is equal to target") ]
+
+                let case = C [ (If([], condition, caseCode.GetAccCode(), None)) ]
+
+                acc
+                ++ caseCode
+                    .ResetAccCode()
+                    .AddCode(C [ Comment $"case for id: ${id}, label: {label}" ] @ case)
+
+        let casesCode = List.fold folder (Module()) indexedLabels
+
+        let defaultCase =
+            C [ Comment "no case was matched, therefore return exit error code" ] @ trap
+
+        let block =
+            C [ (Block(matchEndLabel, resultType, casesCode.GetAccCode() @ defaultCase)) ]
+
+        casesCode.ResetAccCode().AddCode(block)
     | Match(target, cases) ->
         let targetm = doCodegen env target m
 
@@ -1532,6 +1891,19 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                     | _ -> failwith "not implemented"
 
                 value'.ResetAccCode().AddCode([ si ] @ value'.GetAccCode())
+            | Some(Storage.ClosureField(i, typeId)) ->
+                value'
+                    .ResetAccCode()
+                    .AddCode(
+                        [ (StructSet(
+                              Named(typeId),
+                              Index(i),
+                              [ (LocalGet(Named("clos")), "get env pointer") ] @ value'.GetAccCode()
+                           ),
+                           "set value in closure env")
+                          (StructGet(Named(typeId), Index(i), [ (LocalGet(Named("clos")), "get env pointer") ]),
+                           "get value from closure env") ]
+                    )
             | Some(Storage.Global g) ->
                 value'
                     .ResetAccCode()
@@ -1555,7 +1927,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                 let offset = List.findIndex (fun f -> f = field) fieldNames
 
                 // map fields t valueType
-                let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) fields
+                let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap (expandNested t))) fields
                 // typeid
                 let typeId = GenStructTypeIDType fieldTypes
 
@@ -1622,7 +1994,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let index' = doCodegen env index m
             let value' = doCodegen env value m
             let length' = doCodegen env { node with Expr = ArrayLength(target) } m
-            let arrayType = GenArrayTypeIDType(mapTypeHeap value.Type)
+            let (_, backingType, wrapperType) = arrayHeapInfo target.Env target.Type
+
+            let backing =
+                [ (StructGet(Named(wrapperType), Named("backing"), target'.GetAccCode()), "get backing array") ]
+
+            let offset = [ (StructGet(Named(wrapperType), Named("offset"), target'.GetAccCode()), "get offset") ]
 
             // Check index >= 0 and index < length
             let indexCheck =
@@ -1650,7 +2027,10 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                      "check that index is < length - if not return 42") ]
 
             let instrs =
-                [ (ArraySet(Named(arrayType), target'.GetAccCode() @ index'.GetAccCode() @ value'.GetAccCode()),
+                [ (ArraySet(
+                      Named(backingType),
+                      backing @ [ (I32Add(offset @ index'.GetAccCode()), "offset + index") ] @ value'.GetAccCode()
+                   ),
                    "write to element") ]
                 @ value'.GetAccCode()
 
@@ -1755,10 +2135,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let closTypeModule =
             if List.length captured > 0 then
-                let args =
-                    (List.map (fun (n) -> (Some(n), (mapTypeHeap node.Env.Vars[n], Mutable))) captured)
-
-                Module().AddTypedef(StructType($"clos_{funLabel}", args))
+                fst (closureEnvTypedef node.Env captured)
             else
                 Module()
 
@@ -1777,7 +2154,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             if isTopLevel env then
                 env''
             else
-                addCapturedToEnv env'' captured
+                addCapturedToEnv env'' captured (Some(snd (closureEnvTypedef node.Env captured)))
 
         /// Compiled function body
         let bodyCode: Module =
@@ -1841,7 +2218,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             if isTopLevel env then
                 env'
             else
-                addCapturedToEnv env' captured
+                addCapturedToEnv env' captured None
 
         /// Compiled function body
         let bodyCode: Module =
@@ -1956,10 +2333,12 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
 
-            let t =
-                match lookupLatestType m' with
-                | StructType(l, _) -> l
-                | _ -> failwith "not a struct"
+            // compute the struct's heap type directly instead of guessing it
+            // from "whatever typedef was last added to m'" - that heuristic
+            // breaks when 'init' is anything other than a fresh struct
+            // literal (e.g. a function call returning a struct), since no
+            // typedef is freshly added to m' in that case
+            let tt = mapTypeHeap (expandType init.Env init.Type)
 
             let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
 
@@ -1970,13 +2349,13 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             C [ Comment "Start of let" ]
             ++ m'.ResetAccCode()
             ++ combi
-                .AddLocals([ (Some(Label(varName)), NullableRef(Named(t))) ])
+                .AddLocals([ (Some(Label(varName)), tt) ])
                 .AddCode([ Comment "End of let" ])
         | TArray _ when env.Config.AllocationStrategy = Heap ->
             let varLabel = Named(varName)
             let initCode = m'.GetAccCode()
 
-            let tt = mapTypeHeap init.Type
+            let tt = mapTypeHeap (expandType init.Env init.Type)
             let t = GenArrayTypeIDType(tt)
 
             let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
@@ -1989,6 +2368,21 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             ++ m'.ResetAccCode()
             ++ combi
                 .AddLocals([ (Some(Label(varName)), tt) ])
+                .AddCode([ Comment "End of let" ])
+        | TUnion _ when env.Config.AllocationStrategy = Heap ->
+            let varLabel = Named(varName)
+            let initCode = m'.GetAccCode()
+
+            let instrs = [ (LocalSet(varLabel, initCode), "set local var") ] // set local var
+
+            let scopeCode = (doCodegen env' scope (m'.ResetAccCode()))
+
+            let combi = (instrs ++ scopeCode + m.ResetAccCode())
+
+            C [ Comment "Start of let" ]
+            ++ m'.ResetAccCode()
+            ++ combi
+                .AddLocals([ (Some(Label(varName)), mapTypeHeap (expandType init.Env init.Type)) ])
                 .AddCode([ Comment "End of let" ])
         | TStruct _ ->
             let varLabel = Named(varName)
@@ -2106,10 +2500,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
 
         let closTypeModule =
             if List.length captured > 0 then
-                let args =
-                    (List.map (fun (n) -> (Some(n), (mapTypeHeap node.Env.Vars[n], Mutable))) captured)
-
-                Module().AddTypedef(StructType($"clos_{funLabel}", args))
+                fst (closureEnvTypedef node.Env captured)
             else
                 Module()
 
@@ -2128,7 +2519,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             if isTopLevel env then
                 env''
             else
-                addCapturedToEnv env'' captured
+                addCapturedToEnv env'' captured (Some(snd (closureEnvTypedef node.Env captured)))
 
         /// Compiled function body
         let bodyCode: Module =
@@ -2192,7 +2583,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             if isTopLevel env then
                 env''
             else
-                addCapturedToEnv env'' captured
+                addCapturedToEnv env'' captured None
 
         /// Compiled function body
         let bodyCode: Module =
@@ -2251,6 +2642,11 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         //         | _ -> (doCodegen env scope m)
         //     | Error(e) -> doCodegen env scope m
         // else
+        // keep mapTypeHeap's nested-alias expansion (rootTypingEnv) up to
+        // date as each 'type X = ...' declaration comes into scope
+        if env.Config.AllocationStrategy = Heap then
+            rootTypingEnv <- Some(scope.Env)
+
         doCodegen env scope m
     // struct constructor
     | Struct(fields) when env.Config.AllocationStrategy = Heap ->
@@ -2269,13 +2665,15 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
         let fieldTypes =
             List.map (fun (n, t: Node<TypingEnv, Type>) -> (n, mapTypeHeap (expandType t.Env t.Type))) fields
 
-        fieldsInitCode
-            .ResetAccCode()
-            .AddTypedef(createStructTypeNode fieldTypes)
-            .AddCode(
-                [ (StructNew(Named(GenStructTypeID fieldTypes), fieldsInitCode.GetAccCode()),
-                   "leave ref of struct on stack") ]
-            )
+        let withTypedefs =
+            List.fold
+                (fun (acc: Module) td -> acc.AddTypedef(td))
+                (fieldsInitCode.ResetAccCode())
+                (createStructTypeNodeWithPrefixes fieldTypes)
+
+        withTypedefs.AddCode(
+            [ (StructNew(Named(GenStructTypeID fieldTypes), fieldsInitCode.GetAccCode()), "leave ref of struct on stack") ]
+        )
     | Struct(fields) ->
         let fieldNames = List.map (fun (n, _) -> n) fields
         let fieldTypes = List.map (fun (_, t) -> t) fields
@@ -2319,7 +2717,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                            ),
                            "set struct pointer var") ]
                     )
-            | Heap -> failwith "WasmGC is not implemented in this case"
 
         // fold over fields and add them to struct with indexes
         let folder =
@@ -2380,7 +2777,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             | TStruct(fields) ->
                 let fieldNames, _ = List.unzip fields
                 let offset = List.findIndex (fun f -> f = field) fieldNames
-                let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) fields
+                let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap (expandNested t))) fields
 
                 [ (StructGet(Named(GenStructTypeIDType fieldTypes), Index(offset), selTargetCode.GetAccCode()),
                    $"load field: {field}") ]
@@ -2422,7 +2819,7 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
     | _ -> failwith "not implemented"
 
 /// create a function signature from a type
-and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
+and internal typeToFuncSiganture (env: CodegenEnv) (tenv: TypingEnv) (t: Type.Type) =
     match t with
     | TFun(args, ret) ->
 
@@ -2430,18 +2827,18 @@ and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
         let mapArgTypes (args: Type list) : Local list =
             List.map
                 (fun t ->
-                    match t with
-                    | TUnion _ -> (None, I32)
+                    // expand type aliases (e.g. a 'type Shape = struct {...}'
+                    // parameter annotation) before matching
+                    match (expandType tenv t) with
                     | TVar _ -> (None, I32)
                     | TFun _ when env.Config.AllocationStrategy = Heap -> (None, NullableRef(Named(funcp)))
                     | TFun _ -> (None, I32) // passing function as a index to function table
-                    | TStruct(fields) when env.Config.AllocationStrategy = Heap ->
-                        let fieldTypes = List.map (fun (n, t) -> (n, mapTypeHeap t)) fields
-                        (None, Ref(Named(GenStructTypeIDType fieldTypes)))
-                    | TArray t when env.Config.AllocationStrategy = Heap ->
-                        (None, Ref(Named(GenArrayTypeIDType(mapTypeHeap t))))
+                    | TStruct _ as t when env.Config.AllocationStrategy = Heap -> (None, mapTypeHeap t)
+                    | TArray _ as t when env.Config.AllocationStrategy = Heap -> (None, mapTypeHeap t)
+                    | TUnion _ as t when env.Config.AllocationStrategy = Heap -> (None, mapTypeHeap t)
                     | TStruct _ -> (None, I32)
                     | TArray _ -> (None, I32)
+                    | TUnion _ -> (None, I32)
                     | TInt -> (None, I32)
                     | TFloat -> (None, F32)
                     | TBool -> (None, I32)
@@ -2464,7 +2861,7 @@ and internal typeToFuncSiganture (env: CodegenEnv) (t: Type.Type) =
 
         let signature: FunctionSignature =
             if env.Config.AllocationStrategy = Heap then
-                (argTypes', [ mapTypeHeap ret ])
+                (argTypes', [ mapTypeHeap (expandType tenv ret) ])
             else
                 (argTypes', mapType ret)
 
@@ -2485,12 +2882,16 @@ and internal compileFunction
 
     // map args to there types
     let argTypes': Local list =
-        (Some("cenv"), funcPointerStruct) :: (argsToLocals env args)
+        (Some("cenv"), funcPointerStruct) :: (argsToLocals env body.Env args)
 
     let signature: FunctionSignature =
         (argTypes',
          if env.Config.AllocationStrategy = Heap then
-             [ mapTypeHeap body.Type ]
+             // expand type aliases (e.g. a function declared to return a
+             // 'type Counters = struct {...}') before mapping, otherwise
+             // this signature disagrees with the caller's (typeToFuncSiganture,
+             // which does expand) and no shared call_indirect type exists
+             [ mapTypeHeap (expandType body.Env body.Type) ]
          else
              mapType body.Type)
 
@@ -2509,7 +2910,9 @@ and internal compileFunction
             if isTopLevel env then
                 m
             else if List.length captured > 0 then
-                let clos_name = $"clos_{name}"
+                // must match the type id used at the closure-value construction
+                // site (createClosure) exactly, or 'ref.cast' rejects the value
+                let clos_name = snd (closureEnvTypedef body.Env captured)
                 let cast = [ RefCast(Named(clos_name), [ (LocalGet(Index 0), "get cenv") ]) ]
 
                 m
@@ -2719,7 +3122,9 @@ let promoteLocals (m: Module) (upgradeList: list<string>) : Module =
 
 /// add special implicit main function
 /// as the entry point of the program
-let codegen (node: TypedAST) (config: CompileConfig option) : Module =
+let private codegenImpl (node: TypedAST) (config: CompileConfig option) : Module =
+
+    rootTypingEnv <- Some(node.Env)
 
     // _start function is the entry point of the program
     // _start name is a special name that is part of the WASI ABI.
@@ -2803,3 +3208,15 @@ let codegen (node: TypedAST) (config: CompileConfig option) : Module =
 
     // hoist all top level locals to global vars
     promoteLocals topLevelModule (h @ l)
+
+/// 'doCodegen' recurses once per nested let/lambda without being tail-call
+/// safe, so a program with a long chain of nested lets/lambdas (e.g. deeply
+/// nested closures) can overflow a default-size thread stack. Running it on
+/// a thread with a much larger stack sidesteps that without having to make
+/// the recursion itself tail-safe.
+let codegen (node: TypedAST) (config: CompileConfig option) : Module =
+    let mutable result = Unchecked.defaultof<Module>
+    let thread = System.Threading.Thread((fun () -> result <- codegenImpl node config), 64 * 1024 * 1024)
+    thread.Start()
+    thread.Join()
+    result

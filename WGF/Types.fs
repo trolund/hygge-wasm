@@ -50,11 +50,7 @@ type ValueType =
             | Externref -> "externref"
             | Funcref -> "funcref"
             | NullableRef l -> $"(ref null {l})"
-            | Ref l -> 
-                match l with
-                | Named s -> $"{s}"
-                | Index i -> $"%d{i}"
-                // | Address i -> $"%d{i}"                        
+            | Ref l -> $"(ref {l})"
             | Nullref -> "ref.null"
             | Null -> "null"
             | EqRef -> "eqref" 
@@ -124,7 +120,11 @@ type TableSegment = int * int list
 
 type MemorySegment = int * string
 
-type TypeDef = 
+type TypeDef =
         | FuncType of Label * FunctionSignature
         | StructType of Label * Param list
+        // a struct type declared 'open' (subtypable) via WasmGC's 'sub'
+        // syntax: Some superLabel extends that already-declared struct type,
+        // None declares an open root with no supertype of its own.
+        | StructSubType of Label option * Label * Param list
         | ArrayType of Label * ValueType

@@ -7,7 +7,21 @@ namespace WasmTimeDriver
     public class WasmVM : IWasmVM
     {
 
-        private readonly Engine _engine;
+        /// <summary>
+        /// A wasmtime Engine is meant to be created once and shared across many
+        /// Stores/Modules for the lifetime of the process (see wasmtime docs).
+        /// Creating one per WasmVM instance - as every compile/test run does -
+        /// accumulates native (JIT/GC) resources fast enough to crash the
+        /// process after a few dozen instances, so it is shared statically here.
+        /// </summary>
+        private static readonly Engine _sharedEngine = new Engine(
+            new Config()
+                // .WithDebugInfo(true)
+                // .WithCraneliftDebugVerifier(true)
+                .WithOptimizationLevel(0)
+                .WithGc(true)
+        );
+
         private readonly Linker _linker;
         private readonly Store _store;
         /// <summary>
@@ -30,13 +44,7 @@ namespace WasmTimeDriver
             this.output = output;
             this._allocator = new MemoryAllocator(1, debug);
 
-            var config = new Config()
-                // .WithDebugInfo(true)
-                // .WithCraneliftDebugVerifier(true)
-                .WithOptimizationLevel(0);
-
-            _engine = new Engine(config);
-            _store = new Store(_engine);
+            _store = new Store(_sharedEngine);
 
             var WasiConfig = new WasiConfiguration()
             .WithInheritedStandardOutput()
@@ -48,7 +56,7 @@ namespace WasmTimeDriver
             // Set up all WASI functunality 
             _store.SetWasiConfiguration(WasiConfig);
 
-            _linker = new Linker(_engine);
+            _linker = new Linker(_sharedEngine);
             SetupLinker();
         }
 
@@ -204,42 +212,48 @@ namespace WasmTimeDriver
 
         public object? RunWat(string target, string wat, string name = "unknown")
         {
-            try
+            return WasmExecutionThread.Invoke<object?>(() =>
             {
-                // load module 
-                using var module = Module.FromText(_engine, name, wat);
+                try
+                {
+                    // load module
+                    using var module = Module.FromText(_sharedEngine, name, wat);
 
-                return ExecModule(module, target, name);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(name);
-                Console.WriteLine(e);
-                return 42;
-            }
+                    return ExecModule(module, target, name);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(name);
+                    Console.WriteLine(e);
+                    return 42;
+                }
+            });
         }
 
         public object? RunFile(string path, string? target, string name = "unknown")
         {
-            try
+            return WasmExecutionThread.Invoke<object?>(() =>
             {
-                // load module 
-                if (debug) Console.WriteLine("Loading module from file: " + path);
-                using var module = Module.FromTextFile(_engine, path);
-
-                if (target is null)
+                try
                 {
-                    return 0;
-                }
+                    // load module
+                    if (debug) Console.WriteLine("Loading module from file: " + path);
+                    using var module = Module.FromTextFile(_sharedEngine, path);
 
-                return ExecModule(module, target);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(name);
-                Console.WriteLine(e);
-                return 42;
-            }
+                    if (target is null)
+                    {
+                        return 0;
+                    }
+
+                    return ExecModule(module, target);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(name);
+                    Console.WriteLine(e);
+                    return 42;
+                }
+            });
         }
 
         public object? ExecModule(Module m, string target, string name = "unknown")
@@ -254,18 +268,21 @@ namespace WasmTimeDriver
 
         public object? Run(string wat, string target, string name = "unknown")
         {
-            try
+            return WasmExecutionThread.Invoke<object?>(() =>
             {
-                // load module 
-                using var module = Module.FromText(_engine, target, wat);
-                return ExecModule(module, target);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(name);
-                Console.WriteLine(e);
-                return 42;
-            }
+                try
+                {
+                    // load module
+                    using var module = Module.FromText(_sharedEngine, target, wat);
+                    return ExecModule(module, target);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(name);
+                    Console.WriteLine(e);
+                    return 42;
+                }
+            });
         }
 
         private object? RunTarget(string target, Instance? instance, string name = "unknown")
@@ -331,10 +348,9 @@ namespace WasmTimeDriver
 
         public void Dispose()
         {
-            _engine.Dispose();
+            // _sharedEngine is process-wide and intentionally never disposed here.
             _store.Dispose();
             _linker.Dispose();
-
         }
     }
 

@@ -124,9 +124,30 @@ let internal testANFCodegen (file: string) (expected: int) =
                  + $"got %d{exit} (%s{explainExit})")
 
 
+/// Names (without extension) of codegen test files that probe behaviour
+/// specific to the linear-memory allocators (Internal/External) and are not
+/// meaningful under the Heap (WasmGC) memory mode. Kept explicit, with a
+/// reason recorded for each entry.
+let internal heapExclusions: Set<string> =
+    Set.ofList [
+        // The 'export' keyword on a function makes its 'cenv' parameter (always
+        // typed eqref under Heap mode) part of the module's exported surface.
+        // wasmtime-dotnet aborts the whole process (not a catchable exception)
+        // when it has to marshal an exported function/global typed with a GC
+        // reference other than externref/funcref - a binding limitation, not a
+        // HyggeWasm codegen bug. Exported-closure support is also already a
+        // documented pre-existing gap (thesis ch.8, "Reintroduce exported
+        // functions"), unrelated to the WasmGC work in scope here.
+        "func-export"
+        "var-export-nested"
+        "mut-var-export"
+        "var-export"
+    ]
+
 [<Tests>]
 let tests =
-    testList
+    testSequenced
+    <| testList
         "tests"
         [ testList
               "lexer"
@@ -260,8 +281,11 @@ let tests =
         //              |> List.map (fun file ->
         //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
         //                  <| fun _ -> testANFCodegen file RISCVCodegen.assertExitCode)) ]
-          // Wasm tests are disabled for now
-          testList
+          // Wasm tests are run sequentially: each test spins up its own wasmtime
+          // Engine, and creating/disposing many of them concurrently across
+          // Expecto's parallel test runner crashes the native wasmtime runtime.
+          testSequenced
+          <| testList
               "wasm"
               // linar style
               [ testList
@@ -396,6 +420,42 @@ let tests =
                                  true
                                  Folded
                                  { AllocationStrategy = hyggec.Config.MemoryConfig.External
+                                   Si = hyggec.Config.SI.HyggeSI }))
+
+                // heap memory (WasmGC)
+                // Tests that exercise behaviour which is inherently specific to the
+                // linear-memory allocators (Internal/External) - e.g. probing wasm
+                // page growth or the static-data segment - do not apply to the Heap
+                // mode, where structs/arrays/closures live in the GC-managed store
+                // instead of linear memory. They are excluded here rather than
+                // silently skipped.
+                testList
+                    "pass-heap"
+                    (getFilesInTestDir [ "codegen"; "pass" ]
+                     |> List.filter (fun f -> not (Set.contains (Path.GetFileNameWithoutExtension f) heapExclusions))
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 0
+                                 false
+                                 Folded
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.Heap
+                                   Si = hyggec.Config.SI.HyggeSI }))
+                testList
+                    "fail-heap"
+                    (getFilesInTestDir [ "codegen"; "fail" ]
+                     |> List.filter (fun f -> not (Set.contains (Path.GetFileNameWithoutExtension f) heapExclusions))
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ ->
+                             testWasmCodegen
+                                 file
+                                 RISCVCodegen.assertExitCode
+                                 false
+                                 Folded
+                                 { AllocationStrategy = hyggec.Config.MemoryConfig.Heap
                                    Si = hyggec.Config.SI.HyggeSI }))
 
                 ] ]
