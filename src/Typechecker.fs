@@ -1490,9 +1490,22 @@ and internal letTyper
 /// Perform type checking of the given untyped AST.  Return a well-typed AST in
 /// case of success, or a sequence of error messages in case of failure.
 let typecheck (node: UntypedAST) : TypingResult =
-    typer
-        { Vars = Map []
-          TypeVars = Map []
-          Mutables = Set []
-          AtTopLevel = true }
-        node
+    let run () =
+        typer
+            { Vars = Map []
+              TypeVars = Map []
+              Mutables = Set []
+              AtTopLevel = true }
+            node
+
+    // 'typer' recurses once per nested let/lambda without being tail-call
+    // safe, so a program with a long chain of nested lets/lambdas can
+    // overflow a default-size thread stack (hit by some of the deeper
+    // codegen test programs). Running it on a thread with a much larger
+    // stack sidesteps that without having to make the recursion itself
+    // tail-safe.
+    let mutable result = Unchecked.defaultof<TypingResult>
+    let thread = System.Threading.Thread((fun () -> result <- run ()), 64 * 1024 * 1024)
+    thread.Start()
+    thread.Join()
+    result

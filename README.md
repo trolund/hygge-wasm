@@ -133,6 +133,17 @@ Phases of the code generation:
 Memory can be grown at **runtime** when using the *internal* and *external* modes.
 ![alt text](img/growingmem.svg)
 
+The *heap* mode (`-m 2`) compiles structs, arrays, unions, and closures to
+real WasmGC reference types (`struct.new`, `array.new`, etc.) instead of
+linear-memory pointers, using the [WasmGC proposal](https://developer.chrome.com/blog/wasmgc).
+It supports the same language features as the *internal*/*external* modes,
+including struct structural subtyping, array slicing (aliasing the source
+array, like the pointer-based modes do), pattern matching over unions, and
+closures that share a captured mutable variable. Running Wasm-GC code
+requires a runtime with WasmGC support (e.g. a recent `wasmtime` or a
+Chromium-based browser); `wat2wasm` does not support WasmGC, so use
+`wasm-tools` to assemble `heap` mode output instead.
+
 # Language features - Requirements
 
 ## Must Have

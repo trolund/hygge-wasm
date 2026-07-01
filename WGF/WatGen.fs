@@ -147,6 +147,32 @@ let printType (i: int, t) (withName: bool) =
             String.concat " " (List.map (fun (param) -> printParam param) types)
 
         $"{gIndent 1}(type ${name} {ic i} (struct {paramsString}))\n"
+    | StructSubType(super: Label option, name: Label, types: Param list) ->
+        // valid types: (type $open (sub (struct ...)))
+        //              (type $sub (sub $super (struct ...)))
+        // ('sub' - with or without a named supertype - makes the type open,
+        // i.e. further subtypable; a plain '(struct ...)' is final.)
+        let formatVar =
+            fun (var: Variable) ->
+                match var with
+                | (Ref(l), _) -> $"(ref null {l.ToString()})"
+                | (t, Mutable) -> $"(mut {t.ToString()})"
+                | (t, Immutable) -> t.ToString()
+
+        let printParam (n: Label option, var: Variable) =
+            match n with
+            | Some name -> $"(field ${name} {formatVar var})"
+            | None -> $"(field %s{var.ToString()})"
+
+        let paramsString =
+            String.concat " " (List.map (fun (param) -> printParam param) types)
+
+        let superStr =
+            match super with
+            | Some s -> $"${s} "
+            | None -> ""
+
+        $"{gIndent 1}(type ${name} {ic i} (sub {superStr}(struct {paramsString})))\n"
     | ArrayType(name: Label, t: ValueType) -> $"{gIndent 1}(type ${name} {ic i} (array (mut {t.ToString()})))\n"
 
 // function that only return the label of the instruction
