@@ -16,6 +16,8 @@ let rec hasSideEffects (instrs: Commented<WGF.Instr.Wasm> list) : bool =
     | (LocalTee _, _) :: rest -> true   
     | (Call _, _) :: rest -> true
     | (CallIndirect _, _) :: rest -> true
+    | (ReturnCall _, _) :: rest -> true
+    | (ReturnCallIndirect _, _) :: rest -> true
     | (StructSet _, _) :: rest -> true
     | (ArraySet _, _) :: rest -> true
 
@@ -175,6 +177,8 @@ let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     | (LocalTee (_, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (Call (_), _) :: rest -> 1 + countFunctionInstrs rest
     | (CallIndirect (_), _) :: rest -> 1 + countFunctionInstrs rest
+    | (ReturnCall (_), _) :: rest -> 1 + countFunctionInstrs rest
+    | (ReturnCallIndirect (_), _) :: rest -> 1 + countFunctionInstrs rest
     | (If (_, con, ifTrue, ifFalse), _) :: rest -> 1 + (countFunctionInstrs con) + (countFunctionInstrs ifTrue) + (match ifFalse with | Some ifFalse -> countFunctionInstrs ifFalse | None -> 0) + countFunctionInstrs rest
     | (Block (_, _, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (Loop (_, _, instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest

@@ -251,6 +251,8 @@ let instrLabel i =
     | Return -> "return"
     | Call _ -> "call"
     | CallIndirect _ -> "call_indirect"
+    | ReturnCall _ -> "return_call"
+    | ReturnCallIndirect _ -> "return_call_indirect"
     | Block _ -> "block"
     | Loop _ -> "loop"
     | If _ -> "if"
@@ -338,6 +340,8 @@ let printInstr (i: Commented<Instr.Wasm>) =
     | Return -> "return"
     | Call(name, _) -> $"call $%s{name}"
     | CallIndirect(label, instrs) -> $"call_indirect (type %s{label.ToString()})"
+    | ReturnCall(name, _) -> $"return_call $%s{name}"
+    | ReturnCallIndirect(label, instrs) -> $"return_call_indirect (type %s{label.ToString()})"
     | Drop _ -> "drop"
     // | Drop_ -> "drop"
     | Select _ -> "select"
@@ -948,6 +952,35 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
                      + $"{gIndent indent}{instrLabel instr} (type {t.ToString()}){commentS c}\n")
                     indent
             | CallIndirect(t, instrs: Commented<Wasm> list) when style = Folded ->
+                let watCode =
+                    watCode
+                    + space
+                    + $"({instrLabel instr} (type {t.ToString()}){commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
+
+                aux tail watCode indent
+
+            | ReturnCall(label, instrs: Commented<Wasm> list) when style = Linear ->
+                aux
+                    tail
+                    (watCode
+                     + (aux instrs emptyS indent)
+                     + $"{gIndent indent}{instrLabel instr} $%s{label.ToString()}{commentS c}\n")
+                    indent
+            | ReturnCall(label, instrs: Commented<Wasm> list) when style = Folded ->
+                let watCode =
+                    watCode
+                    + space
+                    + $"({instrLabel instr} $%s{label.ToString()}{commentS c}\n{aux instrs emptyS (indent + 1)}{gIndent (indent)})\n"
+
+                aux tail watCode indent
+            | ReturnCallIndirect(t, instrs: Commented<Wasm> list) when style = Linear ->
+                aux
+                    tail
+                    (watCode
+                     + (aux instrs emptyS indent)
+                     + $"{gIndent indent}{instrLabel instr} (type {t.ToString()}){commentS c}\n")
+                    indent
+            | ReturnCallIndirect(t, instrs: Commented<Wasm> list) when style = Folded ->
                 let watCode =
                     watCode
                     + space

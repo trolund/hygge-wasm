@@ -352,6 +352,28 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
         stmt :: (optimizeInstr rest)
     | [] -> []
 
+/// Rewrite calls in tail position into their tail-call counterparts
+/// (return_call / return_call_indirect), so the WebAssembly tail-call
+/// proposal can discard the caller's frame instead of growing the call
+/// stack. Only the last instruction of a body is in tail position, and,
+/// recursively, the last instruction of each branch of an `if` that is
+/// itself in tail position.
+/// ponytail: only `if`/`block` tails are followed; `loop` bodies aren't,
+/// since this codegen never produces a value from a loop. Extend if that changes.
+let rec internal tailCallOptimize (instrs: Commented<WGF.Instr.Wasm> list) : Commented<WGF.Instr.Wasm> list =
+    match List.rev instrs with
+    | [] -> instrs
+    | (last, c) :: revRest ->
+        let last' =
+            match last with
+            | CallIndirect(t, args) -> ReturnCallIndirect(t, args)
+            | Call(l, args) -> ReturnCall(l, args)
+            | If(rt, cond, thenI, Some elseI) -> If(rt, cond, tailCallOptimize thenI, Some(tailCallOptimize elseI))
+            | Block(l, vt, body) -> Block(l, vt, tailCallOptimize body)
+            | other -> other
+
+        List.rev ((last', c) :: revRest)
+
 /// Optimize the given assembly code.
 let optimize (m: Module) : Module =
     /// Recursively perform peephole optimization, until the result stops
@@ -380,7 +402,10 @@ let optimize (m: Module) : Module =
                 // optimize all instructions
                 let instrs' = optimizeInstrUntilStable instrs
 
-                (name, { func with body = instrs' }), c)
+                // substitute tail-position calls with tail calls
+                let instrs'' = tailCallOptimize instrs'
+
+                (name, { func with body = instrs'' }), c)
             funcs
 
     // replace all functions with the new ones that have been optimized
