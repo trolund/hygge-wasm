@@ -99,6 +99,10 @@ type Wasm =
     | Call of Label * Wasm Commented list
     /// type label
     | CallIndirect of Identifier * Wasm Commented list
+    // tail call variants: same operands, but discard the caller's frame (WebAssembly tail-call proposal)
+    | ReturnCall of Label * Wasm Commented list
+    /// type label
+    | ReturnCallIndirect of Identifier * Wasm Commented list
     // ref
     | RefFunc of Identifier
     // memory instr
