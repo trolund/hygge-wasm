@@ -20,7 +20,45 @@ namespace WasmTimeDriver
                 // .WithCraneliftDebugVerifier(true)
                 .WithOptimizationLevel(0)
                 .WithGc(true)
+                .WithFuelConsumption(true)
+                .WithEpochInterruption(true)
         );
+
+        /// <summary>
+        /// A runaway (e.g. infinite-looping) Hygge program would otherwise hang
+        /// forever on the single shared <see cref="WasmExecutionThread"/>,
+        /// wedging every other pending/future Wasm call in the process. Exactly
+        /// one of two mechanisms bounds a given run: a fuel budget (consumed
+        /// deterministically per executed instruction - reproducible, same trap
+        /// point every time) or an epoch-based wall-clock timeout (a background
+        /// timer ticks the shared engine's epoch; the run traps once its
+        /// deadline is reached). Wasmtime requires both to be enabled at the
+        /// engine level regardless (the engine is a shared singleton - see
+        /// above - so its Config can't vary per run), so the mechanism that
+        /// isn't chosen for a given run is neutralised with an effectively
+        /// unlimited budget instead of actually being disabled.
+        /// </summary>
+        private const int EpochTickMs = 50;
+
+        /// Ticks at 50ms is ~1.5 million years - far beyond any process's
+        /// lifetime, so this is "never" for the mechanism not in use, without
+        /// risking an unsigned overflow (SetEpochDeadline adds this to the
+        /// current epoch) the way ulong.MaxValue would.
+        private const ulong UnlimitedTicks = 1_000_000_000_000UL;
+
+        private static readonly System.Threading.Timer _epochTicker = new System.Threading.Timer(
+            _ => _sharedEngine.IncrementEpoch(),
+            null,
+            EpochTickMs,
+            EpochTickMs
+        );
+
+        private const ulong DefaultFuel = 100_000_000;
+
+        /// Null means "not the active mechanism for this run" - set to an
+        /// effectively unlimited budget in RunTarget instead of the real one.
+        private readonly ulong? _fuel;
+        private readonly int? _timeoutMs;
 
         private readonly Linker _linker;
         private readonly Store _store;
@@ -37,11 +75,29 @@ namespace WasmTimeDriver
         private readonly bool debug = false;
         private readonly bool output = false;
 
-        public WasmVM(bool debug = false, bool output = false)
+        // ponytail: default fuel budget is a rough order-of-magnitude guess, not a
+        // measured figure. Tune via the constructor if it trips on legitimately heavy
+        // programs or is too generous.
+        //
+        // fuel and timeoutMs are mutually exclusive: pass at most one. If both are
+        // given, fuel wins. If neither is given, fuel with the default budget is used.
+        public WasmVM(bool debug = false, bool output = false, ulong? fuel = null, int? timeoutMs = null)
         {
 
             this.debug = debug;
             this.output = output;
+            if (fuel is not null)
+            {
+                this._fuel = fuel;
+            }
+            else if (timeoutMs is not null)
+            {
+                this._timeoutMs = timeoutMs;
+            }
+            else
+            {
+                this._fuel = DefaultFuel;
+            }
             this._allocator = new MemoryAllocator(1, debug);
 
             _store = new Store(_sharedEngine);
@@ -324,6 +380,10 @@ namespace WasmTimeDriver
             // run the code
             try
             {
+                _store.Fuel = _fuel ?? ulong.MaxValue;
+                // ticks are EpochTickMs apart, so this many ticks from now is roughly _timeoutMs away
+                _store.SetEpochDeadline(_timeoutMs is int t ? (ulong)Math.Max(1, t / EpochTickMs) : UnlimitedTicks);
+
                 function.Invoke();
 
                 // exit code is null if the function does not return anything
@@ -336,6 +396,18 @@ namespace WasmTimeDriver
                 {
                     if (debug) Console.WriteLine("No exit code found");
                 }
+            }
+            catch (TrapException te) when (te.Type == TrapCode.OutOfFuel)
+            {
+                // program ran out of its fuel budget instead of failing on its own
+                if (debug) Console.WriteLine($"warn: execution exceeded its {_fuel} fuel budget and was interrupted");
+                return 42;
+            }
+            catch (TrapException te) when (te.Type == TrapCode.Interrupt)
+            {
+                // program ran longer than the timeout instead of failing on its own
+                if (debug) Console.WriteLine($"warn: execution exceeded {_timeoutMs}ms timeout and was interrupted");
+                return 42;
             }
             catch
             {
