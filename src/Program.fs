@@ -183,6 +183,12 @@ let handelOutputFile (outFile: string option, asm) =
         printf $"%O{asm}"
         0 // Success!
 
+/// Build a WasmVM from '--fuel'/'--timeout'. The two are mutually exclusive
+/// (WasmVM prefers fuel if both are given, and falls back to a default fuel
+/// budget if neither is given) - see the WasmVM constructor.
+let makeWasmVM (verbose: bool) (fuel: uint64 option) (timeout: int option) : WasmVM =
+    WasmVM(debug = verbose, fuel = Option.toNullable fuel, timeoutMs = Option.toNullable timeout)
+
 let compileRISCV (opt: CmdLine.CompilerOptions) tast =
     let asm =
         if (opt.ANF) then
@@ -301,7 +307,7 @@ let internal compile (opt: CmdLine.CompilerOptions) : int =
             if opt.Execute then
                 Log.debug $"WASM code: %s{asm}"
                 Console.WriteLine $"Running WASM VM"
-                let vm = WasmVM()
+                let vm = makeWasmVM opt.Verbose opt.Fuel opt.Timeout
                 let res = vm.RunWatString(asm, opt.File)
                 Console.WriteLine $"WASM VM result: %O{res}"
 
@@ -366,7 +372,7 @@ let internal launchRARS (opt: CmdLine.RARSLaunchOptions) : int =
 /// options. Return 0 in case of success, and non-zero in case of error.
 let internal launchWasmTime (opt: CmdLine.WasmTimeLaunchOptions) : int =
 
-    let vm = WasmVM(opt.Verbose)
+    let vm = makeWasmVM opt.Verbose opt.Fuel opt.Timeout
     Console.WriteLine("Running file: " + opt.File)
     let res = vm.RunFile(opt.File)
     Console.WriteLine($"return value {res.ToString()}")

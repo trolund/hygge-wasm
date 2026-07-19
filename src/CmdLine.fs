@@ -123,6 +123,12 @@ type CompilerOptions = {
 
     [<Option('T', "Compilation Target", HelpText="Wasm = 0, RISC-V = 1; defualt: 0")>]
     target: CompilationTarget
+
+    [<Option("fuel", HelpText="With --execute: Wasm fuel budget (an instruction-based, deterministic execution limit) before the program is interrupted. (Default: 100000000)")>]
+    Fuel: Option<uint64>
+
+    [<Option("timeout", HelpText="With --execute: Wasm execution wall-clock timeout in milliseconds before the program is interrupted. (Default: 5000)")>]
+    Timeout: Option<int>
 }
 
 
@@ -162,6 +168,12 @@ type WasmTimeLaunchOptions = {
 
     [<Option('O', "optimize", HelpText="Optimization level (default: 0, i.e. no optimizations, partial evaluation: 1, copy propagation: 2, peephole: 3, all: 4 or more)")>]
     Optimize: uint
+
+    [<Option("fuel", HelpText="Wasm fuel budget (an instruction-based, deterministic execution limit) before the program is interrupted. (Default: 100000000)")>]
+    Fuel: Option<uint64>
+
+    [<Option("timeout", HelpText="Wasm execution wall-clock timeout in milliseconds before the program is interrupted. (Default: 5000)")>]
+    Timeout: Option<int>
 }
 
 
