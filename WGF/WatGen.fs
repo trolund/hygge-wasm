@@ -270,9 +270,8 @@ let instrLabel i =
     | RefFunc(_) -> "ref.func"
     // | MemoryInit(_, _, _) -> "memory.init"
     // | DataDrop(_) -> "data.drop"
-    // | MemoryCopy(_, _) -> "memory.copy"
-    // | MemoryFill_(_, _, _) -> "memory.fill"
-    // | MemoryFill -> "memory.fill"
+    | MemoryCopy(_) -> "memory.copy"
+    | MemoryFill(_) -> "memory.fill"
     | MemoryGrow(_) -> "memory.grow"
     | MemorySize -> "memory.size"
     | StructNew(_, _) -> "struct.new"
@@ -600,6 +599,8 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
             | I32Store instrs
             | F32Store instrs
             | MemoryGrow instrs
+            | MemoryFill instrs
+            | MemoryCopy instrs
             | Drop instrs
             | StructNew(_, instrs)
             | I32Add instrs when style = Folded ->
@@ -616,6 +617,8 @@ let generateText (instrs: Wasm Commented list) (style: WritingStyle) =
             | StructNew(_, instrs)
             | Drop instrs
             | MemoryGrow instrs
+            | MemoryFill instrs
+            | MemoryCopy instrs
             | F32Sqrt instrs
             | I32GeS instrs
             | F32Ge instrs

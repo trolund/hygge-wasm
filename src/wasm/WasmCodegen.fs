@@ -1252,62 +1252,93 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
                "store pointer to data") ]
 
 
-        // loop that runs length times and stores data in allocated memory
-        let exitl = env.SymbolController.genSymbol $"loop_exit"
-        let beginl = env.SymbolController.genSymbol $"loop_begin"
-        let i = env.SymbolController.genSymbol $"i"
-
         let storeInstr =
             match (expandType data.Env data.Type) with
             | t when (isSubtypeOf data.Env t TInt) -> I32Store
             | t when (isSubtypeOf data.Env t TFloat) -> F32Store
             | _ -> I32Store
 
-        // body should set data in allocated memory
-        // TODO: optimize loop so i just multiply index with 4 and add it to base address
-        let body =
-            // get value to store in allocated memory
-            [ (storeInstr (
-                  [ (Comment "start of loop body", "")
-                    (I32Add(
-                        [ (I32Load([ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]),
-                           "load data pointer")
-                          (I32Mul(
-                              [
-                                // find offset to element
-                                (LocalGet(Named(i)), "get index")
-                                (I32Const(4), "byte offset") ]
-                           ),
-                           "multiply index with byte offset") ]
-                     ),
-                     "add offset to base address") ] // then offset is on top of stack
-                  @ data'.GetAccCode()
-               ),
-               "store value in elem pos")
-              (Comment "end of loop body", "") ]
+        /// base address of the allocated element data (reloaded on demand, matching
+        /// the convention used throughout this function rather than caching it)
+        let dataPtr =
+            [ (I32Load([ (LocalGet(Named(structPointerLabel)), "get struct pointer var") ]), "load data pointer") ]
 
-        // loop that runs length times and stores data in allocated memory
+        // Fill the array by writing the single 'data' element once, then doubling
+        // the already-written prefix with memory.copy (dest, src, size) - a bulk
+        // memory operation - until it covers the whole array. This takes O(log n)
+        // copies instead of the previous O(n) individual element stores, and,
+        // unlike memory.fill (which can only repeat a single byte), works for any
+        // element value since it just duplicates bytes that are already correct.
+        let copied = env.SymbolController.genSymbol $"copied"
+        let chunk = env.SymbolController.genSymbol $"chunk"
+        let exitl = env.SymbolController.genSymbol $"loop_exit"
+        let beginl = env.SymbolController.genSymbol $"loop_begin"
+
+        let firstElemStore =
+            [ (storeInstr (dataPtr @ data'.GetAccCode()), "store first element") ]
+
+        // remaining = length - copied
+        let remaining =
+            [ (I32Sub(length'.GetAccCode() @ [ (LocalGet(Named(copied)), "get copied") ]), "length - copied") ]
+
+        let computeChunk =
+            [ (LocalSet(
+                  Named(chunk),
+                  [ (If(
+                        [ I32 ],
+                        [ (I32LtS([ (LocalGet(Named(copied)), "get copied") ] @ remaining), "copied < remaining") ],
+                        [ (LocalGet(Named(copied)), "get copied") ],
+                        Some(remaining)
+                     ),
+                     "chunk = min(copied, remaining)") ]
+               ),
+               "set chunk") ]
+
+        let doubleChunk =
+            [ (MemoryCopy(
+                  [ (I32Add(
+                        dataPtr
+                        @ [ (I32Mul([ (LocalGet(Named(copied)), "get copied"); (I32Const(4), "byte offset") ]),
+                             "multiply copied with byte offset") ]
+                     ),
+                     "dest = base + copied*4") ]
+                  @ dataPtr // src = base
+                  @ [ (I32Mul([ (LocalGet(Named(chunk)), "get chunk"); (I32Const(4), "byte offset") ]),
+                       "chunk * 4 bytes") ]
+               ),
+               "duplicate the already-written prefix") ]
+
         let loop =
             C
                 [ Loop(
                       beginl,
                       [], // loops does not return anything
-                      [ (BrIf(exitl, C [ I32Eq(length'.GetAccCode() @ [ (LocalGet(Named i), "get i") ]) ]), "") ]
-                      @ body
+                      [ (BrIf(
+                            exitl,
+                            C [ I32GeS([ (LocalGet(Named(copied)), "get copied") ] @ length'.GetAccCode()) ]
+                         ),
+                         "exit once the whole array is filled") ]
+                      @ computeChunk
+                      @ doubleChunk
                       @ [ (LocalSet(
-                              Named i,
-                              [ (I32Add([ (LocalGet(Named i), "get i"); (I32Const(1), "increment by 1") ]), "add 1 to i") ]
+                              Named(copied),
+                              [ (I32Add([ (LocalGet(Named(copied)), "get copied"); (LocalGet(Named(chunk)), "get chunk") ]),
+                                 "copied += chunk") ]
                            ),
-                           "write to i") ]
+                           "write to copied") ]
                       @ C [ Br beginl ]
                   ) ]
 
-        // block that contains loop and provides a way to exit the loop
         let block: Commented<WGF.Instr.Wasm> list =
-            C [ LocalSet(Named(i), C [ I32Const 0 ]) ] @ C [ (Block(exitl, [], loop)) ]
+            firstElemStore
+            @ C [ LocalSet(Named(copied), C [ I32Const 1 ]) ]
+            @ C [ (Block(exitl, [], loop)) ]
 
         let loopModule =
-            data'.ResetAccCode().AddLocals([ (Some(Label(i)), I32) ]).AddCode(block)
+            data'
+                .ResetAccCode()
+                .AddLocals([ (Some(Label(copied)), I32); (Some(Label(chunk)), I32) ])
+                .AddCode(block)
 
         lengthCheck
         ++ structPointer.AddCode(instr)
@@ -3032,6 +3063,8 @@ let rec localSubst (code: Commented<WGF.Instr.Wasm> list) (var: string) : Commen
     | (F32Store_(align, offset, instrs), c) :: rest ->
         [ (F32Store_(align, offset, localSubst instrs var), c) ] @ localSubst rest var
     | (MemoryGrow(instrs), c) :: rest -> [ (MemoryGrow(localSubst instrs var), c) ] @ localSubst rest var
+    | (MemoryFill(instrs), c) :: rest -> [ (MemoryFill(localSubst instrs var), c) ] @ localSubst rest var
+    | (MemoryCopy(instrs), c) :: rest -> [ (MemoryCopy(localSubst instrs var), c) ] @ localSubst rest var
     | (BrIf(l, instrs), c) :: rest -> [ (BrIf(l, localSubst instrs var), c) ] @ localSubst rest var
     | (Drop(instrs), c) :: rest -> [ (Drop(localSubst instrs var), c) ] @ localSubst rest var
     | (StructNew(l, instrs), c) :: rest -> [ (StructNew(l, localSubst instrs var), c) ] @ localSubst rest var

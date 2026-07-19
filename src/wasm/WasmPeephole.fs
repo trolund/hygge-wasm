@@ -344,6 +344,8 @@ let rec internal optimizeInstr (code: Commented<WGF.Instr.Wasm> list) : (Comment
     | (Drop(instrs), c) :: rest -> (Drop(optimizeInstr instrs), c) :: optimizeInstr rest
 
     | (MemoryGrow(instrs), c) :: rest -> (MemoryGrow(optimizeInstr instrs), c) :: optimizeInstr rest
+    | (MemoryFill(instrs), c) :: rest -> (MemoryFill(optimizeInstr instrs), c) :: optimizeInstr rest
+    | (MemoryCopy(instrs), c) :: rest -> (MemoryCopy(optimizeInstr instrs), c) :: optimizeInstr rest
 
     // no optimization case matched: continue with the rest
     | stmt :: rest ->
