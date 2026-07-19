@@ -108,9 +108,10 @@ type Wasm =
     // memory instr
     // | MemoryInit of int * int * int
     // | DataDrop of int
-    // | MemoryCopy of int * int
-    // | MemoryFill_ of int * int * int
-    // | MemoryFill
+    /// bulk-memory: copies 'size' bytes from 'src' to 'dest'. Operand order: dest, src, size.
+    | MemoryCopy of Wasm Commented list
+    /// bulk-memory: fills 'size' bytes at 'dest' with the (byte-sized) 'value'. Operand order: dest, value, size.
+    | MemoryFill of Wasm Commented list
     /// Block Instruction
     /// label * result type * instrs
     | Block of Label * ValueType list * list<Commented<Wasm>>

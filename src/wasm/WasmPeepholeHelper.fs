@@ -20,6 +20,8 @@ let rec hasSideEffects (instrs: Commented<WGF.Instr.Wasm> list) : bool =
     | (ReturnCallIndirect _, _) :: rest -> true
     | (StructSet _, _) :: rest -> true
     | (ArraySet _, _) :: rest -> true
+    | (MemoryFill _, _) :: rest -> true
+    | (MemoryCopy _, _) :: rest -> true
 
     | (If (_, con, ifTrue, ifFalse), _) :: rest -> 
         hasSideEffects con ||
@@ -213,6 +215,8 @@ let rec countFunctionInstrs (instrs: Commented<Wasm> list) : int =
     | (F32Div(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (Drop(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (MemoryGrow(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (MemoryFill(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
+    | (MemoryCopy(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (F32Sqrt(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (F32Max(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
     | (F32Min(instrs'), _) :: rest -> 1 + (countFunctionInstrs instrs') + countFunctionInstrs rest
