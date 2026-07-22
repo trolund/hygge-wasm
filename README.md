@@ -11,9 +11,9 @@ The `HyggeWasm` compiler is based on `hyggec` and uses the Hygge programming lan
 
 ## Software Requirements
 
-* .NET 8.0 (for compiling and running `HyggeWasm`)
-  * On Ubuntu and Debian GNU/Linux: `apt install dotnet8`
-  * On MacOS: `brew install dotnet@8`
+* .NET 10.0 (for compiling and running `HyggeWasm`)
+  * On Ubuntu and Debian GNU/Linux: `apt install dotnet10`
+  * On MacOS: `brew install dotnet@10`
   * On Windows: <https://dotnet.microsoft.com/en-us/download>
 
 ## Useful tools
@@ -105,6 +105,13 @@ The CLI lets the user run the test suite.
 | -i   | System interface          | 0 - HyggeSI or 1 - WASI                           |
 | -m   | Memory mode               | 0 - External or 1 - Internal or 2 - Heap (WasmGC) |
 | -e   | Execute after compilation| _                                                 |
+| -O   | Optimization level        | 0 - none, 1 - partial eval, 2 - +copy propagation, 3 - +peephole, 4+ - +tail calls |
+| --fuel | With `-e`: instruction-based execution budget before the run is interrupted (default: 100000000) | _ |
+| --timeout | With `-e`: wall-clock execution timeout in ms before the run is interrupted (default: 5000) | _ |
+
+`--fuel` and `--timeout` are mutually exclusive (fuel wins if both are given) and also apply to `./hyggec wasm`. See [doc/execution_budget.md](doc/execution_budget.md).
+
+`-O 4` also enables [tail-call optimisation](doc/tail_call_optimisation.md): calls in tail position compile to `return_call`/`return_call_indirect`, so tail-recursive Hygge functions run in constant stack space.
 
 ## Run .wat file standalone
 
@@ -143,6 +150,10 @@ closures that share a captured mutable variable. Running Wasm-GC code
 requires a runtime with WasmGC support (e.g. a recent `wasmtime` or a
 Chromium-based browser); `wat2wasm` does not support WasmGC, so use
 `wasm-tools` to assemble `heap` mode output instead.
+
+In the *internal*/*external* modes, `array(length, value)` fills the backing
+memory with `memory.copy` (doubling the filled prefix) instead of a
+per-element loop — see [doc/bulk_memory_array_fill.md](doc/bulk_memory_array_fill.md).
 
 # Language features - Requirements
 
