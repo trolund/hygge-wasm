@@ -380,26 +380,6 @@ let findBestMatchType (m: Module) (fields: List<string * Type>) =
 
 
 
-// look up variable in var env
-// TODO: remove this function
-let internal lookupVar (env: CodegenEnv) (e: TypedAST) =
-    match e.Expr with
-    | Var v ->
-        match env.VarStorage.TryFind v with
-        | Some(Storage.Local l) -> Named(l)
-        | Some(Storage.Global l) -> Named(l)
-        | Some(Storage.Offset(o)) -> Index(o)
-        | _ -> failwith "not implemented"
-    | FieldSelect(e, f) ->
-        match e.Expr with
-        | Var v ->
-            match env.VarStorage.TryFind v with
-            | Some(Storage.Local l) -> Named(l)
-            | Some(Storage.Global l) -> Named(l)
-            | Some(Storage.Offset(o)) -> Index(o)
-            | _ -> failwith "not implemented"
-    | _ -> failwith "not implemented"
-
 /// look up variable in var env
 let internal lookupLabel (env: CodegenEnv) (name: string) =
     match env.VarStorage.TryFind name with
@@ -2643,36 +2623,6 @@ let rec internal doCodegen (env: CodegenEnv) (node: TypedAST) (m: Module) : Modu
             m
     | Pointer _ -> failwith "BUG: pointers cannot be compiled (by design!)"
     | AST.Type(name, def, scope) ->
-        // if env.Config.AllocationStrategy = Heap then
-        //     let result = resolvePretype node.Env def
-
-        //     match result with
-        //     | Ok(t) ->
-        //         match (expandType node.Env t) with
-        //         | TStruct(fields) ->
-        //             //let td = createStructType fields
-        //             // TODO map correcly
-        //             let typeParams: Param list =
-        //                 List.map (fun (name, t: Type) -> (Some(name), ((mapTypeHeap t), Mutable))) fields
-
-        //             let td = StructType(name, typeParams)
-        //             (doCodegen env scope m).AddTypedef(td)
-        //         | TArray(t) ->
-        //             let td = ArrayType(name, mapTypeHeap t)
-        //             (doCodegen env scope m).AddTypedef(td)
-        //         // | TFun(args, ret) ->
-        //         //     let locals = List.map (fun (t) -> (None, (mapTypeHeap (expandType node.Env t)))) args
-
-        //         //     let signature: FunctionSignature =
-        //         //             (locals, [ mapTypeHeap ret ])
-
-        //         //     let typeS = GenFuncTypeID(locals, [mapTypeHeap ret])
-
-        //         //     let td = FuncType(name, signature)
-        //         //     (doCodegen env scope m).AddTypedef(td)
-        //         | _ -> (doCodegen env scope m)
-        //     | Error(e) -> doCodegen env scope m
-        // else
         // keep mapTypeHeap's nested-alias expansion (rootTypingEnv) up to
         // date as each 'type X = ...' declaration comes into scope
         if env.Config.AllocationStrategy = Heap then
