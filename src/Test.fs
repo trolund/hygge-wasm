@@ -197,62 +197,62 @@ let tests =
                              match (Util.parseFile file) with
                              | Error(e) -> failwith $"Parsing failed: %s{e}"
                              | Ok(ast) -> Expect.isError (Typechecker.typecheck ast) "Typing should have failed")) ]
-        //   testList
-        //       "interpreter"
-        //       [ testList
-        //             "pass"
-        //             (getFilesInTestDir [ "interpreter"; "pass" ]
-        //              |> List.map (fun file ->
-        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
-        //                  <| fun _ ->
-        //                      match (Util.parseFile file) with
-        //                      | Error(e) -> failwith $"Parsing failed: %s{e}"
-        //                      | Ok(ast) ->
-        //                          let last = Interpreter.reduceFully ast (Some(fun _ -> "")) (Some ignore)
-        //                          Expect.isFalse (Interpreter.isStuck last) "Interpreter reached a stuck expression"))
-        //         testList
-        //             "fail"
-        //             (getFilesInTestDir [ "interpreter"; "fail" ]
-        //              |> List.map (fun file ->
-        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
-        //                  <| fun _ ->
-        //                      match (Util.parseFile file) with
-        //                      | Error(e) -> failwith $"Parsing failed: %s{e}"
-        //                      | Ok(ast) ->
-        //                          let last = Interpreter.reduceFully ast (Some(fun _ -> "")) (Some ignore)
+          testList
+              "interpreter"
+              [ testList
+                    "pass"
+                    (getFilesInTestDir [ "interpreter"; "pass" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ ->
+                             match (Util.parseFile file) with
+                             | Error(e) -> failwith $"Parsing failed: %s{e}"
+                             | Ok(ast) ->
+                                 let last = Interpreter.reduceFully ast (Some(fun _ -> "")) (Some ignore)
+                                 Expect.isFalse (Interpreter.isStuck last) "Interpreter reached a stuck expression"))
+                testList
+                    "fail"
+                    (getFilesInTestDir [ "interpreter"; "fail" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ ->
+                             match (Util.parseFile file) with
+                             | Error(e) -> failwith $"Parsing failed: %s{e}"
+                             | Ok(ast) ->
+                                 let last = Interpreter.reduceFully ast (Some(fun _ -> "")) (Some ignore)
 
-        //                          Expect.isTrue
-        //                              (Interpreter.isStuck last)
-        //                              "Interpreter should have reached a stuck expression")) ]
-        //   testList
-        //       "interpreter-anf"
-        //       [ testList
-        //             "pass"
-        //             (getFilesInTestDir [ "interpreter-anf"; "pass" ]
-        //              |> List.map (fun file ->
-        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
-        //                  <| fun _ ->
-        //                      match (Util.parseFile file) with
-        //                      | Error(e) -> failwith $"Parsing failed: %s{e}"
-        //                      | Ok(ast) ->
-        //                          let anf = ANF.transform ast
-        //                          let last = Interpreter.reduceFully anf (Some(fun _ -> "")) (Some ignore)
-        //                          Expect.isFalse (Interpreter.isStuck last) "Interpreter reached a stuck expression"))
-        //         testList
-        //             "fail"
-        //             (getFilesInTestDir [ "interpreter-anf"; "fail" ]
-        //              |> List.map (fun file ->
-        //                  testCase (System.IO.Path.GetFileNameWithoutExtension file)
-        //                  <| fun _ ->
-        //                      match (Util.parseFile file) with
-        //                      | Error(e) -> failwith $"Parsing failed: %s{e}"
-        //                      | Ok(ast) ->
-        //                          let anf = ANF.transform ast
-        //                          let last = Interpreter.reduceFully anf (Some(fun _ -> "")) (Some ignore)
+                                 Expect.isTrue
+                                     (Interpreter.isStuck last)
+                                     "Interpreter should have reached a stuck expression")) ]
+          testList
+              "interpreter-anf"
+              [ testList
+                    "pass"
+                    (getFilesInTestDir [ "interpreter-anf"; "pass" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ ->
+                             match (Util.parseFile file) with
+                             | Error(e) -> failwith $"Parsing failed: %s{e}"
+                             | Ok(ast) ->
+                                 let anf = ANF.transform ast
+                                 let last = Interpreter.reduceFully anf (Some(fun _ -> "")) (Some ignore)
+                                 Expect.isFalse (Interpreter.isStuck last) "Interpreter reached a stuck expression"))
+                testList
+                    "fail"
+                    (getFilesInTestDir [ "interpreter-anf"; "fail" ]
+                     |> List.map (fun file ->
+                         testCase (System.IO.Path.GetFileNameWithoutExtension file)
+                         <| fun _ ->
+                             match (Util.parseFile file) with
+                             | Error(e) -> failwith $"Parsing failed: %s{e}"
+                             | Ok(ast) ->
+                                 let anf = ANF.transform ast
+                                 let last = Interpreter.reduceFully anf (Some(fun _ -> "")) (Some ignore)
 
-        //                          Expect.isTrue
-        //                              (Interpreter.isStuck last)
-        //                              "Interpreter should have reached a stuck expression")) ]
+                                 Expect.isTrue
+                                     (Interpreter.isStuck last)
+                                     "Interpreter should have reached a stuck expression")) ]
         //   testList
         //       "codegen"
         //       [ testList
