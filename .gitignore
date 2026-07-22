@@ -9,7 +9,7 @@ Debug
 *.user
 obj
 bin
-/build/
+build
 *.exe
 !.paket/paket.bootstrapper.exe
 .ionide/
@@ -21,9 +21,7 @@ TestResults
 .idea/
 .DS_Store
 .vs/hyggec/xs/UserPrefs.xml
-.vs/hyggec/xs/UserPrefs.xml
 .vs/hyggec/xs/project-cache/hyggec-Debug.json
-.vs/hyggec/xs/UserPrefs.xml
 riscv1.asm
 
 global.json
@@ -33,11 +31,7 @@ wasi-sdk-20.0-linux.tar.gz
 
 test.wat
 test.wasm
+stats.csv
 
 temp
 data
-nodeJsRunner/build/index.js
-.gitignore
-./build
-build
-nodeJsRunner/v8
