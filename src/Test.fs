@@ -49,7 +49,7 @@ let runWasmModule asm expected (name: string) =
 
     let explainExpected = RARS.explainExitCode expected
     // TODO: get args from cli input
-    let vm: IWasmVM = WasmVM(true, true)
+    let vm = WasmVM(true, true)
     let exit: int = vm.RunWatString(asm.ToString(), name) :?> int
     Log.debug (sprintf "WasmTime exit code: %d" exit)
     let explainExit = RARS.explainExitCode exit

@@ -4,7 +4,7 @@ using Wasmtime;
 namespace WasmTimeDriver
 {
 
-    public class WasmVM : IWasmVM
+    public class WasmVM
     {
 
         /// <summary>

@@ -64,9 +64,6 @@ let GenFuncTypeID (t) =
 let C instrs =
     instrs |> List.map (fun x -> Commented(x, ""))
 
-let I instrs : Commented<'a> list = instrs |> List.map (fun x -> fst x)
-
-
 // write wasm module to file
 let writeWasmFile (wasm: string) (path: string) =
     let file = System.IO.File.Create(path)
@@ -171,15 +168,6 @@ let createStructTypeNodeWithPrefixes (fields: list<string * ValueType>) : TypeDe
             StructSubType(None, typeId, typeParams)
         else
             StructSubType(Some(GenStructTypeID(fields[0 .. n - 2])), typeId, typeParams))
-
-let createStructType (fields: list<string * ValueType>) =
-    let typeParams: Param list =
-        List.map (fun (name, t: ValueType) -> (Some(name), ((t), Mutable))) fields
-
-    let typeId = GenStructTypeIDType fields
-
-    StructType(typeId, typeParams)
-
 
 /// sort types by function type and (struct type, array type)
 /// <summary>Sort types by function type and (struct type, array type), functions is last</summary>

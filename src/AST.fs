@@ -132,7 +132,7 @@ and Expr<'E, 'T> =
     /// negation of a number
     | Neg of arg: Node<'E, 'T>
 
-    ///C-Style Operators TODO: delete
+    /// C-Style Operators
 
     | CSIncr of arg: Node<'E, 'T>
 
