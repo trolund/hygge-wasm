@@ -224,7 +224,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             | None -> None
 
     | CSIncr(arg) ->
-        match arg.Expr with 
+        match arg.Expr with
         | IntVal(v) ->
             Some(env, {node with Expr = IntVal(v+1)})
         | FloatVal(v) ->
@@ -235,7 +235,7 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 Some(env', {node with Expr = CSIncr(arg2)})
             | None -> None
     | CSDcr(arg) ->
-        match arg.Expr with 
+        match arg.Expr with
         | IntVal(v) ->
             Some(env, {node with Expr = IntVal(v-1)})
         | FloatVal(v) ->
@@ -245,29 +245,38 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             | Some(env', arg2) ->
                 Some(env', {node with Expr = CSDcr(arg2)})
             | None -> None
-    | AddAsg(lhs, rhs) ->
-        match (lhs.Expr, rhs.Expr) with 
-        | (IntVal(v1), IntVal(v2)) -> 
-            Some(env, {node with Expr = IntVal(v1+v2)})
-        | (FloatVal(v1), FloatVal(v2)) -> 
-            Some(env, {node with Expr = FloatVal(v1+v2)})
-        | (_, _) ->
-            match (reduceLhsRhs env lhs rhs) with 
-            | Some(env', lhs', rhs') ->
-                Some(env', {node with Expr = AddAsg(lhs', rhs')})
+
+    // 'lhs' is always a mutable 'Var' here (enforced by the typechecker), so
+    // the new value is written straight to 'env.Mutables' instead of going
+    // through 'reduceLhsRhs': that helper only ever reduces 'lhs' down to a
+    // detached value node, which would discard the variable name needed to
+    // persist the assignment.
+    | PreIncr({Expr = Var(vname)}) -> reduceIncrDcr env node vname 1 1.0f false
+    | PostIncr({Expr = Var(vname)}) -> reduceIncrDcr env node vname 1 1.0f true
+    | PreDcr({Expr = Var(vname)}) -> reduceIncrDcr env node vname -1 -1.0f false
+    | PostDcr({Expr = Var(vname)}) -> reduceIncrDcr env node vname -1 -1.0f true
+
+    | AddAsg({Expr = Var(vname)} as target, rhs) ->
+        reduceCompoundAssign env node vname rhs (fun r -> AddAsg(target, r)) (+) (+)
+    | MinAsg({Expr = Var(vname)} as target, rhs) ->
+        reduceCompoundAssign env node vname rhs (fun r -> MinAsg(target, r)) (-) (-)
+    | MulAsg({Expr = Var(vname)} as target, rhs) ->
+        reduceCompoundAssign env node vname rhs (fun r -> MulAsg(target, r)) ( * ) ( * )
+    | DivAsg({Expr = Var(vname)} as target, rhs) ->
+        reduceCompoundAssign env node vname rhs (fun r -> DivAsg(target, r)) (/) (/)
+    | RemAsg({Expr = Var(vname)} as target, rhs) ->
+        // Remainder assignment is integer-only (enforced by the typechecker).
+        if not (isValue rhs) then
+            match (reduce env rhs) with
+            | Some(env', rhs') -> Some(env', {node with Expr = RemAsg(target, rhs')})
             | None -> None
-    | MinAsg(lhs, rhs) ->
-        match (lhs.Expr, rhs.Expr) with 
-        | (IntVal(v1), IntVal(v2)) -> 
-            Some(env, {node with Expr = IntVal(v1-v2)})
-        | (FloatVal(v1), FloatVal(v2)) -> 
-            Some(env, {node with Expr = FloatVal(v1-v2)})
-        | (_, _) ->
-            match (reduceLhsRhs env lhs rhs) with 
-            | Some(env', lhs', rhs') ->
-                Some(env', {node with Expr = MinAsg(lhs', rhs')})
-            | None -> None
-    
+        else
+            match (env.Mutables.TryFind vname, rhs.Expr) with
+            | Some({Expr = IntVal v1}), IntVal(v2) ->
+                let newVal = {node with Expr = IntVal(v1 % v2)}
+                Some({env with Mutables = env.Mutables.Add(vname, newVal)}, newVal)
+            | _ -> None
+
     | Eq(lhs, rhs) ->
         match (lhs.Expr, rhs.Expr) with
         | (IntVal(v1), IntVal(v2)) ->
@@ -846,6 +855,52 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
             Some(env', {node with Expr = ArraySlice(target, start, ending')})
         | None -> None
     | ArraySlice(_, _, _) -> None
+
+/// Reduce a prefix/postfix increment ('deltaInt'/'deltaFloat' = +1) or
+/// decrement (-1) of mutable variable 'vname', writing the new value back
+/// into 'env.Mutables'. 'returnOld' selects postfix semantics (the
+/// expression's value is the variable's value *before* the update) versus
+/// prefix semantics (the value *after* the update).
+and internal reduceIncrDcr (env: RuntimeEnv<'E,'T>)
+                           (node: Node<'E,'T>)
+                           (vname: string)
+                           (deltaInt: int)
+                           (deltaFloat: float32)
+                           (returnOld: bool) : Option<RuntimeEnv<'E,'T> * Node<'E,'T>> =
+    match (env.Mutables.TryFind vname) with
+    | Some({Expr = IntVal v} as old) ->
+        let newVal = {node with Expr = IntVal(v + deltaInt)}
+        Some({env with Mutables = env.Mutables.Add(vname, newVal)}, (if returnOld then old else newVal))
+    | Some({Expr = FloatVal v} as old) ->
+        let newVal = {node with Expr = FloatVal(v + deltaFloat)}
+        Some({env with Mutables = env.Mutables.Add(vname, newVal)}, (if returnOld then old else newVal))
+    | _ -> None
+
+/// Reduce a compound assignment ('vname' <op>= 'rhs') for mutable variable
+/// 'vname', writing the new value back into 'env.Mutables'.  'rebuild' turns
+/// a reduced rhs back into the same compound-assignment 'Expr' case, so this
+/// helper can keep stepping through a not-yet-reduced 'rhs' before applying
+/// 'opInt'/'opFloat' once both sides are values.
+and internal reduceCompoundAssign (env: RuntimeEnv<'E,'T>)
+                                  (node: Node<'E,'T>)
+                                  (vname: string)
+                                  (rhs: Node<'E,'T>)
+                                  (rebuild: Node<'E,'T> -> Expr<'E,'T>)
+                                  (opInt: int -> int -> int)
+                                  (opFloat: float32 -> float32 -> float32) : Option<RuntimeEnv<'E,'T> * Node<'E,'T>> =
+    if not (isValue rhs) then
+        match (reduce env rhs) with
+        | Some(env', rhs') -> Some(env', {node with Expr = rebuild rhs'})
+        | None -> None
+    else
+        match (env.Mutables.TryFind vname, rhs.Expr) with
+        | Some({Expr = IntVal v1}), IntVal(v2) ->
+            let newVal = {node with Expr = IntVal(opInt v1 v2)}
+            Some({env with Mutables = env.Mutables.Add(vname, newVal)}, newVal)
+        | Some({Expr = FloatVal v1}), FloatVal(v2) ->
+            let newVal = {node with Expr = FloatVal(opFloat v1 v2)}
+            Some({env with Mutables = env.Mutables.Add(vname, newVal)}, newVal)
+        | _ -> None
 
 /// Attempt to reduce the given lhs, and then (if the lhs is a value) the rhs,
 /// using the given runtime environment.  Return None if either (a) the lhs
