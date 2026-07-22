@@ -411,6 +411,25 @@ let rec internal reduce (env: RuntimeEnv<'E,'T>)
                 Some(env', {node with Expr = Sqrt(arg')})
             | None -> None
 
+    | Neg(arg) ->
+        match arg.Expr with
+        | IntVal(v) -> Some(env, {node with Expr = IntVal(-v)})
+        | FloatVal(v) -> Some(env, {node with Expr = FloatVal(-v)})
+        | _ ->
+            match (reduce env arg) with
+            | Some(env', arg') ->
+                Some(env', {node with Expr = Neg(arg')})
+            | None -> None
+
+    | StringLength(arg) ->
+        match arg.Expr with
+        | StringVal(v) -> Some(env, {node with Expr = IntVal(v.Length)})
+        | _ ->
+            match (reduce env arg) with
+            | Some(env', arg') ->
+                Some(env', {node with Expr = StringLength(arg')})
+            | None -> None
+
     | If(cond, ifTrue, ifFalse) ->
         match cond.Expr with
         | BoolVal(v) ->

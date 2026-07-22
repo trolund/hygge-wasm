@@ -143,6 +143,8 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
                                ("rhs", formatASTRec rhs)]
     | Not(arg) ->
         mkTree "Not" node [("arg", formatASTRec arg)]
+    | Neg(arg) ->
+        mkTree "Neg" node [("arg", formatASTRec arg)]
     | CSIncr(arg) -> 
         mkTree "CsIncr" node [("arg", formatASTRec arg)]
     | CSDcr(arg) -> 
@@ -153,6 +155,23 @@ let rec internal formatASTRec (node: AST.Node<'E,'T>): Tree =
     | MinAsg(lhs, rhs) ->
         mkTree "MinAsg" node [("lhs", formatASTRec lhs)
                               ("rhs", formatASTRec rhs)]
+    | MulAsg(lhs, rhs) ->
+        mkTree "MulAsg" node [("lhs", formatASTRec lhs)
+                              ("rhs", formatASTRec rhs)]
+    | DivAsg(lhs, rhs) ->
+        mkTree "DivAsg" node [("lhs", formatASTRec lhs)
+                              ("rhs", formatASTRec rhs)]
+    | RemAsg(lhs, rhs) ->
+        mkTree "RemAsg" node [("lhs", formatASTRec lhs)
+                              ("rhs", formatASTRec rhs)]
+    | PreIncr(arg) ->
+        mkTree "PreIncr" node [("arg", formatASTRec arg)]
+    | PostIncr(arg) ->
+        mkTree "PostIncr" node [("arg", formatASTRec arg)]
+    | PreDcr(arg) ->
+        mkTree "PreDcr" node [("arg", formatASTRec arg)]
+    | PostDcr(arg) ->
+        mkTree "PostDcr" node [("arg", formatASTRec arg)]
     | Eq(lhs, rhs) ->
         mkTree "Eq" node [("lhs", formatASTRec lhs)
                           ("rhs", formatASTRec rhs)]

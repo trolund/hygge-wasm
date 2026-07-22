@@ -1,0 +1,4 @@
+let x: int = 5;
+assert(x <= 5);
+assert(x <= 6);
+assert(not (x <= 4))

@@ -54,20 +54,22 @@ let rec subst (node: Node<'E,'T>) (var: string) (sub: Node<'E,'T>): Node<'E,'T> 
         {node with Expr = ShortOr((subst lhs var sub), (subst rhs var sub))}
     | Not(arg) ->
         {node with Expr = Not(subst arg var sub)}
+    | Neg(arg) ->
+        {node with Expr = Neg(subst arg var sub)}
     | CSIncr(arg) ->
         {node with Expr = CSIncr(subst arg var sub)}
     | CSDcr(arg) ->
-        {node with Expr = CSIncr(subst arg var sub)}
+        {node with Expr = CSDcr(subst arg var sub)}
     | AddAsg(lhs, rhs) ->
         {node with Expr = AddAsg((subst lhs var sub), (subst rhs var sub))}
     | MinAsg(lhs, rhs) ->
-        {node with Expr = MinAsg((subst lhs var sub), (subst rhs var sub))}        
+        {node with Expr = MinAsg((subst lhs var sub), (subst rhs var sub))}
     | Eq(lhs, rhs) ->
         {node with Expr = Eq((subst lhs var sub), (subst rhs var sub))}
     | Less(lhs, rhs) ->
         {node with Expr = Less((subst lhs var sub), (subst rhs var sub))}
     | LessOrEq(lhs, rhs) ->
-        {node with Expr = Less((subst lhs var sub), (subst rhs var sub))}
+        {node with Expr = LessOrEq((subst lhs var sub), (subst rhs var sub))}
     | Greater(lhs, rhs ) ->
         {node with Expr = Greater((subst lhs var sub), (subst rhs var sub))}
     | GreaterOrEq(lhs, rhs ) ->

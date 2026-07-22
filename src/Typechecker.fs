@@ -500,17 +500,25 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
     | PreDcr(arg) ->
         match (typer env arg) with
         | Ok(targ) when (isSubtypeOf env targ.Type TInt) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = TInt
-                  Expr = PreDcr(targ) }
+            match targ.Expr with
+            | Var(name) when (env.Mutables.Contains name) ->
+                Ok
+                    { Pos = node.Pos
+                      Env = env
+                      Type = TInt
+                      Expr = PreDcr(targ) }
+            | Var(name) -> Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "c-style decrement: target must be a mutable variable") ])
         | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = TFloat
-                  Expr = PreDcr(targ) }
+            match targ.Expr with
+            | Var(name) when (env.Mutables.Contains name) ->
+                Ok
+                    { Pos = node.Pos
+                      Env = env
+                      Type = TFloat
+                      Expr = PreDcr(targ) }
+            | Var(name) -> Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "c-style decrement: target must be a mutable variable") ])
         | Ok(arg) ->
             Error(
                 [ (node.Pos,
@@ -521,17 +529,25 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
     | PreIncr(arg) ->
         match (typer env arg) with
         | Ok(targ) when (isSubtypeOf env targ.Type TInt) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = TInt
-                  Expr = PreIncr(targ) }
+            match targ.Expr with
+            | Var(name) when (env.Mutables.Contains name) ->
+                Ok
+                    { Pos = node.Pos
+                      Env = env
+                      Type = TInt
+                      Expr = PreIncr(targ) }
+            | Var(name) -> Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "c-style increment: target must be a mutable variable") ])
         | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
-            Ok
-                { Pos = node.Pos
-                  Env = env
-                  Type = TFloat
-                  Expr = PreIncr(targ) }
+            match targ.Expr with
+            | Var(name) when (env.Mutables.Contains name) ->
+                Ok
+                    { Pos = node.Pos
+                      Env = env
+                      Type = TFloat
+                      Expr = PreIncr(targ) }
+            | Var(name) -> Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "c-style increment: target must be a mutable variable") ])
         | Ok(arg) ->
             Error(
                 [ (node.Pos,
@@ -552,6 +568,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                           Expr = PostDcr(targ) }
                 else
                     Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "c-style decrement: target must be a mutable variable") ])
         | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
             match targ.Expr with
             | Var(name) ->
@@ -563,6 +580,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                           Expr = PostDcr(targ) }
                 else
                     Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "c-style decrement: target must be a mutable variable") ])
         | Ok(arg) ->
             Error(
                 [ (node.Pos,
@@ -583,6 +601,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                           Expr = PostIncr(targ) }
                 else
                     Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "c-style increment: target must be a mutable variable") ])
         | Ok(targ) when (isSubtypeOf env targ.Type TFloat) ->
             match targ.Expr with
             | Var(name) ->
@@ -594,6 +613,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                           Expr = PostIncr(targ) }
                 else
                     Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "c-style increment: target must be a mutable variable") ])
         | Ok(arg) ->
             Error(
                 [ (node.Pos,
@@ -615,6 +635,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                           Expr = AddAsg(tlhs, trhs) }
                 else
                     Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "assign addition: target must be a mutable variable") ])
         | Error(es) -> Error(es)
 
     | MinAsg(lhs, rhs) ->
@@ -630,6 +651,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                           Expr = MinAsg(tlhs, trhs) }
                 else
                     Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "assign minus: target must be a mutable variable") ])
         | Error(es) -> Error(es)
 
     | MulAsg(lhs, rhs) ->
@@ -645,6 +667,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                           Expr = MulAsg(tlhs, trhs) }
                 else
                     Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "assign multiplication: target must be a mutable variable") ])
         | Error(es) -> Error(es)
 
     | DivAsg(lhs, rhs) ->
@@ -660,6 +683,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                           Expr = DivAsg(tlhs, trhs) }
                 else
                     Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+            | _ -> Error([ (node.Pos, "assign division: target must be a mutable variable") ])
         | Error(es) -> Error(es)
 
     | RemAsg(lhs, rhs) ->
@@ -677,6 +701,7 @@ let rec internal typer (env: TypingEnv) (node: UntypedAST) : TypingResult =
                               Expr = RemAsg(tlhs, trhs) }
                     else
                         Error([ (node.Pos, $"assignment to non-mutable variable %s{name}") ])
+                | _ -> Error([ (node.Pos, "assign remainder division: target must be a mutable variable") ])
             | t -> Error([ node.Pos, $"remainder division can only be done between integers" + $"found type %O{t}" ])
         | Error(es) -> Error(es)
 
