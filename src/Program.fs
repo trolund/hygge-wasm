@@ -168,7 +168,7 @@ let rec internal interpret (opt: CmdLine.InterpreterOptions) : int =
                 else
                     doInterpret tast (opt.LogLevel = Log.LogLevel.debug || opt.Verbose)
 
-let writeOutFile fileName asm =
+let writeOutFile fileName (asm: string) =
     try
         System.IO.File.WriteAllText(fileName, asm)
         0 // Success!
